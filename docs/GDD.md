@@ -59,9 +59,11 @@ This differs from the Jandé game's chain (Blender + Hyper3D Rodin + manual rig)
 
 ### Animation usage split
 
-**In scope (8 side-view animations):**
-- `Sword Idle` — functions as the base walk/idle loop (frames show a walking bob, not a sword stance; "Sword" is just AutoSprite's preset label, not indicative of function)
-- `Jog`, `Sprint Enter`, `Sprint Exit`, `Roll`, `Jump Start`, `Jump Land`, `Hit`, `Death`
+**In scope (9 side-view animations) — composed and ready:**
+- `Sword Idle` → `idle` — functions as the base walk/idle loop (frames show a walking bob, not a sword stance; "Sword" is just AutoSprite's preset label, not indicative of function)
+- `Jog`, `Sprint Enter` → `sprintEnter`, `Sprint Exit` → `sprintExit`, `Roll`, `Jump Start` → `jumpStart`, `Jump Land` → `jumpLand`, `Hit`, `Death`
+
+**Composed game-ready spritesheet:** `src/assets/sprites/will-hill.png` + `will-hill.atlas.json` (9 rows × 24 frames, 256×256 cells — each source sheet's 25th frame duplicates frame 0 as a loop-closer, so it's dropped). Built by `tools/compose_player_sheet.py` from the raw export in `assets/raw-sprites/will-hill/` (git-ignored); re-run that script any time the source frames change. Imported in `src/entities/player.js` as `PLAYER_SPRITE`.
 
 **Archived, not wired into the engine (11 side-view animations):**
 `Sword Attack`, `Sword Block`, `Sword Enter`, `Sword Exit`, `Slash A`, `Slash B`, `Slash C`, `Combo`, `Kick`, `Punch` — kept in the raw asset export (already generated, cheap to keep) but excluded from the composed game-ready spritesheet.

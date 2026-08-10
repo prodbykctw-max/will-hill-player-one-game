@@ -1,0 +1,55 @@
+{
+  "frameSize": [
+    256,
+    256
+  ],
+  "cols": 24,
+  "animations": {
+    "idle": {
+      "row": 0,
+      "frameCount": 24,
+      "loop": true,
+      "note": "functions as the base walk/idle loop despite the AutoSprite preset name"
+    },
+    "jog": {
+      "row": 1,
+      "frameCount": 24,
+      "loop": true
+    },
+    "sprintEnter": {
+      "row": 2,
+      "frameCount": 24,
+      "loop": true
+    },
+    "sprintExit": {
+      "row": 3,
+      "frameCount": 24,
+      "loop": true
+    },
+    "roll": {
+      "row": 4,
+      "frameCount": 24,
+      "loop": true
+    },
+    "jumpStart": {
+      "row": 5,
+      "frameCount": 24,
+      "loop": true
+    },
+    "jumpLand": {
+      "row": 6,
+      "frameCount": 24,
+      "loop": true
+    },
+    "hit": {
+      "row": 7,
+      "frameCount": 24,
+      "loop": true
+    },
+    "death": {
+      "row": 8,
+      "frameCount": 24,
+      "loop": true
+    }
+  }
+}

@@ -14,7 +14,10 @@ npm-debug.log*
 # Real reference assets (photos, 3D source, raw AutoSprite/Tripo3D exports) —
 # never committed. See docs/GDD.md "Character asset pipeline" for the chain
 # these come from, and README.md for where they live locally.
-assets/
+# Anchored to repo root (leading slash) — composed game-ready output lives in
+# src/assets/ (a different directory, also named "assets") and IS committed;
+# an unanchored "assets/" here would incorrectly swallow that too.
+/assets/
 
 # Claude Code project settings — local only, never shared via the repo.
 .claude/
