@@ -1,9 +1,17 @@
 {
   "frameSize": [
+    184,
+    224
+  ],
+  "cols": 24,
+  "sourceCellSize": [
     256,
     256
   ],
-  "cols": 24,
+  "origin": [
+    41,
+    32
+  ],
   "animations": {
     "idle": {
       "row": 0,
