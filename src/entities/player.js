@@ -1,5 +1,5 @@
-// Will Hill — player entity. See docs/GDD.md "Character asset pipeline" for
-// the sprite source and which animations are in scope.
+// Will Hill — player entity + controller. See docs/GDD.md "Character asset
+// pipeline" for the sprite source and which animations are in scope.
 //
 // Composed game-ready spritesheet + atlas (built by tools/compose_player_sheet.py
 // from assets/raw-sprites/will-hill/, see that script for regeneration):
@@ -14,11 +14,22 @@
 // Kick, Punch, and both "Street Ninja" attack sheets) — archived, not wired
 // in. Will Hill defeats enemies by jumping on them (Mario-style stomp), not
 // by attacking.
+//
+// Movement controller (`stepPlayer`) is a direct port of Jandé's per-tick
+// player physics (once-upon-a-time/index.html ~line 1526-1558, 1670-1673):
+// lerp-toward-target horizontal movement, buffered+coyote-time jump with a
+// double jump, dash (mapped here onto the `roll` animation since that's the
+// clip Will Hill's spritesheet actually has — same role as Jandé's dash:
+// speed burst + i-frames). No strike/attack branch — no combat.
 
+import { GRAV, TERMINAL_VY, PW, PH, RUN_SPEED, ACCEL, DECEL, JUMP_V, DOUBLE_JUMP_V, JUMP_CUT_VY, COYOTE_TICKS, JUMP_BUFFER_TICKS, DASH_VX, DASH_TICKS, DASH_IFRAMES, DASH_COOLDOWN } from '../core/physics.js';
+import { collideH, collideV } from '../world/tilemap.js';
 import spriteSheetUrl from '../assets/sprites/will-hill.webp';
 import atlas from '../assets/sprites/will-hill.atlas.json';
 
 export const PLAYER_SPRITE = { url: spriteSheetUrl, atlas };
+
+const CONTACT_IFRAMES = 75; // ticks, matches Jandé's p.inv=75 on taking a hit
 
 export function createPlayer(x, y) {
   return {
@@ -26,19 +37,136 @@ export function createPlayer(x, y) {
     y,
     vx: 0,
     vy: 0,
-    w: 32,
-    h: 48,
-    grounded: false,
-    invulnerableUntil: 0, // set by champagne-bottle pickup: now + 30s
+    w: PW,
+    h: PH,
+    faceL: false,
+    onGround: false,
+    onWall: false,
+    wallDir: 0,
+
+    coyote: 0,
+    jumpBuffer: 0,
+    airJumps: 1,
+
+    dashing: false,
+    dashT: 0,
+    dashVx: 0,
+    dashCd: 0,
+
+    inv: 0, // i-frame ticks remaining (dash / just-got-hit)
+    invulnerableUntil: 0, // ms timestamp — champagne bottle 30s power-up, separate from i-frame ticks
+
+    hearts: 3,
+    maxHearts: 3,
+    dead: false,
+
     anim: 'idle', // key into PLAYER_SPRITE.atlas.animations
+    animT: 0,
     frame: 0,
+
+    _lastJumpHeld: false,
   };
 }
 
 export function isInvulnerable(player, now) {
-  return now < player.invulnerableUntil;
+  return now < player.invulnerableUntil || player.inv > 0;
 }
 
 export function grantInvulnerability(player, now, seconds = 30) {
   player.invulnerableUntil = now + seconds * 1000;
+}
+
+// Contact with an enemy (not a stomp) — 1 heart, knockback, brief i-frames.
+// Returns false if the hit was absorbed by invulnerability (champagne or
+// still in post-hit i-frames). `sourceX` (optional) is the enemy's x, used
+// to knock the player away from it; falls back to facing direction.
+export function damage(p, now, sourceX) {
+  if (isInvulnerable(p, now)) return false;
+  p.hearts--;
+  p.inv = CONTACT_IFRAMES;
+  const dir = sourceX != null ? (p.x < sourceX ? -1 : 1) : p.faceL ? 1 : -1;
+  p.vx = dir * 6;
+  p.vy = -7;
+  p.anim = 'hit';
+  if (p.hearts <= 0) p.dead = true;
+  return true;
+}
+
+// Per-tick controller. Call once per fixed physics step (see core/loop.js).
+export function stepPlayer(p, input, map) {
+  if (p.dead) return;
+
+  // horizontal movement: lerp toward target velocity
+  const tgt = input.right() ? RUN_SPEED : input.left() ? -RUN_SPEED : 0;
+  const k = tgt === 0 ? DECEL : ACCEL;
+  p.vx += (tgt - p.vx) * k;
+  if (tgt === 0 && p.onGround && Math.abs(p.vx) < 0.6) p.vx = 0;
+  if (tgt !== 0) p.faceL = tgt < 0;
+
+  // coyote time
+  if (p.onGround) p.coyote = COYOTE_TICKS;
+  else if (p.coyote > 0) p.coyote--;
+
+  // buffered jump input
+  const jumpHeld = input.jump();
+  if (jumpHeld && !p._lastJumpHeld) p.jumpBuffer = JUMP_BUFFER_TICKS;
+  p._lastJumpHeld = jumpHeld;
+  if (p.jumpBuffer > 0) {
+    if (p.onGround || p.coyote > 0) {
+      p.vy = JUMP_V;
+      p.onGround = false;
+      p.coyote = 0;
+      p.airJumps = 1;
+      p.jumpBuffer = 0;
+    } else if (p.airJumps > 0) {
+      p.vy = DOUBLE_JUMP_V;
+      p.airJumps--;
+      p.jumpBuffer = 0;
+    } else {
+      p.jumpBuffer--;
+    }
+  }
+  if (!jumpHeld && p.vy < JUMP_CUT_VY) p.vy = JUMP_CUT_VY; // variable jump height
+
+  // dash (roll)
+  if (input.dash() && p.dashCd <= 0 && !p.dashing) {
+    p.dashing = true;
+    p.dashT = DASH_TICKS;
+    p.dashVx = p.faceL ? -DASH_VX : DASH_VX;
+    p.dashCd = DASH_COOLDOWN;
+    p.inv = Math.max(p.inv, DASH_IFRAMES);
+  }
+  if (p.dashing) {
+    p.vx = p.dashVx;
+    p.vy *= 0.2;
+    p.dashT--;
+    if (p.dashT <= 0) p.dashing = false;
+  }
+  if (p.dashCd > 0) p.dashCd--;
+  if (p.inv > 0) p.inv--;
+
+  // gravity
+  p.vy = Math.min(p.vy + GRAV, TERMINAL_VY);
+
+  // move + collide, one axis at a time
+  p.x += p.vx;
+  collideH(map, p, p.w, p.h);
+  const wasAirborne = !p.onGround;
+  p.x = Math.max(0, p.x);
+  p.y += p.vy;
+  collideV(map, p, p.w, p.h);
+  if (wasAirborne && p.onGround) p.airJumps = 1; // landed — refill double jump
+
+  // animation state (frame advance is the renderer's job)
+  if (p.inv > CONTACT_IFRAMES - 12) {
+    p.anim = 'hit'; // brief hit-reaction window right after taking damage
+  } else if (p.dashing) {
+    p.anim = 'roll';
+  } else if (!p.onGround) {
+    p.anim = p.vy < 0 ? 'jumpStart' : 'jumpLand';
+  } else if (Math.abs(p.vx) > 0.5) {
+    p.anim = 'jog';
+  } else {
+    p.anim = 'idle';
+  }
 }

@@ -1,0 +1,33 @@
+{
+  "frameSize": [
+    209,
+    256
+  ],
+  "cols": 16,
+  "sourceCellSize": [
+    256,
+    256
+  ],
+  "origin": [
+    16,
+    0
+  ],
+  "animations": {
+    "idle": {
+      "row": 0,
+      "frameCount": 16,
+      "loop": true
+    },
+    "walk": {
+      "row": 1,
+      "frameCount": 16,
+      "loop": true
+    },
+    "defeat": {
+      "row": 2,
+      "frameCount": 16,
+      "loop": false,
+      "note": "plays once when stomped, then the enemy despawns"
+    }
+  }
+}

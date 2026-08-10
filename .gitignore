@@ -24,6 +24,8 @@ npm-debug.log*
 
 # Local capture/debug output
 tools/captures/
+__pycache__/
+*.pyc
 
 # Cloudflare
 .wrangler/
