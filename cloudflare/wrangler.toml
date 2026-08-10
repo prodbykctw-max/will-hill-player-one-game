@@ -1,0 +1,9 @@
+name = "will-hill-leaderboard"
+main = "leaderboard-worker.js"
+compatibility_date = "2026-08-10"
+
+# TODO: create the KV namespace and fill in its id before deploying —
+# see README.md. Not created yet (manual, explicitly-confirmed step).
+[[kv_namespaces]]
+binding = "LB"
+id = "TODO_CREATE_KV_NAMESPACE"

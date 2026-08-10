@@ -1,0 +1,27 @@
+node_modules/
+dist/
+.vite/
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+npm-debug.log*
+*.log
+.env
+.env.local
+
+# Real reference assets (photos, 3D source, raw AutoSprite/Tripo3D exports) —
+# never committed. See docs/GDD.md "Character asset pipeline" for the chain
+# these come from, and README.md for where they live locally.
+assets/
+
+# Claude Code project settings — local only, never shared via the repo.
+.claude/
+
+# Local capture/debug output
+tools/captures/
+
+# Cloudflare
+.wrangler/
+cloudflare/.wrangler/
