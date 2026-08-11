@@ -53,7 +53,8 @@ To appear in the end-credits sequence, alongside the **Rare Agency logo** and
 
 **`prodbyKCTW`.** One token. Lowercase `prodby`, uppercase `KCTW`.
 
-`KCTW` is an acronym — **K**nowledge **C**hange **T**he **W**orld — so it never
+`KCTW` is an acronym — **K**nowledge **C**hanged **T**he **W**orld, past tense,
+confirmed from the logo artwork — so it never
 gets split into "KC TW", and the capitals are not decorative. It is written the
 same way in every credit, sound and development alike; there is no separate
 sound-credit wording.

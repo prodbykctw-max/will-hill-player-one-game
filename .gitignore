@@ -42,6 +42,10 @@ npm-debug.log*
 # KEPT — irreplaceable. The v1 SIDESCROLLER export. Regenerating these means
 # paying AutoSprite credits again and risking a different result;
 # tools/compose_player_sheet.py cannot run without them.
+# prodbyKCTW's logo — a brand mark, not made here and not regenerable. Same
+# rule as the voice memo: if losing it means the work cannot be rebuilt, keep
+# it. The end credits cannot ship without it.
+!/assets/brand/
 !/assets/raw-sprites/
 
 # Claude Code project settings — local only, never shared via the repo.

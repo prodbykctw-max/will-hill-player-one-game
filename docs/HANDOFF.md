@@ -17,7 +17,8 @@ is 90% right is worse than no doc, because nobody knows which 90%.
 ## Names
 
 **prodbyKCTW** — the developer. One token: lowercase `prodby`, uppercase
-`KCTW`, an acronym for **K**nowledge **C**hange **T**he **W**orld. It does not
+`KCTW`, an acronym for **K**nowledge **C**hanged **T**he **W**orld — PAST TENSE,
+read off the logo artwork, which is the authority. It does not
 come apart into "KC TW". Legal name Melvin D. Brown III, which belongs on
 paperwork, not on screen.
 
