@@ -71,16 +71,46 @@ def measure_fit(frames, box):
     """
     minx, miny, maxx, maxy = box
     cell_h = maxy - miny
-    top, bot = None, 0
+    top, bot, plant = None, 0, 0
     for f in frames:
-        bb = _solid_bbox(f.crop((minx, miny, maxx, maxy)))
+        cell = f.crop((minx, miny, maxx, maxy))
+        bb = _solid_bbox(cell)
         if not bb:
             continue
         top = bb[1] if top is None else min(top, bb[1])
         bot = max(bot, bb[3])
+
+        # BASELINE = the MIDPOINT BETWEEN THE TWO FEET, not the lowest pixel.
+        #
+        # These are isometric 3/4 poses, so the character stands on an angled
+        # ground plane and the far foot is drawn well above the near one — 29px
+        # apart in the idle frame, 12% of the cell. Anchoring to the lowest
+        # pixel plants the near foot perfectly and leaves the far foot visibly
+        # hovering. Splitting the difference sets the near foot slightly into
+        # the pavement band (where it reads as being in front of the kerb) and
+        # brings the far foot down to the surface, so neither floats.
+        px = cell.load()
+        cw = cell.width
+        cols = {}
+        for x in range(cw):
+            for y in range(cell.height - 1, -1, -1):
+                if px[x, y][3] >= ALPHA_FLOOR:
+                    cols[x] = y
+                    break
+        if cols:
+            xs = sorted(cols)
+            mid_x = (xs[0] + xs[-1]) // 2
+            left = [cols[x] for x in xs if x < mid_x] or [0]
+            right = [cols[x] for x in xs if x >= mid_x] or [0]
+            plant = max(plant, (max(left) + max(right)) / 2)
+
     if top is None:
         return {'h': 1.0, 'b': 1.0}
-    return {'h': round((bot - top) / cell_h, 4), 'b': round(bot / cell_h, 4)}
+    return {
+        'h': round((bot - top) / cell_h, 4),
+        'b': round(plant / cell_h, 4),   # where the feet are PLANTED
+        'bLow': round(bot / cell_h, 4),  # lowest pixel, kept for reference
+    }
 
 
 def pack_sheet(rows, box, frame_count):

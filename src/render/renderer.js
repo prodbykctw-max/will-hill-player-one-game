@@ -26,15 +26,20 @@ const SIDEWALK_LIT = '#a8a69d';
 const CURB = '#5c5a55';
 const FRONT_FACE_H = 13; // world units of 2.5D depth on floating platforms
 
-// FOOTPLANT — how far below the collision surface a character is DRAWN.
+// FOOTPLANT — a small extra sink below the collision surface.
 //
-// Collision puts the feet exactly on the tile's top edge, which is
-// arithmetically right and visually wrong: the sidewalk cap is the pavement's
-// top surface receding in perspective, so its top edge is the FAR side of the
-// pavement, not the near one. Feet planted there read as balancing on a kerb
-// lip — the "floating" look. Sinking the draw by the cap's depth puts them on
-// the pavement instead. Collision is untouched; this is purely how it reads.
-const FOOTPLANT = Math.round(T * 0.28) + 3;
+// Most of the planting now happens in the atlas: `fitRef.b` is the MIDPOINT
+// BETWEEN THE CHARACTER'S TWO FEET rather than his lowest pixel, because
+// these are isometric 3/4 poses whose far foot sits ~29px above the near one.
+// Anchoring on the lowest pixel planted the near foot and left the far one
+// hovering. With the midpoint anchored, the near foot settles into the
+// sidewalk band and the far foot meets the surface.
+//
+// This constant only adds the last couple of units so the stance sits ON the
+// pavement rather than on its top edge. It was 12 when the atlas anchored to
+// the lowest pixel; stacking that on top of the new baseline would bury him.
+// Collision is untouched — purely how it reads.
+const FOOTPLANT = 2;
 
 export function createRenderer(ctx, canvas) {
   const lighting = createLighting(ctx);

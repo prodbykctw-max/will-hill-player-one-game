@@ -19,7 +19,8 @@
       "loop": true,
       "fit": {
         "h": 0.9722,
-        "b": 0.9921
+        "b": 0.9782,
+        "bLow": 0.9921
       }
     },
     "walk": {
@@ -28,7 +29,8 @@
       "loop": true,
       "fit": {
         "h": 0.9841,
-        "b": 0.9921
+        "b": 0.9841,
+        "bLow": 0.9921
       }
     },
     "defeat": {
@@ -37,13 +39,15 @@
       "loop": false,
       "fit": {
         "h": 0.8968,
-        "b": 0.9603
+        "b": 0.9524,
+        "bLow": 0.9603
       },
       "note": "plays once when stomped, then the enemy despawns"
     }
   },
   "fitRef": {
     "h": 0.9722,
-    "b": 0.9921
+    "b": 0.9782,
+    "bLow": 0.9921
   }
 }

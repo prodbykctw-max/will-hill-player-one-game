@@ -125,10 +125,15 @@ export const STAGES = [
       windBands: [{ top: 0.02, pivot: 0.34, amp: 2.5, freq: 1.4, xRanges: [[0.00, 0.05]] }],
       // Neon bar frontage — the pink/violet signs are the light source here.
       lights: [
-        { x: 0.13, y: 0.52, r: 0.34, rgb: '255,150,60',  a: 0.20, flicker: 0.020 },
-        { x: 0.86, y: 0.52, r: 0.34, rgb: '255,70,90',   a: 0.20, flicker: 0.017 },
-        { x: 0.50, y: 0.40, r: 0.30, rgb: '255,225,190', a: 0.16 },
-        { x: 0.50, y: 0.22, r: 0.40, rgb: '255,190,120', a: 0.10 },
+        // OUR BAR ATL — the amber/violet tube, the steadiest of the three
+        { x: 0.13, y: 0.52, r: 0.34, rgb: '255,150,60',  a: 0.22, flicker: 0.020, relight: 1.15 },
+        // DIS ATL HOE — hot red, and the one with the worst stutter
+        { x: 0.86, y: 0.52, r: 0.34, rgb: '255,70,90',   a: 0.22, flicker: 0.031, relight: 1.30 },
+        // OPEN sign over the door
+        { x: 0.52, y: 0.34, r: 0.16, rgb: '120,180,255', a: 0.18, flicker: 0.044, relight: 1.10 },
+        // string lights along the awning — a fast, shallow shimmer
+        { x: 0.50, y: 0.26, r: 0.42, rgb: '255,214,150', a: 0.14, flicker: 0.013, relight: 0.7 },
+        { x: 0.50, y: 0.44, r: 0.28, rgb: '255,225,190', a: 0.14 },
       ],
     },
     light: { pool: 'rgba(255,120,190,0.20)', shaft: 'rgba(255,120,190,0.045)', bloom: 'rgba(255,110,180,0.14)', key: '255,190,220', bounce: '140,60,110', shadowRgb: '18,10,26' },

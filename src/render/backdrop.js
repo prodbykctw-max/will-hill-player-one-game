@@ -215,6 +215,38 @@ export function createBackdrop(ctx, canvas) {
     }
   }
 
+  // Neon relight — a second, tighter pass in 'overlay' so the painted sign
+  // itself brightens and dims, not just the halo around it. A glow alone
+  // reads as fog lit from behind; the tube has to visibly change too.
+  function drawNeonRelight(stage, camera, tick, plate) {
+    const lights = stage.bg.lights;
+    if (!lights || !plate) return;
+    const par = camera.x * camera.zoom * PLATE_PARALLAX;
+    const period = plate.drawW;
+
+    ctx.save();
+    ctx.globalCompositeOperation = 'overlay';
+    for (let li = 0; li < lights.length; li++) {
+      const L = lights[li];
+      if (!L.flicker) continue;
+      const b = 0.5 + 0.5 * Math.sin(tick * L.flicker * 1.7 + li * 2.3);
+      const stutter = Math.sin(tick * L.flicker * 0.11 + li * 4.7) > 0.985;
+      const a = (stutter ? 0.06 : 0.16 + b * 0.20) * (L.relight || 1);
+      const ly = plate.by + plate.drawH * L.y;
+      const r = L.r * plate.drawH * 0.55;
+      for (let rep = -1; rep <= Math.ceil(canvas.width / period) + 1; rep++) {
+        const lx = rep * period + L.x * plate.drawW - pmod(par, period);
+        if (lx < -r || lx > canvas.width + r) continue;
+        const g = ctx.createRadialGradient(lx, ly, 1, lx, ly, r);
+        g.addColorStop(0, `rgba(${L.rgb},${a.toFixed(3)})`);
+        g.addColorStop(1, `rgba(${L.rgb},0)`);
+        ctx.fillStyle = g;
+        ctx.fillRect(lx - r, ly - r, r * 2, r * 2);
+      }
+    }
+    ctx.restore();
+  }
+
   // Make the lighting that's PAINTED INTO the backdrop actually emit: each
   // stage declares where its practicals sit as fractions of the plate, and
   // they bloom, flicker and (via render/lighting.js) light the street and
@@ -230,9 +262,18 @@ export function createBackdrop(ctx, canvas) {
     for (let li = 0; li < lights.length; li++) {
       const L = lights[li];
       // neon/sodium practicals never sit perfectly steady
-      const flick = L.flicker
-        ? 0.78 + 0.22 * Math.sin(tick * L.flicker + li * 2.1) * Math.sin(tick * L.flicker * 0.37 + li)
-        : 1;
+      // Neon doesn't dim smoothly — it buzzes, and a tired tube stutters.
+      // Two beating sines give the buzz; a rare, brief dropout gives the
+      // stutter. Without the dropout a flickering sign reads as a slow pulse,
+      // which is what a lamp does, not a gas tube.
+      let flick = 1;
+      if (L.flicker) {
+        const buzz = 0.80 + 0.20
+          * Math.sin(tick * L.flicker + li * 2.1)
+          * Math.sin(tick * L.flicker * 0.37 + li);
+        const stutter = Math.sin(tick * L.flicker * 0.11 + li * 4.7);
+        flick = stutter > 0.985 ? buzz * 0.35 : buzz;   // brief cut-out
+      }
       const ly = plate.by + plate.drawH * L.y;
       const r = L.r * plate.drawH;
       // repeat with the plate's mirror tiling so a light stays glued to the
@@ -340,6 +381,7 @@ export function createBackdrop(ctx, canvas) {
       bctx.clearRect(0, 0, buf.width, buf.height);
       const plate = drawPlate(bctx, img, stage, camera, groundY);
       blitWithWind(stage, tick, plate);
+      drawNeonRelight(stage, camera, tick, plate);
       drawPractical(stage, camera, tick, plate);
       drawAerialWash(groundY);
       drawRain(stage, camera, tick, groundY);

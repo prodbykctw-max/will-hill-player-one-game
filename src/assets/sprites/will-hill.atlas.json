@@ -19,7 +19,8 @@
       "loop": true,
       "fit": {
         "h": 0.9669,
-        "b": 0.9835
+        "b": 0.9194,
+        "bLow": 0.9835
       },
       "note": "pixel-art Will Hill, side view facing screen-right"
     },
@@ -29,7 +30,8 @@
       "loop": true,
       "fit": {
         "h": 0.9835,
-        "b": 0.9917
+        "b": 0.9649,
+        "bLow": 0.9917
       }
     },
     "jog": {
@@ -38,7 +40,8 @@
       "loop": true,
       "fit": {
         "h": 0.9256,
-        "b": 0.9752
+        "b": 0.9587,
+        "bLow": 0.9752
       }
     },
     "run": {
@@ -47,7 +50,8 @@
       "loop": true,
       "fit": {
         "h": 0.9256,
-        "b": 0.9752
+        "b": 0.9587,
+        "bLow": 0.9752
       }
     },
     "jumpStart": {
@@ -56,7 +60,8 @@
       "loop": false,
       "fit": {
         "h": 0.9421,
-        "b": 0.9669
+        "b": 0.9587,
+        "bLow": 0.9669
       }
     },
     "jumpLand": {
@@ -65,7 +70,8 @@
       "loop": false,
       "fit": {
         "h": 0.9421,
-        "b": 0.9669
+        "b": 0.9587,
+        "bLow": 0.9669
       }
     },
     "roll": {
@@ -74,7 +80,8 @@
       "loop": false,
       "fit": {
         "h": 0.9256,
-        "b": 0.9752
+        "b": 0.9587,
+        "bLow": 0.9752
       }
     },
     "hit": {
@@ -83,7 +90,8 @@
       "loop": true,
       "fit": {
         "h": 0.9669,
-        "b": 0.9835
+        "b": 0.9194,
+        "bLow": 0.9835
       },
       "note": "pixel-art Will Hill, side view facing screen-right"
     },
@@ -93,13 +101,15 @@
       "loop": false,
       "fit": {
         "h": 0.9669,
-        "b": 0.9835
+        "b": 0.9194,
+        "bLow": 0.9835
       },
       "note": "pixel-art Will Hill, side view facing screen-right"
     }
   },
   "fitRef": {
     "h": 0.9669,
-    "b": 0.9835
+    "b": 0.9194,
+    "bLow": 0.9835
   }
 }

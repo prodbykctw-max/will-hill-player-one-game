@@ -21,7 +21,7 @@ import { T, FLOOR_R } from '../world/tilemap.js';
 
 // Must match FOOTPLANT in render/renderer.js — shadows sink with the feet or
 // they visibly detach from the character standing on them.
-const FOOTPLANT = Math.round(T * 0.28) + 3;
+const FOOTPLANT = 2;
 
 // Street-level practicals repeat at this spacing in WORLD units. It is
 // deliberately tied to the backdrop plate's own tiling period so the pools
