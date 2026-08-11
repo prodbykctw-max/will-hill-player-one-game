@@ -320,14 +320,17 @@ function draw() {
   const level = state.level;
   const player = state.player;
   const stage = STAGES[state.stageIndex];
-  const bgImg = images[stage.id];
+  // The stage's image set: `base` plus one entry per multiplane card. Stages
+  // that have not been cut yet just get `base`.
+  const bgImages = { base: images[stage.id] };
+  for (const c of stage.bg.cards || []) bgImages[c.key] = images[`${stage.id}_${c.key}`];
 
   // Paint order mirrors Jandé's: screen-space backdrop, screen-space
   // undercroft, then ONE world-transformed block, then screen-space HUD.
   const groundY = camera.groundScreenY();
   const slabPx = SLAB_R * T * camera.zoom;
 
-  backdrop.drawFar(bgImg, stage, camera, state.tick);
+  backdrop.drawFar(bgImages, stage, camera, state.tick);
   undercroft.draw(stage, groundY, slabPx, camera, state.tick);
 
   renderer.withCameraTransform(camera, () => {
@@ -390,7 +393,10 @@ const imageManifest = {
   champagne: PROP_SPRITES.champagne,
 };
 for (const [v, sp] of Object.entries(ENEMY_SPRITES)) imageManifest['enemy_' + v] = sp.url;
-for (const s of STAGES) imageManifest[s.id] = s.bg.img;
+for (const s of STAGES) {
+  imageManifest[s.id] = s.bg.img;
+  for (const c of s.bg.cards || []) imageManifest[`${s.id}_${c.key}`] = c.img;
+}
 
 loadImages(imageManifest)
   .then((loaded) => {

@@ -28,6 +28,38 @@ import { metersToWorld } from '../world/scale.js';
 // so the spread here is wide (0.10 -> 0.75) rather than Jandé's subtle
 // 0.045 -> 0.157.
 const PLATE_PARALLAX = 0.1;
+
+// ── Multiplane ────────────────────────────────────────────────────────────
+// A stage may ship a set of CARDS instead of one flat plate: the backdrop cut
+// into its individual items by tools/cut_planes.py, each drawn at its own
+// rate. It is the Disney multiplane camera — cut-outs on separate planes,
+// moved at different speeds — and the effect it buys is that the backdrop
+// reads as a space you are walking through rather than a picture sliding past.
+//
+// THE SPREAD IS TINY, AND THAT IS THE ENTIRE TRICK.
+// Every card scrolls at PLATE_PARALLAX. Depth adds only a small DIFFERENCE on
+// top, and that difference is all the eye needs. Two earlier attempts failed
+// in opposite directions and both are worth remembering:
+//
+//   * Wide rates (an early cut ran 0.02 -> 0.62) do not read as depth. They
+//     read as the set falling over: cards slide clean off one another and the
+//     empty base plate shows through the gaps between them.
+//   * Worse, each card wraps on its own phase, so a fast card drifts a whole
+//     plate width over a stage — the tree that starts the level on the left
+//     finishes it on the right. Items have to STAY WHERE THEY ARE.
+//
+// At a 0.010 spread the tree stays within ~77px of home across the whole
+// 7680px stage. It stays its tree, in front of its bit of fence, and merely
+// floats in front of it. MAX_SEPARATION is the hard backstop that makes
+// migration impossible even if the spread is later dialled up.
+const DEPTH_SPREAD = 0.010;
+const MAX_SEPARATION = 90; // px at zoom 1
+
+function cardParallax(camX, depth) {
+  const common = camX * PLATE_PARALLAX;
+  const diff = camX * (depth - 0.5) * DEPTH_SPREAD;
+  return common + Math.max(-MAX_SEPARATION, Math.min(MAX_SEPARATION, diff));
+}
 const RAIN_TIERS = [
   { n: 26, len: 26, speed: 5.2, alpha: 0.1, width: 1.0, par: 0.18 },
   { n: 20, len: 40, speed: 8.5, alpha: 0.16, width: 1.4, par: 0.4 },
@@ -116,7 +148,9 @@ export function createBackdrop(ctx, canvas) {
     const bottom = groundY + 4 * camera.zoom;
     const by = bottom - drawH;
 
-    const par = camera.x * camera.zoom * PLATE_PARALLAX;
+    // The base plate sits at depth 0 — the far wall the cards stand in front
+    // of. On a stage with no cards this is just the old flat plate.
+    const par = cardParallax(camera.x * camera.zoom, 0);
     _par = par;
     // Straight repeat, NOT mirrored. Mirroring hides the seam on a
     // non-tiling image, but these plates are real Atlanta streetscapes full
@@ -152,6 +186,81 @@ export function createBackdrop(ctx, canvas) {
       g.fillRect(0, by, canvas.width, feather);
     }
     return { by, drawH, drawW };
+  }
+
+  // ── Cards ───────────────────────────────────────────────────────────────
+  // One item of the backdrop, cut out by tools/cut_planes.py and drawn at its
+  // own rate. Geometry is shared with the base plate — every card is a
+  // full-frame RGBA image of the same source, so the cutout is already in the
+  // right place and only the horizontal offset differs.
+
+  function drawCardAt(g, img, plate, srcH, x0, sway, tick, seed) {
+    const { by, drawH, drawW } = plate;
+    if (!sway) {
+      g.drawImage(img, 0, 0, img.width, srcH, x0, by, drawW, drawH);
+      return;
+    }
+    // Plant life. The card shears about its own pivot, so the trunk is nailed
+    // down and the crown travels. This is strictly better than the old
+    // plate-relative windBands: those had to pick x-ranges that dodged the
+    // hard architecture sharing the same horizontal band, and still wobbled
+    // the buildings. A card cannot touch anything but itself.
+    const bandTop = by + drawH * (sway.top || 0);
+    const pivotY = by + drawH * sway.pivot;
+    const bandH = Math.max(1, pivotY - bandTop);
+
+    g.save();
+    g.beginPath();
+    g.rect(x0, by, drawW, Math.max(0, bandTop - by));
+    g.rect(x0, pivotY, drawW, Math.max(0, by + drawH - pivotY));
+    g.clip();
+    g.drawImage(img, 0, 0, img.width, srcH, x0, by, drawW, drawH);
+    g.restore();
+
+    // Sections butt together with no overlap. The plate version needed a few
+    // px of it, but a card has a soft alpha edge and overlapping sections
+    // would composite that edge onto itself and print a seam. The gust varies
+    // smoothly across neighbours, so the shear difference between two
+    // touching sections is well under a pixel anyway.
+    const secW = drawW / SECTIONS_PER_RANGE;
+    for (let i = 0; i < SECTIONS_PER_RANGE; i++) {
+      const sx = x0 + i * secW;
+      if (sx + secW < 0 || sx > canvas.width) continue;
+      const k = sway.amp * gustAt(tick, i * secW * 2.7 + seed, sway.freq);
+      g.save();
+      g.beginPath();
+      g.rect(sx, bandTop, secW, bandH);
+      g.clip();
+      g.transform(1, 0, -k / bandH, 1, (k * pivotY) / bandH, 0);
+      g.drawImage(img, 0, 0, img.width, srcH, x0, by, drawW, drawH);
+      g.restore();
+    }
+  }
+
+  function drawCards(g, images, stage, camera, tick, plate) {
+    const cards = stage.bg.cards;
+    if (!cards || !plate) return;
+    const period = plate.drawW;
+    const reps = Math.ceil(canvas.width / period) + 1;
+    for (const card of cards) {
+      const img = images[card.key];
+      if (!img) continue;
+      const srcH = Math.max(1, Math.round(img.height * stage.bg.groundFrac));
+      const par = cardParallax(camera.x * camera.zoom, card.depth);
+      const off = pmod(par, period);
+      for (let rep = -1; rep <= reps; rep++) {
+        const x0 = rep * period - off;
+        if (x0 + period < 0 || x0 > canvas.width) continue;
+        drawCardAt(g, img, plate, srcH, x0, card.sway, tick, rep * 211);
+      }
+    }
+  }
+
+  // Where a practical sits horizontally, given the card it is bolted to — so
+  // the glow travels with the thing that emits it rather than sliding off it.
+  function lightParallax(stage, camera, light) {
+    const card = (stage.bg.cards || []).find((c) => c.key === light.layer);
+    return cardParallax(camera.x * camera.zoom, card ? card.depth : 0);
   }
 
   // Gust curve — two sines beaten together with a squared envelope, so the
@@ -221,7 +330,6 @@ export function createBackdrop(ctx, canvas) {
   function drawNeonRelight(stage, camera, tick, plate) {
     const lights = stage.bg.lights;
     if (!lights || !plate) return;
-    const par = camera.x * camera.zoom * PLATE_PARALLAX;
     const period = plate.drawW;
 
     ctx.save();
@@ -234,6 +342,7 @@ export function createBackdrop(ctx, canvas) {
       const a = (stutter ? 0.06 : 0.16 + b * 0.20) * (L.relight || 1);
       const ly = plate.by + plate.drawH * L.y;
       const r = L.r * plate.drawH * 0.55;
+      const par = lightParallax(stage, camera, L);
       for (let rep = -1; rep <= Math.ceil(canvas.width / period) + 1; rep++) {
         const lx = rep * period + L.x * plate.drawW - pmod(par, period);
         if (lx < -r || lx > canvas.width + r) continue;
@@ -254,7 +363,6 @@ export function createBackdrop(ctx, canvas) {
   function drawPractical(stage, camera, tick, plate) {
     const lights = stage.bg.lights;
     if (!lights || !plate) return;
-    const par = camera.x * camera.zoom * PLATE_PARALLAX;
     const period = plate.drawW;
 
     ctx.save();
@@ -276,8 +384,9 @@ export function createBackdrop(ctx, canvas) {
       }
       const ly = plate.by + plate.drawH * L.y;
       const r = L.r * plate.drawH;
-      // repeat with the plate's mirror tiling so a light stays glued to the
-      // thing that emits it
+      // Repeat on the plate's period, but at the RATE of the card this light
+      // is bolted to, so it stays glued to the thing that emits it.
+      const par = lightParallax(stage, camera, L);
       for (let rep = -1; rep <= Math.ceil(canvas.width / period) + 1; rep++) {
         const lx = rep * period + L.x * plate.drawW - pmod(par, period);
         if (lx < -r || lx > canvas.width + r) continue;
@@ -369,7 +478,9 @@ export function createBackdrop(ctx, canvas) {
 
   return {
     // Everything above the gameplay plane, in paint order.
-    drawFar(img, stage, camera, tick) {
+    // `images` is the stage's image set: `base` plus one entry per card. A
+    // stage with no cards just gets `base` and behaves exactly as before.
+    drawFar(images, stage, camera, tick) {
       const groundY = camera.groundScreenY();
       if (buf.width !== canvas.width || buf.height !== canvas.height) {
         buf.width = canvas.width;
@@ -377,10 +488,14 @@ export function createBackdrop(ctx, canvas) {
       }
       drawSky(stage, groundY);
       // Plate goes to the scratch buffer first so the wind pass can shear it
-      // back in slices without re-deriving the mirror-tiling maths.
+      // back in slices without re-deriving the tiling maths.
       bctx.clearRect(0, 0, buf.width, buf.height);
-      const plate = drawPlate(bctx, img, stage, camera, groundY);
-      blitWithWind(stage, tick, plate);
+      const plate = drawPlate(bctx, images.base, stage, camera, groundY);
+      drawCards(bctx, images, stage, camera, tick, plate);
+      // Cards carry their own sway, so the plate-wide wind pass is only for
+      // stages that have not been cut into a multiplane set yet.
+      if (stage.bg.cards) ctx.drawImage(buf, 0, 0);
+      else blitWithWind(stage, tick, plate);
       drawNeonRelight(stage, camera, tick, plate);
       drawPractical(stage, camera, tick, plate);
       drawAerialWash(groundY);

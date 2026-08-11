@@ -21,7 +21,20 @@
 // references in assets/backgrounds/<id>/ (git-ignored) — see that script
 // for how to regenerate after swapping a reference image.
 
-import bgEav from '../assets/backgrounds/eav.webp';
+// EAV is cut into a multiplane set by tools/cut_planes.py: a base plate with
+// every item lifted off it, plus one card per item. See that script for how
+// the cutting works and src/render/backdrop.js for how the cards are driven.
+import bgEav from '../assets/backgrounds/eav-base.webp';
+import eavSkyline from '../assets/backgrounds/eav-skyline.webp';
+import eavMcdonalds from '../assets/backgrounds/eav-mcdonalds.webp';
+import eavCars from '../assets/backgrounds/eav-cars.webp';
+import eavSwifty from '../assets/backgrounds/eav-swifty.webp';
+import eavCitgo from '../assets/backgrounds/eav-citgo.webp';
+import eavFence from '../assets/backgrounds/eav-fence.webp';
+import eavVerge from '../assets/backgrounds/eav-verge.webp';
+import eavTree from '../assets/backgrounds/eav-tree.webp';
+import eavShrubRight from '../assets/backgrounds/eav-shrub_right.webp';
+import eavPole from '../assets/backgrounds/eav-pole.webp';
 import bgEdgewood from '../assets/backgrounds/edgewood.webp';
 import bgL5p from '../assets/backgrounds/l5p.webp';
 import bgUnderground from '../assets/backgrounds/underground.webp';
@@ -61,39 +74,45 @@ export const STAGES = [
       horizon: '#2a2233',
       glow: 'rgba(255,196,120,0.10)',
       rain: 0.75,
-      // Two independent sway bands, each with its own vertical extent AND
-      // its own horizontal windows. Both are needed: the Citgo canopy, the
-      // Swifty billboard, the fence and the Welcome sign share a vertical
-      // band with the tree crown, so a full-width shear visibly wobbles hard
-      // architecture. Keep these windows tight — the billboard starts at
-      // ~0.13 and the canopy runs to ~0.50.
-      windBands: [
-        {
-          // CANOPY ONLY. The pivot sits at the bottom of the leaf mass, not
-          // partway down the tree — shear is zero at the pivot and grows
-          // upward, so anything below it is untouched and the trunk stays
-          // dead still.
-          top: 0.02, pivot: 0.44, amp: 5, freq: 0.9,
-          xRanges: [[0.00, 0.105]],
-        },
-        {
-          // Low shrubs along the fence, at a shorter lever so less travel at
-          // a quicker frequency. Starts at x 0.085 to clear the trunk
-          // column: the trunk sits below the canopy pivot AND left of this
-          // window, so it falls in NO band and never moves. This band is low
-          // enough (y 0.52+) to miss the billboard entirely.
-          top: 0.52, pivot: 0.92, amp: 2.5, freq: 1.7,
-          xRanges: [[0.085, 0.30]],
-        },
+      // ── The multiplane set, far -> near ──────────────────────────────
+      // `depth` is 0 at the far wall and 1 at the kerb; backdrop.js turns it
+      // into a rate. Nothing here is a scroll speed on purpose: every card
+      // travels at the same base rate and depth only adds a small difference
+      // on top, which is what keeps the picture from coming apart. See
+      // backdrop.js for why the spread is as narrow as it is.
+      //
+      // `sway` replaces the old plate-relative windBands. Shearing a window
+      // of the flat plate meant picking x-ranges that dodged the hard
+      // architecture sharing that band, and it wobbled the buildings anyway.
+      // Now the plant is its own card, so it shears on its own pivot and
+      // cannot touch anything else — the trunk sits at the pivot and stays
+      // dead still while the crown travels.
+      cards: [
+        { key: 'skyline', img: eavSkyline, depth: 0.07 },
+        { key: 'mcdonalds', img: eavMcdonalds, depth: 0.16 },
+        { key: 'cars', img: eavCars, depth: 0.21 },
+        { key: 'swifty', img: eavSwifty, depth: 0.25 },
+        { key: 'citgo', img: eavCitgo, depth: 0.41 },
+        { key: 'fence', img: eavFence, depth: 0.67 },
+        { key: 'verge', img: eavVerge, depth: 0.75,
+          sway: { top: 0.80, pivot: 0.95, amp: 1.4, freq: 2.2 } },
+        { key: 'tree', img: eavTree, depth: 0.81,
+          sway: { top: 0.00, pivot: 0.82, amp: 5, freq: 0.9 } },
+        { key: 'shrub_right', img: eavShrubRight, depth: 0.85,
+          sway: { top: 0.66, pivot: 0.85, amp: 2.5, freq: 1.7 } },
+        { key: 'pole', img: eavPole, depth: 1.00 },
       ],
       // Practicals actually visible in the art: the Citgo canopy soffit, the
       // backlit Swifty billboard, the McDonald's sign, and the uplighters
       // washing the fence.
+      // `layer` names the card the practical is bolted to, so the glow travels
+      // with the thing that emits it instead of sliding off it. A light with no
+      // layer rides the base plate.
       lights: [
-        { x: 0.30, y: 0.36, r: 0.42, rgb: '255,208,140', a: 0.20 },
-        { x: 0.15, y: 0.14, r: 0.30, rgb: '190,215,255', a: 0.12 },
-        { x: 0.93, y: 0.42, r: 0.26, rgb: '255,196,90',  a: 0.16, flicker: 0.012 },
-        { x: 0.60, y: 0.92, r: 0.24, rgb: '255,180,90',  a: 0.18 },
+        { x: 0.30, y: 0.36, r: 0.42, rgb: '255,208,140', a: 0.20, layer: 'citgo' },
+        { x: 0.15, y: 0.14, r: 0.30, rgb: '190,215,255', a: 0.12, layer: 'swifty' },
+        { x: 0.93, y: 0.42, r: 0.26, rgb: '255,196,90',  a: 0.16, flicker: 0.012, layer: 'mcdonalds' },
+        { x: 0.60, y: 0.92, r: 0.24, rgb: '255,180,90',  a: 0.18, layer: 'fence' },
       ],
     },
     light: { pool: 'rgba(255,186,96,0.20)', shaft: 'rgba(255,186,96,0.045)', bloom: 'rgba(255,180,90,0.13)', key: '255,206,150', bounce: '150,120,70', shadowRgb: '20,14,30' },

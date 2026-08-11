@@ -8,47 +8,75 @@ file covers what a fresh session needs that isn't obvious from the code.
 
 ---
 
-## The one thing to get right next: background depth layers
+## Background depth: SOLVED — multiplane cards (EAV done, 3 stages to go)
 
-**What the client wants, in their words:** as you walk left→right, the Swifty
-billboard should slowly disappear *behind* the Citgo building. The whole
-fence (Welcome sign included) is one plane. Sky is another. Things at the
-same **distance** belong to the same layer — the unit is distance, not
-object.
+EAV is cut into 10 individually-isolated items plus a base plate, each drawn
+at its own rate. `tools/cut_planes.py` does the cutting, `src/render/
+backdrop.js` drives it, `src/world/stages.js` holds the depths. The other
+three stages have not been cut yet and fall back to the old flat plate
+automatically.
 
-**Two attempts have been made and BOTH were rejected. Do not repeat them:**
+**What the client actually wanted**, arrived at over a long back-and-forth
+and worth not re-litigating:
 
-1. **Rectangular band crops** (`split_layers.py`, deleted) — cut the image
-   into boxes. Slices straight through objects. Rejected: "you took
-   sectioning the wrong way."
-2. **Per-object cutouts** (`cut_objects.py`, deleted) — traced the Welcome
-   sign's ellipse and lifted just that. Rejected: "undo that elliptical
-   cutout, it's horrible and not what I asked" — because the unit is
-   distance, not individual objects.
+- **Discrete items, not bands.** "Isolate the top of the Citgo separately,
+  the billboard separately, the entire fence separately." Horizontal bands
+  were explicitly rejected. The item list is: tree, Citgo, billboard, fence,
+  street lights, McDonald's sign, cars, skyline, shrubs, verge — everything,
+  so each detail is independently controllable (glow one bulb, sway one
+  shrub).
+- **Cardboard stacking.** "Like how the South Park characters were layered —
+  cardboard pieces on top of one another." Every card is whole; nothing has a
+  bite out of it.
+- **SUBTLE.** This is the one that took longest to land. "Like those images
+  that look 3D when you shift angle — subtle parallax where the image is not
+  getting distorted." A wide rate spread does not read as depth, it reads as
+  the set falling over.
+- **Items stay put.** "The tree from the beginning of the stage is moving to
+  the whole other side of the stage — items should stay where they are but
+  float in front of the thing behind them."
 
-A third attempt (`cut_layers.py`, deleted) partitioned the image into
-disjoint distance planes with rectangular region priority. **It functionally
-worked** — Swifty was visibly swallowed by the Citgo building exactly as
-asked — **but was rejected for looking bad**: the rectangular plane
-boundaries read as hard visible cuts.
+**Three earlier attempts were rejected; the reasons are all still valid:**
+`split_layers.py` cut boxes (slices through objects), `cut_objects.py` traced
+one ellipse by hand (a drawn curve never lands on the real edge),
+`cut_layers.py` used disjoint planes with rectangle priority (worked, but the
+rectangle boundaries read as hard cuts).
 
-**So the mechanism is proven; the cutting is the problem.** What's needed is
-plane boundaries that follow the real edges in the art (roofline, fence top,
-tree silhouette) rather than rectangles. Options not yet tried:
-- Hand-authored masks per plane (most control, slowest)
-- `remove_background` (media MCP) on a crop per plane to get true silhouettes
-- Regenerating each stage as separate per-plane art
+**What made it work this time:**
 
-**Implementation notes that DID work and are worth reusing:**
-- Planes must be **disjoint** — every pixel in exactly one plane. Then the
-  set reassembles into the original image at rest and nothing needs
-  inpainting or erasing.
-- Store each plane's position as **fractions** of the source image, so it
-  survives re-export at another resolution.
-- Draw far→near. A nearer plane with a higher parallax overtakes and
-  occludes the ones behind — that occlusion IS the effect being asked for.
-- Parallax spread that read well: far 0.03, mid 0.06–0.10, near 0.18,
-  foreground 0.34. Base plate runs at 0.10.
+- **The edge comes from the art, per pixel — a polygon is only a region of
+  interest.** The sky is flood-filled once from the frame border, which lands
+  on every silhouette in the plate at once. Where two items meet and there is
+  no sky between them, a *scoped* colour reject separates them (the Citgo's
+  red fascia and black soffit sit above the fence planks). GrabCut is
+  available per item for a final snap onto the true boundary.
+- **Rates cluster tightly around the plate's 0.10.** `DEPTH_SPREAD = 0.010`,
+  with a `MAX_SEPARATION` clamp. Wide spreads and independent wrap phases are
+  what made the tree migrate across the stage. At 0.010 the tree stays within
+  ~77px of home across the whole 7680px level.
+- **Each card is full-frame RGBA**, so the cutout is already in position and
+  the renderer needs no placement maths. Mostly-transparent WebP is cheap —
+  all 10 cards together are ~330 kB.
+- **The base plate is inpainted and then deliberately sunk** (blurred and
+  darkened, ramped by distance from the cut edge). 70% of the plate is hole,
+  so there is nothing real to reconstruct; a sharp fill only produced ghosts.
+- **Sway moved from plate-relative `windBands` to per-card `sway`.** A plant
+  card shears on its own pivot and cannot wobble the architecture next to it.
+- **Lights carry a `layer`** naming the card they are bolted to, so a glow
+  travels with the thing that emits it.
+
+**Verify with `python3 tools/preview_planes.py eav`** before touching the
+renderer. It prints a recompose check — base + every card at zero offset must
+reproduce the original plate (currently 0.088% of pixels over threshold) —
+and writes a 4-position parallax strip. `tools/cut_planes.py eav --debug
+--proof` writes the assignment map and the traced outlines; the assignment map
+is the one to read, since it shows where the trace actually landed rather than
+where the ROI was drawn.
+
+**Cutting the remaining three stages** means adding a `PLANES[<id>]` entry and
+a `bg.cards` list. Expect to re-measure the colour rules: `is_sky`,
+`is_pale_neutral` and friends carry thresholds sampled from EAV's palette, and
+Edgewood/L5P/Underground are lit very differently.
 
 ---
 
