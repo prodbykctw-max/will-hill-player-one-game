@@ -114,10 +114,11 @@ def measure_fit(frames, box):
 
 
 def pack_sheet(rows, box, frame_count):
-    """`rows`: ordered list of (key, frames) pairs, each `frames` a list of
-    `frame_count` PIL Images already in source-cell coordinates. Crops every
-    frame to `box` and packs into a grid: one row per animation, one column
-    per frame. Returns (sheet_image, cell_w, cell_h)."""
+    """One row per animation, one column per frame. Every row the same length.
+
+    Kept for the enemy sheets, which are uniform. See pack_flow() for the
+    player, whose clips need different lengths from each other.
+    """
     minx, miny, maxx, maxy = box
     cell_w, cell_h = maxx - minx, maxy - miny
     cols = frame_count
@@ -129,13 +130,42 @@ def pack_sheet(rows, box, frame_count):
     return sheet, cell_w, cell_h
 
 
+def pack_flow(rows, box, cols):
+    """Pack clips end to end into a `cols`-wide grid, wrapping across rows.
+
+    WHY NOT ONE ROW PER CLIP. A row-per-clip layout forces every animation to
+    the same frame count, and that count is capped by texture width: at a
+    188px cell, 22 frames is already 4136px and past the 4096 limit older
+    mobile GPUs enforce. But the clips genuinely want different lengths — a
+    breathing idle wants many frames played slowly, a jump wants six.
+
+    Flowing them into a grid decouples the two. Each clip records the linear
+    index it starts at and how many frames it owns; the renderer turns that
+    index back into a row and column. Returns (sheet, cell_w, cell_h, starts).
+    """
+    minx, miny, maxx, maxy = box
+    cell_w, cell_h = maxx - minx, maxy - miny
+    total = sum(len(f) for _k, f in rows)
+    grid_rows = (total + cols - 1) // cols
+    sheet = Image.new('RGBA', (cols * cell_w, grid_rows * cell_h), (0, 0, 0, 0))
+    starts, idx = {}, 0
+    for key, frames in rows:
+        starts[key] = idx
+        for f in frames:
+            r, c = divmod(idx, cols)
+            sheet.paste(f.crop((minx, miny, maxx, maxy)), (c * cell_w, r * cell_h))
+            idx += 1
+    return sheet, cell_w, cell_h, starts
+
+
 def save_webp(image, out_path, quality=92):
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     image.save(out_path, 'WEBP', quality=quality, method=6)
     return os.path.getsize(out_path)
 
 
-def write_atlas(out_path, cell_w, cell_h, cols, source_cell, origin, animations, fit_ref=None):
+def write_atlas(out_path, cell_w, cell_h, cols, source_cell, origin, animations,
+                fit_ref=None, anchor=None, sink=None):
     """`animations`: dict of {key: {row, frameCount, loop, [note], [fit]}}.
 
     `fit_ref` is the single fit the renderer actually sizes and anchors off —
@@ -155,6 +185,17 @@ def write_atlas(out_path, cell_w, cell_h, cols, source_cell, origin, animations,
     }
     if fit_ref:
         atlas['fitRef'] = fit_ref
+    # 'low' anchors the sprite on its lowest pixel instead of the midpoint
+    # between the two feet. The midpoint exists only to compensate for an
+    # isometric 3/4 projection, where the far foot is drawn well above the
+    # near one; on a true side profile both feet are already level and the
+    # midpoint just lifts the character off the ground.
+    if anchor:
+        atlas['anchor'] = anchor
+    # How far below the feet line the lowest pixel should sit, as a fraction
+    # of drawn height. See the SINK note in src/render/renderer.js.
+    if sink:
+        atlas['sink'] = sink
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     with open(out_path, 'w') as f:
         json.dump(atlas, f, indent=2)

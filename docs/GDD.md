@@ -75,21 +75,54 @@ mirrors them for left-facing movement, so the source facing matches its
 un-flipped default. Both feet land on the same line.
 
 Each sheet is 2560x2560: a 10x10 grid of 256x256 cells with 96 populated
-frames (four cells unused). Every clip is ONE complete cycle across those 96
-frames — measured, not assumed: idle, walk and run all return to frame 0 by
-~95, while jump does not, which is why `jumpStart`/`jumpLand` are the two
-non-looping keys.
+frames (four cells unused). What each clip actually contains was measured, not
+assumed, and the measurements decided the packing:
+
+- **idle** runs THREE full breaths across its 96 frames. Playing all three per
+  cycle at the first pass's 16-frames/4-ticks worked out at ~168 breaths a
+  minute, which read as panting. Only ONE breath is taken (frames 0-31).
+- **walk** and **run** are each one complete cycle.
+- **jump** is NOT one jump. It is SEVEN separate hops (airborne runs at frames
+  0-1, 10-14, 23-27, 36-41, 54-58, 68-72, 84-88). Sampling evenly across all
+  of them put grounded and airborne poses side by side and made him flail.
+  Only the longest clean arc is taken, 36-41.
 
 **Composed game-ready spritesheet:** `src/assets/sprites/will-hill.webp` +
-`will-hill.atlas.json` — 4 rows x 16 frames, built by
-`tools/compose_player_sheet.py`. Every 6th source frame is taken, which
-reproduces the whole cycle at the row length the sheet has always used and
-keeps the packed texture at ~3000px wide; 24 frames would push it past 4096
-and break on older mobile GPUs. Frames are trimmed from the 256x256 source
-cell to a shared 188x251 union bounding box and saved as WebP q92 —
-visually indistinguishable from lossless here and far smaller, since this is a
-photo-rendered character with fine shading rather than flat pixel art.
-Imported in `src/entities/player.js` as `PLAYER_SPRITE`.
+`will-hill.atlas.json`, built by `tools/compose_player_sheet.py`. Clips flow
+end to end across a 16-wide grid rather than one row each, so every clip can
+be its own length — a row-per-clip layout forces one frame count on all of
+them, and that count is capped by texture width (at a 185px cell, 22 frames
+already exceeds the 4096 limit older mobile GPUs enforce). Each animation
+records the linear frame index it starts at; the renderer turns that back into
+a row and column.
+
+| clip | frames | ticks/frame | duration | why |
+|---|---|---|---|---|
+| idle | 32 | 7.5 | 4.00s | one breath, ~15 breaths/min |
+| walk | 24 | 2.667 | 1.07s | the signed-off pace, at 22.5fps not 15 |
+| run | 24 | 2.0 | 0.80s | faster than the walk, 30fps |
+| jump | 6 | — | — | posed from vertical velocity, not timed |
+
+Fractional tick rates are deliberate: they let a clip keep its exact original
+duration while gaining frames, which is what makes it smoother rather than
+merely slower. The jump is `driven` — the player picks the frame from `vy`
+(0-1 rising, 2-3 apex, 4-5 falling) so the pose always matches the physics and
+a long fall holds rather than loops.
+
+Frames are trimmed from the 256x256 source cell to a shared 185x251 union
+bounding box and saved as WebP q92 — visually indistinguishable from lossless
+here and far smaller, since this is a photo-rendered character with fine
+shading rather than flat pixel art. Imported in `src/entities/player.js` as
+`PLAYER_SPRITE`.
+
+**Ground contact.** The atlas declares `anchor: "low"` and `sink: 0.014`. The
+isometric sheets anchor on the midpoint between the two feet, because a 3/4
+projection draws the far foot well above the near one; a true side profile has
+both feet level and anchors on the lowest pixel instead. But the midpoint
+anchor also gave the isometric characters 1.4% of drawn height of extra sink
+into the pavement for free, and without it Will Hill planted that much higher
+than the enemies standing beside him. `sink` states it explicitly so both
+plant at the same depth.
 
 Nine engine animation keys map onto those four rows. `jog` shares `run`;
 `jumpStart` and `jumpLand` share `jump`; and `roll`, `hit` and `death` borrow

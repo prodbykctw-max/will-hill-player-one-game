@@ -1,6 +1,6 @@
 {
   "frameSize": [
-    188,
+    185,
     251
   ],
   "cols": 16,
@@ -9,25 +9,27 @@
     256
   ],
   "origin": [
-    31,
+    33,
     0
   ],
   "animations": {
     "idle": {
-      "row": 0,
-      "frameCount": 16,
+      "start": 0,
+      "frameCount": 32,
       "loop": true,
+      "ticks": 7.5,
       "fit": {
-        "h": 0.9363,
+        "h": 0.9402,
         "b": 0.9801,
         "bLow": 0.9841
       },
-      "note": "pixel-art Will Hill, side view facing screen-right"
+      "note": "one breath of the side-view idle, ~4s"
     },
     "walk": {
-      "row": 1,
-      "frameCount": 16,
+      "start": 32,
+      "frameCount": 24,
       "loop": true,
+      "ticks": 2.667,
       "fit": {
         "h": 0.9641,
         "b": 0.988,
@@ -35,9 +37,10 @@
       }
     },
     "jog": {
-      "row": 2,
-      "frameCount": 16,
+      "start": 56,
+      "frameCount": 24,
       "loop": true,
+      "ticks": 2.0,
       "fit": {
         "h": 0.8924,
         "b": 0.9721,
@@ -45,9 +48,10 @@
       }
     },
     "run": {
-      "row": 2,
-      "frameCount": 16,
+      "start": 56,
+      "frameCount": 24,
       "loop": true,
+      "ticks": 2.0,
       "fit": {
         "h": 0.8924,
         "b": 0.9721,
@@ -55,29 +59,36 @@
       }
     },
     "jumpStart": {
-      "row": 3,
-      "frameCount": 16,
+      "start": 80,
+      "frameCount": 6,
       "loop": false,
+      "ticks": 4,
       "fit": {
-        "h": 0.9522,
-        "b": 0.9462,
-        "bLow": 0.9522
-      }
+        "h": 0.8765,
+        "b": 0.8327,
+        "bLow": 0.8765
+      },
+      "driven": true,
+      "note": "one arc: 0-1 rise, 2-3 apex, 4-5 fall"
     },
     "jumpLand": {
-      "row": 3,
-      "frameCount": 16,
+      "start": 80,
+      "frameCount": 6,
       "loop": false,
+      "ticks": 4,
       "fit": {
-        "h": 0.9522,
-        "b": 0.9462,
-        "bLow": 0.9522
-      }
+        "h": 0.8765,
+        "b": 0.8327,
+        "bLow": 0.8765
+      },
+      "driven": true,
+      "note": "one arc: 0-1 rise, 2-3 apex, 4-5 fall"
     },
     "roll": {
-      "row": 2,
-      "frameCount": 16,
+      "start": 56,
+      "frameCount": 24,
       "loop": false,
+      "ticks": 2.0,
       "fit": {
         "h": 0.8924,
         "b": 0.9721,
@@ -85,31 +96,35 @@
       }
     },
     "hit": {
-      "row": 0,
-      "frameCount": 16,
+      "start": 0,
+      "frameCount": 32,
       "loop": true,
+      "ticks": 7.5,
       "fit": {
-        "h": 0.9363,
+        "h": 0.9402,
         "b": 0.9801,
         "bLow": 0.9841
       },
-      "note": "pixel-art Will Hill, side view facing screen-right"
+      "note": "one breath of the side-view idle, ~4s"
     },
     "death": {
-      "row": 0,
-      "frameCount": 16,
+      "start": 0,
+      "frameCount": 32,
       "loop": false,
+      "ticks": 7.5,
       "fit": {
-        "h": 0.9363,
+        "h": 0.9402,
         "b": 0.9801,
         "bLow": 0.9841
       },
-      "note": "pixel-art Will Hill, side view facing screen-right"
+      "note": "one breath of the side-view idle, ~4s"
     }
   },
   "fitRef": {
-    "h": 0.9363,
+    "h": 0.9402,
     "b": 0.9801,
     "bLow": 0.9841
-  }
+  },
+  "anchor": "low",
+  "sink": 0.014
 }

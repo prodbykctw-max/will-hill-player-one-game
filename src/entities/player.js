@@ -191,7 +191,22 @@ export function stepPlayer(p, input, map) {
   } else if (p.dashing) {
     p.anim = 'roll';
   } else if (!p.onGround) {
+    // POSED BY PHYSICS, NOT BY A TIMER.
+    //
+    // The jump clip is six frames of one arc: 0-1 rising, 2-3 apex, 4-5
+    // falling. Running that on a timer meant the pose drifted out of step
+    // with the actual jump — the sprite could be landing while the body was
+    // still going up. Mapping it to vertical velocity instead means the pose
+    // is always the right one, the transitions happen exactly when the motion
+    // does, and a long fall simply holds the falling frame rather than
+    // looping back to a crouch.
     p.anim = p.vy < 0 ? 'jumpStart' : 'jumpLand';
+    const APEX = 2.2;              // |vy| below this counts as hanging
+    p.frame = p.vy < -APEX ? 0
+      : p.vy < -0.4 ? 1
+        : p.vy < APEX ? (p.vy < 0 ? 2 : 3)
+          : p.vy < APEX * 2.6 ? 4
+            : 5;
   } else if (Math.abs(p.vx) > 4) {
     p.anim = 'run';
   } else if (Math.abs(p.vx) > 0.5) {

@@ -51,7 +51,7 @@ import os
 import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib'))
-from compose_common import load_grid_frames, union_bbox, pack_sheet, save_webp, write_atlas, measure_fit  # noqa: E402
+from compose_common import load_grid_frames, union_bbox, pack_flow, save_webp, write_atlas, measure_fit  # noqa: E402
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RAW_DIR = os.path.join(REPO_ROOT, 'assets', 'raw-sprites', 'will-hill-pixel')
@@ -60,27 +60,47 @@ OUT_JSON = os.path.join(REPO_ROOT, 'src', 'assets', 'sprites', 'will-hill.atlas.
 
 SOURCE_CELL = 256
 SOURCE_COLS = 10
-# The v1 SIDESCROLLER export is a 10x10 grid with 96 populated cells, and each
-# clip is ONE complete cycle over those 96 frames (measured: idle/walk/run all
-# return to frame 0 by ~95; jump is a one-shot, which is why jumpStart and
-# jumpLand are non-looping). Taking every 6th frame therefore reproduces the
-# whole cycle in 16 — the same row length the sheet has always used, which
-# keeps the packed texture at ~2900px wide. Going to 24 frames would push it
-# past 4096 and break on the older mobile GPUs this has to run on.
-SOURCE_FRAMES = 96
-STRIDE = 6
-FRAMES = SOURCE_FRAMES // STRIDE  # 16
+SOURCE_FRAMES = 96   # 10x10 grid, four cells unused
+GRID_COLS = 16       # packed sheet width, in frames
 
-# Unique source clips -> one sheet row each. (folder, rowKey, note)
-ROWS = [
-    ('idle', 'idle', 'pixel-art Will Hill, side view facing screen-right'),
-    ('walk', 'walk', None),
-    ('run',  'run',  None),
-    ('jump', 'jump', None),
+# WHICH SOURCE FRAMES EACH CLIP TAKES, AND WHY.
+# Measured off the sheets, not guessed — see the numbers in each entry.
+#
+#   src   (start, stop, step) into the 96 source frames
+#   ticks game ticks per drawn frame at 60Hz. Fractional is fine and is used:
+#         it is how a clip keeps its original duration at a higher frame rate.
+CLIPS = [
+    # IDLE — the source runs THREE full breaths across its 96 frames (counted
+    # by zero-crossings of the head-top bob). Playing all three in one cycle
+    # at the old 16-frames/4-ticks made him breathe ~168 times a minute, which
+    # is what read as panting. Taking ONE breath (frames 0-31) and giving it
+    # 7.5 ticks a frame puts the cycle at 4.0s — about 15 breaths a minute,
+    # a resting adult — and 32 frames keeps it smooth at that length.
+    {'clip': 'idle', 'src': (0, 32, 1), 'ticks': 7.5, 'loop': True,
+     'note': 'one breath of the side-view idle, ~4s'},
+
+    # WALK — one full cycle across the 96 frames. The old 16 frames at 4 ticks
+    # gave a 1.067s cycle and that pace was signed off, so the pace is kept
+    # exactly and only the smoothness changes: 24 frames at 2.667 ticks is the
+    # same 1.067s at 22.5fps instead of 15fps.
+    {'clip': 'walk', 'src': (0, 96, 4), 'ticks': 2.667, 'loop': True},
+
+    # RUN — one cycle. Faster than the walk, as a run should be: 24 frames at
+    # 2 ticks is a 0.8s cycle at 30fps.
+    {'clip': 'run', 'src': (0, 96, 4), 'ticks': 2.0, 'loop': True},
+
+    # JUMP — the source is NOT one jump. It is SEVEN separate hops (airborne
+    # runs measured at frames 0-1, 10-14, 23-27, 36-41, 54-58, 68-72, 84-88).
+    # Sampling every 6th frame across all of them, as the first pass did, put
+    # grounded and airborne poses next to each other and made him flail. Only
+    # the longest clean arc is taken — 36-41, rising through an apex at 39 and
+    # dropping back — and the player drives it from vertical velocity rather
+    # than a timer, so the pose always matches what the physics is doing.
+    {'clip': 'jump', 'src': (36, 42, 1), 'ticks': 4, 'loop': False,
+     'driven': True, 'note': 'one arc: 0-1 rise, 2-3 apex, 4-5 fall'},
 ]
 
-# Engine animation key -> which row it draws from. Several keys share a row
-# where the export has no distinct side-facing clip for them.
+# Engine animation key -> which clip it draws from.
 KEY_MAP = {
     'idle': 'idle',
     'walk': 'walk',
@@ -89,7 +109,7 @@ KEY_MAP = {
     'jumpStart': 'jump',
     'jumpLand': 'jump',
     'roll': 'run',    # TODO: no roll clip generated yet; run reads as a dash
-    'hit': 'idle',    # TODO: no hit clip yet; the i-frame flicker carries it
+    'hit': 'idle',    # TODO: no hit clip yet; the stumble lurch carries it
     'death': 'idle',  # TODO: no death clip yet; the game-over overlay covers it
 }
 
@@ -98,45 +118,59 @@ NON_LOOPING = {'jumpStart', 'jumpLand', 'death', 'roll'}
 
 def main():
     frame_lists = {}
-    for folder, row_key, _note in ROWS:
-        src_path = os.path.join(RAW_DIR, folder, 'spritesheet.png')
+    for c in CLIPS:
+        src_path = os.path.join(RAW_DIR, c['clip'], 'spritesheet.png')
         if not os.path.exists(src_path):
             raise SystemExit(
                 f"Missing {src_path}\n"
-                f"Extract '{folder}/spritesheet.png' from the AutoSprite export "
-                f"into assets/raw-sprites/will-hill/{folder}/ first."
+                f"Drop the v1 SIDESCROLLER export's '{c['clip']}' sheet in as "
+                f"assets/raw-sprites/will-hill-pixel/{c['clip']}/spritesheet.png "
+                f"first (assets/ is git-ignored, so a fresh clone has none)."
             )
         allf = load_grid_frames(src_path, SOURCE_COLS, SOURCE_CELL, SOURCE_FRAMES)
-        frame_lists[row_key] = allf[::STRIDE]
+        a, b, step = c['src']
+        frame_lists[c['clip']] = allf[a:b:step]
 
     box = union_bbox(frame_lists, SOURCE_CELL)
-    rows = [(row_key, frame_lists[row_key]) for _f, row_key, _n in ROWS]
-    sheet, cell_w, cell_h = pack_sheet(rows, box, FRAMES)
+    rows = [(c['clip'], frame_lists[c['clip']]) for c in CLIPS]
+    sheet, cell_w, cell_h, starts = pack_flow(rows, box, GRID_COLS)
 
-    row_index = {row_key: i for i, (_f, row_key, _n) in enumerate(ROWS)}
-    row_fit = {row_key: measure_fit(frame_lists[row_key], box) for _f, row_key, _n in ROWS}
-    row_note = {row_key: note for _f, row_key, note in ROWS}
+    clip_fit = {c['clip']: measure_fit(frame_lists[c['clip']], box) for c in CLIPS}
+    by_clip = {c['clip']: c for c in CLIPS}
 
     animations = {}
-    for key, row_key in KEY_MAP.items():
+    for key, clip in KEY_MAP.items():
+        c = by_clip[clip]
         animations[key] = {
-            'row': row_index[row_key],
-            'frameCount': FRAMES,
-            'loop': key not in NON_LOOPING,
-            'fit': row_fit[row_key],
+            'start': starts[clip],
+            'frameCount': len(frame_lists[clip]),
+            'loop': c['loop'] and key not in NON_LOOPING,
+            'ticks': c['ticks'],
+            'fit': clip_fit[clip],
         }
-        if row_note[row_key]:
-            animations[key]['note'] = row_note[row_key]
+        if c.get('driven'):
+            # The player sets the frame itself from vertical velocity; the
+            # shared frame-advance helper must not tick this one.
+            animations[key]['driven'] = True
+        if c.get('note'):
+            animations[key]['note'] = c['note']
 
     # 'idle' is the standing reference pose the renderer sizes/anchors off.
-    fit_ref = row_fit['idle']
-
     size = save_webp(sheet, OUT_IMG, quality=92)
-    write_atlas(OUT_JSON, cell_w, cell_h, FRAMES, SOURCE_CELL, box[:2], animations, fit_ref)
+    # 0.014 matches what the enemy sheets get implicitly from their midpoint
+    # anchor (drawH * (0.9921 - 0.9782)), so player and enemies plant at the
+    # same depth in the pavement instead of Will Hill floating above them.
+    write_atlas(OUT_JSON, cell_w, cell_h, GRID_COLS, SOURCE_CELL, box[:2],
+                animations, clip_fit['idle'], anchor='low', sink=0.014)
 
-    print(f"Trimmed cell: {cell_w}x{cell_h} (from {SOURCE_CELL}x{SOURCE_CELL} source, origin {box[0]},{box[1]})")
-    print(f"Rows: {', '.join(r for _f, r, _n in ROWS)}")
-    print(f"Wrote {OUT_IMG} ({sheet.width}x{sheet.height}, {size} bytes)")
+    total = sum(len(f) for f in frame_lists.values())
+    print(f"Trimmed cell: {cell_w}x{cell_h} (from {SOURCE_CELL}x{SOURCE_CELL}, origin {box[0]},{box[1]})")
+    for c in CLIPS:
+        n = len(frame_lists[c['clip']])
+        print(f"  {c['clip']:5s} {n:3d} frames @ {c['ticks']} ticks "
+              f"= {n * c['ticks'] / 60:.2f}s  start={starts[c['clip']]}")
+    print(f"Packed {total} frames into {GRID_COLS} cols -> {sheet.width}x{sheet.height}")
+    print(f"Wrote {OUT_IMG} ({size} bytes)")
     print(f"Wrote {OUT_JSON}")
 
 

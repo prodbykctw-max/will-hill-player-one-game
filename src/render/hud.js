@@ -28,14 +28,21 @@ export function createHud(ctx, canvas) {
       const charTop = (fit.b - fit.h) * cellH;
       const headH = fit.h * cellH * 0.34;
       const headW = headH;
-      const sx = idle.row != null ? 0 : 0;
+      // Locate the idle clip's first frame the same way the renderer does.
+      // Clips now flow across the sheet as a grid so each can be its own
+      // length, so `start` is a LINEAR frame index; `row` only exists on the
+      // older uniform sheets. Reading `row` unconditionally made this NaN and
+      // blanked the portrait the moment the player sheet was relaid out.
+      const idx = idle.start !== undefined ? idle.start : idle.row * atlas.cols;
+      const fx = (idx % atlas.cols) * cellW;
+      const fy = Math.floor(idx / atlas.cols) * cellH;
       ctx.save();
       ctx.beginPath();
       ctx.rect(x + 2, y + 2, size - 4, size - 4);
       ctx.clip();
       ctx.drawImage(
         img,
-        sx + cellW / 2 - headW / 2, idle.row * cellH + charTop,
+        fx + cellW / 2 - headW / 2, fy + charTop,
         headW, headH,
         x + 2, y + 2, size - 4, size - 4,
       );
