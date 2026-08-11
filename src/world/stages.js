@@ -9,9 +9,12 @@
 // Reskinned differences from Jandé:
 //   - no `foes` roster — there's only one enemy archetype (docs/GDD.md
 //     "Enemy design"), so a flat `enemy` spawn chance replaces it.
-//   - `bag`/`champagne` replace Jandé's `notes`/power-up spawn chances —
-//     champagne is deliberately rare (30s invulnerability is a strong
-//     effect, same rarity role as Jandé's power-up slot).
+//   - `bag` replaces Jandé's `notes` spawn chance. There is NO `champagne`
+//     rate any more. It used to be a rare per-column roll, filling the same
+//     slot as Jandé's power-ups, but a rate cannot promise a count: over a
+//     240-300 column stage the same recipe could hand one run four bottles
+//     and the next none. Every stage now gets EXACTLY TWO, placed at fixed
+//     fractions of its length by createLevel in world/generator.js.
 //   - `stageEnd` (finish-line column) ends the stage directly — no boss
 //     arena, per the "reach a finish line" decision.
 // ORDER MATTERS AND IT CHANGED. Criminal Records (l5p) is the FINALE, not the
@@ -207,7 +210,7 @@ export const STAGES = [
     },
     enemyVariants: ['a'],
     stageEnd: 240, // finish-line column (T=32px/col -> ~7680px)
-    recipe: { gap: 0.08, plat: 0.20, haz: 0.34, gapMax: 2, vert: 0.25, enemy: 0.30, bag: 0.34, champagne: 0.05 },
+    recipe: { gap: 0.08, plat: 0.20, haz: 0.34, gapMax: 2, vert: 0.25, enemy: 0.30, bag: 0.34 },
   },
   {
     id: 'edgewood',
@@ -262,7 +265,7 @@ export const STAGES = [
     },
     enemyVariants: ['b'],
     stageEnd: 260,
-    recipe: { gap: 0.10, plat: 0.22, haz: 0.38, gapMax: 3, vert: 0.30, enemy: 0.36, bag: 0.34, champagne: 0.055 },
+    recipe: { gap: 0.10, plat: 0.22, haz: 0.38, gapMax: 3, vert: 0.30, enemy: 0.36, bag: 0.34 },
   },
   {
     id: 'underground',
@@ -328,7 +331,7 @@ export const STAGES = [
     },
     enemyVariants: ['c'],
     stageEnd: 300,
-    recipe: { gap: 0.12, plat: 0.24, haz: 0.42, gapMax: 3, vert: 0.35, enemy: 0.42, bag: 0.34, champagne: 0.065 },
+    recipe: { gap: 0.12, plat: 0.24, haz: 0.42, gapMax: 3, vert: 0.35, enemy: 0.42, bag: 0.34 },
   },
   {
     id: 'l5p',
@@ -378,6 +381,6 @@ export const STAGES = [
     },
     enemyVariants: ['a', 'b', 'c'],
     stageEnd: 280,
-    recipe: { gap: 0.14, plat: 0.26, haz: 0.46, gapMax: 4, vert: 0.40, enemy: 0.48, bag: 0.34, champagne: 0.06 },
+    recipe: { gap: 0.14, plat: 0.26, haz: 0.46, gapMax: 4, vert: 0.40, enemy: 0.48, bag: 0.34 },
   },
 ];

@@ -16,6 +16,7 @@
 import { T, FLOOR_R, SLAB_R } from '../world/tilemap.js';
 import { CHAR_DRAW_H, PLANT_DEPTH } from '../world/scale.js';
 import { resolveClip } from '../core/animate.js';
+import { CHAMPAGNE_SECONDS } from '../entities/player.js';
 import { createLighting } from './lighting.js';
 
 // Street palette, keyed off the reference image's night-street read.
@@ -300,12 +301,16 @@ export function createRenderer(ctx, canvas) {
   // call can scale him by the same number the aura is sized against.
   const POWER_GROWTH = 0.22;   // +22% height at full power
 
-  // Eased so he SWELLS into it over the first half second and settles back as
-  // it runs out, rather than popping between two sizes on pickup and expiry.
-  function powerScale(msLeft, totalMs = 30000) {
+  // Eased so he SWELLS into it over the first third of a second and settles
+  // back as it runs out, rather than popping between two sizes on pickup and
+  // expiry. The window is CHAMPAGNE_SECONDS long — 9s, not the 30 these ramps
+  // were first cut against — so both ends are shorter: a 500ms swell and a
+  // 1200ms collapse ate 19% of the new duration, which is most of the time
+  // he is supposed to look powered.
+  function powerScale(msLeft, totalMs = CHAMPAGNE_SECONDS * 1000) {
     if (msLeft <= 0) return 1;
-    const rampIn = Math.min(1, (totalMs - msLeft) / 500);
-    const rampOut = Math.min(1, msLeft / 1200);
+    const rampIn = Math.min(1, (totalMs - msLeft) / 320);
+    const rampOut = Math.min(1, msLeft / 700);
     return 1 + POWER_GROWTH * Math.min(rampIn, rampOut);
   }
 
@@ -317,8 +322,14 @@ export function createRenderer(ctx, canvas) {
   // streetlight. This is the transformation read instead: a tall column of
   // flame licking UPWARD past his head, a hard white core, ground light
   // under his feet, and sparks rising rather than orbiting.
+  // FADE_MS — how long before expiry the aura starts dying back, so running
+  // out is something you SEE coming rather than discover by being hit. 2000
+  // was right against a 30s power-up and is 22% of a 9s one; 1100 keeps the
+  // warning without spending an eighth of the effect dimming.
+  const FADE_MS = 1100;
+
   function drawPowerAura(p, tick, msLeft) {
-    const fade = Math.min(1, msLeft / 2000);
+    const fade = Math.min(1, msLeft / FADE_MS);
     const cx = p.x + p.w / 2;
     const feet = p.y + p.h;
     const pulse = 0.88 + 0.12 * Math.sin(tick * 0.19);
@@ -407,7 +418,7 @@ export function createRenderer(ctx, canvas) {
   // as a light he is standing in front of, not one he is giving off. This is
   // the wrap: a hot sheath on the body itself and sparks crossing in front.
   function drawPowerAuraFront(p, tick, msLeft) {
-    const fade = Math.min(1, msLeft / 2000);
+    const fade = Math.min(1, msLeft / FADE_MS);
     const cx = p.x + p.w / 2;
     const feet = p.y + p.h;
     ctx.save();

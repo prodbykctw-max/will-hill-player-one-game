@@ -60,7 +60,7 @@ export function createPlayer(x, y) {
     holdT: 0,   // ticks it has been held
     stumble: 0, // ticks left of a pothole trip — steering is disabled
     inv: 0, // i-frame ticks remaining (dash / just-got-hit)
-    invulnerableUntil: 0, // ms timestamp — champagne bottle 30s power-up, separate from i-frame ticks
+    invulnerableUntil: 0, // ms timestamp — champagne bottle 9s power-up, separate from i-frame ticks
 
     hearts: 3,
     maxHearts: 3,
@@ -78,7 +78,14 @@ export function isInvulnerable(player, now) {
   return now < player.invulnerableUntil || player.inv > 0;
 }
 
-export function grantInvulnerability(player, now, seconds = 30) {
+// CHAMPAGNE_SECONDS is the single source of truth for how long the power-up
+// runs. It was 30, which is a very long time to be untouchable in a game whose
+// whole tension is three touches — long enough that the interesting part of a
+// stage could be walked through. The HUD bar, the aura's fade and the
+// growth ramp all derive from this, so change it here and nowhere else.
+export const CHAMPAGNE_SECONDS = 9;
+
+export function grantInvulnerability(player, now, seconds = CHAMPAGNE_SECONDS) {
   player.invulnerableUntil = now + seconds * 1000;
 }
 

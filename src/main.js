@@ -8,7 +8,7 @@ import { createLoop } from './core/loop.js';
 import { createCamera } from './core/camera.js';
 import { createInput } from './core/input.js';
 import { advanceAnim } from './core/animate.js';
-import { createPlayer, stepPlayer, isInvulnerable, grantInvulnerability, trip, PLAYER_SPRITE } from './entities/player.js';
+import { createPlayer, stepPlayer, isInvulnerable, grantInvulnerability, trip, CHAMPAGNE_SECONDS, PLAYER_SPRITE } from './entities/player.js';
 import { createAudio } from './audio/audio.js';
 import { WALK_SPEED, RUN_SPEED } from './core/physics.js';
 import { ENEMY_SPRITES, updateEnemy, resolveEnemyCollision } from './entities/enemy.js';
@@ -315,7 +315,7 @@ function update() {
     if (overlapsPlayer(bottle, player, now)) {
       bottle.got = true;
       audio.play('glisten');
-      grantInvulnerability(player, now, 30);
+      grantInvulnerability(player, now, CHAMPAGNE_SECONDS);
       state.runLog.record('champagne');
     }
   }
@@ -548,7 +548,7 @@ function draw() {
     hearts: state.hearts,
     maxHearts: player.maxHearts,
     stageName: stage.name,
-    champagneFrac: champLeft / 30000,
+    champagneFrac: champLeft / (CHAMPAGNE_SECONDS * 1000),
     portraitImg: images.player,
     portraitAtlas: PLAYER_SPRITE.atlas,
   });

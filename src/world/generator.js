@@ -43,6 +43,14 @@ export function createLevel(stage, stageIndex = 0) {
     genC: 0,
     lastEnemyCol: -999,
     lastFeatureCol: -999,
+    // Where this stage's two champagne bottles go, as columns. A third and
+    // two thirds of the way in: far enough past the start that you have met
+    // something first, and far enough from the finish that the power is worth
+    // spending rather than expiring on the line.
+    champagneMarks: [
+      Math.round(stage.stageEnd * 0.34),
+      Math.round(stage.stageEnd * 0.68),
+    ],
   };
 }
 
@@ -139,7 +147,22 @@ export function genAhead(level, untilCol) {
     if (rnd01(c * 7.9 + level.seed) < recipe.bag) {
       level.bags.push(createMoneyBag(c * T + 8, (FLOOR_R - 1) * T - 20));
     }
-    if (rnd01(c * 9.3 + level.seed) < recipe.champagne) {
+    // EXACTLY TWO BOTTLES PER STAGE, and they are PLACED, not rolled for.
+    //
+    // This used to be a per-column dice roll at `recipe.champagne`, which over
+    // a 240-300 column stage means the count is whatever chance hands you —
+    // anywhere from none to a dozen, differing per stage and per seed. You
+    // cannot balance a 9-second invulnerability against a supply you do not
+    // control, and a run that happens to roll four bottles is a different game
+    // from one that rolls none.
+    //
+    // So each stage gets two, at fixed fractions of its length, and the
+    // generator drops one at the first FLAT column at or past each mark —
+    // flat, because a bottle needs ground under it and this branch is the only
+    // one that guarantees that. `champagneMarks` is consumed in order, so a
+    // mark that falls inside a long feature simply lands just after it.
+    if (level.champagneMarks.length && c >= level.champagneMarks[0]) {
+      level.champagneMarks.shift();
       level.champagnes.push(createChampagneBottle(c * T + 8, (FLOOR_R - 1) * T - 26));
     }
     if (rnd01(c * 11.1 + level.seed) < recipe.enemy * 0.6 && c - level.lastEnemyCol > MIN_ENEMY_SPACING_COLS) {
