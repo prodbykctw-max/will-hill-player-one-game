@@ -22,7 +22,7 @@
 // clip Will Hill's spritesheet actually has — same role as Jandé's dash:
 // speed burst + i-frames). No strike/attack branch — no combat.
 
-import { GRAV, TERMINAL_VY, PW, PH, RUN_SPEED, ACCEL, DECEL, AIR_ACCEL_MUL, AIR_DRAG_MUL, JUMP_V, DOUBLE_JUMP_V, JUMP_CUT_VY, COYOTE_TICKS, JUMP_BUFFER_TICKS, DASH_VX, DASH_TICKS, DASH_IFRAMES, DASH_COOLDOWN } from '../core/physics.js';
+import { GRAV, TERMINAL_VY, PW, PH, WALK_SPEED, RUN_SPEED, RUN_HOLD_TICKS, RUN_RAMP_TICKS, RUN_ANIM_AT, ACCEL, DECEL, AIR_ACCEL_MUL, AIR_DRAG_MUL, JUMP_V, DOUBLE_JUMP_V, JUMP_CUT_VY, COYOTE_TICKS, JUMP_BUFFER_TICKS, DASH_VX, DASH_TICKS, DASH_IFRAMES, DASH_COOLDOWN } from '../core/physics.js';
 import { collideH, collideV } from '../world/tilemap.js';
 import spriteSheetUrl from '../assets/sprites/will-hill.webp';
 import atlas from '../assets/sprites/will-hill.atlas.json';
@@ -56,6 +56,8 @@ export function createPlayer(x, y) {
     dashVx: 0,
     dashCd: 0,
 
+    holdDir: 0, // direction currently held, for the walk -> run wind-up
+    holdT: 0,   // ticks it has been held
     stumble: 0, // ticks left of a pothole trip — steering is disabled
     inv: 0, // i-frame ticks remaining (dash / just-got-hit)
     invulnerableUntil: 0, // ms timestamp — champagne bottle 30s power-up, separate from i-frame ticks
@@ -120,10 +122,17 @@ export function stepPlayer(p, input, map) {
 
   if (p.stumble > 0) p.stumble--;
 
-  // horizontal movement: lerp toward target velocity. No steering mid-stumble
-  // — you are going wherever the trip sent you until you recover.
-  const tgt = p.stumble > 0 ? 0
-    : input.right() ? RUN_SPEED : input.left() ? -RUN_SPEED : 0;
+  // Horizontal movement. No steering mid-stumble — you are going wherever the
+  // trip sent you until you recover.
+  const dir = p.stumble > 0 ? 0 : input.right() ? 1 : input.left() ? -1 : 0;
+  if (dir !== 0 && dir === p.holdDir) p.holdT++;
+  else { p.holdDir = dir; p.holdT = 0; }
+
+  // Walk off the line, then wind up into a run if the direction stays held.
+  // Releasing or turning resets the wind-up, so a tap is always a walk and
+  // only a committed hold becomes a sprint.
+  const ramp = Math.min(1, Math.max(0, (p.holdT - RUN_HOLD_TICKS) / RUN_RAMP_TICKS));
+  const tgt = dir * (WALK_SPEED + (RUN_SPEED - WALK_SPEED) * ramp);
   // Ground rates as-is; airborne, keep the momentum you took off with.
   const base = tgt === 0 ? DECEL : ACCEL;
   const k = p.onGround ? base : base * (tgt === 0 ? AIR_DRAG_MUL : AIR_ACCEL_MUL);
@@ -209,7 +218,7 @@ export function stepPlayer(p, input, map) {
         : p.vy < APEX ? (p.vy < 0 ? 2 : 3)
           : p.vy < APEX * 2.6 ? 4
             : 5;
-  } else if (Math.abs(p.vx) > 4) {
+  } else if (Math.abs(p.vx) > RUN_ANIM_AT) {
     p.anim = 'run';
   } else if (Math.abs(p.vx) > 0.5) {
     p.anim = 'walk';

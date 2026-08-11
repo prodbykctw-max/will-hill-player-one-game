@@ -14,7 +14,15 @@ export const TERMINAL_VY = 16;
 export const PW = 30; // player collision box width
 export const PH = 86; // player collision box height
 
-export const RUN_SPEED = 6.4; // target horizontal velocity, px/tick
+// TWO GEARS. He used to reach RUN_SPEED in about two ticks, so the walk clip
+// was effectively unreachable and he sprinted everywhere from a standstill.
+// Holding a direction now starts him walking and breaks into a run only if
+// you keep holding it.
+export const WALK_SPEED = 2.9;      // target while easing off the line
+export const RUN_SPEED = 6.4;       // target once he has committed
+export const RUN_HOLD_TICKS = 22;   // ~0.37s of walking before he winds up
+export const RUN_RAMP_TICKS = 20;   // ~0.33s spent winding up to full speed
+export const RUN_ANIM_AT = 4.6;     // |vx| at which the run clip takes over
 export const ACCEL = 0.5; // lerp rate toward target velocity while holding a direction
 export const DECEL = 0.62; // lerp rate toward zero when releasing
 

@@ -4,7 +4,7 @@
 // anims wrap; non-looping ones (e.g. the enemy's `defeat`) hold their last
 // frame instead of restarting.
 
-export function advanceAnim(entity, atlas, ticksPerFrame = 4) {
+export function advanceAnim(entity, atlas, ticksPerFrame = 4, rateScale = 1) {
   if (entity._prevAnim !== entity.anim) {
     entity.animT = 0;
     entity._prevAnim = entity.anim;
@@ -23,7 +23,10 @@ export function advanceAnim(entity, atlas, ticksPerFrame = 4) {
   // fast. Fractional values are deliberate: they let a clip keep its original
   // duration while gaining frames, which is what makes it smoother rather
   // than merely slower.
-  const rate = (anim && anim.ticks) || ticksPerFrame;
+  // `rateScale` lets the caller stretch a clip to match how fast the entity
+  // is actually travelling, so a locomotion cycle does not slide its feet
+  // when the same clip has to cover a walk and a jog.
+  const rate = ((anim && anim.ticks) || ticksPerFrame) * (rateScale || 1);
   const raw = Math.floor(entity.animT / rate);
   entity.frame = loop ? raw % total : Math.min(raw, total - 1);
 }

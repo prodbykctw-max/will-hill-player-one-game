@@ -10,6 +10,7 @@ import { createInput } from './core/input.js';
 import { advanceAnim } from './core/animate.js';
 import { createPlayer, stepPlayer, isInvulnerable, grantInvulnerability, trip, PLAYER_SPRITE } from './entities/player.js';
 import { createAudio } from './audio/audio.js';
+import { WALK_SPEED, RUN_SPEED } from './core/physics.js';
 import { ENEMY_SPRITES, updateEnemy, resolveEnemyCollision } from './entities/enemy.js';
 import { overlapsPlayer, PROP_SPRITES } from './entities/collectibles.js';
 import { createLevel, buildRunway, genAhead, finishLineX } from './world/generator.js';
@@ -201,6 +202,7 @@ function update() {
   for (const bag of level.bags) {
     if (overlapsPlayer(bag, player)) {
       bag.got = true;
+      audio.play('coin');
       state.score += bag.value;
       state.runLog.record('bag');
     }
@@ -210,6 +212,7 @@ function update() {
   for (const bottle of level.champagnes) {
     if (overlapsPlayer(bottle, player)) {
       bottle.got = true;
+      audio.play('glisten');
       grantInvulnerability(player, now, 30);
       state.runLog.record('champagne');
     }
@@ -233,7 +236,15 @@ function update() {
   }
 
   camera.follow(player);
-  advanceAnim(player, PLAYER_SPRITE.atlas);
+  // Stretch the locomotion clips to the speed he is actually moving at. Both
+  // were authored for one speed, and with a walk gear and a run gear the same
+  // clip now has to cover a range — without this the feet skate whenever the
+  // two disagree.
+  const sp = Math.abs(player.vx);
+  let animScale = 1;
+  if (player.anim === 'walk') animScale = WALK_SPEED / Math.max(sp, 0.8);
+  else if (player.anim === 'run') animScale = RUN_SPEED / Math.max(sp, 0.8);
+  advanceAnim(player, PLAYER_SPRITE.atlas, 4, Math.min(2.2, Math.max(0.55, animScale)));
   for (const e of level.enemies) advanceAnim(e, ENEMY_SPRITES[e.variant].atlas);
 
   state.hearts = player.hearts;
