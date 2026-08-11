@@ -166,8 +166,15 @@ export function createBackdrop(ctx, canvas) {
       const x0 = Math.round(x);
       const x1 = Math.round(x + drawW);
       const tw = x1 - x0;
-      if (tw <= 0) continue;
-      g.drawImage(img, 0, 0, img.width, srcH, x0, by, tw, drawH);
+      if (tw <= 0 || x1 < 0 || x0 > canvas.width) continue;
+      // Blit only the columns that actually land on screen. At real-world
+      // scale the plate is several times wider than the canvas, so blitting
+      // the whole thing threw away most of the fill rate every frame.
+      const s0 = Math.max(0, Math.floor((img.width * -x0) / tw));
+      const s1 = Math.min(img.width, Math.ceil((img.width * (canvas.width - x0)) / tw));
+      if (s1 <= s0) continue;
+      g.drawImage(img, s0, 0, s1 - s0, srcH,
+        x0 + (tw * s0) / img.width, by, (tw * (s1 - s0)) / img.width, drawH);
     }
     g.restore();
 
@@ -194,46 +201,90 @@ export function createBackdrop(ctx, canvas) {
   // full-frame RGBA image of the same source, so the cutout is already in the
   // right place and only the horizontal offset differs.
 
-  function drawCardAt(g, img, plate, srcH, x0, sway, tick, seed) {
+  // Blit only the horizontal slice [u0,u1] of a card, in plate fractions.
+  // Cards are full-frame so a cutout is already in position, but blitting the
+  // whole frame for an item covering 8% of it is pure waste — and with three
+  // swaying cards re-blitting the full frame once per section it was enough
+  // to visibly stutter the whole game.
+  function drawSlice(g, img, plate, srcH, x0, u0, u1) {
+    // Clamp to the card AND to the screen: a card wider than the viewport
+    // would otherwise pay for columns nobody can see.
+    const vis0 = (0 - x0) / plate.drawW;
+    const vis1 = (canvas.width - x0) / plate.drawW;
+    const a = Math.max(0, Math.min(1, Math.max(u0, vis0)));
+    const b = Math.max(0, Math.min(1, Math.min(u1, vis1)));
+    if (b <= a) return;
+    const s0 = Math.floor(img.width * a);
+    const s1 = Math.ceil(img.width * b);
+    if (s1 <= s0) return;
+    g.drawImage(img, s0, 0, s1 - s0, srcH,
+      x0 + plate.drawW * (s0 / img.width), plate.by,
+      plate.drawW * ((s1 - s0) / img.width), plate.drawH);
+  }
+
+  function drawCardAt(g, img, plate, srcH, x0, card, tick, seed) {
     const { by, drawH, drawW } = plate;
-    if (!sway) {
-      g.drawImage(img, 0, 0, img.width, srcH, x0, by, drawW, drawH);
+    const [sx0, sx1] = card.span || [0, 1];
+    const bands = card.sway;
+    if (!bands || !bands.length) {
+      drawSlice(g, img, plate, srcH, x0, sx0, sx1);
       return;
     }
-    // Plant life. The card shears about its own pivot, so the trunk is nailed
-    // down and the crown travels. This is strictly better than the old
-    // plate-relative windBands: those had to pick x-ranges that dodged the
-    // hard architecture sharing the same horizontal band, and still wobbled
-    // the buildings. A card cannot touch anything but itself.
-    const bandTop = by + drawH * (sway.top || 0);
-    const pivotY = by + drawH * sway.pivot;
-    const bandH = Math.max(1, pivotY - bandTop);
 
+    // Rigid everywhere the sway windows do not reach. Punched out with an
+    // even-odd clip rather than drawn over, because a card has a soft alpha
+    // edge: drawing the sheared copy on top of a rigid one would composite
+    // that edge onto itself, and the rigid copy would still show through
+    // wherever the shear moved content away.
     g.save();
     g.beginPath();
-    g.rect(x0, by, drawW, Math.max(0, bandTop - by));
-    g.rect(x0, pivotY, drawW, Math.max(0, by + drawH - pivotY));
-    g.clip();
-    g.drawImage(img, 0, 0, img.width, srcH, x0, by, drawW, drawH);
+    g.rect(x0 + drawW * sx0, by, drawW * (sx1 - sx0), drawH);
+    for (const bd of bands) {
+      const t = by + drawH * (bd.top || 0);
+      for (const [a, b] of bd.xRanges) {
+        g.rect(x0 + a * drawW, t, (b - a) * drawW, drawH * bd.pivot - drawH * (bd.top || 0));
+      }
+    }
+    g.clip('evenodd');
+    drawSlice(g, img, plate, srcH, x0, sx0, sx1);
     g.restore();
 
-    // Sections butt together with no overlap. The plate version needed a few
-    // px of it, but a card has a soft alpha edge and overlapping sections
-    // would composite that edge onto itself and print a seam. The gust varies
-    // smoothly across neighbours, so the shear difference between two
-    // touching sections is well under a pixel anyway.
-    const secW = drawW / SECTIONS_PER_RANGE;
-    for (let i = 0; i < SECTIONS_PER_RANGE; i++) {
-      const sx = x0 + i * secW;
-      if (sx + secW < 0 || sx > canvas.width) continue;
-      const k = sway.amp * gustAt(tick, i * secW * 2.7 + seed, sway.freq);
-      g.save();
-      g.beginPath();
-      g.rect(sx, bandTop, secW, bandH);
-      g.clip();
-      g.transform(1, 0, -k / bandH, 1, (k * pivotY) / bandH, 0);
-      g.drawImage(img, 0, 0, img.width, srcH, x0, by, drawW, drawH);
-      g.restore();
+    for (const bd of bands) {
+      const bandTop = by + drawH * (bd.top || 0);
+      const pivotY = by + drawH * bd.pivot;
+      const bandH = Math.max(1, pivotY - bandTop);
+
+      for (const [a, b] of bd.xRanges) {
+        const rangeW = (b - a) * drawW;
+        if (rangeW <= 0) continue;
+        const secW = rangeW / SECTIONS_PER_RANGE;
+
+        for (let i = 0; i < SECTIONS_PER_RANGE; i++) {
+          const dx = x0 + a * drawW + i * secW;
+          if (dx + secW < 0 || dx > canvas.width) continue;
+
+          // Phase keyed to position on the plate plus the repeat index, so
+          // neighbouring sections drift out of step instead of the whole
+          // crown pulsing as one — and a given branch sways the same way on
+          // every repeat.
+          const phase = (a * drawW + i * secW) * 2.7 + seed + (bd.top || 0) * 900;
+          const k = bd.amp * gustAt(tick, phase, bd.freq);
+
+          g.save();
+          g.beginPath();
+          // Clip rects butt together exactly. The old plate version overlapped
+          // them by a few px to avoid gaps, but that would composite a card's
+          // alpha edge twice and print a seam. Instead the clip tiles cleanly
+          // and the SOURCE slice is widened to cover the shear.
+          g.rect(dx, bandTop, secW, bandH);
+          g.clip();
+          g.transform(1, 0, -k / bandH, 1, (k * pivotY) / bandH, 0);
+          const m = (Math.abs(k) + WIND_OVERLAP) / drawW;
+          drawSlice(g, img, plate, srcH, x0,
+            a + (i * secW) / drawW - m, a + ((i + 1) * secW) / drawW + m);
+          g.restore();
+        }
+      }
     }
   }
 
@@ -248,10 +299,13 @@ export function createBackdrop(ctx, canvas) {
       const srcH = Math.max(1, Math.round(img.height * stage.bg.groundFrac));
       const par = cardParallax(camera.x * camera.zoom, card.depth);
       const off = pmod(par, period);
+      const [sx0, sx1] = card.span || [0, 1];
       for (let rep = -1; rep <= reps; rep++) {
         const x0 = rep * period - off;
-        if (x0 + period < 0 || x0 > canvas.width) continue;
-        drawCardAt(g, img, plate, srcH, x0, card.sway, tick, rep * 211);
+        // Cull on the card's own extent, not the plate's — most cards are a
+        // small part of the frame and are off screen most of the time.
+        if (x0 + sx1 * period < 0 || x0 + sx0 * period > canvas.width) continue;
+        drawCardAt(g, img, plate, srcH, x0, card, tick, rep * 211);
       }
     }
   }

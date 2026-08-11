@@ -29,6 +29,14 @@ export function createInput() {
   }, { passive: false });
   window.addEventListener('keyup', (e) => keys.delete(e.code));
 
+  // iOS pinch-zoom. `touch-action` in index.html stops double-tap zoom, but
+  // Safari's gesture events are a separate path that ignores it, and a
+  // two-finger pinch mid-run zooms the board and makes the game unplayable.
+  // These events are WebKit-only; everywhere else they simply never fire.
+  for (const g of ['gesturestart', 'gesturechange', 'gestureend']) {
+    document.addEventListener(g, (e) => e.preventDefault(), { passive: false });
+  }
+
   const touch = { left: false, right: false, jump: false, dash: false };
 
   // Listeners are attached UNCONDITIONALLY; only VISIBILITY is gated on

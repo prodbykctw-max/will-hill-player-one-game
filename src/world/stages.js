@@ -81,26 +81,48 @@ export const STAGES = [
       // on top, which is what keeps the picture from coming apart. See
       // backdrop.js for why the spread is as narrow as it is.
       //
-      // `sway` replaces the old plate-relative windBands. Shearing a window
-      // of the flat plate meant picking x-ranges that dodged the hard
-      // architecture sharing that band, and it wobbled the buildings anyway.
-      // Now the plant is its own card, so it shears on its own pivot and
-      // cannot touch anything else — the trunk sits at the pivot and stays
-      // dead still while the crown travels.
+      // `span` is the card's content extent as x fractions of the plate,
+      // written out by tools/cut_planes.py into <stage>-planes.json. The
+      // renderer draws and culls against it, so a card that occupies 8% of
+      // the plate costs 8% of a full-frame blit instead of a whole one.
+      //
+      // `sway` is the OLD windBands structure, unchanged, but scoped to one
+      // card. Keeping the structure matters: shearing a whole card about a
+      // single pivot makes a tree lean like a rigid cutout, which is wrong —
+      // what reads as foliage is many small sections of the crown drifting
+      // out of step, subdivided WITHIN each window so a narrow window still
+      // gets fine motion. The pivot sits at the bottom of the leaf mass, not
+      // partway down the tree: shear is zero at the pivot and grows upward,
+      // so the trunk below it never moves. Only leaves move.
+      //
+      // What being a card buys is that the shear can no longer touch anything
+      // but this item — the old version had to pick x-ranges that dodged the
+      // billboard and canopy sharing the same horizontal band, and wobbled
+      // the architecture anyway.
       cards: [
-        { key: 'skyline', img: eavSkyline, depth: 0.07 },
-        { key: 'mcdonalds', img: eavMcdonalds, depth: 0.16 },
-        { key: 'cars', img: eavCars, depth: 0.21 },
-        { key: 'swifty', img: eavSwifty, depth: 0.25 },
-        { key: 'citgo', img: eavCitgo, depth: 0.41 },
-        { key: 'fence', img: eavFence, depth: 0.67 },
-        { key: 'verge', img: eavVerge, depth: 0.75,
-          sway: { top: 0.80, pivot: 0.95, amp: 1.4, freq: 2.2 } },
-        { key: 'tree', img: eavTree, depth: 0.81,
-          sway: { top: 0.00, pivot: 0.82, amp: 5, freq: 0.9 } },
-        { key: 'shrub_right', img: eavShrubRight, depth: 0.85,
-          sway: { top: 0.66, pivot: 0.85, amp: 2.5, freq: 1.7 } },
-        { key: 'pole', img: eavPole, depth: 1.00 },
+        { key: 'skyline', img: eavSkyline, depth: 0.07, span: [0.780, 1.000] },
+        { key: 'mcdonalds', img: eavMcdonalds, depth: 0.16, span: [0.913, 1.000] },
+        { key: 'cars', img: eavCars, depth: 0.21, span: [0.784, 0.999] },
+        { key: 'swifty', img: eavSwifty, depth: 0.25, span: [0.133, 0.432] },
+        { key: 'citgo', img: eavCitgo, depth: 0.41, span: [0.094, 0.559] },
+        { key: 'fence', img: eavFence, depth: 0.67, span: [0.217, 0.792] },
+        { key: 'verge', img: eavVerge, depth: 0.75, span: [0.000, 0.859] },
+        {
+          key: 'tree', img: eavTree, depth: 0.81, span: [0.000, 0.313],
+          sway: [
+            // CANOPY. Pivot at the bottom of the leaf mass — the trunk is
+            // below it and stays dead still.
+            { top: 0.02, pivot: 0.44, amp: 5, freq: 0.9, xRanges: [[0.00, 0.105]] },
+            // Low shrubs along the fence: shorter lever, so less travel at a
+            // quicker frequency.
+            { top: 0.52, pivot: 0.92, amp: 2.5, freq: 1.7, xRanges: [[0.085, 0.30]] },
+          ],
+        },
+        {
+          key: 'shrub_right', img: eavShrubRight, depth: 0.85, span: [0.737, 0.820],
+          sway: [{ top: 0.66, pivot: 0.88, amp: 2.5, freq: 1.7, xRanges: [[0.737, 0.820]] }],
+        },
+        { key: 'pole', img: eavPole, depth: 1.00, span: [0.823, 0.916] },
       ],
       // Practicals actually visible in the art: the Citgo canopy soffit, the
       // backlit Swifty billboard, the McDonald's sign, and the uplighters

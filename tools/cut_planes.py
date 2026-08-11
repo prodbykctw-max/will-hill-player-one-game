@@ -362,6 +362,7 @@ PLANES = {
                 (470, 264), (478, 306), (478, 470), (330, 508), (0, 508),
             ]],
             'reject': ['hot_red', 'pale_neutral'],
+            'reject_after': True,   # keep the canopy out of the tree for good
             'close': 1,      # consolidate the leaf mass without losing the edge
             'min_px': 400,
             'feather': 0.7,
@@ -469,6 +470,17 @@ def build_masks(rgb, items):
         if it.get('holes', True):
             m = ndi.binary_fill_holes(m)
         m &= roi
+        # Opt-in: re-apply the rejects AFTER the hole fill. Filling is what let
+        # the tree take the Citgo canopy back — the canopy tip is enclosed by
+        # foliage inside the tree's ROI, so it read as a hole and was filled
+        # straight back in after the colour rule had correctly removed it. The
+        # tree then carried a slice of hard architecture, and every time the
+        # tree sheared, the Citgo visibly split along that slice.
+        # NOT the default: the cars are held together BY their hole fill, and
+        # re-rejecting shadow there deletes all but a tenth of them.
+        if it.get('reject_after'):
+            for rname in it.get('reject', []):
+                m &= ~(REJECTS[rname](rgb) & rmask)
         if it.get('refine'):
             m = refine_grabcut(rgb, m, band=it.get('refine_band', 3)) & roi
             if it.get('holes', True):
