@@ -139,7 +139,7 @@ export const STAGES = [
         { key: 'swifty', img: eavSwifty, depth: 0.25, span: [0.133, 0.432] },
         { key: 'citgo', img: eavCitgo, depth: 0.41, span: [0.094, 0.559] },
         { key: 'fence', img: eavFence, depth: 0.67, span: [0.217, 0.792] },
-        { key: 'verge', img: eavVerge, depth: 0.75, span: [0.000, 0.859] },
+        { key: 'verge', img: eavVerge, depth: 0.75, span: [0.000, 0.859] , rate: 0.30 },
         {
           key: 'tree', img: eavTree, depth: 0.81, span: [0.000, 0.313],
           sway: [
@@ -252,7 +252,7 @@ export const STAGES = [
         { key: 'awning', img: l5pAwning, depth: 0.63, span: [0.768, 0.891] },
         { key: 'bayright', img: l5pBayright, depth: 0.64, span: [0.726, 0.969] },
         { key: 'poster', img: l5pPoster, depth: 0.65, span: [0.794, 0.899] },
-        { key: 'kerb', img: l5pKerb, depth: 0.82, span: [0.004, 0.965] },
+        { key: 'kerb', img: l5pKerb, depth: 0.82, span: [0.004, 0.965] , rate: 0.30 },
         { key: 'pole', img: l5pPole, depth: 0.96, span: [0.055, 0.132] },
       ],
       lights: [
@@ -310,7 +310,7 @@ export const STAGES = [
         { key: 'waffle', img: ugWaffle, depth: 0.62, span: [0.703, 0.786] },
         { key: 'dirsign', img: ugDirsign, depth: 0.70, span: [0.452, 0.598] },
         { key: 'ped', img: ugPed, depth: 0.74, span: [0.328, 0.429] },
-        { key: 'street', img: ugStreet, depth: 0.82, span: [0.003, 0.996] },
+        { key: 'street', img: ugStreet, depth: 0.82, span: [0.003, 0.996] , rate: 0.30 },
         { key: 'columns', img: ugColumns, depth: 0.94, span: [0.161, 0.880] },
       ],
       // The arch marquee bulbs, the Coca-Cola disc and the Waffle House

@@ -31,11 +31,17 @@ export function createMoneyBag(x, y) {
 // once it settles, but it arcs out first and cannot be re-grabbed instantly —
 // without `pickupAt` you would simply walk back into the whole payout on the
 // frame it spawned and the hit would cost nothing.
-export function createDroppedBag(x, y, vx, vy, now) {
+// `worth` OVERRIDES the bag's value so one sprite can carry more than one
+// bag. Sonic loses every ring you have but only ever draws a bounded burst of
+// them. Same trick here: everything scatters, and a rich run still cannot
+// spray four hundred physics objects across the street in one frame. It has
+// to be `value`, which is the field the pickup actually credits.
+export function createDroppedBag(x, y, vx, vy, now, worth = BAG_VALUE) {
   const b = createMoneyBag(x, y);
   b.vx = vx;
   b.vy = vy;
   b.dropped = true;
+  b.value = worth;
   b.pickupAt = now + 750;
   return b;
 }

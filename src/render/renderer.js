@@ -157,6 +157,20 @@ export function createRenderer(ctx, canvas) {
           for (let i = 0; i < 4; i++) ctx.fillRect(x + 6 + i * 6, y + cap - 2, 2, 5);
         }
 
+        // RAKED CAP — the street as a plane tilting toward camera, not a
+        // flat band. The far edge of the sidewalk catches more of the sky and
+        // sits in slightly cooler light than the near edge; the near edge is
+        // warmer and darker because it is turning down toward the kerb. It is
+        // a few pixels of gradient, and it is what stops the asphalt reading
+        // as a painted stripe. It is also the surface a car would later have
+        // to look like it is driving ALONG rather than across.
+        const rake = ctx.createLinearGradient(x, y, x, y + cap);
+        rake.addColorStop(0, 'rgba(188,204,226,0.16)');
+        rake.addColorStop(0.35, 'rgba(255,255,255,0.03)');
+        rake.addColorStop(1, 'rgba(0,0,0,0.16)');
+        ctx.fillStyle = rake;
+        ctx.fillRect(x, y, T, cap);
+
         // wet sheen along the top edge
         ctx.fillStyle = 'rgba(255,255,255,0.16)';
         ctx.fillRect(x, y, T, 1.5);

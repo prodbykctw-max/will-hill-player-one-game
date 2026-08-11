@@ -203,20 +203,49 @@ function update() {
       // for, so touch one costs the cash and a heart, touch two a heart,
       // touch three kills you.
       //
-      // The bags arc out and are recoverable, so a hit is a scramble rather
-      // than a flat penalty. Capped at 8 so a rich run cannot spray dozens of
-      // physics objects across the street in one frame.
-      const units = Math.min(8, Math.floor(state.score / BAG_VALUE));
-      for (let i = 0; i < units; i++) {
+      // SONIC'S RINGS. ALL of it comes out — not a capped slice — because
+      // that is what makes a full purse worth being scared of. The three-touch
+      // escalation still stands on top of it: touch one empties you and costs
+      // a heart, touch two a heart, touch three kills.
+      //
+      // Sonic does not spawn one sprite per ring either; it loses every ring
+      // and draws a bounded burst of them. Same here. MAX_SCATTER sprites go
+      // out, each carrying an equal share of the whole loss, so recovering
+      // them returns the money in proportion and the frame cost is fixed no
+      // matter how rich the run is.
+      const MAX_SCATTER = 24;
+      const lost = Math.floor(state.score / BAG_VALUE);
+      if (lost > 0) {
+        const n = Math.min(MAX_SCATTER, lost);
+        // WHOLE BAGS PER SPRITE, remainder handed to the first few. A flat
+        // round() drifts: 50 bags across 24 sprites rounds to 208 each, which
+        // hands back 4992 of 5000 and leaves the Worker's recomputed score
+        // 200 adrift from the screen. Integer division plus remainder is
+        // exact, and it keeps every sprite worth a whole number of `bag`
+        // events, which is the only way the two logs can agree at all.
+        const per = Math.floor(lost / n);
+        const extra = lost % n;
         const away = player.x < e.x ? -1 : 1;
-        const spread = (i / Math.max(1, units - 1)) - 0.5;
-        level.bags.push(createDroppedBag(
-          player.x + player.w * 0.5, player.y + player.h * 0.35,
-          away * (1.6 + Math.abs(spread) * 2.4) + spread * 1.2,
-          -6.2 - Math.random() * 2.6, now,
-        ));
-        state.score -= BAG_VALUE;
-        state.runLog.record('bagLost');
+        for (let i = 0; i < n; i++) {
+          const worth = (per + (i < extra ? 1 : 0)) * BAG_VALUE;
+          // A fan, alternating either side of the arc the way a ring burst
+          // does, rather than a single spray in one direction.
+          const t = n === 1 ? 0 : (i / (n - 1)) - 0.5;
+          const side = i % 2 === 0 ? 1 : -1;
+          const speed = 2.2 + Math.abs(t) * 3.4;
+          level.bags.push(createDroppedBag(
+            player.x + player.w * 0.5, player.y + player.h * 0.35,
+            away * speed * 0.5 + side * t * 5.0,
+            -5.4 - Math.abs(t) * 4.0 - Math.random() * 1.6, now, worth,
+          ));
+        }
+        // ONE EVENT PER BAG, not per sprite. The server recomputes the score
+        // from this log at -100 a bagLost (SCORE_RULES in the Worker), so if
+        // the log counted the 24 sprites instead of the bags they stand for,
+        // a big loss would score as a small one and the contest board would
+        // disagree with the screen.
+        for (let i = 0; i < lost; i++) state.runLog.record('bagLost');
+        state.score -= lost * BAG_VALUE;
       }
     }
   }
@@ -244,7 +273,11 @@ function update() {
       bag.got = true;
       audio.play('coin');
       state.score += bag.value;
-      state.runLog.record('bag');
+      // Mirror of the loss above: a scattered bag can be worth several bags,
+      // so it logs several `bag` events. Keeps the Worker's recomputed score
+      // identical to the one on screen.
+      const units = Math.max(1, Math.round(bag.value / BAG_VALUE));
+      for (let i = 0; i < units; i++) state.runLog.record('bag');
     }
   }
 

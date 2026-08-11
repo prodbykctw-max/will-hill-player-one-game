@@ -55,8 +55,28 @@ const PLATE_PARALLAX = 0.1;
 const DEPTH_SPREAD = 0.010;
 const MAX_SEPARATION = 90; // px at zoom 1
 
-function cardParallax(camX, depth) {
+// GROUND STRIPS ARE THE EXCEPTION, and it is worth being precise about why.
+//
+// MAX_SEPARATION exists to stop a DISCRETE OBJECT migrating: the tree that
+// starts the stage on the left and ends it on the right is not parallax, it is
+// the set falling over. But that failure needs a landmark to be visible on.
+// A ground strip — the grass verge, the kerb, the wet street at the bottom of
+// the plate — is a continuous featureless band running the full width. Slide
+// it 300px and there is nothing in it to notice having moved; all you see is
+// that it is travelling faster than the buildings behind it, which is exactly
+// the cue that the street is nearer than the storefronts.
+//
+// So a card may opt into a real rate and a looser clamp. Only ground strips
+// should. Anything with an identifiable feature in it keeps the tight default.
+const STRIP_MAX_SEPARATION = 400; // px at zoom 1
+
+function cardParallax(camX, depth, card) {
   const common = camX * PLATE_PARALLAX;
+  if (card && card.rate !== undefined) {
+    const diff = camX * (card.rate - PLATE_PARALLAX);
+    const cap = card.maxSep === undefined ? STRIP_MAX_SEPARATION : card.maxSep;
+    return common + Math.max(-cap, Math.min(cap, diff));
+  }
   const diff = camX * (depth - 0.5) * DEPTH_SPREAD;
   return common + Math.max(-MAX_SEPARATION, Math.min(MAX_SEPARATION, diff));
 }
@@ -297,7 +317,7 @@ export function createBackdrop(ctx, canvas) {
       const img = images[card.key];
       if (!img) continue;
       const srcH = Math.max(1, Math.round(img.height * stage.bg.groundFrac));
-      const par = cardParallax(camera.x * camera.zoom, card.depth);
+      const par = cardParallax(camera.x * camera.zoom, card.depth, card);
       const off = pmod(par, period);
       const [sx0, sx1] = card.span || [0, 1];
       for (let rep = -1; rep <= reps; rep++) {
@@ -314,7 +334,7 @@ export function createBackdrop(ctx, canvas) {
   // the glow travels with the thing that emits it rather than sliding off it.
   function lightParallax(stage, camera, light) {
     const card = (stage.bg.cards || []).find((c) => c.key === light.layer);
-    return cardParallax(camera.x * camera.zoom, card ? card.depth : 0);
+    return cardParallax(camera.x * camera.zoom, card ? card.depth : 0, card);
   }
 
   // Gust curve — two sines beaten together with a squared envelope, so the
@@ -501,6 +521,26 @@ export function createBackdrop(ctx, canvas) {
   }
 
   // Wet-street glow gathering right at the floor line.
+  // RECESSION BAND — the ground falling away between the backdrop and the
+  // street. Without it the two are coplanar: drawPlate puts the plate bottom
+  // at groundY + 4px, tucked behind the street cap, so there is literally no
+  // air between the painted grass and the asphalt you stand on and the eye
+  // gets no cue that one is nearer than the other.
+  //
+  // It is a shadow, not a shape. Darkest right where the street's far edge
+  // meets it and fading upward into the plate, which is what the underside of
+  // a kerb does to the ground behind it.
+  function drawRecession(groundY) {
+    const h = 26;
+    if (groundY < -h || groundY > canvas.height + h) return;
+    const g = ctx.createLinearGradient(0, groundY - h, 0, groundY + 2);
+    g.addColorStop(0, 'rgba(0,0,0,0)');
+    g.addColorStop(0.55, 'rgba(0,0,0,0.30)');
+    g.addColorStop(1, 'rgba(0,0,0,0.52)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, groundY - h, canvas.width, h + 2);
+  }
+
   function drawFloorFog(stage, groundY) {
     const h = 70;
     if (groundY < -h || groundY > canvas.height + h) return;
@@ -553,6 +593,9 @@ export function createBackdrop(ctx, canvas) {
       drawNeonRelight(stage, camera, tick, plate);
       drawPractical(stage, camera, tick, plate);
       drawAerialWash(groundY);
+      // Before the fog, so the fog's warm glow sits ON the receding ground
+      // rather than being darkened by it.
+      drawRecession(groundY);
       drawRain(stage, camera, tick, groundY);
       drawFloorFog(stage, groundY);
     },
