@@ -354,6 +354,54 @@ export function createRenderer(ctx, canvas) {
     ctx.restore();
   }
 
+  // CHARLIE BROWN DUST — the puff under a boot during the stomp-out.
+  //
+  // A Peanuts puff is not a soft airbrushed cloud, it is a LOBED outline: a
+  // few round bumps around a centre, with a visible edge. So each puff draws
+  // as five overlapping circles in a rosette plus a stroked rim, and the whole
+  // thing fades out over about a third of a second. Drawn inside the camera
+  // transform, so these are world coordinates.
+  function drawDust(dust) {
+    for (const d of dust) {
+      const k = d.life / d.max;          // 0 -> 1 over its life
+      const a = (1 - k) * (1 - k) * 0.62; // fades off fast at the end
+      if (a <= 0.01) continue;
+      ctx.save();
+      ctx.globalAlpha = a;
+      // Lobes. The seed keeps each puff's bumps stable frame to frame, so a
+      // puff does not shimmer as it expands.
+      ctx.fillStyle = 'rgba(214,206,190,1)';
+      ctx.beginPath();
+      for (let i = 0; i < 5; i++) {
+        const ang = d.seed + (i / 5) * Math.PI * 2;
+        const lr = d.r * (0.52 + 0.16 * Math.sin(d.seed * 3 + i));
+        ctx.moveTo(d.x + Math.cos(ang) * d.r * 0.5 + lr, d.y + Math.sin(ang) * d.r * 0.32);
+        ctx.arc(d.x + Math.cos(ang) * d.r * 0.5, d.y + Math.sin(ang) * d.r * 0.32,
+                lr, 0, Math.PI * 2);
+      }
+      ctx.fill();
+      ctx.globalAlpha = a * 0.75;
+      ctx.strokeStyle = 'rgba(120,112,100,1)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  // The getaway — a bag of your money in the fleeing enemy's hand. The bag is
+  // the prop the game already uses for pickups, drawn small and bobbing with
+  // the walk so it reads as carried rather than stuck to them.
+  function drawCarriedBag(e, img, tick = 0) {
+    if (!img) return;
+    const h = e.charDrawH * 0.26;
+    const w = h * (162 / 168);
+    const side = e.vx < 0 ? -1 : 1;
+    const bob = Math.sin((tick + e.x) * 0.28) * 1.6;
+    ctx.drawImage(img,
+      e.x + e.w / 2 + side * (e.w * 0.42) - w / 2,
+      e.y + e.h * 0.46 + bob, w, h);
+  }
+
   // POTHOLE — a real street hazard, sunk into the asphalt rather than a
   // spike sitting on top of it. Broken rim, dark cavity, standing water.
   function drawHazard(o) {
@@ -436,6 +484,8 @@ export function createRenderer(ctx, canvas) {
     drawEnemy,
     drawPickup,
     drawHazard,
+    drawDust,
+    drawCarriedBag,
     drawFinishLine,
   };
 }

@@ -12,6 +12,7 @@ import { createPlayer, stepPlayer, isInvulnerable, grantInvulnerability, trip, P
 import { createAudio } from './audio/audio.js';
 import { WALK_SPEED, RUN_SPEED } from './core/physics.js';
 import { ENEMY_SPRITES, updateEnemy, resolveEnemyCollision } from './entities/enemy.js';
+import { beginStompOut, stepStompOut, splitStompers } from './entities/stompout.js';
 import { overlapsPlayer, PROP_SPRITES, createDroppedBag, BAG_VALUE } from './entities/collectibles.js';
 import { createLevel, buildRunway, genAhead, finishLineX } from './world/generator.js';
 import { STAGES } from './world/stages.js';
@@ -73,6 +74,10 @@ function startStage(i) {
 
   state.player = createPlayer(3 * T, (FLOOR_R - 4) * T);
   state.player.hearts = state.hearts; // carry hearts across stages within a run
+  // Clear the stomp-out beat, or a death on stage 2 replays stage 1's.
+  state.stompT = undefined;
+  state.stompers = [];
+  state.dust = [];
   camera.x = 0;
   camera.y = 0;
   state.screen = 'playing';
@@ -180,7 +185,7 @@ function update() {
   genAhead(level, camera.visibleRight() / T + GEN_LOOKAHEAD_COLS);
   stepPlayer(player, input, level.map);
 
-  if (player.y > FALL_DEATH_Y) player.dead = true;
+  if (player.y > FALL_DEATH_Y) { player.dead = true; player.deathCause = 'fall'; }
 
   // enemies: patrol/defeat-timer update, then collision resolution
   for (let i = level.enemies.length - 1; i >= 0; i--) {
@@ -323,6 +328,21 @@ function update() {
   state.hearts = player.hearts;
 
   if (player.dead) {
+    // THE STOMP-OUT. Only when an enemy is what finished you — falling down a
+    // hole or tripping in a pothole goes straight to the fade, because there
+    // is nobody standing there to do it. See entities/stompout.js.
+    if (player.deathCause === 'enemy') {
+      if (state.stompT === undefined) {
+        state.stompT = 0;
+        state.stompers = beginStompOut(player, level.enemies);
+        state.dust = [];
+      }
+      player.anim = 'death';
+      player.vx = 0;
+      const done = stepStompOut(state.stompT++, player, state.stompers, state.dust);
+      for (const e of state.stompers) advanceAnim(e, ENEMY_SPRITES[e.variant].atlas);
+      if (!done) return;
+    }
     state.screen = 'gameOver';
     state.screenT = 0;
     lbSubmit(state.runLog.finish());
@@ -441,8 +461,25 @@ function draw() {
     for (const bag of level.bags) renderer.drawPickup(bag, images.bag, state.tick, 'rgba(255,206,110,0.30)');
     for (const bottle of level.champagnes) renderer.drawPickup(bottle, images.champagne, state.tick, 'rgba(255,240,170,0.34)');
     for (const hz of level.obstacles) renderer.drawHazard(hz);
-    for (const e of level.enemies) renderer.drawEnemy(e, images['enemy_' + e.variant], ENEMY_SPRITES[e.variant].atlas, stage);
+    // STOMP-OUT draw order: the enemy in the `back` slot goes down BEFORE the
+    // body so the body reads as lying in front of it, and the two side
+    // stompers go down after. Outside the beat this is just the normal loop.
+    const [behind, infront] = state.stompT !== undefined
+      ? splitStompers(state.stompers) : [[], []];
+    const back = new Set(behind);
+    for (const e of level.enemies) {
+      if (back.has(e)) renderer.drawEnemy(e, images['enemy_' + e.variant], ENEMY_SPRITES[e.variant].atlas, stage);
+    }
+    for (const e of level.enemies) {
+      if (!back.has(e) && !infront.includes(e)) renderer.drawEnemy(e, images['enemy_' + e.variant], ENEMY_SPRITES[e.variant].atlas, stage);
+    }
     renderer.drawPlayer(player, images.player, PLAYER_SPRITE.atlas, stage, state.tick);
+    for (const e of infront) renderer.drawEnemy(e, images['enemy_' + e.variant], ENEMY_SPRITES[e.variant].atlas, stage);
+    if (state.dust && state.dust.length) renderer.drawDust(state.dust);
+    // The getaway: each one running off with a bag of your money.
+    for (const e of state.stompers || []) {
+      if (e.carrying) renderer.drawCarriedBag(e, images.bag, state.tick);
+    }
     renderer.lighting.drawBloom(camera, stage);
   });
 

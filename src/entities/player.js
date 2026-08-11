@@ -94,7 +94,9 @@ export function damage(p, now, sourceX) {
   p.vx = dir * 6;
   p.vy = -7;
   p.anim = 'hit';
-  if (p.hearts <= 0) p.dead = true;
+  // WHO killed you decides whether the game-over gets the stomp-out beat. An
+  // enemy stands over you; the street does not.
+  if (p.hearts <= 0) { p.dead = true; p.deathCause = 'enemy'; }
   return true;
 }
 
@@ -113,7 +115,7 @@ export function trip(p, now) {
   p.frame = 0;
   p.vx *= 0.22;   // momentum dies in the hole
   p.vy = -3.2;    // a short pitch forward, not the -6 bounce of a hit
-  if (p.hearts <= 0) p.dead = true;
+  if (p.hearts <= 0) { p.dead = true; p.deathCause = 'pothole'; }
   return true;
 }
 
