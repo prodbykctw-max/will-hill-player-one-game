@@ -25,13 +25,30 @@ paperwork, not on screen.
 **Will Hill** — the artist the game stars, and the player character. Not the
 developer.
 
-**RARE AGENCY** — prodbyKCTW's agency, co-founded with Kema. Will Hill is a
-client. prodbyKCTW is credited as Lead Developer. **Spelling CONFIRMED from
-the logo** on 2026-08-11, no longer a guess from speech. The mark is a
-light-blue rounded-rectangle border with a notch top-right and bottom-left,
-"RARE" set in black with a blue arrowhead inside the A, and "AGENCY" beneath
-in tracked-out light blue. The logo FILE is not in the repo yet — it has only
-been seen in chat, and end credits cannot ship without it.
+**RARƎ AGENCY** — prodbyKCTW's agency, co-founded with Kema. Will Hill is a
+client. prodbyKCTW is credited as Lead Developer.
+
+**THE LAST E IS REVERSED. It is always reversed.** The wordmark is `RAR` +
+a mirrored E (`Ǝ`, U+018E), which reads at a glance like a 3 — that is the
+brand, not a rendering fault, and not something to "fix" to a normal E. Spelt
+plainly it is RARE AGENCY; set as the mark it is **RARƎ AGENCY**.
+
+Anywhere the name is DRAWN rather than placed as artwork — the end credits,
+a splash, a title — the E must be mirrored. In canvas that means drawing the
+final glyph with a horizontal flip (`scale(-1, 1)` about its own centre)
+rather than typing an E, because no ordinary font will do it. `Ǝ` exists as a
+character but will not match the logo's geometry; the logo file is the
+authority whenever it is available.
+
+Spelling confirmed from the logo on 2026-08-11, no longer a guess from
+speech. The mark is a light-blue rounded-rectangle border, notched top-right
+and bottom-left, with `RARƎ` in near-black, a light-blue arrowhead set inside
+the A, and `AGENCY` beneath in widely tracked light blue.
+
+**The logo FILE is not in the repo** — seen in chat only. End credits cannot
+ship without it. Note also that one of the three supplied exports had the
+`RARƎ` wordmark missing entirely (border and AGENCY only), which looks like a
+broken export rather than a variant.
 
 ---
 

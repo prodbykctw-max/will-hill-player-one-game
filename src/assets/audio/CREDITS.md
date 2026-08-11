@@ -41,13 +41,18 @@ makes a sparkle read as a sparkle.
 ## Credits
 
 To appear in the end-credits sequence, alongside the **Rare Agency logo** and
-**prodbyKCTW's own logo** (neither asset supplied yet).
+**prodbyKCTW's own logo**. The prodbyKCTW mark IS now in the repo at
+`assets/brand/prodbykctw/`; the RARƎ AGENCY mark is not.
+
+**RARƎ AGENCY is spelt with a REVERSED final E** — `RAR` plus a mirrored E,
+which reads like a 3. Always. If the name is ever drawn as text rather than
+placed as artwork, flip that glyph horizontally; do not type a normal E.
 
 | role | credit |
 |---|---|
 | Game development — front and back end, app and web | **prodbyKCTW** |
 | Sound effects | **prodbyKCTW** |
-| Agency | **Rare Agency** — prodbyKCTW as Lead Developer |
+| Agency | **RARƎ AGENCY** — prodbyKCTW as Lead Developer |
 
 ### How the name is written — do not restyle it
 
