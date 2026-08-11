@@ -1,41 +1,57 @@
-# Audio sources
+# Audio sources and credits
 
-## Stomp impact
+Rebuild every shipped file with `python3 tools/make_sfx.py`.
 
-Two samples from **Kenney — Impact Sounds** (https://kenney.nl/assets/impact-sounds),
-released under **CC0 1.0 Universal** (public domain). No attribution is
-required; this file exists for provenance, not obligation.
+## Stomp — KC TW's own voice
 
-| shipped file | source | processing |
+`punch-a.mp3` and `punch-b.mp3` are **KC TW's voice**, recorded as a phone
+voice memo. Twelve mouth-punches; takes 3 and 4 are the ones he picked. They
+alternate in game so no two stomps sound identical.
+
+They beat every sample in Kenney's pack for this. Measured, Kenney's
+`impactPunch_*` files are 84–94% low-frequency energy over 200–370ms — impact
+*thuds*, and at full weight the stomp read as a kick drum rather than a punch.
+His takes are the opposite problem, 1–6% low: pure slap, no body, because a
+mouth cannot make one.
+
+So each shipped punch is his slap with a synthesised body under it, soft-clipped
+together. The body level is **solved per take** rather than fixed: at one
+shared gain take 3 landed at 57% low and take 4 at 69%, so the two alternating
+punches did not even match each other. Both are now solved to 30% — a slap with
+weight behind it — which took a body gain of 0.42 and 0.30 respectively.
+
+The source recording lives in `assets/sfx-src/kctw-punches.m4a`, git-ignored
+with all raw assets. Without it the punches cannot be rebuilt.
+
+## Pickups — Kenney Interface Sounds
+
+From **Kenney — Interface Sounds** (https://kenney.nl/assets/interface-sounds),
+**CC0 1.0 Universal**. No attribution required; this is provenance, not
+obligation.
+
+| shipped | source | why |
 |---|---|---|
-| `punch-medium.mp3` | `impactPunch_medium_000.ogg` | none — used as recorded |
-| `punch-heavy.mp3` | `impactPunch_heavy_001.ogg` | low end removed |
+| `coin.mp3` | `confirmation_003.ogg` | short and bright — a frequently-repeated pickup cannot be long |
+| `glisten.mp3` | `confirmation_002.ogg` | longer, rises further; an ascending sound is what reads as a power-up |
 
-**Why heavy_001 is filtered.** Measured, the pack's punches are 84–94%
-low-frequency energy — they are impact thuds, and at full weight the stomp
-read as a kick drum rather than a punch. `heavy_001` was high-passed with a
-steep FFT filter (silent below 260Hz, raised-cosine ramp to unity by 700Hz),
-taking it from 91.8% to 35.3% low. A gentle 12dB/oct slope was tried first and
-was nowhere near enough: even cornered at 400Hz it only reached 65%, because
-the energy is concentrated far too low for a shallow filter to shift.
+Chosen by ear from a comparison bench built off measured candidates. Ranking
+was by how much brighter each sound gets by its end, since that rise is what
+makes a sparkle read as a sparkle.
 
-Regenerate with `tools/make_sfx.py`.
+## Credits
 
-## Credit line
+To appear in the end-credits sequence, alongside the **Rare Agency logo** and
+**KC TW's own logo** (neither asset supplied yet).
 
-**SFX prod by KC TW.**
+| role | credit |
+|---|---|
+| Game development — front and back end, app and web | **prodbyKCTW** |
+| Sound effects | **SFX prod by KC TW** |
+| Agency | **Rare Agency** — KC TW as Lead Developer |
 
-That is the wording to use wherever sound is credited — the planned end-of-game
-credits roll, and anywhere else it appears. Stage name, not the legal one
-(Melvin D. Brown III), which is the normal convention: the legal name belongs
-on contracts and rights paperwork, the working name belongs on the screen,
-because it is the name the work is findable under.
+Stage name, not the legal one (Melvin D. Brown III). That is the normal split:
+the legal name belongs on contracts and rights paperwork, the working name
+belongs on screen, because it is the name the work is findable under.
 
-Applies once KC TW's own recordings are actually in the build. As of now the
-stomp is Kenney's and nothing of his has shipped, so the line is recorded here
-rather than displayed.
-
-## Everything else
-
-Pickups, the power-up glisten and the fallback punch are synthesised at
-runtime in `src/audio/audio.js` — no files, no licences.
+**Unconfirmed:** the exact styling of "Rare Agency" — whether it is two words,
+and its casing — was taken down from speech and has not been checked.

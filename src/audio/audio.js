@@ -1,14 +1,12 @@
-// Audio — two impact samples, everything else synthesised.
+// Audio — four samples, everything else synthesised.
 //
-// Pickups, the power-up glisten and the fallback punch are built from
-// oscillators and filtered noise at runtime, so they cost bytes of code
-// rather than kilobytes of file. That matters for a game that has to load on
-// a phone over mobile data at a party.
+// The fallback punch is built from oscillators and filtered noise at runtime,
+// so it costs bytes of code rather than kilobytes of file. That matters for a
+// game that has to load on a phone over mobile data at a party.
 //
-// The stomp is the exception. Synthesis got close but a recorded impact has a
-// density of detail that oscillators do not, so two CC0 samples ship — 18kB
-// the pair, which is worth it for the sound the game makes most often. They
-// alternate, and the synth remains as the fallback until they decode.
+// The four shipped files total ~29kB, which is worth it for the sounds the
+// game makes most often. See src/assets/audio/CREDITS.md for what they are
+// and where they came from; tools/make_sfx.py rebuilds them.
 //
 // AUTOPLAY. Browsers create an AudioContext in the `suspended` state and will
 // not start it until a real user gesture. Nothing is heard until `unlock()`
@@ -16,13 +14,15 @@
 // the context lazily on first use also keeps us from spinning up an audio
 // thread for a player who never touches the game.
 
-// Two stomp impacts from Kenney's CC0 Impact Sounds. See
-// src/assets/audio/CREDITS.md for what they are and why one is filtered.
-// These are the ONLY files this module ships; everything else is synthesised.
-import punchMediumUrl from '../assets/audio/punch-medium.mp3';
-import punchHeavyUrl from '../assets/audio/punch-heavy.mp3';
+// The stomp is KC TW's own voice; the pickups are Kenney CC0. Every sound
+// falls back to synthesis if its sample has not decoded yet or fails to —
+// silence would be worse than a synthesised approximation.
+import punchAUrl from '../assets/audio/punch-a.mp3';
+import punchBUrl from '../assets/audio/punch-b.mp3';
+import coinUrl from '../assets/audio/coin.mp3';
+import glistenUrl from '../assets/audio/glisten.mp3';
 
-const SAMPLES = { punchA: punchMediumUrl, punchB: punchHeavyUrl };
+const SAMPLES = { punchA: punchAUrl, punchB: punchBUrl, coin: coinUrl, glisten: glistenUrl };
 
 export function createAudio() {
   let ctx = null;
@@ -56,9 +56,9 @@ export function createAudio() {
     return ctx;
   }
 
-  // Decode the impact samples once, off the first gesture. Until they land,
-  // and if anything about them fails, `punch` falls back to the synth — a
-  // silent stomp would be worse than a synthesised one.
+  // Decode every sample once, off the first gesture. Until they land, and if
+  // anything about them fails, each sound falls back to its synthesised
+  // version — silence would be worse than an approximation.
   function loadSamples(c) {
     if (loading) return;
     loading = true;
@@ -190,9 +190,12 @@ export function createAudio() {
       const jitter = 0.94 + Math.random() * 0.12;      // never twice the same
       const p = step * jitter;
 
-      // The two Kenney impacts, alternating so consecutive stomps never sound
+      // KC TW's two takes, alternating so consecutive stomps never sound
       // identical, pitched by the same combo/jitter the synth uses. Returns
-      // early only if a sample actually played.
+      // early only if a sample actually played — the synth below is the
+      // fallback for the window before they decode, and for the case where
+      // decoding fails outright. A silent stomp would be worse than a
+      // synthesised one.
       alt ^= 1;
       const key = alt ? 'punchA' : 'punchB';
       if (playBuffer(c, key, t, { gain: 0.95, rate: p })) return;
@@ -237,6 +240,7 @@ export function createAudio() {
     // a chime rather than like an organ. The tail twinkles by re-striking the
     // top notes quieter and slightly late.
     glisten(c, t) {
+      if (playBuffer(c, 'glisten', t, { gain: 0.85 })) return;
       // A major pentatonic run — no semitones, so no note in it can clash
       // with whatever is playing underneath.
       const steps = [0, 4, 7, 12, 16, 19];
@@ -258,6 +262,8 @@ export function createAudio() {
     // power-up: you collect a lot of these and anything longer would turn
     // into a stream of noise.
     coin(c, t) {
+      // Slight pitch jitter so a run of bags does not machine-gun.
+      if (playBuffer(c, 'coin', t, { gain: 0.7, rate: 0.97 + Math.random() * 0.06 })) return;
       chime(c, t, 1245, 0.50, 0.09);
       chime(c, t + 0.055, 1865, 0.44, 0.20);
     },
