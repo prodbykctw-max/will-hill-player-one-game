@@ -98,6 +98,28 @@ declaring anything.
 
 ---
 
+## 3b. Calling the asset done when only the asset was done
+
+| what happened | cost |
+|---|---|
+| Generated the knockdown, hit and stomp clips, verified the frames, and moved on. They were never **composed into the atlases**, so every reaction key fell through `CLIP_FALLBACK` to something else. | The client played the live build and asked "where's the fall sprite and i dont see anyone being stomped". A whole feature looked shipped and was not. |
+| The clips then went in, and the beat *still* showed three men stomping bare pavement. `drawPlayer` skips frames while `inv` counts down, and the countdown lives in `stepPlayer`, which stops being called the moment he is dead. `inv` froze at 75 — an OFF frame — for all 98 knockdown ticks. | Invisible in code review, obvious in one screenshot. A knockdown always follows a hit, so it failed 100% of the time. |
+| The stomper slots were `±46`, measured against the **fallback** clip — a man standing UP. The real downed clip is 162 world units end to end. Both side stompers stood inside his own footprint and covered him. | Same symptom, second cause. Found only because the first fix did not fix it. |
+
+**The rule:** a generated asset is not a shipped feature. The chain is
+generate → compose → wire → **drive the running game into that state and
+photograph it**. And when a constant was tuned against a placeholder, it is
+not a constant, it is a stale measurement — re-measure it against the real
+thing the moment the real thing lands.
+
+The corollary that keeps paying: a graceful fallback hides its own trigger. It
+is still the right call — the alternative here was the sprite vanishing — but
+it converts "broken and obvious" into "subtly wrong forever", so anything
+behind a fallback needs a check that asserts the *real* clip is present, not
+just that something drew.
+
+---
+
 ## 4. Only looking at what worked, never at what was missing
 
 | what happened | cost |
@@ -151,6 +173,15 @@ ideas that I should have reached first.
 - **Make text detection the default, not a flag.** Every backdrop in this game
   is a real storefront covered in signage. Lettering is not an edge case here,
   and it must not depend on someone remembering to switch it on.
+- **"The art map is horrible, it looks like AI slop."** Exactly right, and the
+  reason was structural rather than taste. The map screen was canvas
+  primitives — arcs, strokes, `system-ui` — over a procedural tile pattern,
+  sitting next to plates that are real Atlanta photographs converted to pixel
+  art. Nothing drawn that way can match that. The fix was to stop inventing
+  artwork for it: the interstitial is Five Points, the Underground plate IS
+  Five Points, so the screen now stands in the game's own art and everything
+  printed on top is built from pixels the same size. **When a new screen has
+  to match existing art, reuse the art — do not imitate it.**
 
 ---
 

@@ -1,6 +1,6 @@
 {
   "frameSize": [
-    218,
+    205,
     252
   ],
   "cols": 16,
@@ -49,9 +49,9 @@
       "frameCount": 16,
       "loop": true,
       "fit": {
-        "h": 0.9405,
-        "b": 0.9583,
-        "bLow": 0.9722
+        "h": 0.9127,
+        "b": 0.9444,
+        "bLow": 0.9484
       },
       "note": "played over the downed player during the knockdown"
     }

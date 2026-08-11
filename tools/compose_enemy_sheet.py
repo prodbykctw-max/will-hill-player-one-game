@@ -51,14 +51,24 @@ ANIMATIONS = [
     # the knockdown fell back to `walk`, so three men gathered round him and
     # marched on the spot.
     #
-    # The source is the generator's `attack` clip: a straight strike thrown
-    # from a planted stance, not literally a foot coming down. Two attempts at
-    # a downward stomp came back unusable — the first drew a SECOND body on
-    # the ground for the enemy to stomp (caught by the bbox-width test, w/h
-    # 1.01-1.16 on a side profile that should be nearer 0.5; see
-    # docs/LESSONS.md), and the retry could not be queued because AutoSprite's
-    # backend was refusing writes. The strike reads correctly at game scale
-    # over a man already lying down, which is what it is drawn over.
+    # GETTING THIS CLIP TOOK THREE ATTEMPTS, and the two failures are the
+    # reason the prompt reads the way it does:
+    #
+    #   1. Asking for a stomp drew the thing being stomped. The sheet came
+    #      back with a SECOND body lying on the ground under the enemy —
+    #      caught by the bbox-width test before anything was wired, w/h
+    #      1.01-1.16 on a side profile that should be nearer 0.5. The prompt
+    #      now says "nothing lies on the ground; the pavement in front of him
+    #      is bare and EMPTY" as well as "exactly one person".
+    #   2. The retry reported `succeeded` and produced NO spritesheet. The
+    #      backend was in a read-only transaction window and the credit
+    #      reservation had failed. A job status of succeeded is not evidence
+    #      that a sheet exists; check for the id.
+    #
+    # The clip that shipped is the third: knee lifted toward the chest, sole
+    # driven straight down, upper body leaning over it. An earlier pass used
+    # the generator's `attack` clip instead — a straight forward strike — and
+    # it read as boxing the air above him rather than stomping him.
     ('stomp',  'stomp',  True,  'played over the downed player during the knockdown'),
 ]
 
