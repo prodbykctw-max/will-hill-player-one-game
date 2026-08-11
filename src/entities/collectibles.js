@@ -27,14 +27,28 @@ export function createMoneyBag(x, y) {
   return { kind: 'bag', x, y, w: BAG_W, h: BAG_H, got: false, value: BAG_VALUE };
 }
 
+// A bag knocked out of the player by an enemy. Same pickup as any other bag
+// once it settles, but it arcs out first and cannot be re-grabbed instantly —
+// without `pickupAt` you would simply walk back into the whole payout on the
+// frame it spawned and the hit would cost nothing.
+export function createDroppedBag(x, y, vx, vy, now) {
+  const b = createMoneyBag(x, y);
+  b.vx = vx;
+  b.vy = vy;
+  b.dropped = true;
+  b.pickupAt = now + 750;
+  return b;
+}
+
 export function createChampagneBottle(x, y) {
   return { kind: 'champagne', x, y, w: BOTTLE_W, h: BOTTLE_H, got: false };
 }
 
 // p: player body with {x, y, w, h}. Same generous-margin AABB test as
 // Jandé's note pickup (`p.x<s.x+20 && p.x+PW>s.x-4 && ...`).
-export function overlapsPlayer(item, p) {
+export function overlapsPlayer(item, p, now) {
   if (item.got) return false;
+  if (item.pickupAt && now != null && now < item.pickupAt) return false;
   return (
     p.x < item.x + item.w + 4 &&
     p.x + p.w > item.x - 4 &&

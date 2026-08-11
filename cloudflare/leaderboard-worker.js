@@ -43,6 +43,9 @@ const SCORE_RULES = {
   stomp: 50, // enemy defeated by stomp
   champagne: 0, // grants invulnerability, no direct score
   pothole: 0, // tripped in a pothole — costs a heart, never score
+  // An enemy knocking money loose. One event per bag knocked out, so the
+  // arithmetic mirrors `bag` exactly and a recovered bag scores again.
+  bagLost: -100,
 };
 
 const json = (o, status = 200) =>

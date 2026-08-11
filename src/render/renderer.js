@@ -258,8 +258,50 @@ export function createRenderer(ctx, canvas) {
     );
   }
 
-  function drawPlayer(p, image, atlas, stage) {
+  // Champagne aura. Thirty seconds of invulnerability is a long time to leave
+  // the player guessing about, and the HUD timer alone is not enough — your
+  // eyes are on the character, not the corner of the screen. So the state is
+  // drawn ON him: a warm pulsing bloom, a brighter core, and a few motes
+  // orbiting. It fades out over the last two seconds so the power running out
+  // is something you see coming rather than something you discover by dying.
+  function drawPowerAura(p, tick, msLeft) {
+    const fade = Math.min(1, msLeft / 2000);
+    const cx = p.x + p.w / 2;
+    const cy = p.y + p.h * 0.45;
+    const pulse = 0.82 + 0.18 * Math.sin(tick * 0.13);
+    const r = p.h * 0.95 * pulse;
+
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    const g = ctx.createRadialGradient(cx, cy, r * 0.12, cx, cy, r);
+    g.addColorStop(0, `rgba(255,236,170,${(0.42 * fade).toFixed(3)})`);
+    g.addColorStop(0.45, `rgba(255,196,90,${(0.17 * fade).toFixed(3)})`);
+    g.addColorStop(1, 'rgba(255,180,60,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+
+    // Motes on their own orbits — different radii and speeds, so they read as
+    // circling him rather than as a spinning rigid ring.
+    for (let i = 0; i < 5; i++) {
+      const a = tick * (0.05 + i * 0.012) + i * 1.9;
+      const orx = p.w * (0.85 + 0.22 * Math.sin(tick * 0.03 + i));
+      const ory = p.h * 0.30;
+      const mx = cx + Math.cos(a) * orx;
+      const my = cy + Math.sin(a * 1.3) * ory;
+      const mr = 1.6 + 0.9 * Math.sin(tick * 0.2 + i);
+      const mg = ctx.createRadialGradient(mx, my, 0, mx, my, mr * 3);
+      mg.addColorStop(0, `rgba(255,248,210,${(0.85 * fade).toFixed(3)})`);
+      mg.addColorStop(1, 'rgba(255,214,120,0)');
+      ctx.fillStyle = mg;
+      ctx.fillRect(mx - mr * 3, my - mr * 3, mr * 6, mr * 6);
+    }
+    ctx.restore();
+  }
+
+  function drawPlayer(p, image, atlas, stage, tick = 0) {
     lighting.drawCastShadow(p, p.h, 17);
+    const msLeft = p.invulnerableUntil - Date.now();
+    if (msLeft > 0) drawPowerAura(p, tick, msLeft);
     if (p.inv > 0 && Math.floor(p.inv / 4) % 2 === 0) return; // i-frame flicker
     drawSprite(image, atlas, p, p.h, CHAR_DRAW_H, p.faceL, null, stage);
   }

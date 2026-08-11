@@ -28,6 +28,45 @@ Will Hill is on his way to his performance — the run through the game's stages
 - **Camera:** pulled back further than a typical side-scroller, with extra headroom so the player can see upcoming obstacles, platforms, and enemies before reaching them. Same rationale as a Mario-style camera looking ahead of the player, just pulled back further.
 - **Movement/perspective:** side-scroll, in the same style as the Jandé game's Action RPG mode (`once-upon-a-time` repo) — explicitly **not** a Streets-of-Rage-style brawler (an earlier framing that was corrected) and **not** isometric (an isometric animation set exists but is unused — see Character Asset Pipeline below).
 
+## Damage: three touches, and enemies rob you
+
+Three enemy touches kill you, and the consequences differ by touch — but there
+is no hit counter. It falls out of one rule:
+
+**An enemy knocks your money loose; a pothole only trips you.**
+
+Because the money is gone after the first hit, the sequence sequences itself:
+
+| touch | what it costs |
+|---|---|
+| 1 | your money, scattered across the street, **and** a heart |
+| 2 | a heart (nothing left to rob) |
+| 3 | the last heart — dead |
+
+The bags arc out with physics and are recoverable after 750ms, so a hit is a
+scramble to get your money back before the enemy reaches you again, not a flat
+penalty. Capped at 8 bags so a rich run cannot spray dozens of physics objects
+in one frame. Each one emits a `bagLost` event (-100, mirroring `bag`), so the
+server's recomputed score still agrees and a recovered bag scores again.
+
+**Enemy vs obstacle is expressed in the reaction, not in a different clip** —
+there is no dedicated hit animation, so the *motion* carries the difference:
+
+|  | pothole | enemy |
+|---|---|---|
+| direction | pitches **forward**, momentum dies | knocked **backward**, away from it |
+| vy | -3.2, a stumble | -7, a real recoil |
+| control | steering and dash locked 26 ticks | free immediately |
+| money | keeps it | loses it |
+
+A pothole is the street tripping you up. An enemy is a person hitting you.
+
+**Power-up.** The champagne bottle grants 30s of invulnerability, and that has
+to be legible on the character rather than only in a HUD timer — your eyes are
+on him, not the corner. He gets a warm pulsing bloom with motes orbiting, and
+it fades over the last two seconds so the power running out is something you
+see coming instead of discovering by dying.
+
 ## Setting: Atlanta, 4 stages
 
 Four stages, each a real Atlanta neighborhood, rendered as an exact-replica map using real landmarks — in the visual/structural spirit of *Michael Jordan: Chaos in the Windy City* (SNES beat-'em-up built around a real-city map; referenced for its real-city-map structure only, not its combat system), with a gritty 90s tone.

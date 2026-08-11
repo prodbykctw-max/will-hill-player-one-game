@@ -12,7 +12,7 @@ import { createPlayer, stepPlayer, isInvulnerable, grantInvulnerability, trip, P
 import { createAudio } from './audio/audio.js';
 import { WALK_SPEED, RUN_SPEED } from './core/physics.js';
 import { ENEMY_SPRITES, updateEnemy, resolveEnemyCollision } from './entities/enemy.js';
-import { overlapsPlayer, PROP_SPRITES } from './entities/collectibles.js';
+import { overlapsPlayer, PROP_SPRITES, createDroppedBag, BAG_VALUE } from './entities/collectibles.js';
 import { createLevel, buildRunway, genAhead, finishLineX } from './world/generator.js';
 import { STAGES } from './world/stages.js';
 import { T, FLOOR_R, SLAB_R, FALL_DEATH_Y, isSolid } from './world/tilemap.js';
@@ -195,12 +195,52 @@ function update() {
       audio.play('punch');
       state.score += 50; // matches SCORE_RULES.stomp in cloudflare/leaderboard-worker.js
       state.runLog.record('stomp');
+    } else if (result === 'contact') {
+      // AN ENEMY KNOCKS THE MONEY OUT OF YOU. Deliberately different from a
+      // pothole, which only trips you: a pothole is the street, an enemy robs
+      // you. It also self-sequences into the three-touch rule without any
+      // hit counter — the first touch is the only one you still have money
+      // for, so touch one costs the cash and a heart, touch two a heart,
+      // touch three kills you.
+      //
+      // The bags arc out and are recoverable, so a hit is a scramble rather
+      // than a flat penalty. Capped at 8 so a rich run cannot spray dozens of
+      // physics objects across the street in one frame.
+      const units = Math.min(8, Math.floor(state.score / BAG_VALUE));
+      for (let i = 0; i < units; i++) {
+        const away = player.x < e.x ? -1 : 1;
+        const spread = (i / Math.max(1, units - 1)) - 0.5;
+        level.bags.push(createDroppedBag(
+          player.x + player.w * 0.5, player.y + player.h * 0.35,
+          away * (1.6 + Math.abs(spread) * 2.4) + spread * 1.2,
+          -6.2 - Math.random() * 2.6, now,
+        ));
+        state.score -= BAG_VALUE;
+        state.runLog.record('bagLost');
+      }
     }
   }
 
   // money bags
+  // Knocked-loose bags arc out, bounce once or twice and settle. Only the
+  // dropped ones move; the placed ones stay exactly where the generator put
+  // them.
   for (const bag of level.bags) {
-    if (overlapsPlayer(bag, player)) {
+    if (!bag.dropped || bag.got || bag.settled) continue;
+    bag.vy += 0.42;
+    bag.x += bag.vx;
+    bag.y += bag.vy;
+    const rest = FLOOR_R * T - bag.h;
+    if (bag.y >= rest) {
+      bag.y = rest;
+      bag.vx *= 0.62;
+      bag.vy = -bag.vy * 0.34;
+      if (Math.abs(bag.vy) < 1.2) { bag.vy = 0; bag.vx = 0; bag.settled = true; }
+    }
+  }
+
+  for (const bag of level.bags) {
+    if (overlapsPlayer(bag, player, now)) {
       bag.got = true;
       audio.play('coin');
       state.score += bag.value;
@@ -210,7 +250,7 @@ function update() {
 
   // champagne bottles
   for (const bottle of level.champagnes) {
-    if (overlapsPlayer(bottle, player)) {
+    if (overlapsPlayer(bottle, player, now)) {
       bottle.got = true;
       audio.play('glisten');
       grantInvulnerability(player, now, 30);
@@ -369,7 +409,7 @@ function draw() {
     for (const bottle of level.champagnes) renderer.drawPickup(bottle, images.champagne, state.tick, 'rgba(255,240,170,0.34)');
     for (const hz of level.obstacles) renderer.drawHazard(hz);
     for (const e of level.enemies) renderer.drawEnemy(e, images['enemy_' + e.variant], ENEMY_SPRITES[e.variant].atlas, stage);
-    renderer.drawPlayer(player, images.player, PLAYER_SPRITE.atlas, stage);
+    renderer.drawPlayer(player, images.player, PLAYER_SPRITE.atlas, stage, state.tick);
     renderer.lighting.drawBloom(camera, stage);
   });
 
