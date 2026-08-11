@@ -89,9 +89,12 @@ Edgewood/L5P/Underground are lit very differently.
   fix it; sinking the sprite just buried the planted foot. Replaced with a
   **v1 SIDESCROLLER export** (idle/walk/run/jump, true flat side profile,
   facing screen-right). Both feet now land on the same line.
-- **Enemy sprites are still front-facing** rather than profile. Same root
-  cause, not yet regenerated — and note the enemies and Will Hill's walk were
-  explicitly signed off as looking right, so do not "fix" them casually.
+- ~~**Enemy sprites are front-facing.**~~ NOT AN ISSUE — this line was wrong
+  and was repeated for a while on the strength of the doc rather than the art.
+  Checked frame by frame: every variant's WALK clip is a clean side profile
+  facing screen-right, mirrored for left. Only the IDLE pose is front-facing,
+  and `enemy.js` sets `anim = |vx| > 0 ? 'walk' : 'idle'` — patrolling enemies
+  never stop, so the idle frames effectively never render. Leave them alone.
 - **No roll/hit/death clips** for the pixel Will Hill; they borrow idle/run
   (marked TODO in `tools/compose_player_sheet.py`). `hit` now actually gets
   used — a pothole trip plays it — so this is more visible than it was.
