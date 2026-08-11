@@ -12,19 +12,27 @@
 import { PH } from '../core/physics.js';
 
 // Will Hill's real-world height. Adult male, ~5'10".
-export const CHAR_HEIGHT_M = 1.78;
+export const CHAR_HEIGHT_M = 2.02;
 
-// How tall the character is DRAWN, in world units, relative to his collision
-// box. Ported from Jandé's effective hero scale (index.html:5389 —
-// `PH * 1.55 * 0.974` = 1.51 x PH). PH is shared with Jandé at 86.
-// Bumped from Jandé's 1.51 — at portrait framing the character read a touch
-// small against the real-scale streets, so the whole cast (and the pickups,
-// which size off the same metre conversion) sits slightly larger.
-export const CHAR_SCALE = 1.74;
-export const CHAR_DRAW_H = PH * CHAR_SCALE; // ~150 world units
+// THE CONVERSION IS PINNED, NOT DERIVED.
+//
+// It used to be computed as CHAR_DRAW_H / CHAR_HEIGHT_M, which made the
+// character's size self-cancelling: scaling him up scaled every background
+// (they're sized in metres through this same constant) by exactly the same
+// factor, so he never actually grew relative to the world — the whole scene
+// just zoomed. Pinning the metre lets the cast be resized against a fixed
+// world, which is the knob that actually does anything.
+//
+// The value is the one the tuned-and-approved framing resolved to, so
+// backgrounds keep the scale that was signed off on.
+export const WORLD_PER_M = 84.07; // world units per metre
 
-// The conversion everything else hangs off.
-export const WORLD_PER_M = CHAR_DRAW_H / CHAR_HEIGHT_M; // ~72.96 world units per metre
+// Cast heights. Raise these to make the characters read taller against the
+// streets; the backgrounds do not move.
+export const CHAR_DRAW_H = CHAR_HEIGHT_M * WORLD_PER_M;
+
+// Kept for anything still reasoning in "multiples of the collision box".
+export const CHAR_SCALE = CHAR_DRAW_H / PH;
 
 export function metersToWorld(m) {
   return m * WORLD_PER_M;

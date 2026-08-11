@@ -38,7 +38,7 @@ const DEFEAT_TICKS = atlas.animations.defeat.frameCount * 3; // ~3 ticks/frame, 
 // else (src/world/scale.js) — a touch shorter than Will Hill's 1.78m so he
 // reads as the bigger presence, but unmistakably human-scaled rather than
 // the squat 40x48 box the first pass used.
-export const ENEMY_HEIGHT_M = 1.72;
+export const ENEMY_HEIGHT_M = 1.94;
 export const ENEMY_H = Math.round(metersToWorld(ENEMY_HEIGHT_M) / CHAR_SCALE); // collider height
 export const ENEMY_DRAW_H = metersToWorld(ENEMY_HEIGHT_M); // drawn character height
 const ENEMY_W = 30;
