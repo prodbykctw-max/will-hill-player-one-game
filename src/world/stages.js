@@ -40,12 +40,18 @@ import bgEdgewood from '../assets/backgrounds/edgewood.webp';
 import bgL5p from '../assets/backgrounds/l5p-base.webp';
 import l5pFarbuild from '../assets/backgrounds/l5p-farbuild.webp';
 import l5pSign from '../assets/backgrounds/l5p-sign.webp';
+import l5pLetters from '../assets/backgrounds/l5p-letters.webp';
 import l5pRightpillar from '../assets/backgrounds/l5p-rightpillar.webp';
 import l5pNewused from '../assets/backgrounds/l5p-newused.webp';
+import l5pNewusedsign from '../assets/backgrounds/l5p-newusedsign.webp';
 import l5pBrick from '../assets/backgrounds/l5p-brick.webp';
+import l5pBuysell from '../assets/backgrounds/l5p-buysell.webp';
 import l5pBayleft from '../assets/backgrounds/l5p-bayleft.webp';
+import l5pOpenneon from '../assets/backgrounds/l5p-openneon.webp';
 import l5pBaymid from '../assets/backgrounds/l5p-baymid.webp';
+import l5pAwning from '../assets/backgrounds/l5p-awning.webp';
 import l5pBayright from '../assets/backgrounds/l5p-bayright.webp';
+import l5pPoster from '../assets/backgrounds/l5p-poster.webp';
 import l5pKerb from '../assets/backgrounds/l5p-kerb.webp';
 import l5pPole from '../assets/backgrounds/l5p-pole.webp';
 import bgUnderground from '../assets/backgrounds/underground-base.webp';
@@ -232,16 +238,22 @@ export const STAGES = [
       windBands: [{ top: 0.02, pivot: 0.30, amp: 2.5, freq: 1.2, xRanges: [[0.12, 0.22]] }],
       // Storefront windows and the OPEN sign do the work on this block.
       cards: [
-        { key: 'farbuild', img: l5pFarbuild, depth: 0.06, span: [0.004, 0.156] },
+        { key: 'farbuild', img: l5pFarbuild, depth: 0.06, span: [0.003, 0.157] },
         { key: 'sign', img: l5pSign, depth: 0.22, span: [0.445, 0.929] },
+        { key: 'letters', img: l5pLetters, depth: 0.23, span: [0.500, 0.890] },
         { key: 'rightpillar', img: l5pRightpillar, depth: 0.30, span: [0.930, 1.000] },
         { key: 'newused', img: l5pNewused, depth: 0.40, span: [0.126, 0.301] },
+        { key: 'newusedsign', img: l5pNewusedsign, depth: 0.41, span: [0.143, 0.299] },
         { key: 'brick', img: l5pBrick, depth: 0.48, span: [0.299, 0.453] },
-        { key: 'bayleft', img: l5pBayleft, depth: 0.56, span: [0.443, 0.592] },
+        { key: 'buysell', img: l5pBuysell, depth: 0.49, span: [0.325, 0.397] },
+        { key: 'bayleft', img: l5pBayleft, depth: 0.56, span: [0.442, 0.594] },
+        { key: 'openneon', img: l5pOpenneon, depth: 0.57, span: [0.465, 0.532] },
         { key: 'baymid', img: l5pBaymid, depth: 0.60, span: [0.595, 0.717] },
+        { key: 'awning', img: l5pAwning, depth: 0.63, span: [0.768, 0.891] },
         { key: 'bayright', img: l5pBayright, depth: 0.64, span: [0.726, 0.969] },
-        { key: 'kerb', img: l5pKerb, depth: 0.82, span: [0.004, 0.966] },
-        { key: 'pole', img: l5pPole, depth: 0.96, span: [0.055, 0.130] },
+        { key: 'poster', img: l5pPoster, depth: 0.65, span: [0.794, 0.899] },
+        { key: 'kerb', img: l5pKerb, depth: 0.82, span: [0.004, 0.965] },
+        { key: 'pole', img: l5pPole, depth: 0.96, span: [0.055, 0.132] },
       ],
       lights: [
         { x: 0.20, y: 0.56, r: 0.30, rgb: '255,214,140', a: 0.18 },

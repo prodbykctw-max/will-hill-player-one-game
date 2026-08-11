@@ -790,6 +790,56 @@ PLANES = {
             'feather': 0.7,
         },
         {
+            # ── Detail cards, lifted off the surfaces they are painted on ──
+            # These will NOT read as depth and are not meant to: an OPEN sign
+            # in a window has no gap between it and the window. They are cards
+            # so each can be lit on its own, and each sits one hundredth of
+            # depth from its parent in stages.js so it cannot visibly slide
+            # against it — at DEPTH_SPREAD 0.010 that is under 2px across a
+            # whole stage.
+            #
+            # Separating the lettering from its panel needs more than a box:
+            # the CRIMINAL RECORDS panel mask is 75% inside any box tight
+            # enough to hold the letters. sam_group.py takes a max-area cap
+            # for exactly this — 3000px takes the type and leaves the 44370px
+            # panel to `sign`.
+            'name': 'letters',
+            'mask': 'letters',
+            'min_px': 40,
+            'feather': 0.7,
+        },
+        {
+            'name': 'newusedsign',
+            'mask': 'newusedsign',
+            'min_px': 40,
+            'feather': 0.7,
+        },
+        {
+            'name': 'buysell',
+            'mask': 'buysell',
+            'min_px': 40,
+            'feather': 0.7,
+        },
+        {
+            # Hanging lamps over the bays — small, but they are practicals.
+            'name': 'awning',
+            'mask': 'awning',
+            'min_px': 30,
+            'feather': 0.7,
+        },
+        {
+            'name': 'openneon',
+            'mask': 'openneon',
+            'min_px': 30,
+            'feather': 0.7,
+        },
+        {
+            'name': 'poster',
+            'mask': 'poster',
+            'min_px': 40,
+            'feather': 0.7,
+        },
+        {
             # Street lamp mast — 26px wide over 330 tall, and the nearest
             # vertical in the plate.
             'name': 'pole',

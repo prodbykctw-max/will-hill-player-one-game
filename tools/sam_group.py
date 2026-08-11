@@ -63,6 +63,18 @@ REGIONS = {
         ('backdrop', 280,   0,  980,  585),   # buildings behind the arch
     ],
     'l5p': [
+        # ── Detail cards, lifted off the surfaces they are painted on ────
+        # None of these will read as depth: an OPEN sign in a window has no
+        # gap between it and the window. They are cards so each can be lit
+        # independently, and they sit one or two hundredths of depth from
+        # their parent so they cannot visibly slide against it.
+        ('openneon',   348,  215,  420,  262),  # OPEN neon in the left bay
+        ('poster',     606,  212,  696,  310),  # portrait in the right window
+        ('newusedsign',108,  160,  232,  198),  # NEW & USED
+        ('buysell',    246,  155,  310,  218),  # BUY SELL TRADE
+        ('awning',     560,  160,  752,  200),  # hanging lamps over the bays
+        ('letters',    380,   25,  706,  145, 3000),  # CRIMINAL RECORDS type
+        # ── Structure ────────────────────────────────────────────────────
         ('pole',        40,   0,  100,  340),   # street lamp mast, 26x330
         ('farbuild',     0,   55,  105,  300),  # distant lit blocks, far left
         ('sign',       338,    5,  722,  178),  # CRIMINAL RECORDS panel
@@ -110,6 +122,15 @@ def main():
             continue
         best, score = None, CONTAIN
         for reg in regions:
+            # Optional 6th element: a maximum area. This is what lets a
+            # detail card be lifted OFF the panel it is painted on. The
+            # CRIMINAL RECORDS lettering sits inside the sign's own box, so a
+            # box alone cannot separate them — the panel mask is 75% inside
+            # any box tight enough to hold the letters. Capping the region at
+            # 3000px takes the letters and leaves the 44316px panel to the
+            # `sign` card below it.
+            if len(reg) > 5 and r['area'] > reg[5]:
+                continue
             c = contained(seg, reg)
             if c >= score:
                 best, score = reg[0], c
