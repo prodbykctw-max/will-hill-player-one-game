@@ -2,15 +2,86 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#0a0810" />
   <title>Will Hill: Player One</title>
   <style>
-    html, body { margin: 0; padding: 0; background: #0a0810; overflow: hidden; height: 100%; }
+    html, body {
+      margin: 0; padding: 0; background: #0a0810; height: 100%;
+      overflow: hidden;
+      /* a game canvas should never rubber-band or text-select under a thumb */
+      overscroll-behavior: none;
+      -webkit-user-select: none; user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      -webkit-touch-callout: none;
+    }
     #game { display: block; width: 100vw; height: 100vh; image-rendering: pixelated; }
+
+    /* ── ON-SCREEN CONTROLS ───────────────────────────────────────────
+       Hidden by default and switched on by src/core/input.js only when a
+       touch device is detected, so desktop keeps a clean frame. Laid out
+       against the safe-area inset because a portrait phone's home
+       indicator sits exactly where a jump button wants to be. */
+    #touch { display: none; }
+    body.touch #touch { display: block; }
+
+    #touch .pad {
+      position: fixed; z-index: 10;
+      display: flex; align-items: center; justify-content: center;
+      font: 700 15px/1 system-ui, sans-serif; letter-spacing: 0.06em;
+      color: rgba(255,255,255,0.82);
+      background: rgba(18,14,28,0.42);
+      border: 2px solid rgba(255,214,110,0.34);
+      border-radius: 16px;
+      backdrop-filter: blur(3px);
+      touch-action: none;
+      transition: background 60ms linear, transform 60ms linear;
+    }
+    #touch .pad.on {
+      background: rgba(255,214,110,0.30);
+      border-color: rgba(255,214,110,0.75);
+      transform: scale(0.96);
+    }
+
+    /* left cluster: move. right cluster: jump + dash. */
+    #tL, #tR { bottom: calc(18px + env(safe-area-inset-bottom, 0px)); width: 74px; height: 74px; }
+    #tL { left: calc(16px + env(safe-area-inset-left, 0px)); }
+    #tR { left: calc(100px + env(safe-area-inset-left, 0px)); }
+
+    #tJump, #tDash { right: calc(16px + env(safe-area-inset-right, 0px)); }
+    #tJump {
+      bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+      width: 92px; height: 92px; border-radius: 50%;
+      border-color: rgba(120,220,255,0.45);
+      background: rgba(30,60,90,0.42);
+    }
+    #tJump.on { background: rgba(120,220,255,0.32); border-color: rgba(120,220,255,0.85); }
+    #tDash {
+      bottom: calc(122px + env(safe-area-inset-bottom, 0px));
+      width: 70px; height: 70px; border-radius: 50%;
+      font-size: 13px;
+    }
+
+    /* Landscape on a phone is short: shrink and tuck the pads in so they
+       never eat the play area. */
+    @media (orientation: landscape) and (max-height: 560px) {
+      #tL, #tR { width: 60px; height: 60px; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); }
+      #tR { left: calc(84px + env(safe-area-inset-left, 0px)); }
+      #tJump { width: 74px; height: 74px; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); }
+      #tDash { width: 58px; height: 58px; bottom: calc(94px + env(safe-area-inset-bottom, 0px)); }
+    }
   </style>
 </head>
 <body>
   <canvas id="game"></canvas>
+
+  <div id="touch" aria-hidden="true">
+    <div class="pad" id="tL" data-act="left">◀</div>
+    <div class="pad" id="tR" data-act="right">▶</div>
+    <div class="pad" id="tDash" data-act="dash">DASH</div>
+    <div class="pad" id="tJump" data-act="jump">JUMP</div>
+  </div>
+
   <script type="module" src="/src/main.js"></script>
 </body>
 </html>
