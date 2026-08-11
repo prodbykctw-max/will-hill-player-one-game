@@ -48,24 +48,32 @@ export function createInput() {
         el.classList.toggle('on', on);
       };
 
-      // Pointer events cover touch, pen and mouse in one path. Capture keeps
-      // the press alive if the thumb slides off the pad mid-jump — losing a
-      // jump because your thumb drifted 3px is the single most annoying
-      // failure mode on a phone platformer.
+      // MULTI-TOUCH. Each pad remembers WHICH pointer pressed it and only
+      // responds to that one. The first version also had a window-level
+      // pointerup that cleared every pad, so lifting the movement thumb
+      // simultaneously cancelled jump — which made jumping forward, the most
+      // common thing you do in a platformer, nearly impossible.
+      let ownerId = null;
+
+      // Capture keeps the press alive if the thumb slides off the pad
+      // mid-jump; losing a jump to a few px of drift is miserable.
       el.addEventListener('pointerdown', (e) => {
         e.preventDefault();
+        ownerId = e.pointerId;
         el.setPointerCapture?.(e.pointerId);
         set(true);
       });
       const release = (e) => {
-        if (e) e.preventDefault();
+        if (e) {
+          if (ownerId !== null && e.pointerId !== ownerId) return; // another finger
+          e.preventDefault();
+        }
+        ownerId = null;
         set(false);
       };
       el.addEventListener('pointerup', release);
       el.addEventListener('pointercancel', release);
       el.addEventListener('lostpointercapture', release);
-      // belt and braces: a pointer that ends anywhere clears every pad
-      window.addEventListener('pointerup', () => set(false));
     }
 
     // Coming back from a backgrounded tab with a pad stuck "down" would run

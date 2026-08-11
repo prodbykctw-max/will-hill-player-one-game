@@ -46,7 +46,8 @@ const state = {
   player: null,
   score: 0,
   hearts: 3,
-  screen: 'loading', // loading | playing | stageClear | gameOver | complete
+  screen: 'loading', // loading | playing | paused | stageClear | gameOver | complete
+  resumeTo: 'playing', // what pausing interrupted, so resume goes back to it
   screenT: 0,
   tick: 0,
   runLog: createRunLog(),
@@ -81,9 +82,66 @@ function confirmPressed() {
   return input.jump();
 }
 
+// ── PAUSE ────────────────────────────────────────────────────────────────
+// Menu buttons are rebuilt each frame so they track the canvas size; their
+// rects are what the pointer handler hit-tests against.
+const menuButtons = [];
+
+function pause() {
+  if (state.screen !== 'playing') return;
+  state.resumeTo = state.screen;
+  state.screen = 'paused';
+  state.screenT = 0;
+}
+
+function resume() {
+  if (state.screen !== 'paused') return;
+  state.screen = state.resumeTo || 'playing';
+  state.screenT = 0;
+}
+
+function hit(rect, x, y) {
+  return x >= rect.x && x <= rect.x + rect.w && y >= rect.y && y <= rect.y + rect.h;
+}
+
+// One pointer path for the pause control and the menu. Canvas coordinates
+// must be scaled from CSS pixels or every hit-test is wrong on a HiDPI
+// screen, where the backing store is larger than the element.
+canvas.addEventListener('pointerdown', (e) => {
+  const r = canvas.getBoundingClientRect();
+  const x = (e.clientX - r.left) * (canvas.width / r.width);
+  const y = (e.clientY - r.top) * (canvas.height / r.height);
+
+  if (state.screen === 'playing') {
+    if (hit(hud.pauseRect, x, y)) { pause(); e.preventDefault(); }
+    return;
+  }
+  if (state.screen === 'paused') {
+    for (const b of menuButtons) {
+      if (hit(b, x, y)) { b.action(); e.preventDefault(); return; }
+    }
+  }
+});
+
+// Keyboard parity, and the convention players expect.
+window.addEventListener('keydown', (e) => {
+  if (e.code === 'KeyP' || e.code === 'Escape') {
+    state.screen === 'paused' ? resume() : pause();
+  }
+});
+
+// Losing focus mid-run should pause rather than let the player walk into a
+// pothole they can't see.
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) pause();
+});
+
 function update() {
   state.tick++;
   if (state.screen === 'loading') return;
+  // Paused freezes the world but keeps drawing, so the menu sits over a
+  // still frame of the run rather than a black screen.
+  if (state.screen === 'paused') { state.screenT++; return; }
 
   if (state.screen === 'stageClear') {
     state.screenT++;
@@ -178,6 +236,63 @@ function update() {
   }
 }
 
+// Pause menu. Buttons are laid out and registered every frame so they stay
+// correct through rotation and resize — a menu whose hitboxes are computed
+// once goes wrong the first time someone turns their phone.
+function drawPauseMenu(stage) {
+  menuButtons.length = 0;
+
+  ctx.save();
+  ctx.fillStyle = 'rgba(6,3,12,0.80)';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  const cx = canvas.width / 2;
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#ffd66e';
+  ctx.font = '700 30px sans-serif';
+  ctx.fillText('PAUSED', cx, canvas.height * 0.26);
+
+  ctx.font = '600 14px sans-serif';
+  ctx.fillStyle = 'rgba(232,217,160,0.9)';
+  ctx.fillText(stage.name.toUpperCase(), cx, canvas.height * 0.26 + 26);
+  ctx.fillStyle = 'rgba(255,255,255,0.7)';
+  ctx.fillText(`$${state.score.toLocaleString()}  ·  ${state.hearts}/${state.player.maxHearts} hearts`,
+    cx, canvas.height * 0.26 + 48);
+
+  const items = [
+    { label: 'RESUME', action: resume },
+    { label: 'RESTART STAGE', action: () => { startStage(state.stageIndex); } },
+    { label: 'RESTART RUN', action: () => { startRun(); } },
+  ];
+
+  const bw = Math.min(300, canvas.width * 0.72);
+  const bh = 52;
+  const gap = 14;
+  let by = canvas.height * 0.44;
+
+  for (const it of items) {
+    const bx = cx - bw / 2;
+    ctx.fillStyle = 'rgba(20,16,30,0.92)';
+    ctx.fillRect(bx, by, bw, bh);
+    ctx.strokeStyle = 'rgba(255,214,110,0.6)';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(bx + 1, by + 1, bw - 2, bh - 2);
+    ctx.fillStyle = '#ffd66e';
+    ctx.font = '700 17px sans-serif';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(it.label, cx, by + bh / 2);
+    ctx.textBaseline = 'alphabetic';
+
+    menuButtons.push({ x: bx, y: by, w: bw, h: bh, action: it.action });
+    by += bh + gap;
+  }
+
+  ctx.fillStyle = 'rgba(255,255,255,0.55)';
+  ctx.font = '600 12px sans-serif';
+  ctx.fillText('tap a button  ·  P or ESC to resume', cx, by + 14);
+  ctx.restore();
+}
+
 function drawOverlayText(lines) {
   ctx.save();
   ctx.fillStyle = 'rgba(6,3,12,0.72)';
@@ -243,7 +358,9 @@ function draw() {
     portraitAtlas: PLAYER_SPRITE.atlas,
   });
 
-  if (state.screen === 'stageClear') {
+  if (state.screen === 'paused') {
+    drawPauseMenu(stage);
+  } else if (state.screen === 'stageClear') {
     drawOverlayText([
       ['STAGE CLEAR', 28],
       [stage.name.toUpperCase(), 15, '#e8d9a0'],

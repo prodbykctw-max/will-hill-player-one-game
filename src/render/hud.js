@@ -8,6 +8,10 @@
 const PAD = 10;
 
 export function createHud(ctx, canvas) {
+  // The pause control's on-screen rect, refreshed every frame in draw(). It
+  // has to be published rather than recomputed by the caller, or the button
+  // drifts out of step with its own hitbox the moment the layout changes.
+  const pauseRect = { x: 0, y: 0, w: 0, h: 0 };
   // Crops the character's head out of the spritesheet's idle frame for the
   // portrait box, so the HUD portrait is always in sync with the sprite art
   // instead of being a separate asset that can drift.
@@ -116,7 +120,11 @@ export function createHud(ctx, canvas) {
     ctx.textAlign = 'right';
     ctx.fillText(`${Math.round(distanceM)}m`, barX + barW, PAD + box - 1);
 
-    drawPauseGlyph(canvas.width - PAD - box, PAD, box);
+    pauseRect.x = canvas.width - PAD - box;
+    pauseRect.y = PAD;
+    pauseRect.w = box;
+    pauseRect.h = box;
+    drawPauseGlyph(pauseRect.x, pauseRect.y, box);
 
     // stage name under the pause control
     ctx.font = `700 ${Math.round(box * 0.22)}px sans-serif`;
@@ -127,5 +135,5 @@ export function createHud(ctx, canvas) {
     ctx.restore();
   }
 
-  return { draw };
+  return { draw, pauseRect };
 }
