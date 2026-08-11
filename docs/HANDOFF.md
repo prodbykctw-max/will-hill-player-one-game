@@ -127,6 +127,12 @@ timer; that is what made it flail.
   `RUN_SPEED = 6.4`. Holding a direction walks first and winds up into a run
   only if you keep holding, so a tap is always a walk. `main.js` scales the
   animation rate by actual speed so the feet do not skate between gears.
+  **The wind-up is 11 + 10 = 21 ticks**, halved from 42 because the old figure
+  was getting the player killed: a step lands every ~33 ticks, so full speed
+  used to arrive after the second footfall and most of the way to the third.
+  He now hits 90% of run speed at tick 21, before the second step comes down —
+  61% more ground covered in the first 0.7s. Do not raise it back without
+  playing the game; 42 read as unresponsive to the client immediately.
 - **Ground contact is ONE number**: `PLANT_DEPTH = 5.33` in `world/scale.js`.
   It cannot be a flat constant per sprite, because the two projections
   disagree about what their lowest pixel means — an isometric sheet anchors on

@@ -25,8 +25,20 @@ export const PH = 86; // player collision box height
 // head bob is 6px with dithering on top of it).
 export const WALK_SPEED = 1.9;      // target while easing off the line
 export const RUN_SPEED = 6.4;       // target once he has committed
-export const RUN_HOLD_TICKS = 22;   // ~0.37s of walking before he winds up
-export const RUN_RAMP_TICKS = 20;   // ~0.33s spent winding up to full speed
+// HALVED, because 42 ticks of wind-up was getting the player killed. He now
+// commits by the second footfall instead of somewhere in the third stride.
+//
+// The walk clip is 17 frames at 3.85 ticks, so one full stride is 65 ticks and
+// a single step lands every ~33. The old 22 + 20 = 42 ticks meant full speed
+// arrived AFTER the second step and most of the way to the third — you asked
+// for a run, watched him stroll into the hazard, and died. 11 + 10 = 21 ticks
+// puts him at RUN_SPEED before the second step comes down.
+//
+// This does not bring back the old problem. That one was reaching RUN_SPEED in
+// about two ticks from a standstill, which made the walk clip unreachable; 11
+// ticks of hold is still 0.18s, so a tap is still unambiguously a walk.
+export const RUN_HOLD_TICKS = 11;   // ~0.18s of walking before he winds up
+export const RUN_RAMP_TICKS = 10;   // ~0.17s spent winding up to full speed
 export const RUN_ANIM_AT = 4.6;     // |vx| at which the run clip takes over
 export const ACCEL = 0.5; // lerp rate toward target velocity while holding a direction
 export const DECEL = 0.62; // lerp rate toward zero when releasing
