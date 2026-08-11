@@ -72,9 +72,60 @@ DEBUG_DIR = os.path.join(ROOT, 'tools', 'captures', 'planes')
 # frame is either brighter or warmer.
 
 def _chan(rgb):
-    return (rgb[..., 0].astype(np.int16),
-            rgb[..., 1].astype(np.int16),
-            rgb[..., 2].astype(np.int16))
+    # int32, NOT int16. The luminance sum below weights red by 299, and under
+    # NumPy 2's scalar rules an int16 array times a Python int stays int16 —
+    # so r*299 overflows for any red above 109 and the total wraps negative.
+    # This was live for a long time and silently broke every rule that reads
+    # `lum`: measured on EAV, 37.5% of pixels got a wrong luminance,
+    # `is_pale_neutral` matched literally zero pixels, and `is_deep_shadow`
+    # claimed 313k pixels of BRIGHT art as unlit black. Differences (b - r)
+    # were always fine; only the weighted sum needed the headroom.
+    return (rgb[..., 0].astype(np.int32),
+            rgb[..., 1].astype(np.int32),
+            rgb[..., 2].astype(np.int32))
+
+
+def _lum(r, g, b):
+    """Rec.601 luma. Callers must pass _chan output (int32) — see above."""
+    return (r * 299 + g * 587 + b * 114) // 1000
+
+
+# PER-STAGE SKY, MEASURED — never carried over from another plate.
+#
+# EAV's thresholds do not transfer. Checked against each stage's own sky,
+# EAV's rule fires on 28% of Edgewood's, 47% of Underground's and 80% of
+# L5P's, because the palettes genuinely differ: Edgewood's sky is pure black
+# (median 0,0,0), Underground's is a dark violet (9,9,27), L5P's a navy
+# (10,11,24).
+#
+# Each entry records the RECT the numbers came from — a region verified by eye
+# to be nothing but sky — so the derivation is auditable and can be re-run.
+# Deriving from a whole top band does not work: Underground's top-left is a
+# lit office block, and including it widened the thresholds until they claimed
+# 90% of the street.
+#
+# Derivation, per stage: take the rect, read lum p99 and the 1st percentile of
+# (b-r) and (b-g) inside it, then score the rule two ways — what fraction of
+# the verified sample it catches, and what fraction of the BOTTOM THIRD it
+# wrongly claims. A rule that scores well on the first and badly on the second
+# is not a sky rule, it is a darkness rule.
+#
+#   stage: (sample_rect, lum_max, min_b_minus_r, min_b_minus_g)
+#                                          catches / falsely claims
+SKY_RULES = {
+    'eav':         ((900,  20, 1200,  90), 60,  6,  3),   # shipped, validated
+    'underground': ((760,  40, 1000, 150), 29, 15, 15),   # 98.8% / 1.1%
+}
+
+
+def is_sky_for(rgb, stage):
+    """Sky test for one stage, from its own measured thresholds."""
+    if stage not in SKY_RULES:
+        return is_sky(rgb)
+    _rect, lum_max, br_min, bg_min = SKY_RULES[stage]
+    r, g, b = _chan(rgb)
+    lum = _lum(r, g, b)
+    return (lum <= lum_max) & (b - r >= br_min) & (b - g >= bg_min)
 
 
 def is_sky(rgb):
@@ -88,7 +139,7 @@ def is_sky(rgb):
     here; only the sky is blue.
     """
     r, g, b = _chan(rgb)
-    lum = (r * 299 + g * 587 + b * 114) // 1000
+    lum = _lum(r, g, b)
     return (b - r >= 6) & (b - g >= 3) & (lum < 60)
 
 
@@ -108,7 +159,7 @@ def is_pale_neutral(rgb):
     the only thing that can tell them apart.
     """
     r, g, b = _chan(rgb)
-    lum = (r * 299 + g * 587 + b * 114) // 1000
+    lum = _lum(r, g, b)
     mx = np.maximum(np.maximum(r, g), b)
     mn = np.minimum(np.minimum(r, g), b)
     return (lum > 62) & (mx - mn < 46)
@@ -123,13 +174,49 @@ def is_deep_shadow(rgb):
     line drawn near them.
     """
     r, g, b = _chan(rgb)
-    return (r * 299 + g * 587 + b * 114) // 1000 < 26
+    return _lum(r, g, b) < 26
+
+
+def is_stone(rgb):
+    """Lit pale masonry — the Underground arch's dome ribs and wing rails.
+
+    Measured against what it has to beat: sampled over the dome the rails read
+    luminance 55+ at saturation under 70, while the office block behind them
+    medians 19 and the mid-buildings 12. At lum>55/sat<70 the rule takes 28%
+    of the dome band and under 3% of either building, and the 28% is the LIT
+    side of every rib — which is all a keep needs, since holes are filled
+    afterwards.
+    """
+    r, g, b = _chan(rgb)
+    mx = np.maximum(np.maximum(r, g), b)
+    mn = np.minimum(np.minimum(r, g), b)
+    return (_lum(r, g, b) > 55) & (mx - mn < 70)
+
+
+def is_teal(rgb):
+    """The two turquoise columns holding the arch up.
+
+    The most saturated non-red thing in the plate and nothing else shares it:
+    green and blue both run 25+ above red. Component analysis on this rule
+    returns the two columns as the two largest blobs by an order of magnitude
+    (23067px at x873-935 and 18211px at x198-272), which is the check that it
+    is not also finding something else.
+    """
+    r, g, b = _chan(rgb)
+    return (g - r > 25) & (b - r > 25) & (g > 30)
 
 
 REJECTS = {
     'hot_red': is_hot_red,
     'pale_neutral': is_pale_neutral,
     'deep_shadow': is_deep_shadow,
+    'teal': is_teal,
+}
+
+# Predicates naming what an item IS, for `keep` (see build_masks).
+KEEPS = {
+    'stone': is_stone,
+    'teal': is_teal,
 }
 
 
@@ -137,23 +224,35 @@ REJECTS = {
 
 CONN8 = np.ones((3, 3), bool)
 
+# How far in from the frame edge to seed the sky fill. The plates vignette to
+# black over roughly 5px; 6 clears it on every one of the four.
+BORDER_INSET = 6
+
 
 def disk(r):
     y, x = np.mgrid[-r:r + 1, -r:r + 1]
     return x * x + y * y <= r * r + 1
 
 
-def border_connected(mask):
+def border_connected(mask, inset=BORDER_INSET):
     """The part of `mask` reachable from outside the frame.
 
     Used to define the sky: the background is whatever you can walk to from
     the edge of the picture. Every silhouette in the plate falls out of this
     one operation at once — leaf edges, plank tops, the gaps between planks.
+
+    Seeded from a ring `inset` pixels IN, not from the outermost row. These
+    plates carry a soft vignette that fades to black at the frame edge —
+    measured on Underground it runs ~5px deep, taking the top row to (0,0,0)
+    and the right edge at y=200 to (0,0,9). Neither is blue-dominant enough to
+    pass a sky test, so seeding from row 0 found no sky at all and the fill
+    returned empty: 0.0% of the plate. Stepping in past the fade finds it.
     """
     lab, n = ndi.label(mask, structure=CONN8)
     if not n:
         return np.zeros_like(mask)
-    edge = np.concatenate([lab[0, :], lab[-1, :], lab[:, 0], lab[:, -1]])
+    i = max(0, min(inset, min(lab.shape) // 2 - 1))
+    edge = np.concatenate([lab[i, :], lab[-1 - i, :], lab[:, i], lab[:, -1 - i]])
     keep = np.unique(edge[edge > 0])
     return np.isin(lab, keep)
 
@@ -430,18 +529,180 @@ PLANES = {
             'feather': 0.7,
         },
     ],
+
+    # ── The Underground (Five Points) ────────────────────────────────────
+    # Deepest plate of the four and the best multiplane candidate: it is built
+    # in real perspective, with a sky wedge top-right, towers behind, the arch
+    # in the middle distance and two columns almost at the kerb. Far -> near.
+    'underground': [
+        {
+            # Downtown towers filling the right of frame. Their rooflines are
+            # a true silhouette against sky, so the global key traces them and
+            # the ROI only has to say which region we mean.
+            'name': 'towers',
+            'roi': [[(940, 275), (1122, 275), (1122, 700), (940, 700)]],
+            'close': 1,
+            'holes': False,   # the gaps between towers are real sky
+            'min_px': 80,
+            'feather': 0.7,
+        },
+        {
+            # The far spire with the red aircraft beacon — the deepest object
+            # in the plate and the one that should barely move at all. Sky on
+            # three sides, so this is the cleanest cut in the whole stage.
+            'name': 'spire',
+            'roi': [[(900, 160), (1000, 160), (1000, 405), (900, 405)]],
+            'close': 1,
+            'min_px': 40,
+            'feather': 0.7,
+        },
+        # NOT CARDS, deliberately: the left office block and the buildings
+        # framed inside the arch. Both were cut and both came back as solid
+        # rectangles — they abut other dark buildings with no sky and no
+        # colour difference between them, so the ROI edge was the only thing
+        # deciding, which is precisely the "disjoint rectangular planes read
+        # as hard cuts" result that got cut_layers.py thrown away. They are
+        # the matrix this plate is built against, so they stay on the base
+        # plate and the cards are the things that genuinely stand in front of
+        # it. It also keeps the base nearly whole — Underground inpaints 18%
+        # against EAV's 70%.
+        {
+            # THE ARCH — the hero of this plate.
+            #
+            # The dome's top edge is TRACED, not drawn: for each column the
+            # topmost run of lit masonry was detected and those points are the
+            # polygon below, offset 5px outward so the ROI stays a fence and
+            # the art keeps deciding the edge. It came back symmetric about
+            # x=590 to within a pixel and flat-capped between x=562 and x=626,
+            # which is the check that it followed the building and not noise.
+            # A circle fitted to the same points lands at centre (585,404)
+            # radius 250 — good agreement, but the traced points are used
+            # because the cap is genuinely flat and a circle rounds it off.
+            #
+            # The dome is a WHEEL — ribs with real gaps you see through, not a
+            # solid cap. Cut with the default hole-fill it came back as a
+            # filled semicircle, which is why `holes` is off and why `keep`
+            # covers the dome as well as the wings. Sampled across the wheel
+            # at y=250 the ribs read luminance 71-160 and the gaps between
+            # them 1-30, so the stone rule splits them cleanly. The keep stops
+            # at y=395: below that is the marquee and the bulb rail, which are
+            # dark red rather than stone and would be deleted by it.
+            'name': 'arch',
+            'roi': [
+                [
+                    (338, 335), (354, 303), (370, 273), (386, 259), (402, 236),
+                    (418, 227), (434, 204), (450, 195), (466, 186), (482, 182),
+                    (498, 172), (514, 167), (530, 167), (546, 158), (562, 154),
+                    (578, 154), (594, 154), (610, 154), (626, 154), (642, 158),
+                    (658, 163), (674, 168), (690, 172), (706, 181), (722, 191),
+                    (738, 200), (754, 209), (770, 227), (786, 241), (802, 264),
+                    (818, 274), (826, 283),
+                    # down the right shoulder onto the marquee, along its
+                    # underside at y=578 (the lowest bulb-rail pixel measured
+                    # anywhere across the span was 564), and back up the left
+                    (860, 340), (884, 400), (884, 578), (285, 578), (285, 400),
+                    (310, 350),
+                ],
+                # Left wing rails, over the office block.
+                [(148, 405), (310, 405), (310, 552), (148, 552)],
+                # Right wing rails, over the towers.
+                [(852, 372), (1014, 372), (1014, 536), (852, 536)],
+            ],
+            'keep': ['stone'],
+            'keep_roi': [
+                # the wheel itself, down to the top of the marquee
+                [(285, 395), (884, 395), (884, 150), (285, 150)],
+                # left wing rails, over the office block
+                [(148, 405), (310, 405), (310, 552), (148, 552)],
+                # right wing rails, over the towers
+                [(852, 372), (1014, 372), (1014, 536), (852, 536)],
+            ],
+            'holes': False,   # you see through the wheel; do not fill it in
+            'close': 3,       # bridge a rib's own shading into one piece
+            'min_px': 120,
+            'feather': 0.7,
+        },
+        {
+            # LOANS 555-0132 board on the left storefront.
+            'name': 'loans',
+            'roi': [[(12, 648), (152, 648), (152, 762), (12, 762)]],
+            'close': 2,
+            'min_px': 60,
+            'feather': 0.7,
+        },
+        {
+            # Midtown/Westside — East Point/Airport direction sign.
+            'name': 'dirsign',
+            'roi': [[(498, 698), (692, 698), (692, 832), (498, 832)]],
+            'close': 2,
+            'min_px': 80,
+            'feather': 0.7,
+        },
+        {
+            # Both pedestrian signals on their posts.
+            'name': 'ped',
+            'roi': [[(362, 718), (492, 718), (492, 808), (362, 808)]],
+            'close': 2,
+            'min_px': 40,
+            'feather': 0.7,
+        },
+        {
+            # The Coca-Cola disc. Saturated red and nothing else near it is,
+            # so component analysis found it exactly: 6524px across x745-871,
+            # y704-826.
+            'name': 'coke',
+            'roi': [[(738, 693), (878, 693), (878, 838), (738, 838)]],
+            'close': 2,
+            'min_px': 60,
+            'feather': 0.7,
+        },
+        {
+            # WAFFLE HOUSE frontage — neon and the white box above it.
+            'name': 'waffle',
+            'roi': [[(748, 828), (892, 828), (892, 962), (748, 962)]],
+            'close': 2,
+            'min_px': 60,
+            'feather': 0.7,
+        },
+        {
+            # The wet street at the very bottom of the crop — the nearest
+            # ground before the game draws its own. Same treatment as EAV's
+            # verge: its top edge has no real edge in the art to land on, so
+            # it is feathered out rather than cut.
+            'name': 'street',
+            'roi': [[(0, 1000), (1122, 1000), (1122, 1093), (0, 1093)]],
+            'close': 1,
+            'min_px': 200,
+            'feather': 2.4,
+        },
+        {
+            # The two turquoise columns. Nearest things in the plate and the
+            # ones that should travel fastest. Keyed on their own colour
+            # rather than on their ROI, so the flutes and the capitals come
+            # out as the real shape.
+            'name': 'columns',
+            'roi': [
+                [(188, 348), (300, 348), (300, 1093), (188, 1093)],
+                [(858, 285), (946, 285), (946, 1093), (858, 1093)],
+            ],
+            'keep': ['teal'],
+            'close': 3,
+            'min_px': 150,
+            'feather': 0.7,
+        },
+    ],
 }
 
 
 # ── Cut ───────────────────────────────────────────────────────────────────
 
-def build_masks(rgb, items):
+def build_masks(rgb, items, stage_id='eav'):
     h, w = rgb.shape[:2]
 
     # The sky, once, for the whole plate: the background you can reach from
     # outside the frame. Every silhouette in the picture falls out of this one
     # fill — leaves, plank tops, the gaps between planks.
-    sky = border_connected(is_sky(rgb))
+    sky = border_connected(is_sky_for(rgb, stage_id))
     # Thin sky tendrils threading into foliage would shred an item into lace.
     # Opening drops anything narrower than the brush, and the result is
     # re-tested for reachability so a pocket that gets pinched off deep inside
@@ -463,6 +724,21 @@ def build_masks(rgb, items):
                  if it.get('reject_roi') else np.ones((h, w), bool))
         for rname in it.get('reject', []):
             m &= ~(REJECTS[rname](rgb) & rmask)
+        # KEEP is the inverse of reject, and the Underground arch is why it
+        # exists. Its wing rails are pale stone crossing IN FRONT of a dark
+        # office block, with no sky anywhere near them, so nothing trims the
+        # building out: a reject would have to name every material the
+        # building is made of, while a keep names the one material the rail
+        # is. Scoped by `keep_roi` for the same reason rejects are — the dome
+        # is shaded far below the stone threshold (median luminance 32
+        # against the rails' 55+), so an unscoped keep would delete it.
+        if it.get('keep'):
+            kmask = (rasterize(it['keep_roi'], w, h)
+                     if it.get('keep_roi') else np.ones((h, w), bool))
+            allow = np.zeros((h, w), bool)
+            for kname in it['keep']:
+                allow |= KEEPS[kname](rgb)
+            m &= allow | ~kmask
         if it.get('close'):
             m = ndi.binary_closing(m, disk(it['close']))
         if it.get('open'):
@@ -562,7 +838,7 @@ def cut(stage_id, items, debug_only=False, proof=False):
     rgb = np.array(im)
     h, w = rgb.shape[:2]
     meta = {}
-    masks, claimed, sky = build_masks(rgb, items)
+    masks, claimed, sky = build_masks(rgb, items, stage_id)
     os.makedirs(DEBUG_DIR, exist_ok=True)
 
     # The map to read: flat colour per item over a darkened plate, showing

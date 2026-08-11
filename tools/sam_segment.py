@@ -1,0 +1,120 @@
+#!/usr/bin/env python3
+"""
+Outline every item in a backdrop with Segment Anything, and rank the masks by
+how usable each one is as a parallax card.
+
+WHY THIS EXISTS. cut_planes.py finds an item's EDGE beautifully — the sky
+flood-fill lands on every silhouette at once, per pixel — but it has to be
+TOLD where each item is, as a hand-authored ROI. Authoring those by reading
+coordinates off zoomed screenshots is slow and it is where the mistakes come
+from. SAM does the finding: it is class-agnostic, so it never needs to know
+what a "Citgo canopy" or a "marquee arch" is, it just returns a mask per
+coherent region.
+
+WHAT IT DOES NOT DO. SAM has no idea about depth. It will happily return two
+hundred masks — every window, every plank, every bulb — and something still
+has to say "that one is the tree, it belongs at 0.81". So this writes a
+proposal sheet for a human to read, not a finished plane set.
+
+Usage:
+    python3 tools/sam_segment.py underground            # propose masks
+    python3 tools/sam_segment.py underground --grid 24  # denser sampling
+"""
+
+import json
+import os
+import sys
+
+import numpy as np
+from PIL import Image, ImageDraw
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BG = os.path.join(ROOT, 'src', 'assets', 'backgrounds')
+OUT = os.path.join(ROOT, 'tools', 'captures', 'sam')
+CKPT = '/root/sam/sam_vit_b.pth'
+
+# groundFrac per stage — must match src/world/stages.js, since the cards are
+# cut from the same crop the renderer draws.
+GROUND_FRAC = {'eav': 0.88, 'underground': 0.78, 'l5p': 0.80, 'edgewood': 0.82}
+
+
+def load_plate(stage):
+    im = Image.open(os.path.join(BG, f'{stage}.webp')).convert('RGB')
+    w, h = im.size
+    return np.array(im.crop((0, 0, w, int(h * GROUND_FRAC[stage]))))
+
+
+def generate(rgb, grid):
+    from segment_anything import SamAutomaticMaskGenerator, sam_model_registry
+    sam = sam_model_registry['vit_b'](checkpoint=CKPT)
+    sam.to('cpu')
+    gen = SamAutomaticMaskGenerator(
+        sam,
+        points_per_side=grid,
+        pred_iou_thresh=0.80,
+        stability_score_thresh=0.88,
+        # These plates are dark and low-contrast; the default crop layers add
+        # a lot of CPU time for very little on art this flat.
+        crop_n_layers=0,
+        min_mask_region_area=400,
+    )
+    return gen.generate(rgb)
+
+
+def main():
+    stage = sys.argv[1]
+    grid = 16
+    if '--grid' in sys.argv:
+        grid = int(sys.argv[sys.argv.index('--grid') + 1])
+    rgb = load_plate(stage)
+    h, w = rgb.shape[:2]
+    print(f'{stage}: {w}x{h} crop, points_per_side={grid} '
+          f'({grid * grid} prompts) — CPU, this takes a while')
+
+    masks = generate(rgb, grid)
+    print(f'  SAM returned {len(masks)} masks')
+
+    # Rank by area. A card is worth having if it is big enough to read as its
+    # own object and small enough not to be "most of the picture".
+    masks.sort(key=lambda m: -m['area'])
+    keep = [m for m in masks if 400 <= m['area'] <= 0.55 * w * h]
+    print(f'  {len(keep)} in the usable size band (400px .. 55% of plate)')
+
+    os.makedirs(OUT, exist_ok=True)
+    rec = []
+    for i, m in enumerate(keep):
+        x, y, bw, bh = m['bbox']
+        rec.append({
+            'i': i, 'area': int(m['area']),
+            'bbox': [int(x), int(y), int(x + bw), int(y + bh)],
+            'iou': round(float(m['predicted_iou']), 3),
+            'stability': round(float(m['stability_score']), 3),
+        })
+    with open(os.path.join(OUT, f'{stage}_masks.json'), 'w') as f:
+        json.dump(rec, f, indent=1)
+    np.save(os.path.join(OUT, f'{stage}_masks.npy'),
+            np.stack([m['segmentation'] for m in keep]) if keep
+            else np.zeros((0, h, w), bool))
+
+    # Proposal sheet: every mask tinted and numbered over the darkened plate,
+    # so the numbers in the JSON can be matched to things by eye.
+    PAL = [(255, 96, 96), (255, 196, 64), (96, 230, 140), (110, 170, 255),
+           (220, 120, 255), (90, 245, 235), (255, 150, 40), (150, 255, 90)]
+    sheet = (rgb * 0.30).astype(np.uint8).copy()
+    for i, m in enumerate(keep):
+        c = PAL[i % len(PAL)]
+        seg = m['segmentation']
+        sheet[seg] = (sheet[seg] * 0.35 + np.array(c) * 0.65).astype(np.uint8)
+    img = Image.fromarray(sheet)
+    d = ImageDraw.Draw(img)
+    for i, m in enumerate(keep):
+        x, y, bw, bh = m['bbox']
+        d.text((x + 2, y + 2), str(i), fill=(255, 255, 255))
+    img.save(os.path.join(OUT, f'{stage}_proposals.png'))
+    print(f'  -> {stage}_proposals.png, {stage}_masks.json, {stage}_masks.npy')
+    for r in rec[:25]:
+        print(f"   #{r['i']:<3d} {r['area']:7d}px  bbox {r['bbox']}  iou {r['iou']}")
+
+
+if __name__ == '__main__':
+    main()
