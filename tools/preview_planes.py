@@ -20,24 +20,33 @@ Usage:
 """
 
 import os
+import re
 import sys
 
 import numpy as np
 from PIL import Image, ImageDraw
 
-from cut_planes import PLANES, BG, DEBUG_DIR
+from cut_planes import PLANES, BG, DEBUG_DIR, ROOT
 
-# Rate per card, world-relative: 1.0 tracks the world exactly, 0 is nailed to
-# the screen. Ordered by real distance down the street. The spread is wide on
-# purpose — the ask was a pronounced pseudo-3D, so the fence at 0.30 crosses
-# the frame more than four times for every once the billboard does.
 # DEPTH, not rate. 0 is the far wall, 1 is right at the kerb. The rate is
 # derived, so the whole effect dials on one number.
-DEPTH = {
-    'base': 0.00, 'skyline': 0.07, 'mcdonalds': 0.16, 'cars': 0.21,
-    'swifty': 0.25, 'citgo': 0.41, 'fence': 0.67, 'verge': 0.75,
-    'tree': 0.81, 'shrub_right': 0.85, 'pole': 1.00,
-}
+def load_depths(stage):
+    """Read the depths out of stages.js rather than keeping a second copy.
+
+    This table used to be duplicated here, and duplicated tables in this repo
+    drift — lighting.js held its own copy of the ground-contact constant and
+    had already gone 2 against 3 before anyone noticed. The renderer is the
+    authority on depth; a verification tool that checks against its own
+    private numbers verifies nothing.
+    """
+    src = open(os.path.join(ROOT, 'src', 'world', 'stages.js')).read()
+    i = src.index(f"id: '{stage}'")
+    j = src.index('cards: [', i)
+    k = src.index('\n      ],', j)
+    out = {'base': 0.0}
+    for key, depth in re.findall(r"key: '(\w+)'.*?depth: ([\d.]+)", src[j:k], re.S):
+        out[key] = float(depth)
+    return out
 
 # Everything scrolls at the plate's existing rate. Depth only adds a small
 # DIFFERENCE on top, and that difference is what the eye reads.
@@ -59,13 +68,13 @@ MAX_SEPARATION = 90      # px, hard ceiling on the differential
 # migration impossible even if the spread is later dialled up.
 
 
-def rate(name):
-    return BASE_RATE + (DEPTH[name] - 0.5) * DEPTH_SPREAD
+def rate(name, depths):
+    return BASE_RATE + (depths[name] - 0.5) * DEPTH_SPREAD
 
 
-def offset(name, cam):
+def offset(name, cam, depths):
     common = cam * BASE_RATE
-    diff = cam * (rate(name) - BASE_RATE)
+    diff = cam * (rate(name, depths) - BASE_RATE)
     return common + max(-MAX_SEPARATION, min(MAX_SEPARATION, diff))
 
 
@@ -78,12 +87,12 @@ def load(stage_id):
     return base, cards
 
 
-def compose(base, cards, cam):
+def compose(base, cards, cam, depths):
     """Stack at camera position `cam`, each card wrapped at the plate width."""
     W, H = base.size
     out = Image.new('RGBA', (W, H))
     for name, img in [('base', base)] + cards:
-        off = int(round(offset(name, cam))) % W
+        off = int(round(offset(name, cam, depths))) % W
         out.alpha_composite(img, (-off, 0))
         out.alpha_composite(img, (W - off, 0))
         if off:
@@ -94,11 +103,12 @@ def compose(base, cards, cam):
 def main():
     sid = sys.argv[1] if len(sys.argv) > 1 else 'eav'
     base, cards = load(sid)
+    depths = load_depths(sid)
     W, H = base.size
     orig = Image.open(os.path.join(BG, sid + '.webp')).convert('RGB')
 
     # ── Recompose check
-    rec = compose(base, cards, 0).convert('RGB')
+    rec = compose(base, cards, 0, depths).convert('RGB')
     a = np.array(rec).astype(int)
     b = np.array(orig).astype(int)
     d = np.abs(a - b).max(axis=2)
@@ -114,7 +124,7 @@ def main():
     shots = [0, 600, 1800, 4200]
     tiles = []
     for cam in shots:
-        t = compose(base, cards, cam).convert('RGB')
+        t = compose(base, cards, cam, depths).convert('RGB')
         d = ImageDraw.Draw(t)
         d.rectangle([0, 0, 150, 18], fill=(0, 0, 0))
         d.text((5, 5), f'camera x = {cam}', fill=(255, 255, 255))

@@ -61,8 +61,37 @@ def generate(rgb, grid):
     return gen.generate(rgb)
 
 
+def emit(stage, groups_path):
+    """Freeze chosen SAM masks as committed 1-bit PNGs.
+
+    The raw .npy SAM writes is 130MB and its indices shift the moment the
+    sampling grid changes, so neither is a thing to build a plane set on. The
+    groups file records WHICH mask indices were judged to be each card — that
+    is the reviewable decision — and this bakes their union into a PNG the
+    cutter can load. Re-running SAM only means re-checking the groups file.
+    """
+    import numpy as np
+    M = np.load(os.path.join(OUT, f'{stage}_masks.npy'))
+    groups = json.load(open(groups_path))
+    dest = os.path.join(ROOT, 'tools', 'sam_masks', stage)
+    os.makedirs(dest, exist_ok=True)
+    for name, idxs in groups.items():
+        u = np.zeros(M.shape[1:], bool)
+        for k in idxs:
+            u |= M[k]
+        ys, xs = np.where(u)
+        Image.fromarray((u * 255).astype(np.uint8)).convert('1').save(
+            os.path.join(dest, f'{name}.png'), optimize=True)
+        kb = os.path.getsize(os.path.join(dest, f'{name}.png')) / 1024
+        print(f'  {name:12s} {int(u.sum()):7d}px  '
+              f'x {xs.min()}..{xs.max()}  y {ys.min()}..{ys.max()}  {kb:.1f} kB')
+
+
 def main():
     stage = sys.argv[1]
+    if '--emit' in sys.argv:
+        emit(stage, sys.argv[sys.argv.index('--emit') + 1])
+        return
     grid = 16
     if '--grid' in sys.argv:
         grid = int(sys.argv[sys.argv.index('--grid') + 1])

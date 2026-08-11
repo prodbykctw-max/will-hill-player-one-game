@@ -535,37 +535,62 @@ PLANES = {
     # in real perspective, with a sky wedge top-right, towers behind, the arch
     # in the middle distance and two columns almost at the kerb. Far -> near.
     'underground': [
+        # SAM traced all of these — see tools/sam_segment.py and the numbered
+        # proposal sheet in tools/captures/sam/. A dense pass returns 199
+        # usable masks on this plate: every lit window, every letter of
+        # UNDERGROUND, every kerb tile. tools/sam_group.py folds them into the
+        # cards below by region, and the full set stays on disk for the
+        # lighting pass, where per-window glow is exactly what it is for.
+        #
+        # The arch is the one exception and keeps its hand-traced polygon:
+        # SAM finds the dome's ribs and the letters but not the dark marquee
+        # body behind them, so its mask comes back 90138px against the
+        # polygon's 159206 — the card would have a hole where the sign is.
         {
-            # Downtown towers filling the right of frame. Their rooflines are
-            # a true silhouette against sky, so the global key traces them and
-            # the ROI only has to say which region we mean.
+            # Cloud bank over the towers — the farthest thing that is not sky.
+            'name': 'clouds',
+            'mask': 'clouds',
+            'min_px': 200,
+            'feather': 1.6,   # cloud edges are soft in the art; keep them soft
+        },
+        {
+            # The far spire with the red aircraft beacon.
+            'name': 'spire',
+            'mask': 'spire',
+            'min_px': 40,
+            'feather': 0.7,
+        },
+        {
+            # Downtown towers filling the right of frame.
             'name': 'towers',
-            'roi': [[(940, 275), (1122, 275), (1122, 700), (940, 700)]],
-            'close': 1,
+            'mask': 'towers',
             'holes': False,   # the gaps between towers are real sky
             'min_px': 80,
             'feather': 0.7,
         },
         {
-            # The far spire with the red aircraft beacon — the deepest object
-            # in the plate and the one that should barely move at all. Sky on
-            # three sides, so this is the cleanest cut in the whole stage.
-            'name': 'spire',
-            'roi': [[(900, 160), (1000, 160), (1000, 405), (900, 405)]],
-            'close': 1,
-            'min_px': 40,
+            # The buildings standing behind and above the arch.
+            'name': 'backdrop',
+            'mask': 'backdrop',
+            'min_px': 200,
             'feather': 0.7,
         },
-        # NOT CARDS, deliberately: the left office block and the buildings
-        # framed inside the arch. Both were cut and both came back as solid
-        # rectangles — they abut other dark buildings with no sky and no
-        # colour difference between them, so the ROI edge was the only thing
-        # deciding, which is precisely the "disjoint rectangular planes read
-        # as hard cuts" result that got cut_layers.py thrown away. They are
-        # the matrix this plate is built against, so they stay on the base
-        # plate and the cards are the things that genuinely stand in front of
-        # it. It also keeps the base nearly whole — Underground inpaints 18%
-        # against EAV's 70%.
+        {
+            # The office block down the left with all its lit windows. Cut by
+            # ROI this came back a solid rectangle and had to be abandoned;
+            # SAM traces the facade and returns 63 separate masks for it.
+            'name': 'leftblock',
+            'mask': 'leftblock',
+            'min_px': 120,
+            'feather': 0.7,
+        },
+        {
+            # The mid-distance buildings framed inside the arch.
+            'name': 'midbuild',
+            'mask': 'midbuild',
+            'min_px': 120,
+            'feather': 0.7,
+        },
         {
             # THE ARCH — the hero of this plate.
             #
@@ -575,18 +600,14 @@ PLANES = {
             # the art keeps deciding the edge. It came back symmetric about
             # x=590 to within a pixel and flat-capped between x=562 and x=626,
             # which is the check that it followed the building and not noise.
-            # A circle fitted to the same points lands at centre (585,404)
-            # radius 250 — good agreement, but the traced points are used
-            # because the cap is genuinely flat and a circle rounds it off.
             #
-            # The dome is a WHEEL — ribs with real gaps you see through, not a
-            # solid cap. Cut with the default hole-fill it came back as a
-            # filled semicircle, which is why `holes` is off and why `keep`
-            # covers the dome as well as the wings. Sampled across the wheel
-            # at y=250 the ribs read luminance 71-160 and the gaps between
-            # them 1-30, so the stone rule splits them cleanly. The keep stops
-            # at y=395: below that is the marquee and the bulb rail, which are
-            # dark red rather than stone and would be deleted by it.
+            # The dome is a WHEEL — ribs with real gaps you see through. Cut
+            # with the default hole-fill it came back a filled semicircle,
+            # which is why `holes` is off and why `keep` covers the wheel.
+            # Sampled across it at y=250 the ribs read luminance 71-160 and
+            # the gaps 1-30, so the stone rule splits them. The keep stops at
+            # y=395: below that is the marquee and the bulb rail, dark red
+            # rather than stone, and it would delete them.
             'name': 'arch',
             'roi': [
                 [
@@ -597,96 +618,73 @@ PLANES = {
                     (658, 163), (674, 168), (690, 172), (706, 181), (722, 191),
                     (738, 200), (754, 209), (770, 227), (786, 241), (802, 264),
                     (818, 274), (826, 283),
-                    # down the right shoulder onto the marquee, along its
-                    # underside at y=578 (the lowest bulb-rail pixel measured
-                    # anywhere across the span was 564), and back up the left
                     (860, 340), (884, 400), (884, 578), (285, 578), (285, 400),
                     (310, 350),
                 ],
-                # Left wing rails, over the office block.
                 [(148, 405), (310, 405), (310, 552), (148, 552)],
-                # Right wing rails, over the towers.
                 [(852, 372), (1014, 372), (1014, 536), (852, 536)],
             ],
             'keep': ['stone'],
             'keep_roi': [
-                # the wheel itself, down to the top of the marquee
                 [(285, 395), (884, 395), (884, 150), (285, 150)],
-                # left wing rails, over the office block
                 [(148, 405), (310, 405), (310, 552), (148, 552)],
-                # right wing rails, over the towers
                 [(852, 372), (1014, 372), (1014, 536), (852, 536)],
             ],
-            'holes': False,   # you see through the wheel; do not fill it in
-            'close': 3,       # bridge a rib's own shading into one piece
+            'holes': False,
+            'close': 3,
             'min_px': 120,
             'feather': 0.7,
         },
         {
             # LOANS 555-0132 board on the left storefront.
             'name': 'loans',
-            'roi': [[(12, 648), (152, 648), (152, 762), (12, 762)]],
-            'close': 2,
+            'mask': 'loans',
             'min_px': 60,
             'feather': 0.7,
         },
         {
-            # Midtown/Westside — East Point/Airport direction sign.
-            'name': 'dirsign',
-            'roi': [[(498, 698), (692, 698), (692, 832), (498, 832)]],
-            'close': 2,
-            'min_px': 80,
-            'feather': 0.7,
-        },
-        {
-            # Both pedestrian signals on their posts.
-            'name': 'ped',
-            'roi': [[(362, 718), (492, 718), (492, 808), (362, 808)]],
-            'close': 2,
-            'min_px': 40,
-            'feather': 0.7,
-        },
-        {
-            # The Coca-Cola disc. Saturated red and nothing else near it is,
-            # so component analysis found it exactly: 6524px across x745-871,
-            # y704-826.
+            # The Coca-Cola disc.
             'name': 'coke',
-            'roi': [[(738, 693), (878, 693), (878, 838), (738, 838)]],
-            'close': 2,
+            'mask': 'coke',
             'min_px': 60,
             'feather': 0.7,
         },
         {
             # WAFFLE HOUSE frontage — neon and the white box above it.
             'name': 'waffle',
-            'roi': [[(748, 828), (892, 828), (892, 962), (748, 962)]],
-            'close': 2,
+            'mask': 'waffle',
             'min_px': 60,
             'feather': 0.7,
         },
         {
+            # Midtown/Westside — East Point/Airport direction sign.
+            'name': 'dirsign',
+            'mask': 'dirsign',
+            'min_px': 80,
+            'feather': 0.7,
+        },
+        {
+            # Both pedestrian signals on their posts.
+            'name': 'ped',
+            'mask': 'ped',
+            'min_px': 40,
+            'feather': 0.7,
+        },
+        {
             # The wet street at the very bottom of the crop — the nearest
-            # ground before the game draws its own. Same treatment as EAV's
-            # verge: its top edge has no real edge in the art to land on, so
-            # it is feathered out rather than cut.
+            # ground before the game draws its own.
             'name': 'street',
-            'roi': [[(0, 1000), (1122, 1000), (1122, 1093), (0, 1093)]],
-            'close': 1,
+            'mask': 'street',
             'min_px': 200,
             'feather': 2.4,
         },
         {
-            # The two turquoise columns. Nearest things in the plate and the
-            # ones that should travel fastest. Keyed on their own colour
-            # rather than on their ROI, so the flutes and the capitals come
-            # out as the real shape.
+            # The two turquoise columns — nearest things in the plate and the
+            # ones that should travel fastest. A colour keep on the teal got
+            # only the lit face and left them ragged; SAM returns each column
+            # whole, capitals, collars, taper and all.
             'name': 'columns',
-            'roi': [
-                [(188, 348), (300, 348), (300, 1093), (188, 1093)],
-                [(858, 285), (946, 285), (946, 1093), (858, 1093)],
-            ],
-            'keep': ['teal'],
-            'close': 3,
+            'mask': 'columns',
             'min_px': 150,
             'feather': 0.7,
         },
@@ -695,6 +693,37 @@ PLANES = {
 
 
 # ── Cut ───────────────────────────────────────────────────────────────────
+
+SAM_DIR = os.path.join(ROOT, 'tools', 'sam_masks')
+
+
+def load_mask(stage_id, name, w, h):
+    """A frozen SAM mask, committed as a 1-bit PNG (see sam_segment.py emit)."""
+    path = os.path.join(SAM_DIR, stage_id, f'{name}.png')
+    m = np.array(Image.open(path).convert('1'), bool)
+    # SAM segments the groundFrac crop — that is what the renderer draws and
+    # what a human looks at when grouping masks — while the cutter works on the
+    # whole plate. Pad the difference back with nothing; it is the strip the
+    # game crops off under its own street.
+    if m.shape[1] != w:
+        raise SystemExit(f'{path}: {m.shape[1]}px wide, plate is {w}px')
+    if m.shape[0] > h:
+        raise SystemExit(f'{path}: {m.shape[0]}px tall, plate is only {h}px')
+    if m.shape[0] < h:
+        m = np.vstack([m, np.zeros((h - m.shape[0], w), bool)])
+    return m
+
+
+def post_process(m, it):
+    """Shared tail of the per-item pipeline: tidy, fill, drop confetti."""
+    if it.get('close'):
+        m = ndi.binary_closing(m, disk(it['close']))
+    if it.get('open'):
+        m = ndi.binary_opening(m, disk(it['open']))
+    if it.get('holes', True):
+        m = ndi.binary_fill_holes(m)
+    return drop_specks(m, it.get('min_px', 0))
+
 
 def build_masks(rgb, items, stage_id='eav'):
     h, w = rgb.shape[:2]
@@ -711,6 +740,19 @@ def build_masks(rgb, items, stage_id='eav'):
 
     masks = []
     for it in items:
+        # A SAM mask is not a region of interest — it IS the traced edge, so
+        # it replaces the ROI and the sky key rather than feeding them. See
+        # tools/sam_segment.py: Segment Anything is class-agnostic, so it
+        # outlines the columns and the Coca-Cola disc without being told what
+        # either one is, and it gets them per pixel. What it cannot do is
+        # depth, which is why the plane list below still names and orders them
+        # by hand, and why the arch — too dark and low-contrast for SAM to
+        # find — keeps its traced polygon.
+        if it.get('mask'):
+            m = load_mask(stage_id, it['mask'], w, h)
+            roi = m
+            masks.append(post_process(m, it))
+            continue
         roi = rasterize(it['roi'], w, h)
         m = roi.copy()
         if not it.get('keep_sky'):

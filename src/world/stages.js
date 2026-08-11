@@ -37,7 +37,21 @@ import eavShrubRight from '../assets/backgrounds/eav-shrub_right.webp';
 import eavPole from '../assets/backgrounds/eav-pole.webp';
 import bgEdgewood from '../assets/backgrounds/edgewood.webp';
 import bgL5p from '../assets/backgrounds/l5p.webp';
-import bgUnderground from '../assets/backgrounds/underground.webp';
+import bgUnderground from '../assets/backgrounds/underground-base.webp';
+import ugClouds from '../assets/backgrounds/underground-clouds.webp';
+import ugSpire from '../assets/backgrounds/underground-spire.webp';
+import ugTowers from '../assets/backgrounds/underground-towers.webp';
+import ugBackdrop from '../assets/backgrounds/underground-backdrop.webp';
+import ugLeftblock from '../assets/backgrounds/underground-leftblock.webp';
+import ugMidbuild from '../assets/backgrounds/underground-midbuild.webp';
+import ugArch from '../assets/backgrounds/underground-arch.webp';
+import ugLoans from '../assets/backgrounds/underground-loans.webp';
+import ugCoke from '../assets/backgrounds/underground-coke.webp';
+import ugWaffle from '../assets/backgrounds/underground-waffle.webp';
+import ugDirsign from '../assets/backgrounds/underground-dirsign.webp';
+import ugPed from '../assets/backgrounds/underground-ped.webp';
+import ugStreet from '../assets/backgrounds/underground-street.webp';
+import ugColumns from '../assets/backgrounds/underground-columns.webp';
 
 // ── `bg` — real-world backdrop metrics (see src/render/backdrop.js) ──
 // These neighbourhoods are real places Will Hill walks through, so the
@@ -235,12 +249,40 @@ export const STAGES = [
       glow: 'rgba(220,60,60,0.10)',
       rain: 0.55, // partly sheltered under the arch
       windBands: [{ top: 0.02, pivot: 0.26, amp: 2, freq: 1.1, xRanges: [[0.60, 0.70]] }],
+      // ── The multiplane set, far -> near ──────────────────────────────
+      // Built in real perspective, so this plate has more genuine depth than
+      // any of the other three: sky wedge, towers behind, the arch in the
+      // middle distance, two columns almost at the kerb.
+      //
+      // The office block down the left and the buildings framed inside the
+      // arch are deliberately NOT cards — see tools/cut_planes.py. They abut
+      // other dark buildings with nothing to separate them, so cutting them
+      // gave back rectangles, and rectangles read as hard cuts. They are the
+      // matrix; the cards are what stands in front of it.
+      cards: [
+        { key: 'clouds', img: ugClouds, depth: 0.03, span: [0.640, 0.844] },
+        { key: 'spire', img: ugSpire, depth: 0.08, span: [0.814, 0.881] },
+        { key: 'towers', img: ugTowers, depth: 0.12, span: [0.863, 1.000] },
+        { key: 'backdrop', img: ugBackdrop, depth: 0.16, span: [0.270, 0.820] },
+        { key: 'leftblock', img: ugLeftblock, depth: 0.26, span: [0.000, 0.251] },
+        { key: 'midbuild', img: ugMidbuild, depth: 0.34, span: [0.265, 0.777] },
+        { key: 'arch', img: ugArch, depth: 0.48, span: [0.138, 0.894] },
+        { key: 'loans', img: ugLoans, depth: 0.56, span: [0.000, 0.133] },
+        { key: 'coke', img: ugCoke, depth: 0.60, span: [0.663, 0.773] },
+        { key: 'waffle', img: ugWaffle, depth: 0.62, span: [0.703, 0.786] },
+        { key: 'dirsign', img: ugDirsign, depth: 0.70, span: [0.452, 0.598] },
+        { key: 'ped', img: ugPed, depth: 0.74, span: [0.328, 0.429] },
+        { key: 'street', img: ugStreet, depth: 0.82, span: [0.003, 0.996] },
+        { key: 'columns', img: ugColumns, depth: 0.94, span: [0.161, 0.880] },
+      ],
       // The arch marquee bulbs, the Coca-Cola disc and the Waffle House
       // frontage — the three things genuinely emitting in this plate.
+      // `layer` bolts each glow to its card so it travels with the thing that
+      // emits it instead of sliding off it.
       lights: [
-        { x: 0.50, y: 0.30, r: 0.26, rgb: '255,226,160', a: 0.24, flicker: 0.030 },
-        { x: 0.72, y: 0.50, r: 0.24, rgb: '230,60,60',   a: 0.20 },
-        { x: 0.76, y: 0.62, r: 0.22, rgb: '255,196,90',  a: 0.18, flicker: 0.014 },
+        { x: 0.50, y: 0.30, r: 0.26, rgb: '255,226,160', a: 0.24, flicker: 0.030, layer: 'arch' },
+        { x: 0.72, y: 0.50, r: 0.24, rgb: '230,60,60',   a: 0.20, layer: 'coke' },
+        { x: 0.76, y: 0.62, r: 0.22, rgb: '255,196,90',  a: 0.18, flicker: 0.014, layer: 'waffle' },
         { x: 0.06, y: 0.24, r: 0.28, rgb: '255,196,120', a: 0.12 },
       ],
     },
