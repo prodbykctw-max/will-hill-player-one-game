@@ -9,8 +9,8 @@ import { createCamera } from './core/camera.js';
 import { createInput } from './core/input.js';
 import { advanceAnim } from './core/animate.js';
 import { createPlayer, stepPlayer, isInvulnerable, grantInvulnerability, PLAYER_SPRITE } from './entities/player.js';
-import { ENEMY_SPRITE, updateEnemy, resolveEnemyCollision } from './entities/enemy.js';
-import { overlapsPlayer } from './entities/collectibles.js';
+import { ENEMY_SPRITES, updateEnemy, resolveEnemyCollision } from './entities/enemy.js';
+import { overlapsPlayer, PROP_SPRITES } from './entities/collectibles.js';
 import { createLevel, buildRunway, genAhead, finishLineX } from './world/generator.js';
 import { STAGES } from './world/stages.js';
 import { T, FLOOR_R, SLAB_R, FALL_DEATH_Y, isSolid } from './world/tilemap.js';
@@ -161,7 +161,7 @@ function update() {
 
   camera.follow(player);
   advanceAnim(player, PLAYER_SPRITE.atlas);
-  for (const e of level.enemies) advanceAnim(e, ENEMY_SPRITE.atlas);
+  for (const e of level.enemies) advanceAnim(e, ENEMY_SPRITES[e.variant].atlas);
 
   state.hearts = player.hearts;
 
@@ -213,7 +213,7 @@ function draw() {
   const slabPx = SLAB_R * T * camera.zoom;
 
   backdrop.drawFar(bgImg, stage, camera, state.tick);
-  undercroft.draw(stage, groundY, slabPx, camera);
+  undercroft.draw(stage, groundY, slabPx, camera, state.tick);
 
   renderer.withCameraTransform(camera, () => {
     renderer.drawTiles(level.map, camera, (c, r) => isSolid(level.map, c, r));
@@ -221,10 +221,10 @@ function draw() {
     // light rather than having it painted over them.
     renderer.lighting.drawGroundPools(camera, stage);
     renderer.drawFinishLine(finishLineX(level), state.tick);
-    for (const bag of level.bags) renderer.drawMoneyBag(bag, state.tick);
-    for (const bottle of level.champagnes) renderer.drawChampagneBottle(bottle, state.tick);
+    for (const bag of level.bags) renderer.drawPickup(bag, images.bag, state.tick, 'rgba(255,206,110,0.30)');
+    for (const bottle of level.champagnes) renderer.drawPickup(bottle, images.champagne, state.tick, 'rgba(255,240,170,0.34)');
     for (const hz of level.obstacles) renderer.drawHazard(hz);
-    for (const e of level.enemies) renderer.drawEnemy(e, images.enemy, ENEMY_SPRITE.atlas, stage);
+    for (const e of level.enemies) renderer.drawEnemy(e, images['enemy_' + e.variant], ENEMY_SPRITES[e.variant].atlas, stage);
     renderer.drawPlayer(player, images.player, PLAYER_SPRITE.atlas, stage);
     renderer.lighting.drawBloom(camera, stage);
   });
@@ -267,7 +267,12 @@ function draw() {
 
 const loop = createLoop({ update, draw });
 
-const imageManifest = { player: PLAYER_SPRITE.url, enemy: ENEMY_SPRITE.url };
+const imageManifest = {
+  player: PLAYER_SPRITE.url,
+  bag: PROP_SPRITES.bag,
+  champagne: PROP_SPRITES.champagne,
+};
+for (const [v, sp] of Object.entries(ENEMY_SPRITES)) imageManifest['enemy_' + v] = sp.url;
 for (const s of STAGES) imageManifest[s.id] = s.bg.img;
 
 loadImages(imageManifest)

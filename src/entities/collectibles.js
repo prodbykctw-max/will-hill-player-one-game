@@ -8,14 +8,27 @@
 // so the local/offline score display agrees with what the server will
 // recompute from the run-event log.
 
+import bagUrl from '../assets/props/moneybag.webp';
+import bottleUrl from '../assets/props/champagne.webp';
+import { metersToWorld } from '../world/scale.js';
+
+export const PROP_SPRITES = { bag: bagUrl, champagne: bottleUrl };
+
 export const BAG_VALUE = 100;
 
+// Sized in real-world terms like everything else, then nudged up for
+// readability — a pickup has to catch the eye at portrait scale.
+const BAG_H = metersToWorld(0.62);
+const BAG_W = BAG_H * (162 / 168); // source aspect
+const BOTTLE_H = metersToWorld(0.66);
+const BOTTLE_W = BOTTLE_H * (54 / 168);
+
 export function createMoneyBag(x, y) {
-  return { kind: 'bag', x, y, w: 24, h: 24, got: false, value: BAG_VALUE };
+  return { kind: 'bag', x, y, w: BAG_W, h: BAG_H, got: false, value: BAG_VALUE };
 }
 
 export function createChampagneBottle(x, y) {
-  return { kind: 'champagne', x, y, w: 22, h: 30, got: false };
+  return { kind: 'champagne', x, y, w: BOTTLE_W, h: BOTTLE_H, got: false };
 }
 
 // p: player body with {x, y, w, h}. Same generous-margin AABB test as

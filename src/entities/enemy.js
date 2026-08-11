@@ -10,12 +10,25 @@
 // index.html ~line 1631-1638) MINUS the strike and dash-kill branches — no
 // combat here, stomp is the only way to defeat an enemy.
 
-import spriteSheetUrl from '../assets/sprites/enemy.webp';
-import atlas from '../assets/sprites/enemy.atlas.json';
+import sheetA from '../assets/sprites/enemy-a.webp';
+import atlasA from '../assets/sprites/enemy-a.atlas.json';
+import sheetB from '../assets/sprites/enemy-b.webp';
+import atlasB from '../assets/sprites/enemy-b.atlas.json';
+import sheetC from '../assets/sprites/enemy-c.webp';
+import atlasC from '../assets/sprites/enemy-c.atlas.json';
 import { damage as damagePlayer } from './player.js';
 import { metersToWorld, CHAR_SCALE } from '../world/scale.js';
 
-export const ENEMY_SPRITE = { url: spriteSheetUrl, atlas };
+// One generated sheet per palette variant. Stages 1-3 each field a single
+// variant; the Underground finale mixes all three (docs/GDD.md "Enemy
+// design"). Each was generated through the same AutoSprite pipeline with
+// matching prompts, so they read as the same archetype in different colours.
+export const ENEMY_SPRITES = {
+  a: { url: sheetA, atlas: atlasA },
+  b: { url: sheetB, atlas: atlasB },
+  c: { url: sheetC, atlas: atlasC },
+};
+const atlas = atlasA; // shared timing metadata — all variants have identical frame counts
 
 const PATROL_SPEED = 1.4; // px/tick — slower than the player's 6.4 run speed
 const STOMP_BOUNCE_VY = -10.5; // matches Jandé's post-stomp pogo bounce
@@ -30,7 +43,7 @@ export const ENEMY_H = Math.round(metersToWorld(ENEMY_HEIGHT_M) / CHAR_SCALE); /
 export const ENEMY_DRAW_H = metersToWorld(ENEMY_HEIGHT_M); // drawn character height
 const ENEMY_W = 30;
 
-export function createEnemy(x, y, patrolRange = 96) {
+export function createEnemy(x, y, patrolRange = 96, variant = 'a') {
   return {
     x,
     y,
@@ -38,6 +51,7 @@ export function createEnemy(x, y, patrolRange = 96) {
     w: ENEMY_W,
     h: ENEMY_H,
     charDrawH: ENEMY_DRAW_H,
+    variant,
     originX: x,
     patrolRange,
     alive: true,

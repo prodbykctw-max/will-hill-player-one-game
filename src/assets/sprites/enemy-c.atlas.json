@@ -1,0 +1,49 @@
+{
+  "frameSize": [
+    234,
+    253
+  ],
+  "cols": 16,
+  "sourceCellSize": [
+    256,
+    256
+  ],
+  "origin": [
+    22,
+    0
+  ],
+  "animations": {
+    "idle": {
+      "row": 0,
+      "frameCount": 16,
+      "loop": true,
+      "fit": {
+        "h": 0.9881,
+        "b": 0.9921
+      }
+    },
+    "walk": {
+      "row": 1,
+      "frameCount": 16,
+      "loop": true,
+      "fit": {
+        "h": 0.9842,
+        "b": 0.9921
+      }
+    },
+    "defeat": {
+      "row": 2,
+      "frameCount": 16,
+      "loop": false,
+      "fit": {
+        "h": 0.9605,
+        "b": 0.9605
+      },
+      "note": "plays once when stomped, then the enemy despawns"
+    }
+  },
+  "fitRef": {
+    "h": 0.9881,
+    "b": 0.9921
+  }
+}

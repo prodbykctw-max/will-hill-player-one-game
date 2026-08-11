@@ -255,50 +255,22 @@ export function createRenderer(ctx, canvas) {
   }
 
   // ── pickups / hazards ────────────────────────────────────────────────
-  function drawMoneyBag(item, tick) {
-    if (item.got) return;
-    const bob = Math.sin(tick * 0.06 + item.x * 0.01) * 3;
-    const { x, w, h } = item;
+  // Pickups are AutoSprite-generated art (tools/compose_props.py), drawn
+  // with a soft glow so they read against the dark street.
+  function drawPickup(item, img, tick, glow) {
+    if (item.got || !img) return;
+    const bob = Math.sin(tick * 0.055 + item.x * 0.01) * 3;
     const y = item.y + bob;
     ctx.save();
-    ctx.fillStyle = 'rgba(255,214,110,0.16)';
-    ctx.beginPath();
-    ctx.arc(x + w / 2, y + h / 2, w * 0.95, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#caa04a';
-    ctx.beginPath();
-    ctx.moveTo(x + w * 0.5, y);
-    ctx.quadraticCurveTo(x, y + h * 0.3, x + w * 0.1, y + h);
-    ctx.lineTo(x + w * 0.9, y + h);
-    ctx.quadraticCurveTo(x + w, y + h * 0.3, x + w * 0.5, y);
-    ctx.fill();
-    ctx.strokeStyle = '#7a5a1e';
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
-    ctx.fillStyle = '#3a2a10';
-    ctx.font = `700 ${Math.round(h * 0.55)}px sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.fillText('$', x + w / 2, y + h * 0.8);
-    ctx.restore();
-  }
-
-  function drawChampagneBottle(item, tick) {
-    if (item.got) return;
-    const bob = Math.sin(tick * 0.05 + item.x * 0.01) * 3;
-    const { x, w, h } = item;
-    const y = item.y + bob;
-    ctx.save();
-    ctx.fillStyle = 'rgba(255,240,180,0.18)';
-    ctx.beginPath();
-    ctx.arc(x + w / 2, y + h / 2, w * 1.1, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#2f6b3a';
-    ctx.fillRect(x + w * 0.25, y + h * 0.25, w * 0.5, h * 0.75);
-    ctx.fillRect(x + w * 0.4, y, w * 0.2, h * 0.3);
-    ctx.fillStyle = '#e8d9a0';
-    ctx.fillRect(x + w * 0.2, y + h * 0.52, w * 0.6, h * 0.15);
-    ctx.fillStyle = 'rgba(255,255,255,0.35)';
-    ctx.fillRect(x + w * 0.3, y + h * 0.3, w * 0.08, h * 0.4);
+    const g = ctx.createRadialGradient(
+      item.x + item.w / 2, y + item.h / 2, 1,
+      item.x + item.w / 2, y + item.h / 2, item.h * 0.85,
+    );
+    g.addColorStop(0, glow);
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(item.x - item.h, y - item.h * 0.4, item.w + item.h * 2, item.h * 1.8);
+    ctx.drawImage(img, item.x, y, item.w, item.h);
     ctx.restore();
   }
 
@@ -382,8 +354,7 @@ export function createRenderer(ctx, canvas) {
     drawTiles,
     drawPlayer,
     drawEnemy,
-    drawMoneyBag,
-    drawChampagneBottle,
+    drawPickup,
     drawHazard,
     drawFinishLine,
   };

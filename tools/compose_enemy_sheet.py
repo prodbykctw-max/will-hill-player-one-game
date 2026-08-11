@@ -28,9 +28,16 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib
 from compose_common import load_grid_frames, union_bbox, pack_sheet, save_webp, write_atlas, measure_fit  # noqa: E402
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-RAW_DIR = os.path.join(REPO_ROOT, 'assets', 'raw-sprites', 'enemy')
-OUT_IMG = os.path.join(REPO_ROOT, 'src', 'assets', 'sprites', 'enemy.webp')
-OUT_JSON = os.path.join(REPO_ROOT, 'src', 'assets', 'sprites', 'enemy.atlas.json')
+# One sheet per palette variant. docs/GDD.md assigns a different variant to
+# each of the first three stages, with all three appearing in the finale.
+VARIANTS = ['a', 'b', 'c']
+
+def paths_for(v):
+    return (
+        os.path.join(REPO_ROOT, 'assets', 'raw-sprites', f'enemy_{v}'),
+        os.path.join(REPO_ROOT, 'src', 'assets', 'sprites', f'enemy-{v}.webp'),
+        os.path.join(REPO_ROOT, 'src', 'assets', 'sprites', f'enemy-{v}.atlas.json'),
+    )
 
 SOURCE_CELL = 256
 SOURCE_COLS = 4
@@ -43,7 +50,8 @@ ANIMATIONS = [
 ]
 
 
-def main():
+def compose(v):
+    RAW_DIR, OUT_IMG, OUT_JSON = paths_for(v)
     frame_lists = {}
     for folder, key, _loop, _note in ANIMATIONS:
         src_path = os.path.join(RAW_DIR, folder, 'spritesheet.png')
@@ -72,9 +80,12 @@ def main():
     size = save_webp(sheet, OUT_IMG, quality=92)
     write_atlas(OUT_JSON, cell_w, cell_h, FRAMES, SOURCE_CELL, box[:2], animations, fit_ref)
 
-    print(f"Trimmed cell: {cell_w}x{cell_h} (from {SOURCE_CELL}x{SOURCE_CELL} source, origin {box[0]},{box[1]})")
-    print(f"Wrote {OUT_IMG} ({sheet.width}x{sheet.height}, {size} bytes)")
-    print(f"Wrote {OUT_JSON}")
+    print(f"[{v}] cell {cell_w}x{cell_h}  ->  {os.path.basename(OUT_IMG)} ({sheet.width}x{sheet.height}, {size} bytes)")
+
+
+def main():
+    for v in VARIANTS:
+        compose(v)
 
 
 if __name__ == '__main__':

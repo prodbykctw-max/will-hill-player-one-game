@@ -17,8 +17,11 @@ export const CHAR_HEIGHT_M = 1.78;
 // How tall the character is DRAWN, in world units, relative to his collision
 // box. Ported from Jandé's effective hero scale (index.html:5389 —
 // `PH * 1.55 * 0.974` = 1.51 x PH). PH is shared with Jandé at 86.
-export const CHAR_SCALE = 1.51;
-export const CHAR_DRAW_H = PH * CHAR_SCALE; // 129.86 world units
+// Bumped from Jandé's 1.51 — at portrait framing the character read a touch
+// small against the real-scale streets, so the whole cast (and the pickups,
+// which size off the same metre conversion) sits slightly larger.
+export const CHAR_SCALE = 1.74;
+export const CHAR_DRAW_H = PH * CHAR_SCALE; // ~150 world units
 
 // The conversion everything else hangs off.
 export const WORLD_PER_M = CHAR_DRAW_H / CHAR_HEIGHT_M; // ~72.96 world units per metre

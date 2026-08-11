@@ -51,6 +51,14 @@ export function buildRunway(level) {
   level.genC = RUNWAY_COLS;
 }
 
+// Which palette walks this stage. Stages 1-3 are single-variant; the finale
+// mixes all three, chosen deterministically per column so a given stage
+// always lays out identically.
+function pickVariant(level, c) {
+  const vs = level.stage.enemyVariants;
+  return vs.length === 1 ? vs[0] : vs[Math.floor(rnd01(c * 13.7 + level.seed) * vs.length) % vs.length];
+}
+
 export function genAhead(level, untilCol) {
   const { recipe, stageEnd } = level.stage;
   const cap = Math.min(untilCol, stageEnd + 8);
@@ -99,7 +107,7 @@ export function genAhead(level, untilCol) {
       // POTHOLE or an enemy — ground continues straight through either way.
       groundCol(level.map, c, FLOOR_R, LH - 1);
       if (rnd01(c * 6.1 + level.seed) < recipe.enemy && c - level.lastEnemyCol > MIN_ENEMY_SPACING_COLS) {
-        level.enemies.push(createEnemy(c * T, FLOOR_R * T - ENEMY_H));
+        level.enemies.push(createEnemy(c * T, FLOOR_R * T - ENEMY_H, 96, pickVariant(level, c)));
         level.lastEnemyCol = c;
       } else {
         // Sunk into the street surface, not perched on top of it. Wide and
@@ -121,7 +129,7 @@ export function genAhead(level, untilCol) {
       level.champagnes.push(createChampagneBottle(c * T + 8, (FLOOR_R - 1) * T - 26));
     }
     if (rnd01(c * 11.1 + level.seed) < recipe.enemy * 0.6 && c - level.lastEnemyCol > MIN_ENEMY_SPACING_COLS) {
-      level.enemies.push(createEnemy(c * T, FLOOR_R * T - ENEMY_H));
+      level.enemies.push(createEnemy(c * T, FLOOR_R * T - ENEMY_H, 96, pickVariant(level, c)));
       level.lastEnemyCol = c;
     }
     level.genC = c + 1;

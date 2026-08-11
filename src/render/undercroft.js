@@ -351,7 +351,136 @@ export function createUndercroft(ctx, canvas) {
     ctx.restore();
   }
 
-  const KINDS = { sewer, water, conduit, manhole, footings, roots, tunnel };
+  // Rats — the undercroft should feel inhabited, not like a diagram. They
+  // scurry along the sewer crown and the tunnel floor, pause, then bolt.
+  // Positions are time-driven rather than hashed so they genuinely move.
+  function rats(px, y0, bh, u, tick) {
+    const lanes = [y0 + bh * 0.455, y0 + bh * 0.70, y0 + bh * 0.30];
+    ctx.save();
+    ctx.fillStyle = u.rat || '#241d1a';
+    for (let i = 0; i < 7; i++) {
+      const lane = lanes[i % lanes.length];
+      const dir = i % 2 ? 1 : -1;
+      const speed = 1.5 + (i % 3) * 0.65;
+      const span = canvas.width + 260;
+      // Bolt–pause–bolt: the sine term stalls them briefly, which reads far
+      // more like vermin than a constant glide.
+      const t = tick * speed + i * 400;
+      const gait = t + Math.sin(t * 0.02 + i) * 26;
+      const x = dir > 0 ? pmod(gait, span) - 130 : span - pmod(gait, span) - 130;
+      const bob = Math.sin(t * 0.30 + i) * 0.9;
+      const y = lane + bob;
+
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.scale(dir, 1);
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 4.4, 2.3, 0, 0, Math.PI * 2); // body
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(4.2, -0.5, 1.7, 0, Math.PI * 2); // head
+      ctx.fill();
+      ctx.strokeStyle = u.rat || '#241d1a';
+      ctx.lineWidth = 1;
+      ctx.beginPath(); // tail, whipping with the gait
+      ctx.moveTo(-4, 0);
+      ctx.quadraticCurveTo(-9, Math.sin(t * 0.3 + i) * 3, -13, 1.5);
+      ctx.stroke();
+      // eye catching the tunnel light
+      ctx.fillStyle = 'rgba(255,190,140,0.5)';
+      ctx.fillRect(4.8, -1.2, 1, 1);
+      ctx.fillStyle = u.rat || '#241d1a';
+      ctx.restore();
+    }
+    ctx.restore();
+  }
+
+  // MARTA train — Five Points is a station, so a train actually runs the
+  // line under the street on a cycle: headlight sweep, lit windows, then
+  // gone. This is the single most alive thing in the section.
+  function train(px, y0, bh, u, tick) {
+    const top = y0 + bh * 0.34;
+    const h = Math.max(30, bh * 0.42);
+    const rail = top + h - 12;
+
+    const PERIOD = 760; // ticks between services
+    const TRANSIT = 260; // ticks to cross
+    const phase = pmod(tick, PERIOD);
+    if (phase > TRANSIT) return; // between trains — empty tunnel
+
+    const carH = Math.min(h * 0.52, 40);
+    const carW = 150;
+    const cars = 4;
+    const trainLen = carW * cars;
+    const p = phase / TRANSIT;
+    // Alternate direction each service.
+    const eastbound = Math.floor(tick / PERIOD) % 2 === 0;
+    const travel = -trainLen - 120 + p * (canvas.width + trainLen + 240);
+    const x0 = eastbound ? travel : canvas.width - travel - trainLen;
+    const carTop = rail - carH;
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, top, canvas.width, h);
+    ctx.clip();
+
+    // headlight wash thrown down the tunnel ahead of the train
+    const noseX = eastbound ? x0 + trainLen : x0;
+    const hg = ctx.createRadialGradient(noseX, carTop + carH * 0.5, 2, noseX, carTop + carH * 0.5, 220);
+    hg.addColorStop(0, 'rgba(255,240,200,0.42)');
+    hg.addColorStop(1, 'rgba(255,240,200,0)');
+    ctx.fillStyle = hg;
+    ctx.fillRect(noseX - 220, top, 440, h);
+
+    for (let i = 0; i < cars; i++) {
+      const cx = x0 + i * carW;
+      // body
+      const bg = ctx.createLinearGradient(0, carTop, 0, carTop + carH);
+      bg.addColorStop(0, '#9aa1a8');
+      bg.addColorStop(0.5, '#6f767d');
+      bg.addColorStop(1, '#3f4449');
+      ctx.fillStyle = bg;
+      ctx.fillRect(cx + 3, carTop, carW - 6, carH);
+      // MARTA blue stripe
+      ctx.fillStyle = '#2f5fa8';
+      ctx.fillRect(cx + 3, carTop + carH * 0.60, carW - 6, carH * 0.13);
+      // lit windows
+      for (let w = 0; w < 5; w++) {
+        ctx.fillStyle = 'rgba(255,238,190,0.92)';
+        ctx.fillRect(cx + 16 + w * 25, carTop + carH * 0.18, 16, carH * 0.32);
+      }
+      // roof + skirt
+      ctx.fillStyle = 'rgba(255,255,255,0.16)';
+      ctx.fillRect(cx + 3, carTop, carW - 6, 2);
+      ctx.fillStyle = 'rgba(0,0,0,0.55)';
+      ctx.fillRect(cx + 3, carTop + carH - 3, carW - 6, 3);
+      // coupling gap
+      ctx.fillStyle = 'rgba(0,0,0,0.6)';
+      ctx.fillRect(cx, carTop + carH * 0.2, 3, carH * 0.7);
+    }
+
+    // speed streaks
+    ctx.strokeStyle = 'rgba(255,255,255,0.10)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 10; i++) {
+      const sy = carTop + (i / 10) * carH;
+      ctx.beginPath();
+      ctx.moveTo(x0 - 60 - i * 7, sy);
+      ctx.lineTo(x0 - 6, sy);
+      ctx.stroke();
+    }
+
+    // glow spill onto the trackbed
+    const sg = ctx.createLinearGradient(0, rail - 6, 0, rail + 12);
+    sg.addColorStop(0, 'rgba(255,235,190,0.20)');
+    sg.addColorStop(1, 'rgba(255,235,190,0)');
+    ctx.fillStyle = sg;
+    ctx.fillRect(x0 - 40, rail - 6, trainLen + 80, 18);
+
+    ctx.restore();
+  }
+
+  const KINDS = { sewer, water, conduit, manhole, footings, roots, tunnel, rats, train };
 
   /**
    * @param stage    stage object (reads stage.under)
@@ -359,8 +488,9 @@ export function createUndercroft(ctx, canvas) {
    * @param slabPx   drawn thickness of the street slab in screen px — the
    *                 section starts BELOW it, not at the ground line
    * @param camera   for parallax
+   * @param tick     frame counter — drives the rats and the train service
    */
-  function draw(stage, groundY, slabPx, camera) {
+  function draw(stage, groundY, slabPx, camera, tick) {
     const u = stage.under;
     const y0 = Math.max(0, groundY + slabPx);
     const bh = canvas.height - y0;
@@ -376,7 +506,7 @@ export function createUndercroft(ctx, canvas) {
     drawStrata(u, y0, bh);
     for (const kind of u.kinds) {
       const fn = KINDS[kind];
-      if (fn) fn(px, y0, bh, u);
+      if (fn) fn(px, y0, bh, u, tick);
     }
 
     // Light falls off with depth.
