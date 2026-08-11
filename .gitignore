@@ -47,6 +47,12 @@ npm-debug.log*
 # it. The end credits cannot ship without it.
 !/assets/brand/
 !/assets/raw-sprites/
+# CLIENT REFERENCE ART. Every one of these arrived as a chat attachment and
+# existed NOWHERE else — not on disk, not in Drive, not re-downloadable. They
+# had to be recovered out of the session transcript's base64. That is the
+# textbook case for the rule above: if losing it means the work cannot be
+# rebuilt, commit it. Losing these means asking the client to send them again.
+!/assets/refs/
 
 # Claude Code project settings — local only, never shared via the repo.
 #
