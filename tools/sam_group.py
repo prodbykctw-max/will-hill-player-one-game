@@ -62,6 +62,18 @@ REGIONS = {
         ('midbuild', 280, 560,  980, 1000),
         ('backdrop', 280,   0,  980,  585),   # buildings behind the arch
     ],
+    'l5p': [
+        ('pole',        40,   0,  100,  340),   # street lamp mast, 26x330
+        ('farbuild',     0,   55,  105,  300),  # distant lit blocks, far left
+        ('sign',       338,    5,  722,  178),  # CRIMINAL RECORDS panel
+        ('newused',    100,   92,  237,  336),  # tan brick storefront
+        ('brick',      224,   58,  346,  348),  # red brick, BUY SELL TRADE
+        ('bayleft',    338,  178,  458,  348),  # bay with the OPEN neon
+        ('baymid',     452,  178,  562,  352),
+        ('bayright',   552,  158,  748,  352),  # incl. the portrait poster
+        ('rightpillar',708,    0,  770,  365),
+        ('kerb',         0,  282,  770,  363),  # pavement and kerb
+    ],
 }
 
 
@@ -88,7 +100,13 @@ def main():
         seg = M[r['i']]
         # The sky is the one mask that is never a card: it is the background
         # every silhouette is cut against, and it is already the base plate.
-        if r['area'] > 0.10 * W * H and contained(seg, ('sky', 0, 0, W, H // 2)) > 0.85:
+        # Identify it by SHAPE, not just size and position — L5P's CRIMINAL
+        # RECORDS sign is 16% of the plate and sits entirely in the top half,
+        # so an area test alone throws the stage's biggest landmark away. The
+        # sky is the thing that touches the top edge and runs nearly the full
+        # width; the sign spans 48% of it and starts 11px down.
+        x0, y0, x1, _y1 = r['bbox']
+        if y0 <= 2 and (x1 - x0) > 0.90 * W and r['area'] > 0.08 * W * H:
             continue
         best, score = None, CONTAIN
         for reg in regions:

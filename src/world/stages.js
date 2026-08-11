@@ -37,7 +37,17 @@ import eavTree from '../assets/backgrounds/eav-tree.webp';
 import eavShrubRight from '../assets/backgrounds/eav-shrub_right.webp';
 import eavPole from '../assets/backgrounds/eav-pole.webp';
 import bgEdgewood from '../assets/backgrounds/edgewood.webp';
-import bgL5p from '../assets/backgrounds/l5p.webp';
+import bgL5p from '../assets/backgrounds/l5p-base.webp';
+import l5pFarbuild from '../assets/backgrounds/l5p-farbuild.webp';
+import l5pSign from '../assets/backgrounds/l5p-sign.webp';
+import l5pRightpillar from '../assets/backgrounds/l5p-rightpillar.webp';
+import l5pNewused from '../assets/backgrounds/l5p-newused.webp';
+import l5pBrick from '../assets/backgrounds/l5p-brick.webp';
+import l5pBayleft from '../assets/backgrounds/l5p-bayleft.webp';
+import l5pBaymid from '../assets/backgrounds/l5p-baymid.webp';
+import l5pBayright from '../assets/backgrounds/l5p-bayright.webp';
+import l5pKerb from '../assets/backgrounds/l5p-kerb.webp';
+import l5pPole from '../assets/backgrounds/l5p-pole.webp';
 import bgUnderground from '../assets/backgrounds/underground-base.webp';
 import ugClouds from '../assets/backgrounds/underground-clouds.webp';
 import ugSpire from '../assets/backgrounds/underground-spire.webp';
@@ -221,6 +231,18 @@ export const STAGES = [
       rain: 0.85,
       windBands: [{ top: 0.02, pivot: 0.30, amp: 2.5, freq: 1.2, xRanges: [[0.12, 0.22]] }],
       // Storefront windows and the OPEN sign do the work on this block.
+      cards: [
+        { key: 'farbuild', img: l5pFarbuild, depth: 0.06, span: [0.004, 0.156] },
+        { key: 'sign', img: l5pSign, depth: 0.22, span: [0.445, 0.929] },
+        { key: 'rightpillar', img: l5pRightpillar, depth: 0.30, span: [0.930, 1.000] },
+        { key: 'newused', img: l5pNewused, depth: 0.40, span: [0.126, 0.301] },
+        { key: 'brick', img: l5pBrick, depth: 0.48, span: [0.299, 0.453] },
+        { key: 'bayleft', img: l5pBayleft, depth: 0.56, span: [0.443, 0.592] },
+        { key: 'baymid', img: l5pBaymid, depth: 0.60, span: [0.595, 0.717] },
+        { key: 'bayright', img: l5pBayright, depth: 0.64, span: [0.726, 0.969] },
+        { key: 'kerb', img: l5pKerb, depth: 0.82, span: [0.004, 0.966] },
+        { key: 'pole', img: l5pPole, depth: 0.96, span: [0.055, 0.130] },
+      ],
       lights: [
         { x: 0.20, y: 0.56, r: 0.30, rgb: '255,214,140', a: 0.18 },
         { x: 0.52, y: 0.60, r: 0.24, rgb: '120,200,255', a: 0.16, flicker: 0.025 },

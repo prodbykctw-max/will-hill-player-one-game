@@ -723,6 +723,88 @@ PLANES = {
             'feather': 0.7,
         },
     ],
+    # ── Little Five Points ───────────────────────────────────────────────
+    # A storefront row seen at a shallow angle, so the depth here is lateral:
+    # the far buildings and the lamp mast at one end, the recessed bays and
+    # the kerb at the other. All SAM-traced. The CRIMINAL RECORDS sign is the
+    # landmark and it nearly got thrown away — at 16% of the plate and sitting
+    # entirely in the top half it tripped the sky guard, which now identifies
+    # sky by shape (touches the top edge, spans 90% of the width) rather than
+    # by size and position.
+    'l5p': [
+        {
+            # Distant lit blocks down the left, past the end of the row.
+            'name': 'farbuild',
+            'mask': 'farbuild',
+            'min_px': 100,
+            'feather': 0.7,
+        },
+        {
+            # CRIMINAL RECORDS — the panel and all its lettering. A dense pass
+            # returns 38 masks here: the C and the I are 9px wide and both had
+            # been missed until the area floor came down.
+            'name': 'sign',
+            'mask': 'sign',
+            'min_px': 60,
+            'feather': 0.7,
+        },
+        {
+            # Right-hand pillar closing the frame.
+            'name': 'rightpillar',
+            'mask': 'rightpillar',
+            'min_px': 100,
+            'feather': 0.7,
+        },
+        {
+            # The tan brick storefront, NEW & USED.
+            'name': 'newused',
+            'mask': 'newused',
+            'min_px': 100,
+            'feather': 0.7,
+        },
+        {
+            # Red brick section, BUY SELL TRADE.
+            'name': 'brick',
+            'mask': 'brick',
+            'min_px': 100,
+            'feather': 0.7,
+        },
+        {
+            # Recessed bay with the OPEN neon.
+            'name': 'bayleft',
+            'mask': 'bayleft',
+            'min_px': 80,
+            'feather': 0.7,
+        },
+        {
+            'name': 'baymid',
+            'mask': 'baymid',
+            'min_px': 80,
+            'feather': 0.7,
+        },
+        {
+            # Right bay, including the portrait poster in the window.
+            'name': 'bayright',
+            'mask': 'bayright',
+            'min_px': 80,
+            'feather': 0.7,
+        },
+        {
+            # Street lamp mast — 26px wide over 330 tall, and the nearest
+            # vertical in the plate.
+            'name': 'pole',
+            'mask': 'pole',
+            'min_px': 60,
+            'feather': 0.7,
+        },
+        {
+            # Pavement and kerb, the nearest ground before the game's own.
+            'name': 'kerb',
+            'mask': 'kerb',
+            'min_px': 150,
+            'feather': 2.4,
+        },
+    ],
 }
 
 
