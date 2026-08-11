@@ -14,7 +14,7 @@
 // the context lazily on first use also keeps us from spinning up an audio
 // thread for a player who never touches the game.
 
-// The stomp is KC TW's own voice; the pickups are Kenney CC0. Every sound
+// The stomp is prodbyKCTW's own voice; the pickups are Kenney CC0. Every sound
 // falls back to synthesis if its sample has not decoded yet or fails to —
 // silence would be worse than a synthesised approximation.
 import punchAUrl from '../assets/audio/punch-a.mp3';
@@ -190,7 +190,7 @@ export function createAudio() {
       const jitter = 0.94 + Math.random() * 0.12;      // never twice the same
       const p = step * jitter;
 
-      // KC TW's two takes, alternating so consecutive stomps never sound
+      // prodbyKCTW's two takes, alternating so consecutive stomps never sound
       // identical, pitched by the same combo/jitter the synth uses. Returns
       // early only if a sample actually played — the synth below is the
       // fallback for the window before they decode, and for the case where

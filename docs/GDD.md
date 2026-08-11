@@ -8,11 +8,14 @@ Worth stating plainly, because it has already been got wrong once:
 
 - **Will Hill** is the ARTIST the game stars, and the player character. The
   run through the stages is him making his way to his performance.
-- **Knowledge / KC TW** (`prodbykctw`) is the DEVELOPER — the person building
-  this. Not the character.
+- **prodbyKCTW** is the DEVELOPER — the person building this. Not the
+  character. One token: lowercase `prodby`, uppercase `KCTW`, which is an
+  acronym for **K**nowledge **C**hange **T**he **W**orld. Never split it into
+  "KC TW". His legal name is Melvin D. Brown III, which belongs on paperwork,
+  not on screen.
 
-So "the user ran the asset chain" below means KC TW ran it, producing art OF
-Will Hill. Any voice or foley recorded for the game is KC TW's own unless a
+So "the user ran the asset chain" below means prodbyKCTW ran it, producing art OF
+Will Hill. Any voice or foley recorded for the game is prodbyKCTW's own unless a
 source says otherwise, and should be credited to him, not to Will Hill.
 
 ## Story & core loop

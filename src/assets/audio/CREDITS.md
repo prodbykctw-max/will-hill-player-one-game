@@ -2,9 +2,9 @@
 
 Rebuild every shipped file with `python3 tools/make_sfx.py`.
 
-## Stomp — KC TW's own voice
+## Stomp — prodbyKCTW's own voice
 
-`punch-a.mp3` and `punch-b.mp3` are **KC TW's voice**, recorded as a phone
+`punch-a.mp3` and `punch-b.mp3` are **prodbyKCTW's voice**, recorded as a phone
 voice memo. Twelve mouth-punches; takes 3 and 4 are the ones he picked. They
 alternate in game so no two stomps sound identical.
 
@@ -41,13 +41,22 @@ makes a sparkle read as a sparkle.
 ## Credits
 
 To appear in the end-credits sequence, alongside the **Rare Agency logo** and
-**KC TW's own logo** (neither asset supplied yet).
+**prodbyKCTW's own logo** (neither asset supplied yet).
 
 | role | credit |
 |---|---|
 | Game development — front and back end, app and web | **prodbyKCTW** |
-| Sound effects | **SFX prod by KC TW** |
-| Agency | **Rare Agency** — KC TW as Lead Developer |
+| Sound effects | **prodbyKCTW** |
+| Agency | **Rare Agency** — prodbyKCTW as Lead Developer |
+
+### How the name is written — do not restyle it
+
+**`prodbyKCTW`.** One token. Lowercase `prodby`, uppercase `KCTW`.
+
+`KCTW` is an acronym — **K**nowledge **C**hange **T**he **W**orld — so it never
+gets split into "KC TW", and the capitals are not decorative. It is written the
+same way in every credit, sound and development alike; there is no separate
+sound-credit wording.
 
 Stage name, not the legal one (Melvin D. Brown III). That is the normal split:
 the legal name belongs on contracts and rights paperwork, the working name

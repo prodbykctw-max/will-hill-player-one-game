@@ -4,7 +4,7 @@ Build the shipped sound effects.
 
 Two sources, both deliberate:
 
-STOMP — KC TW's own voice. He recorded twelve mouth-punches into a phone voice
+STOMP — prodbyKCTW's own voice. He recorded twelve mouth-punches into a phone voice
 memo while driving, and after cleanup they beat every sample in Kenney's pack
 for this job. The pack's `impactPunch_*` files measure 84-94% low-frequency
 energy over 200-370ms: they are impact THUDS, and at full weight the stomp
@@ -48,7 +48,7 @@ WORK = os.path.join(ROOT, 'assets', 'sfx-src')   # git-ignored
 IFACE_URL = ('https://kenney.nl/media/pages/assets/interface-sounds/'
              'fa43c1dd4d-1677589452/kenney_interface-sounds.zip')
 
-# KC TW's voice memo. Offsets in seconds of the two hits he chose, measured by
+# prodbyKCTW's voice memo. Offsets in seconds of the two hits he chose, measured by
 # transient detection over the 8.13s recording.
 VOICE_SRC = 'kctw-punches.m4a'
 VOICE_TAKES = [('punch-a', 6.48), ('punch-b', 5.76)]
@@ -181,7 +181,7 @@ def main():
     if not os.path.exists(voice):
         raise SystemExit(
             f'Missing {voice}\n'
-            "KC TW's voice memo is git-ignored with the rest of assets/. "
+            "prodbyKCTW's voice memo is git-ignored with the rest of assets/. "
             'Put it back before rebuilding the punches.')
     sig = decode(voice)
     for name, at in VOICE_TAKES:
