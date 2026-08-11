@@ -79,11 +79,15 @@ CLIPS = [
     {'clip': 'idle', 'src': (0, 32, 1), 'ticks': 7.5, 'loop': True,
      'note': 'one breath of the side-view idle, ~4s'},
 
-    # WALK — one full cycle across the 96 frames. The old 16 frames at 4 ticks
-    # gave a 1.067s cycle and that pace was signed off, so the pace is kept
-    # exactly and only the smoothness changes: 24 frames at 2.667 ticks is the
-    # same 1.067s at 22.5fps instead of 15fps.
-    {'clip': 'walk', 'src': (0, 96, 4), 'ticks': 2.667, 'loop': True},
+    # WALK — one full cycle across the 96 frames, at 24 frames rather than the
+    # original 16 so the motion itself is smooth (16.7fps, not 15).
+    #
+    # 3.6 ticks is a 1.44s cycle. It was 1.07s back when he moved at 2.9
+    # px/tick and effectively sprinted everywhere; at a real walking pace that
+    # many steps per second read as frantic — too much motion in too little
+    # time. Cycle length and WALK_SPEED have to move together or the feet
+    # skate, so see WALK_SPEED in src/core/physics.js as well.
+    {'clip': 'walk', 'src': (0, 96, 4), 'ticks': 3.6, 'loop': True},
 
     # RUN — one cycle. Faster than the walk, as a run should be: 24 frames at
     # 2 ticks is a 0.8s cycle at 30fps.

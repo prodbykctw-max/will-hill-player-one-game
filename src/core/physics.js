@@ -18,7 +18,12 @@ export const PH = 86; // player collision box height
 // was effectively unreachable and he sprinted everywhere from a standstill.
 // Holding a direction now starts him walking and breaks into a run only if
 // you keep holding it.
-export const WALK_SPEED = 2.9;      // target while easing off the line
+// 1.9 px/tick is 1.36 m/s through world/scale.js — textbook walking pace.
+// 2.9 worked out at 2.07 m/s, a power-walk, and it read as too much motion in
+// too little time. Tuned by eye, not derived: two attempts to measure the
+// gait off the sheet both hit noise (the feet overlap in a side view, and the
+// head bob is 6px with dithering on top of it).
+export const WALK_SPEED = 1.9;      // target while easing off the line
 export const RUN_SPEED = 6.4;       // target once he has committed
 export const RUN_HOLD_TICKS = 22;   // ~0.37s of walking before he winds up
 export const RUN_RAMP_TICKS = 20;   // ~0.33s spent winding up to full speed
