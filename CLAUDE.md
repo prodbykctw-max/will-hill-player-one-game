@@ -10,7 +10,7 @@ Architecture and conventions for working on this repo. Read `docs/GDD.md` first 
 
 - **Modular `src/` + Vite build**, not a single hand-maintained HTML file. Chosen specifically to avoid the dead-parked-experiment drift that accumulated in the Jandé repo (a Phaser+Vite scaffold and two Godot projects sat unused alongside its real single-file source). One source tree, one build target (`dist/`).
 - Vite's asset import system content-addresses (hashes) imported assets automatically — this replaces the hand-rolled `externalize_assets.py` content-addressing step the Jandé project needed.
-- `assets/` (raw reference art, 3D source files, AutoSprite/Tripo3D exports) is git-ignored — never commit real source assets. Composed/game-ready assets are imported into `src/` and end up hashed in `dist/` at build time.
+- `assets/` (raw reference art, 3D source, AutoSprite/Tripo3D exports) is ignored **by default, not by rule**. The point is to stop unwanted *exposure*, not to block recordkeeping — a blanket ban was losing irreplaceable work. The test: **if losing the file means the work cannot be rebuilt, commit it.** Currently kept are prodbyKCTW's voice recording and the four SIDESCROLLER sprite sheets; re-downloadable packs and build scratch stay ignored. See `.gitignore` for the negation pattern (`/assets/*`, not `/assets/` — git will not descend into an excluded directory). Composed game-ready assets live in `src/` and are hashed into `dist/` at build time.
 
 ## Process this repo follows
 
