@@ -21,12 +21,7 @@
 // references in assets/backgrounds/<id>/ (git-ignored) — see that script
 // for how to regenerate after swapping a reference image.
 
-// EAV's plate has the Swifty billboard cut out of it along its real outline
-// (tools/cut_object.py). The board is drawn separately at a SLOWER rate so
-// it reads as set back in the distance.
-import bgEav from '../assets/backgrounds/eav-base.webp';
-import eavSwifty from '../assets/backgrounds/eav-swifty.webp';
-import eavCitgo from '../assets/backgrounds/eav-citgo.webp';
+import bgEav from '../assets/backgrounds/eav.webp';
 import bgEdgewood from '../assets/backgrounds/edgewood.webp';
 import bgL5p from '../assets/backgrounds/l5p.webp';
 import bgUnderground from '../assets/backgrounds/underground.webp';
@@ -66,17 +61,6 @@ export const STAGES = [
       horizon: '#2a2233',
       glow: 'rgba(255,196,120,0.10)',
       rain: 0.75,
-      // THREE DEPTHS, three speeds. Drawn back to front; the plate (fence,
-      // trees, verge — everything at the kerb) is the nearest and runs
-      // fastest at 0.15. Crossing the billboard's length therefore takes
-      // roughly 3.5x as long as crossing the same span of fence, which is
-      // what reads as it being far away.
-      objects: [
-        { key: 'swifty', img: eavSwifty, parallax: 0.042,   // farthest, slowest
-          x: 0.1322, y: 0.0230, w: 0.3105, h: 0.1979 },
-        { key: 'citgo', img: eavCitgo, parallax: 0.085,     // mid
-          x: 0.0749, y: 0.0954, w: 0.5033, h: 0.3339 },
-      ],
       // Two independent sway bands, each with its own vertical extent AND
       // its own horizontal windows. Both are needed: the Citgo canopy, the
       // Swifty billboard, the fence and the Welcome sign share a vertical
