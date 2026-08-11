@@ -1,10 +1,16 @@
-// STOMP-OUT — the game-over beat when an enemy is what killed you.
+// KNOCKDOWN — the run-over beat when an enemy is what put you down.
 //
-// You go down, the nearest enemies walk over, and they stomp you out before
-// the screen fades. It came out of a BUG: the enemy defeat sheet had a corpse
-// welded into every frame, so a stomped enemy appeared to stand over its own
-// body doing a stomping motion, and the client looked at that and said do that
-// to ME. See docs/HANDOFF.md "the DOUBLE-BODY trap" for the bug itself.
+// HE IS NOT DEAD. The client was explicit: this is a KNOCKDOWN, not a death.
+// Will Hill is a real artist and this is a fun arcade game, not a game about
+// killing him. He gets jumped, they take his money, they run. Keep that in
+// the language and keep the beat SHORT — it is a quick sting on the way to
+// the score screen, not a cutscene. Nothing here should linger and nothing
+// should look final.
+//
+// It came out of a BUG: the enemy defeat sheet had a corpse welded into every
+// frame, so a stomped enemy appeared to stand over its own body stomping it,
+// and the client looked at that and said do that to ME. See docs/HANDOFF.md
+// "the DOUBLE-BODY trap" for the bug itself.
 //
 // DELIBERATELY SIMPLE. The brief was "keep it simple stupid, we ship in days",
 // so this is position + clip selection and nothing else. No pathfinding, no
@@ -40,17 +46,20 @@ const SLOTS = [
   { dx: 8, dy: -12, flip: false, behind: true },
 ];
 
-// Ticks: they walk in, stomp three times, then run off with your money.
-// The getaway is the point of the beat — they are not just killing you, they
-// are robbing you, which is the same thing a contact hit does while you are
-// alive. It also gives the fade something to happen behind.
-export const GATHER_TICKS = 46;
-export const STOMP_TICKS = 96;   // ~3 stomps at the clip's cadence
-export const FLEE_TICKS = 54;
+// Ticks: in, a couple of stomps, gone. 98 ticks is ~1.6s at 60fps — a sting.
+// The first cut ran 196 ticks (3.3s) and that is a cutscene, not a beat; long
+// enough for it to read as grim, which is exactly the wrong tone.
+//
+// The getaway is the POINT of it: they are robbing him, which is the same
+// thing a contact hit does while he is on his feet. He loses the money, not
+// his life.
+export const GATHER_TICKS = 24;
+export const STOMP_TICKS = 44;   // ~2 stomps at the clip's cadence
+export const FLEE_TICKS = 30;
 export const TOTAL_TICKS = GATHER_TICKS + STOMP_TICKS + FLEE_TICKS;
 
 const FLEE_RATE = 4.4;    // faster than their patrol — they are leaving
-const DUST_EVERY = 16;    // ticks between puffs per stomper, ~one per stomp
+const DUST_EVERY = 14;    // ticks between puffs per stomper, ~one per stomp
 
 // Dust — CHARLIE BROWN puffs. Small, fast, gone.
 //

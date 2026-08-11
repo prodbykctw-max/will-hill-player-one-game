@@ -12,7 +12,7 @@ import { createPlayer, stepPlayer, isInvulnerable, grantInvulnerability, trip, P
 import { createAudio } from './audio/audio.js';
 import { WALK_SPEED, RUN_SPEED } from './core/physics.js';
 import { ENEMY_SPRITES, updateEnemy, resolveEnemyCollision } from './entities/enemy.js';
-import { beginStompOut, stepStompOut, splitStompers } from './entities/stompout.js';
+import { beginStompOut, stepStompOut, splitStompers } from './entities/knockdown.js';
 import { overlapsPlayer, PROP_SPRITES, createDroppedBag, BAG_VALUE } from './entities/collectibles.js';
 import { createLevel, buildRunway, genAhead, finishLineX } from './world/generator.js';
 import { STAGES } from './world/stages.js';
@@ -328,16 +328,17 @@ function update() {
   state.hearts = player.hearts;
 
   if (player.dead) {
-    // THE STOMP-OUT. Only when an enemy is what finished you — falling down a
-    // hole or tripping in a pothole goes straight to the fade, because there
-    // is nobody standing there to do it. See entities/stompout.js.
+    // THE KNOCKDOWN. He is not dead — he got jumped and robbed. Only fires
+    // when an ENEMY put him down; a hole or a pothole goes straight to the
+    // fade, because there is nobody standing there to do it. Short on
+    // purpose, ~1.6s. See entities/stompout.js.
     if (player.deathCause === 'enemy') {
       if (state.stompT === undefined) {
         state.stompT = 0;
         state.stompers = beginStompOut(player, level.enemies);
         state.dust = [];
       }
-      player.anim = 'death';
+      player.anim = 'knockdown';
       player.vx = 0;
       const done = stepStompOut(state.stompT++, player, state.stompers, state.dust);
       for (const e of state.stompers) advanceAnim(e, ENEMY_SPRITES[e.variant].atlas);
@@ -506,10 +507,13 @@ function draw() {
       ['press JUMP to continue', 13, 'rgba(255,255,255,0.7)'],
     ]);
   } else if (state.screen === 'gameOver') {
+    // KNOCKED DOWN, not dead. Will Hill is a real artist and this is a fun
+    // arcade game — "GAME OVER" in blood red over a body reads far grimmer
+    // than the game is meant to be. He got jumped and robbed; he gets up.
     drawOverlayText([
-      ['GAME OVER', 28, '#e0435f'],
+      ['KNOCKED DOWN', 28, '#e8a13f'],
       [`$${state.score.toLocaleString()}`, 18],
-      ['press JUMP to retry', 13, 'rgba(255,255,255,0.7)'],
+      ['press JUMP to get back up', 13, 'rgba(255,255,255,0.7)'],
     ]);
   } else if (state.screen === 'complete') {
     drawOverlayText([
