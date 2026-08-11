@@ -49,7 +49,37 @@ npm-debug.log*
 !/assets/raw-sprites/
 
 # Claude Code project settings — local only, never shared via the repo.
-.claude/
+#
+# ...except the one skill that IS this project's work. The multiplane cutter
+# and its SAM pass were developed here and the client asked for them to be
+# kept; losing them means rebuilding the whole backdrop pipeline from the
+# commit log. Same test as /assets/* above: if losing it means the work
+# cannot be rebuilt, commit it.
+#
+# And the same STAR PATTERN, for the same reason — `.claude/` excludes the
+# directory itself, and git will not descend into an excluded directory to
+# find a negation inside it. Each level has to be opened before the next one
+# can be re-excluded. Writing `.claude/` with a `!` under it silently keeps
+# ignoring everything, which is how this was first written.
+.claude/*
+!.claude/skills/
+.claude/skills/*
+!.claude/skills/backdrop-multiplane/
+
+# INSTALLED SKILLS ARE NOT PART OF THIS GAME.
+#
+# A skill installer wrote 30 third-party design skills (and its lockfile) into
+# .agents/, and they were swept into a commit that was supposed to be one
+# render file — 604K of Tailwind/shadcn/brand-kit guidance sitting in a repo
+# for a canvas pixel-art platformer that imports none of it. The client's
+# note was explicit: those screenshots were a list of skills to INSTALL, not
+# material to add to this build.
+#
+# This is the exact drift CLAUDE.md opens by warning about — the Jandé repo
+# accumulated a Phaser scaffold and two Godot projects the same way. Skills
+# belong to the account that installed them, not to the game.
+.agents/
+skills-lock.json
 
 # Local capture/debug output
 tools/captures/
