@@ -112,7 +112,13 @@ export function createBackdrop(ctx, canvas) {
 
     const par = camera.x * camera.zoom * PLATE_PARALLAX;
     _par = par;
-    const period = drawW * 2;
+    // Straight repeat, NOT mirrored. Mirroring hides the seam on a
+    // non-tiling image, but these plates are real Atlanta streetscapes full
+    // of real signage — a flipped copy renders CITGO and WELCOME TO EAST
+    // ATLANTA as backwards text. Repeating the block instead is the classic
+    // cartoon running-past-the-same-background gag, and it keeps every sign
+    // readable.
+    const period = drawW;
     let off = -pmod(par, period);
 
     g.save();
@@ -121,18 +127,7 @@ export function createBackdrop(ctx, canvas) {
       const x1 = Math.round(x + drawW);
       const tw = x1 - x0;
       if (tw <= 0) continue;
-      // Mirror alternate copies so a non-tiling "postcard" image (which all
-      // four of ours are) repeats without a hard vertical seam.
-      const k = Math.round((x + par) / drawW);
-      if (k & 1) {
-        g.save();
-        g.translate(x0 + tw, 0);
-        g.scale(-1, 1);
-        g.drawImage(img, 0, 0, img.width, srcH, 0, by, tw, drawH);
-        g.restore();
-      } else {
-        g.drawImage(img, 0, 0, img.width, srcH, x0, by, tw, drawH);
-      }
+      g.drawImage(img, 0, 0, img.width, srcH, x0, by, tw, drawH);
     }
     g.restore();
 
@@ -175,13 +170,8 @@ export function createBackdrop(ctx, canvas) {
     // move at different amplitudes and rates.
     ctx.drawImage(buf, 0, 0);
 
-    const period = plate.drawW * 2;
-    const plateU = (screenX) => {
-      const local = pmod(screenX + _par, period);
-      return local < plate.drawW
-        ? local / plate.drawW
-        : 1 - (local - plate.drawW) / plate.drawW;
-    };
+    const period = plate.drawW;
+    const plateU = (screenX) => pmod(screenX + _par, period) / plate.drawW;
 
     const spanW = canvas.width / WIND_SPANS;
     for (const band of bands) {
@@ -214,7 +204,7 @@ export function createBackdrop(ctx, canvas) {
     const lights = stage.bg.lights;
     if (!lights || !plate) return;
     const par = camera.x * camera.zoom * PLATE_PARALLAX;
-    const period = plate.drawW * 2;
+    const period = plate.drawW;
 
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
@@ -229,16 +219,13 @@ export function createBackdrop(ctx, canvas) {
       // repeat with the plate's mirror tiling so a light stays glued to the
       // thing that emits it
       for (let rep = -1; rep <= Math.ceil(canvas.width / period) + 1; rep++) {
-        for (const mirror of [0, 1]) {
-          const base = rep * period + (mirror ? plate.drawW * 2 - L.x * plate.drawW : L.x * plate.drawW);
-          const lx = base - pmod(par, period);
-          if (lx < -r || lx > canvas.width + r) continue;
-          const g = ctx.createRadialGradient(lx, ly, 1, lx, ly, r);
-          g.addColorStop(0, `rgba(${L.rgb},${(L.a * flick).toFixed(3)})`);
-          g.addColorStop(1, `rgba(${L.rgb},0)`);
-          ctx.fillStyle = g;
-          ctx.fillRect(lx - r, ly - r, r * 2, r * 2);
-        }
+        const lx = rep * period + L.x * plate.drawW - pmod(par, period);
+        if (lx < -r || lx > canvas.width + r) continue;
+        const g = ctx.createRadialGradient(lx, ly, 1, lx, ly, r);
+        g.addColorStop(0, `rgba(${L.rgb},${(L.a * flick).toFixed(3)})`);
+        g.addColorStop(1, `rgba(${L.rgb},0)`);
+        ctx.fillStyle = g;
+        ctx.fillRect(lx - r, ly - r, r * 2, r * 2);
       }
     }
     ctx.restore();
