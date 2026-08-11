@@ -36,10 +36,21 @@ const STOMP_BOUNCE_VY = -10.5; // matches Jandé's post-stomp pogo bounce
 const DEFEAT_TICKS = atlas.animations.defeat.frameCount * 3; // ~3 ticks/frame, one full play-through
 
 // These are people, so they're sized in real-world terms like everything
-// else (src/world/scale.js) — a touch shorter than Will Hill's 1.78m so he
-// reads as the bigger presence, but unmistakably human-scaled rather than
-// the squat 40x48 box the first pass used.
-export const ENEMY_HEIGHT_M = 1.94;
+// else (src/world/scale.js) — shorter than Will Hill's 2.02m so he reads as
+// the bigger presence, but unmistakably human-scaled rather than the squat
+// 40x48 box the first pass used.
+//
+// DROPPED 1.94 -> 1.58 SO THEY ARE EASIER TO LAND ON, and the measurement
+// behind that is worse than "fiddly". A ground jump rises JUMP_V^2/(2*GRAV)
+// = 158 world units above its launch point. A 1.94m enemy stands 163 units
+// tall. From flat ground you could not get over one AT ALL — six units
+// short, every time — so every successful stomp was coming off a platform,
+// a double jump, or luck. The stomp is the only offence in the game and it
+// was mathematically unavailable on level street.
+//
+// At 1.58m the head is at 133, leaving 25 units of slack to come down
+// through. Re-derive this if JUMP_V or GRAV ever move.
+export const ENEMY_HEIGHT_M = 1.58;
 export const ENEMY_H = Math.round(metersToWorld(ENEMY_HEIGHT_M) / CHAR_SCALE); // collider height
 export const ENEMY_DRAW_H = metersToWorld(ENEMY_HEIGHT_M); // drawn character height
 const ENEMY_W = 30;

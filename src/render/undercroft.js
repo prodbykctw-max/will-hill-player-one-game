@@ -451,11 +451,17 @@ export function createUndercroft(ctx, canvas) {
   // trains occlude them. A rat that slips behind a column and reappears the
   // other side reads as being down there in the space, rather than as a
   // sprite skating across the front of it.
+  const RAT_COUNT = 1;
+
   function rats(px, y0, bh, u, tick) {
     const lanes = [y0 + bh * 0.455, y0 + bh * 0.70, y0 + bh * 0.30];
     ctx.save();
+    // ONE rat, down from seven. Seven crossing the section at once read as an
+    // infestation and pulled the eye off the street the whole time; a single
+    // one darting through is the detail that was wanted. Client asked for a
+    // 90% cut and 7 -> 1 is 86% — as close as whole rats allow.
     ctx.fillStyle = u.rat || '#241d1a';
-    for (let i = 0; i < 7; i++) {
+    for (let i = 0; i < RAT_COUNT; i++) {
       const lane = lanes[i % lanes.length];
       const dir = i % 2 ? 1 : -1;
       const speed = 1.5 + (i % 3) * 0.65;

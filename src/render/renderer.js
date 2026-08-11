@@ -294,36 +294,142 @@ export function createRenderer(ctx, canvas) {
   // drawn ON him: a warm pulsing bloom, a brighter core, and a few motes
   // orbiting. It fades out over the last two seconds so the power running out
   // is something you see coming rather than something you discover by dying.
+  // How much taller he stands while the champagne is up. The brief was Goku
+  // going Super Saiyan, and the thing that sells that transformation is not
+  // the glow — it is that the character gets BIGGER. Exported so the draw
+  // call can scale him by the same number the aura is sized against.
+  const POWER_GROWTH = 0.22;   // +22% height at full power
+
+  // Eased so he SWELLS into it over the first half second and settles back as
+  // it runs out, rather than popping between two sizes on pickup and expiry.
+  function powerScale(msLeft, totalMs = 30000) {
+    if (msLeft <= 0) return 1;
+    const rampIn = Math.min(1, (totalMs - msLeft) / 500);
+    const rampOut = Math.min(1, msLeft / 1200);
+    return 1 + POWER_GROWTH * Math.min(rampIn, rampOut);
+  }
+
+  // CHAMPAGNE AURA — Super Saiyan.
+  //
+  // The first version was a modest bloom at 0.95 of his height with five
+  // motes drifting around it. Thirty seconds of invulnerability is the
+  // biggest thing that happens in this game and it looked like a warm
+  // streetlight. This is the transformation read instead: a tall column of
+  // flame licking UPWARD past his head, a hard white core, ground light
+  // under his feet, and sparks rising rather than orbiting.
   function drawPowerAura(p, tick, msLeft) {
     const fade = Math.min(1, msLeft / 2000);
     const cx = p.x + p.w / 2;
-    const cy = p.y + p.h * 0.45;
-    const pulse = 0.82 + 0.18 * Math.sin(tick * 0.13);
-    const r = p.h * 0.95 * pulse;
+    const feet = p.y + p.h;
+    const pulse = 0.88 + 0.12 * Math.sin(tick * 0.19);
 
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
-    const g = ctx.createRadialGradient(cx, cy, r * 0.12, cx, cy, r);
-    g.addColorStop(0, `rgba(255,236,170,${(0.42 * fade).toFixed(3)})`);
-    g.addColorStop(0.45, `rgba(255,196,90,${(0.17 * fade).toFixed(3)})`);
-    g.addColorStop(1, 'rgba(255,180,60,0)');
-    ctx.fillStyle = g;
-    ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
 
-    // Motes on their own orbits — different radii and speeds, so they read as
-    // circling him rather than as a spinning rigid ring.
-    for (let i = 0; i < 5; i++) {
-      const a = tick * (0.05 + i * 0.012) + i * 1.9;
-      const orx = p.w * (0.85 + 0.22 * Math.sin(tick * 0.03 + i));
-      const ory = p.h * 0.30;
-      const mx = cx + Math.cos(a) * orx;
-      const my = cy + Math.sin(a * 1.3) * ory;
-      const mr = 1.6 + 0.9 * Math.sin(tick * 0.2 + i);
-      const mg = ctx.createRadialGradient(mx, my, 0, mx, my, mr * 3);
-      mg.addColorStop(0, `rgba(255,248,210,${(0.85 * fade).toFixed(3)})`);
-      mg.addColorStop(1, 'rgba(255,214,120,0)');
-      ctx.fillStyle = mg;
-      ctx.fillRect(mx - mr * 3, my - mr * 3, mr * 6, mr * 6);
+    // THE COLUMN. Taller than it is wide and biased upward — an aura that is
+    // as wide as it is tall reads as a lamp, and the vertical bias is the
+    // whole silhouette of a power-up.
+    const colH = p.h * 2.15 * pulse;
+    const colW = p.w * 3.4;
+    const ccy = feet - colH * 0.42;
+    const g = ctx.createRadialGradient(cx, ccy, colW * 0.06, cx, ccy, colH * 0.62);
+    g.addColorStop(0, `rgba(255,254,240,${(0.95 * fade).toFixed(3)})`);
+    g.addColorStop(0.18, `rgba(255,240,180,${(0.72 * fade).toFixed(3)})`);
+    g.addColorStop(0.42, `rgba(255,206,96,${(0.40 * fade).toFixed(3)})`);
+    g.addColorStop(0.72, `rgba(255,164,40,${(0.16 * fade).toFixed(3)})`);
+    g.addColorStop(1, 'rgba(255,140,30,0)');
+    ctx.save();
+    ctx.translate(cx, ccy);
+    ctx.scale(colW / colH, 1);         // squeeze horizontally into a column
+    ctx.fillStyle = g;
+    ctx.translate(-cx, -ccy);
+    ctx.fillRect(cx - colH, ccy - colH, colH * 2, colH * 2);
+    ctx.restore();
+
+    // FLAME LICKS climbing past his head. Each is a tapered spike whose
+    // height beats on its own phase, so the top edge of the aura is always
+    // moving — a static outline is what made the old one read as a gradient.
+    const licks = 7;
+    for (let i = 0; i < licks; i++) {
+      const ph = tick * 0.16 + i * 2.1;
+      const lx = cx + (i / (licks - 1) - 0.5) * p.w * 2.2;
+      const baseY = feet - p.h * 0.12;
+      // Reaching 1.3-2.4 body heights, so the top of the aura is well ABOVE
+      // his head. At 0.55-1.1 they stopped at his shoulders and the whole
+      // thing read as a lamp he was standing next to.
+      const lh = p.h * (1.30 + 1.10 * Math.abs(Math.sin(ph)));
+      const lw = p.w * (0.34 + 0.12 * Math.sin(ph * 1.7));
+      ctx.beginPath();
+      ctx.moveTo(lx - lw / 2, baseY);
+      ctx.quadraticCurveTo(lx - lw * 0.18, baseY - lh * 0.6, lx, baseY - lh);
+      ctx.quadraticCurveTo(lx + lw * 0.18, baseY - lh * 0.6, lx + lw / 2, baseY);
+      ctx.closePath();
+      ctx.fillStyle = `rgba(255,236,166,${(0.30 * fade).toFixed(3)})`;
+      ctx.fill();
+    }
+
+    // HARD CORE — a bright sheath hugging the body. This is what stops the
+    // whole thing reading as fog: something in it has to be nearly white.
+    const core = ctx.createRadialGradient(cx, p.y + p.h * 0.42, 0, cx, p.y + p.h * 0.42, p.h * 0.55);
+    core.addColorStop(0, `rgba(255,255,250,${(0.55 * fade).toFixed(3)})`);
+    core.addColorStop(0.5, `rgba(255,246,208,${(0.26 * fade).toFixed(3)})`);
+    core.addColorStop(1, 'rgba(255,240,190,0)');
+    ctx.fillStyle = core;
+    ctx.fillRect(cx - p.h * 0.55, p.y - p.h * 0.15, p.h * 1.1, p.h * 1.1);
+
+    // GROUND LIGHT. He is a light source now, so the pavement under him has
+    // to know about it — without this he floats in his own glow.
+    const gl = ctx.createRadialGradient(cx, feet, 0, cx, feet, p.w * 2.6);
+    gl.addColorStop(0, `rgba(255,222,140,${(0.52 * fade).toFixed(3)})`);
+    gl.addColorStop(1, 'rgba(255,190,80,0)');
+    ctx.fillStyle = gl;
+    ctx.fillRect(cx - p.w * 2.6, feet - p.w * 1.0, p.w * 5.2, p.w * 2.0);
+
+    // SPARKS RISING, not orbiting. Debris pulled up off the ground by the
+    // column is the other half of the Super Saiyan read; motes circling on
+    // ellipses looked like fairy dust.
+    for (let i = 0; i < 12; i++) {
+      const life = ((tick * (1.7 + (i % 4) * 0.6) + i * 97) % 120) / 120;
+      const sx = cx + Math.sin(i * 2.4 + tick * 0.04) * p.w * 1.5;
+      const sy = feet - life * p.h * 2.0;
+      const sr = (1.4 + (i % 3) * 0.7) * (1 - life * 0.6);
+      const sg = ctx.createRadialGradient(sx, sy, 0, sx, sy, sr * 3.2);
+      sg.addColorStop(0, `rgba(255,252,225,${((1 - life) * 0.9 * fade).toFixed(3)})`);
+      sg.addColorStop(1, 'rgba(255,206,110,0)');
+      ctx.fillStyle = sg;
+      ctx.fillRect(sx - sr * 3.2, sy - sr * 3.2, sr * 6.4, sr * 6.4);
+    }
+    ctx.restore();
+  }
+
+  // The half of the aura that goes OVER him. Everything in drawPowerAura is
+  // behind the sprite, and a glow that is entirely behind a character reads
+  // as a light he is standing in front of, not one he is giving off. This is
+  // the wrap: a hot sheath on the body itself and sparks crossing in front.
+  function drawPowerAuraFront(p, tick, msLeft) {
+    const fade = Math.min(1, msLeft / 2000);
+    const cx = p.x + p.w / 2;
+    const feet = p.y + p.h;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+
+    const sheath = ctx.createRadialGradient(cx, p.y + p.h * 0.45, 0, cx, p.y + p.h * 0.45, p.h * 0.62);
+    sheath.addColorStop(0, `rgba(255,250,215,${(0.26 * fade).toFixed(3)})`);
+    sheath.addColorStop(0.55, `rgba(255,224,130,${(0.12 * fade).toFixed(3)})`);
+    sheath.addColorStop(1, 'rgba(255,200,90,0)');
+    ctx.fillStyle = sheath;
+    ctx.fillRect(cx - p.h * 0.62, p.y - p.h * 0.2, p.h * 1.24, p.h * 1.3);
+
+    for (let i = 0; i < 6; i++) {
+      const life = ((tick * (2.1 + (i % 3) * 0.8) + i * 61) % 100) / 100;
+      const sx = cx + Math.sin(i * 3.1 + tick * 0.06) * p.w * 0.9;
+      const sy = feet - life * p.h * 1.9;
+      const sr = (1.2 + (i % 2) * 0.8) * (1 - life * 0.5);
+      const sg = ctx.createRadialGradient(sx, sy, 0, sx, sy, sr * 3);
+      sg.addColorStop(0, `rgba(255,255,240,${((1 - life) * 0.95 * fade).toFixed(3)})`);
+      sg.addColorStop(1, 'rgba(255,214,120,0)');
+      ctx.fillStyle = sg;
+      ctx.fillRect(sx - sr * 3, sy - sr * 3, sr * 6, sr * 6);
     }
     ctx.restore();
   }
@@ -333,7 +439,14 @@ export function createRenderer(ctx, canvas) {
     const msLeft = p.invulnerableUntil - Date.now();
     if (msLeft > 0) drawPowerAura(p, tick, msLeft);
     if (p.inv > 0 && Math.floor(p.inv / 4) % 2 === 0) return; // i-frame flicker
-    drawSprite(image, atlas, p, p.h, CHAR_DRAW_H, p.faceL, null, stage);
+    // HE GROWS. Only the DRAWN height scales — the collider stays exactly as
+    // it was, so the power-up changes how he reads and never how he fits
+    // through a gap or where a hitbox lands. drawSprite anchors on the feet,
+    // so the extra height goes upward off the pavement rather than sinking
+    // him into it.
+    drawSprite(image, atlas, p, p.h, CHAR_DRAW_H * powerScale(msLeft),
+      p.faceL, null, stage);
+    if (msLeft > 0) drawPowerAuraFront(p, tick, msLeft);
   }
 
   function drawEnemy(e, image, atlas, stage) {
@@ -425,6 +538,176 @@ export function createRenderer(ctx, canvas) {
       e.y + e.h * 0.46 + bob, w, h);
   }
 
+  // ── PIT MOUTHS ───────────────────────────────────────────────────────
+  //
+  // THE HOLES THAT KILL YOU MUST NOT LOOK LIKE THE STREET THAT DOESN'T.
+  //
+  // Until this existed, a pit was drawn by simply not drawing tiles. The
+  // paving ran along and then stopped, with no lip, no edge, no warning —
+  // and because the undercroft behind it is itself a dim brown-grey section,
+  // the gap read as a slightly darker stretch of road. The client's note was
+  // "make them very very apparent that it's separate from the street which is
+  // safe to walk on", and the honest reading of that is that absence of
+  // drawing is not a drawing. A hole needs to be rendered.
+  //
+  // Four cues, strongest first — any one of them alone can be missed at a
+  // glance while running, and this has to survive a glance:
+  //
+  //   1. HAZARD CHEVRONS painted on the last safe slab either side. Yellow
+  //      and black diagonals are the one marking every person alive reads as
+  //      "not here" without thinking about it, and they sit ON the safe
+  //      ground, which is precisely the distinction being drawn.
+  //   2. A BROKEN LIP: the slab does not end, it SHEARS. Jagged concrete,
+  //      exposed aggregate, rebar bent out over the void.
+  //   3. A THROAT that goes to true black. The undercroft is visible below,
+  //      so without this the eye reads "floor down there" instead of "drop".
+  //   4. A RED WARNING GLOW licking the rim, because at night on a wet
+  //      street that is what a barricade lamp does, and it separates the
+  //      hole from every other dark thing in the frame.
+  function drawPitMouths(map, camera, isSolidAt, genC) {
+    const c0 = Math.max(0, Math.floor(camera.x / T) - 2);
+    // Clamp to the generation frontier. A column beyond it has no tiles
+    // simply because it does not exist yet, and treating that as a hole
+    // paints a pit mouth across the whole un-generated world.
+    const c1 = Math.min(genC - 1, Math.floor((camera.x + camera.vw) / T) + 2);
+
+    let c = c0;
+    while (c <= c1) {
+      if (isSolidAt(c, FLOOR_R)) { c++; continue; }
+      let end = c;
+      while (end + 1 <= c1 && !isSolidAt(end + 1, FLOOR_R)) end++;
+      drawOnePitMouth(c, end);
+      c = end + 1;
+    }
+  }
+
+  function drawOnePitMouth(cL, cR) {
+    const x0 = cL * T;
+    const x1 = (cR + 1) * T;
+    const y = FLOOR_R * T;
+    const slab = SLAB_R * T;
+    const w = x1 - x0;
+
+    ctx.save();
+
+    // 3. THE THROAT. Opaque black at the top of the drop, easing out by the
+    // bottom of the drawn slab so the undercroft still reads below it.
+    const th_ = ctx.createLinearGradient(0, y - 2, 0, y + slab);
+    th_.addColorStop(0, 'rgba(0,0,0,0.97)');
+    th_.addColorStop(0.45, 'rgba(0,0,0,0.86)');
+    th_.addColorStop(1, 'rgba(0,0,0,0.20)');
+    ctx.fillStyle = th_;
+    ctx.fillRect(x0, y - 2, w, slab);
+
+    // The far wall of the shaft, caught by what light gets in. Without one
+    // vertical surface in there it is a flat black rectangle, not a hole.
+    ctx.fillStyle = 'rgba(58,54,50,0.55)';
+    ctx.fillRect(x0 + 3, y + 4, w - 6, Math.min(slab * 0.30, 22));
+    ctx.fillStyle = 'rgba(0,0,0,0.45)';
+    ctx.fillRect(x0 + 3, y + 4 + Math.min(slab * 0.30, 22) - 3, w - 6, 3);
+
+    // 2. BROKEN LIPS. Each side shears into the void: a jagged tongue of
+    // concrete over darkness, aggregate along the fracture, and rebar.
+    for (const side of [-1, 1]) {
+      const lipX = side < 0 ? x0 : x1;
+      const cap = Math.round(T * 0.28);
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(lipX, y);
+      // Jagged overhang reaching OUT over the hole, deterministic per column
+      // so it never shimmers as the camera moves.
+      const reach = 9;
+      const steps = 5;
+      for (let i = 0; i <= steps; i++) {
+        const t = i / steps;
+        const jx = lipX - side * t * reach;
+        const jy = y + t * (cap + 5) + (th(cL + cR, i, side + 3) - 0.5) * 5;
+        ctx.lineTo(jx, jy);
+      }
+      ctx.lineTo(lipX, y + cap + 7);
+      ctx.closePath();
+      ctx.fillStyle = SIDEWALK;
+      ctx.fill();
+      ctx.fillStyle = 'rgba(0,0,0,0.45)';
+      ctx.fillRect(lipX - (side < 0 ? reach : 0), y + cap + 4, reach, 3);
+      ctx.restore();
+
+      // Exposed aggregate along the fracture face.
+      for (let i = 0; i < 9; i++) {
+        const ax = lipX - side * th(cL, i, 11) * reach;
+        const ay = y + 2 + th(cR, i, 13) * (cap + 6);
+        ctx.fillStyle = th(cL, i, 17) > 0.5
+          ? 'rgba(214,212,204,0.75)' : 'rgba(0,0,0,0.5)';
+        ctx.fillRect(ax, ay, 2, 2);
+      }
+
+      // Rebar, bent out over the drop. Two strands is enough to say the slab
+      // was reinforced and has failed; more looks like a fence.
+      ctx.strokeStyle = 'rgba(120,88,60,0.9)';
+      ctx.lineWidth = 2;
+      for (let i = 0; i < 2; i++) {
+        const ry = y + 5 + i * 7;
+        ctx.beginPath();
+        ctx.moveTo(lipX, ry);
+        ctx.quadraticCurveTo(lipX - side * 9, ry + 1, lipX - side * 15, ry + 7 + i * 3);
+        ctx.stroke();
+      }
+    }
+
+    // 4. WARNING GLOW on the rim.
+    ctx.globalCompositeOperation = 'lighter';
+    for (const gx of [x0, x1]) {
+      const gg = ctx.createRadialGradient(gx, y, 0, gx, y, 26);
+      gg.addColorStop(0, 'rgba(255,86,54,0.34)');
+      gg.addColorStop(1, 'rgba(255,60,30,0)');
+      ctx.fillStyle = gg;
+      ctx.fillRect(gx - 26, y - 26, 52, 52);
+    }
+    ctx.globalCompositeOperation = 'source-over';
+
+    // 1. HAZARD CHEVRONS on the last SAFE slab either side — painted on the
+    // ground you can stand on, pointing at the ground you cannot.
+    for (const side of [-1, 1]) {
+      const sx = side < 0 ? x0 - T : x1;
+      // Down the KERB FACE as well as across the walking surface. The cap is
+      // only 9 world units tall, and a 9px stripe seen at 0.645 zoom on a
+      // phone is six screen pixels — present, but not the "very very
+      // apparent" that was asked for. Carrying it onto the vertical face
+      // roughly triples the painted area and, because the face is what you
+      // see edge-on as you approach, it is the part that reads first.
+      const cap = Math.round(T * 0.28) + 12;
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(sx, y, T, cap);
+      ctx.clip();
+      ctx.fillStyle = 'rgba(232,176,26,0.85)';
+      ctx.fillRect(sx, y, T, cap);
+      ctx.fillStyle = 'rgba(24,22,20,0.88)';
+      const band = 9;
+      for (let i = -2; i < 6; i++) {
+        ctx.beginPath();
+        const bx = sx + i * band * 2 + (side < 0 ? 0 : band);
+        ctx.moveTo(bx, y + cap);
+        ctx.lineTo(bx + band, y + cap);
+        ctx.lineTo(bx + band + cap, y);
+        ctx.lineTo(bx + cap, y);
+        ctx.closePath();
+        ctx.fill();
+      }
+      // Worn, not freshly painted — this is a street, and a pristine
+      // marking would look like UI stuck on top of the art.
+      ctx.fillStyle = 'rgba(0,0,0,0.22)';
+      for (let i = 0; i < 10; i++) {
+        ctx.fillRect(sx + th(cL, i, 29) * T, y + th(cR, i, 31) * cap, 3, 2);
+      }
+      ctx.fillStyle = 'rgba(255,255,255,0.16)';
+      ctx.fillRect(sx, y, T, 1.5);
+      ctx.restore();
+    }
+
+    ctx.restore();
+  }
+
   // POTHOLE — a real street hazard, sunk into the asphalt rather than a
   // spike sitting on top of it. Broken rim, dark cavity, standing water.
   function drawHazard(o) {
@@ -503,6 +786,7 @@ export function createRenderer(ctx, canvas) {
     lighting,
     withCameraTransform,
     drawTiles,
+    drawPitMouths,
     drawPlayer,
     drawEnemy,
     drawPickup,

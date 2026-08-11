@@ -11,6 +11,17 @@
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Will Hill" />
+  <!-- THE APP ICON IS WILL HILL'S OWN HUD PORTRAIT — the head crop the game
+       draws top-left, cut from the same spritesheet by tools/make_icons.py so
+       the two can never drift apart. Paths are RELATIVE and unhashed: the
+       build's base is './' so this works under a project subpath on Pages,
+       and an installed app's icon is cached by URL, so a content hash that
+       moved on every deploy would leave home screens pointing at a 404.
+       iOS ignores the manifest's icons entirely and needs apple-touch-icon. -->
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icons/favicon.ico" sizes="any" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
   <!-- Never cache the HTML. Every real asset Vite emits is content-hashed and
        can be cached forever, so this document is the ONLY thing that can go
        stale — and when it does, a home-screen install keeps launching an old

@@ -413,10 +413,16 @@ function drawPauseMenu(stage) {
   ctx.fillText(`$${state.score.toLocaleString()}  ·  ${state.hearts}/${state.player.maxHearts} hearts`,
     cx, canvas.height * 0.26 + 48);
 
+  // RESUME ONLY. RESTART STAGE and RESTART RUN were here and the client had
+  // them removed outright.
+  //
+  // It is also the right call for a contest build: the leaderboard scores a
+  // RUN (see cloudflare/leaderboard-worker.js and the replay log), and a
+  // pause menu that hands you a free restart lets anyone reroll a bad start
+  // as many times as they like without it ever showing up in the log. The
+  // only way out of a run is now to finish it or to get knocked down.
   const items = [
     { label: 'RESUME', action: resume },
-    { label: 'RESTART STAGE', action: () => { startStage(state.stageIndex); } },
-    { label: 'RESTART RUN', action: () => { startRun(); } },
   ];
 
   const bw = Math.min(300, canvas.width * 0.72);
@@ -500,6 +506,10 @@ function draw() {
 
   renderer.withCameraTransform(camera, () => {
     renderer.drawTiles(level.map, camera, (c, r) => isSolid(level.map, c, r));
+    // Straight after the tiles and before anything else: the holes have to be
+    // drawn, not just left undrawn. See drawPitMouths in render/renderer.js.
+    renderer.drawPitMouths(level.map, camera,
+      (c, r) => isSolid(level.map, c, r), level.genC);
     // Light pools go down BEFORE the entities, so characters stand in the
     // light rather than having it painted over them.
     renderer.lighting.drawGroundPools(camera, stage);

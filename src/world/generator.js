@@ -115,12 +115,19 @@ export function genAhead(level, untilCol) {
         //
         // SIZED AGAINST THE JUMP, not picked. A jump hangs for 2*JUMP_V/GRAV
         // = 49 ticks, which carries 315 world units at RUN_SPEED but only 128
-        // at WALK_SPEED. The old 52-86 was timid — the client asked for
-        // bigger — so this is 76-120: half again as wide, and the widest one
-        // still clears at a walk with margin rather than forcing a run-up.
-        // Deeper too, 13 -> 20, since the renderer takes its cavity from h.
-        const pw = 76 + Math.floor(rnd01(c * 8.3 + level.seed) * 44);
-        level.obstacles.push({ x: c * T, y: FLOOR_R * T + 1, w: pw, h: 20 });
+        // at WALK_SPEED. This has been asked for twice, so: 52-86 -> 76-120
+        // -> 112-168, more than three times the original area, and about five
+        // player-widths across at the top end.
+        //
+        // Past 128 the widest ones no longer clear from a standing walk, and
+        // that is accepted rather than overlooked: a pothole TRIPS you, it
+        // does not drop you (see the foot test in main.js). The cost of
+        // walking into one is a stumble and a heart, so a hole big enough to
+        // demand a jog is a reason to move, not a death sentence. The holes
+        // that DO kill you are the pits, and those are drawn to be
+        // unmistakable — see drawPitMouth in render/renderer.js.
+        const pw = 112 + Math.floor(rnd01(c * 8.3 + level.seed) * 56);
+        level.obstacles.push({ x: c * T, y: FLOOR_R * T + 1, w: pw, h: 30 });
       }
       level.lastFeatureCol = c;
       level.genC = c + 2;
