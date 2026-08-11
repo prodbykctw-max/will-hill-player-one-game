@@ -185,7 +185,7 @@ function update() {
   // enemies: patrol/defeat-timer update, then collision resolution
   for (let i = level.enemies.length - 1; i >= 0; i--) {
     const e = level.enemies[i];
-    const gone = updateEnemy(e);
+    const gone = updateEnemy(e, level.map);
     if (gone) {
       level.enemies.splice(i, 1);
       continue;

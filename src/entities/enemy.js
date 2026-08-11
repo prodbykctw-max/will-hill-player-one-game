@@ -18,6 +18,7 @@ import sheetC from '../assets/sprites/enemy-c.webp';
 import atlasC from '../assets/sprites/enemy-c.atlas.json';
 import { damage as damagePlayer } from './player.js';
 import { metersToWorld, CHAR_SCALE } from '../world/scale.js';
+import { T, isSolid } from '../world/tilemap.js';
 
 // One generated sheet per palette variant. Stages 1-3 each field a single
 // variant; the Underground finale mixes all three (docs/GDD.md "Enemy
@@ -43,6 +44,17 @@ export const ENEMY_H = Math.round(metersToWorld(ENEMY_HEIGHT_M) / CHAR_SCALE); /
 export const ENEMY_DRAW_H = metersToWorld(ENEMY_HEIGHT_M); // drawn character height
 const ENEMY_W = 30;
 
+// Is there floor under the LEADING edge at `nx`, and no wall in the way?
+// Probing the leading edge rather than the centre is what makes the enemy
+// stop with its feet on the last solid tile instead of half over the drop.
+function canStand(map, enemy, nx) {
+  const lead = enemy.vx > 0 ? nx + enemy.w : nx;
+  const c = Math.floor(lead / T);
+  const rFloor = Math.floor((enemy.y + enemy.h + 2) / T); // tile beneath the feet
+  const rBody = Math.floor((enemy.y + enemy.h - 6) / T);  // tile at shin height
+  return isSolid(map, c, rFloor) && !isSolid(map, c, rBody);
+}
+
 export function createEnemy(x, y, patrolRange = 96, variant = 'a') {
   return {
     x,
@@ -63,8 +75,22 @@ export function createEnemy(x, y, patrolRange = 96, variant = 'a') {
 
 // Per-tick update: patrol while alive, count down the defeat animation once
 // stomped. Returns true once the entity should be removed from the level.
-export function updateEnemy(enemy) {
+//
+// LEDGE DETECTION. This used to be a pure bounded patrol with no ground test
+// at all — the enemy simply added vx every tick — so it strolled straight out
+// over the pits, hanging in mid-air above the exact gap that kills the player.
+// That reads as the enemy walking on the background, and it destroys the one
+// thing the player needs from the level: a reliable read on what is standing
+// room and what is a hole. An enemy that turns at the edge is a SIGNAL — it
+// marks the safe strip for you.
+//
+// `map` is optional so the unit tests can still step an enemy in isolation.
+export function updateEnemy(enemy, map) {
   if (enemy.alive) {
+    if (map && !canStand(map, enemy, enemy.x + enemy.vx)) {
+      // Turn at the brink rather than after stepping off it.
+      enemy.vx *= -1;
+    }
     enemy.x += enemy.vx;
     if (Math.abs(enemy.x - enemy.originX) > enemy.patrolRange) enemy.vx *= -1;
     enemy.anim = Math.abs(enemy.vx) > 0 ? 'walk' : 'idle';
