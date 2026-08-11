@@ -14,8 +14,19 @@
 //     effect, same rarity role as Jandé's power-up slot).
 //   - `stageEnd` (finish-line column) ends the stage directly — no boss
 //     arena, per the "reach a finish line" decision.
-// Difficulty ramps gently across the 4 stages (EAV -> Underground), same
-// shape as Jandé's progression but compressed from 9 stages to 4.
+// ORDER MATTERS AND IT CHANGED. Criminal Records (l5p) is the FINALE, not the
+// Underground — Will Hill is travelling to his show, and the show is at
+// Criminal Records, where people really have performed. On the MARTA map the
+// route is real: East Lake -> Edgewood-Candler Park -> FIVE POINTS (the
+// transfer hub, which is the Underground stage and the reason there is a
+// tunnel under the street) -> back east to Inman Park-Reynoldstown for L5P.
+// That is genuinely how you would make that trip.
+//
+// Difficulty and the enemy roster follow POSITION, not the stage, so they
+// were swapped when the order changed: l5p now carries the hardest recipe and
+// the all-three-variant finale roster, and underground took l5p's old
+// mid-tier numbers. If the order is ever changed again, move these too or the
+// ramp inverts.
 //
 // `bg` imports are built by tools/compose_backgrounds.py from the raw
 // references in assets/backgrounds/<id>/ (git-ignored) — see that script
@@ -254,56 +265,6 @@ export const STAGES = [
     recipe: { gap: 0.10, plat: 0.22, haz: 0.38, gapMax: 3, vert: 0.30, enemy: 0.36, bag: 0.34, champagne: 0.055 },
   },
   {
-    id: 'l5p',
-    name: 'Little 5 Points',
-    bgRef: '"Criminal Records" record shop storefront — New & Used, Buy Sell Trade',
-    bg: {
-      img: bgL5p,
-      meters: 9.0, // storefront row incl. the sign band
-      groundFrac: 0.75,
-      sky: ['#090b17', '#090d1e'],
-      horizon: '#1c1d33',
-      glow: 'rgba(150,200,255,0.09)',
-      rain: 0.85,
-      windBands: [{ top: 0.02, pivot: 0.30, amp: 2.5, freq: 1.2, xRanges: [[0.12, 0.22]] }],
-      // Storefront windows and the OPEN sign do the work on this block.
-      cards: [
-        { key: 'farbuild', img: l5pFarbuild, depth: 0.06, span: [0.003, 0.157] },
-        { key: 'sign', img: l5pSign, depth: 0.22, span: [0.445, 0.929] },
-        { key: 'letters', img: l5pLetters, depth: 0.23, span: [0.500, 0.890] },
-        { key: 'rightpillar', img: l5pRightpillar, depth: 0.30, span: [0.930, 1.000] },
-        { key: 'newused', img: l5pNewused, depth: 0.40, span: [0.126, 0.301] },
-        { key: 'newusedsign', img: l5pNewusedsign, depth: 0.41, span: [0.143, 0.299] },
-        { key: 'brick', img: l5pBrick, depth: 0.48, span: [0.299, 0.453] },
-        { key: 'buysell', img: l5pBuysell, depth: 0.49, span: [0.325, 0.397] },
-        { key: 'bayleft', img: l5pBayleft, depth: 0.56, span: [0.442, 0.594] },
-        { key: 'openneon', img: l5pOpenneon, depth: 0.57, span: [0.465, 0.532] },
-        { key: 'baymid', img: l5pBaymid, depth: 0.60, span: [0.595, 0.717] },
-        { key: 'awning', img: l5pAwning, depth: 0.63, span: [0.768, 0.891] },
-        { key: 'bayright', img: l5pBayright, depth: 0.64, span: [0.726, 0.969] },
-        { key: 'poster', img: l5pPoster, depth: 0.65, span: [0.794, 0.899] },
-        { key: 'kerb', img: l5pKerb, depth: 0.82, span: [0.004, 0.965] , rate: 0.30 },
-        { key: 'pole', img: l5pPole, depth: 0.96, span: [0.055, 0.132] },
-      ],
-      lights: [
-        { x: 0.20, y: 0.56, r: 0.30, rgb: '255,214,140', a: 0.18 },
-        { x: 0.52, y: 0.60, r: 0.24, rgb: '120,200,255', a: 0.16, flicker: 0.025 },
-        { x: 0.78, y: 0.52, r: 0.32, rgb: '255,226,170', a: 0.16 },
-      ],
-    },
-    light: { pool: 'rgba(180,215,255,0.19)', shaft: 'rgba(180,215,255,0.04)', bloom: 'rgba(150,200,255,0.12)', key: '210,230,255', bounce: '70,100,140', shadowRgb: '14,14,28' },
-    under: {
-      asphalt: '#2c2b2c', base: '#454039', fill: '#523c2f', mid: '#5a4030', bottom: '#201814',
-      brick: '#7d4a35', metal: '#787e85', metalDark: '#383c41', concrete: '#54514b',
-      concreteDark: '#37342f', gas: '#b8952e', accent: '#4a7a8a', root: '#463322',
-      tile: '#39383f', ballast: '#39352f', void_: '#0b0a11', lamp: 'rgba(150,200,255,0.20)', rat: '#272220',
-      kinds: ['roots', 'conduit', 'water', 'sewer', 'rats', 'footings'],
-    },
-    enemyVariants: ['c'],
-    stageEnd: 280,
-    recipe: { gap: 0.12, plat: 0.24, haz: 0.42, gapMax: 3, vert: 0.35, enemy: 0.42, bag: 0.34, champagne: 0.06 },
-  },
-  {
     id: 'underground',
     name: 'The Underground (5 Points)',
     bgRef: '"UNDERGROUND" transit-style entrance arch — Midtown/Westside + East Point/Airport signage, Coca-Cola sign, Waffle House',
@@ -365,8 +326,58 @@ export const STAGES = [
       tile: '#4a5560', ballast: '#332f2b', void_: '#08070c', lamp: 'rgba(255,196,120,0.34)', rat: '#2b2622',
       kinds: ['conduit', 'water', 'sewer', 'tunnel', 'rats', 'train', 'footings'],
     },
-    enemyVariants: ['a', 'b', 'c'],
+    enemyVariants: ['c'],
     stageEnd: 300,
-    recipe: { gap: 0.14, plat: 0.26, haz: 0.46, gapMax: 4, vert: 0.40, enemy: 0.48, bag: 0.34, champagne: 0.065 },
+    recipe: { gap: 0.12, plat: 0.24, haz: 0.42, gapMax: 3, vert: 0.35, enemy: 0.42, bag: 0.34, champagne: 0.065 },
+  },
+  {
+    id: 'l5p',
+    name: 'Little 5 Points',
+    bgRef: '"Criminal Records" record shop storefront — New & Used, Buy Sell Trade',
+    bg: {
+      img: bgL5p,
+      meters: 9.0, // storefront row incl. the sign band
+      groundFrac: 0.75,
+      sky: ['#090b17', '#090d1e'],
+      horizon: '#1c1d33',
+      glow: 'rgba(150,200,255,0.09)',
+      rain: 0.85,
+      windBands: [{ top: 0.02, pivot: 0.30, amp: 2.5, freq: 1.2, xRanges: [[0.12, 0.22]] }],
+      // Storefront windows and the OPEN sign do the work on this block.
+      cards: [
+        { key: 'farbuild', img: l5pFarbuild, depth: 0.06, span: [0.003, 0.157] },
+        { key: 'sign', img: l5pSign, depth: 0.22, span: [0.445, 0.929] },
+        { key: 'letters', img: l5pLetters, depth: 0.23, span: [0.500, 0.890] },
+        { key: 'rightpillar', img: l5pRightpillar, depth: 0.30, span: [0.930, 1.000] },
+        { key: 'newused', img: l5pNewused, depth: 0.40, span: [0.126, 0.301] },
+        { key: 'newusedsign', img: l5pNewusedsign, depth: 0.41, span: [0.143, 0.299] },
+        { key: 'brick', img: l5pBrick, depth: 0.48, span: [0.299, 0.453] },
+        { key: 'buysell', img: l5pBuysell, depth: 0.49, span: [0.325, 0.397] },
+        { key: 'bayleft', img: l5pBayleft, depth: 0.56, span: [0.442, 0.594] },
+        { key: 'openneon', img: l5pOpenneon, depth: 0.57, span: [0.465, 0.532] },
+        { key: 'baymid', img: l5pBaymid, depth: 0.60, span: [0.595, 0.717] },
+        { key: 'awning', img: l5pAwning, depth: 0.63, span: [0.768, 0.891] },
+        { key: 'bayright', img: l5pBayright, depth: 0.64, span: [0.726, 0.969] },
+        { key: 'poster', img: l5pPoster, depth: 0.65, span: [0.794, 0.899] },
+        { key: 'kerb', img: l5pKerb, depth: 0.82, span: [0.004, 0.965] , rate: 0.30 },
+        { key: 'pole', img: l5pPole, depth: 0.96, span: [0.055, 0.132] },
+      ],
+      lights: [
+        { x: 0.20, y: 0.56, r: 0.30, rgb: '255,214,140', a: 0.18 },
+        { x: 0.52, y: 0.60, r: 0.24, rgb: '120,200,255', a: 0.16, flicker: 0.025 },
+        { x: 0.78, y: 0.52, r: 0.32, rgb: '255,226,170', a: 0.16 },
+      ],
+    },
+    light: { pool: 'rgba(180,215,255,0.19)', shaft: 'rgba(180,215,255,0.04)', bloom: 'rgba(150,200,255,0.12)', key: '210,230,255', bounce: '70,100,140', shadowRgb: '14,14,28' },
+    under: {
+      asphalt: '#2c2b2c', base: '#454039', fill: '#523c2f', mid: '#5a4030', bottom: '#201814',
+      brick: '#7d4a35', metal: '#787e85', metalDark: '#383c41', concrete: '#54514b',
+      concreteDark: '#37342f', gas: '#b8952e', accent: '#4a7a8a', root: '#463322',
+      tile: '#39383f', ballast: '#39352f', void_: '#0b0a11', lamp: 'rgba(150,200,255,0.20)', rat: '#272220',
+      kinds: ['roots', 'conduit', 'water', 'sewer', 'rats', 'footings'],
+    },
+    enemyVariants: ['a', 'b', 'c'],
+    stageEnd: 280,
+    recipe: { gap: 0.14, plat: 0.26, haz: 0.46, gapMax: 4, vert: 0.40, enemy: 0.48, bag: 0.34, champagne: 0.06 },
   },
 ];

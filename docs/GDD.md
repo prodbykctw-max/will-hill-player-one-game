@@ -72,6 +72,13 @@ see coming instead of discovering by dying.
 
 ## Setting: Atlanta, 4 stages
 
+**Criminal Records is the finale.** Stage order is EAV -> Edgewood ->
+Underground (Five Points) -> Little Five Points. Will Hill is travelling to
+his show and the show is at Criminal Records; real acts have performed there.
+The route is a real MARTA journey — East Lake, Edgewood-Candler Park, Five
+Points to transfer, then back east to Inman Park-Reynoldstown — which is what
+the between-stage map screen will show.
+
 Four stages, each a real Atlanta neighborhood, rendered as an exact-replica map using real landmarks — in the visual/structural spirit of *Michael Jordan: Chaos in the Windy City* (SNES beat-'em-up built around a real-city map; referenced for its real-city-map structure only, not its combat system), with a gritty 90s tone.
 
 1. **East Atlanta Village (EAV)**

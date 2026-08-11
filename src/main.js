@@ -507,11 +507,12 @@ function draw() {
       ['press JUMP to continue', 13, 'rgba(255,255,255,0.7)'],
     ]);
   } else if (state.screen === 'gameOver') {
-    // KNOCKED DOWN, not dead. Will Hill is a real artist and this is a fun
-    // arcade game — "GAME OVER" in blood red over a body reads far grimmer
-    // than the game is meant to be. He got jumped and robbed; he gets up.
+    // GAME KNOCKED — the client's wording, and it is player slang, not a
+    // typo for "knocked out". Leave it exactly as written. He is not dead:
+    // "GAME OVER" in blood red over a body reads far grimmer than this game
+    // is meant to be. He got jumped and robbed; he gets back up.
     drawOverlayText([
-      ['KNOCKED DOWN', 28, '#e8a13f'],
+      ['GAME KNOCKED', 28, '#e8a13f'],
       [`$${state.score.toLocaleString()}`, 18],
       ['press JUMP to get back up', 13, 'rgba(255,255,255,0.7)'],
     ]);
