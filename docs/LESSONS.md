@@ -36,6 +36,33 @@ is not a measurement.
 
 ---
 
+## 1b. Asserting what I CAN'T do, without touching it
+
+A distinct flavour of the same sin, and the one the client had to push back on
+hardest, because it wastes their time arguing instead of mine checking.
+
+| what happened | cost |
+|---|---|
+| Told the client the AutoSprite API key "has to go in the MCP server config, not the chat" and that I couldn't apply it. **I had not looked at a single config file.** | Client: *"Wouldn't you do the MCP server configuration? What are you talking about bro?"* Only then did I check `/tmp/mcp-config-*.json` and find the real answer — every server is `type: http` proxied through Anthropic's connector layer, with no `env` and no `command`, so there is genuinely nowhere local to put a key. **The conclusion was right and the method was worthless.** |
+| Said Google Drive "needs your approval on the connector" without checking what the error actually was. | Same shape. Guessing at a plausible cause instead of reading one. |
+
+**Why this one is worse than a wrong number.** A wrong number gets caught by
+the next measurement. A confident "I can't do that" gets BELIEVED, and the
+client goes off and does the work themselves — or worse, drops something they
+actually wanted. Being right by luck is not being right.
+
+> "Never assert all this shit that I'm having to push back on you on just
+> because you're not doing the work to touch the product to confirm."
+
+**The rule, and it covers capability claims exactly like it covers numbers:**
+before saying "I can't", "there's no way to", "that's not supported", or
+"that's on your end" — go look. Read the config. Call the tool. Check the
+error text. If the check is genuinely impossible, say *that*, and say what
+would settle it. "I haven't checked yet" is always allowed. A guess dressed
+as a finding never is.
+
+---
+
 ## 2. Trusting my own earlier documentation over the code
 
 | what happened | cost |
@@ -129,6 +156,9 @@ ideas that I should have reached first.
 
 ## The short version
 
+0. **Touch the thing before you describe it** — including when what you are
+   describing is a limit. "I can't" is a claim and needs evidence like any
+   other. Being right by luck still cost the client an argument.
 1. Measure it or don't claim it.
 2. Read the code, not my notes about the code.
 3. Make every change prove itself with a check that could fail.
