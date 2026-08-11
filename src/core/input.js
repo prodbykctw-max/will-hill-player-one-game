@@ -29,13 +29,38 @@ export function createInput() {
   }, { passive: false });
   window.addEventListener('keyup', (e) => keys.delete(e.code));
 
-  // iOS pinch-zoom. `touch-action` in index.html stops double-tap zoom, but
-  // Safari's gesture events are a separate path that ignores it, and a
-  // two-finger pinch mid-run zooms the board and makes the game unplayable.
-  // These events are WebKit-only; everywhere else they simply never fire.
+  // ── Kill browser zoom, all three routes into it ──────────────────────
+  // A game where a stray tap zooms the board is unplayable, and this needs
+  // belt and braces: the viewport meta asks for user-scalable=no and iOS
+  // Safari has ignored that since iOS 10, and `touch-action` in index.html
+  // covers only one of the three routes.
+  //
+  // 1. Double-tap. touch-action:manipulation is supposed to stop this, and on
+  //    iOS it still fires when the two taps land on different elements —
+  //    which is exactly what happens working the left/right pads back and
+  //    forth. Timing the gap between touchends and cancelling the second is
+  //    the only thing that reliably stops it. 350ms is above the ~300ms
+  //    Safari uses to pair taps, and single taps are left alone so ordinary
+  //    clicks still work.
+  let lastTouchEnd = 0;
+  document.addEventListener('touchend', (e) => {
+    const now = Date.now();
+    if (now - lastTouchEnd <= 350) e.preventDefault();
+    lastTouchEnd = now;
+  }, { passive: false });
+
+  // 2. Pinch. WebKit's gesture events are a separate path that ignores
+  //    touch-action entirely. These never fire outside Safari.
   for (const g of ['gesturestart', 'gesturechange', 'gestureend']) {
     document.addEventListener(g, (e) => e.preventDefault(), { passive: false });
   }
+
+  // 3. Desktop: ctrl/cmd + wheel, and trackpad pinch, which arrive as a
+  //    wheel event with ctrlKey set.
+  document.addEventListener('wheel', (e) => {
+    if (e.ctrlKey || e.metaKey) e.preventDefault();
+  }, { passive: false });
+  document.addEventListener('dblclick', (e) => e.preventDefault(), { passive: false });
 
   const touch = { left: false, right: false, jump: false, dash: false };
 

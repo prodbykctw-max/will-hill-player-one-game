@@ -143,29 +143,91 @@ export function createUndercroft(ctx, canvas) {
 
   // Deep sewer main — brick barrel arch, the oldest thing down here.
   function sewer(px, y0, bh, u) {
-    const y = y0 + bh * 0.56;
-    const r = Math.max(11, bh * 0.10);
+    // This is the thing that has to say "sewer" at a glance on every stage
+    // except Five Points. It is a LONGITUDINAL cut down the barrel, so the
+    // bore is a horizontal void — the same silhouette a subway tunnel has.
+    // Silhouette alone therefore cannot carry it, and an earlier version that
+    // relied on it (a flat brick rectangle with evenly spaced horizontal
+    // lines) read as tiled tunnel wall. What separates the two is masonry and
+    // water: running-bond brick, ring joints where one length of barrel meets
+    // the next, and a flowing invert.
+    // Sized to be the thing you notice down here. It sits below the water
+    // main (which runs to 0.44) and stops just short of the bedrock course at
+    // 0.75, so it dominates the section without burying the other services.
+    const SEG = 240;
+    const y = y0 + bh * 0.60;
+    const r = Math.max(15, bh * 0.155);
+    const course = Math.max(4, r * 0.30);   // brick course height
+    const brickW = course * 2.4;            // roughly 2:1 brick, plus joint
+
     ctx.save();
-    run(px, 0.8, 260, (x) => {
+    run(px, 0.8, SEG, (x, i) => {
       ctx.fillStyle = u.brick;
-      ctx.fillRect(x, y - r, 260, r * 2);
-      // brick courses
-      ctx.strokeStyle = 'rgba(0,0,0,0.34)';
+      ctx.fillRect(x, y - r, SEG, r * 2);
+
+      // Running bond: every other course offset by half a brick. Staggered
+      // joints are what the eye reads as brickwork — a stack of unbroken
+      // horizontal lines reads as tile, which is exactly the wrong building.
+      ctx.strokeStyle = 'rgba(0,0,0,0.38)';
       ctx.lineWidth = 1;
-      for (let by = y - r + 4; by < y + r; by += 5) {
+      let row = 0;
+      for (let by = y - r; by < y + r; by += course, row++) {
         ctx.beginPath();
         ctx.moveTo(x, by);
-        ctx.lineTo(x + 260, by);
+        ctx.lineTo(x + SEG, by);
         ctx.stroke();
+        const shift = (row % 2) * brickW * 0.5;
+        for (let bx = x + shift; bx < x + SEG; bx += brickW) {
+          ctx.beginPath();
+          ctx.moveTo(bx, by);
+          ctx.lineTo(bx, Math.min(by + course, y + r));
+          ctx.stroke();
+        }
       }
-      // the void inside, with standing water catching a highlight
+
+      // Ring joint — a raised collar of header bricks where one length of
+      // barrel butts the next. Periodic structure like this is the other
+      // thing tunnels do not have.
+      ctx.fillStyle = 'rgba(0,0,0,0.30)';
+      ctx.fillRect(x - 3, y - r, 6, r * 2);
+      ctx.fillStyle = 'rgba(255,225,190,0.10)';
+      ctx.fillRect(x + 3, y - r, 2, r * 2);
+
+      // The bore, arched: the crown curves rather than cutting straight, so
+      // the barrel reads as round even in section.
       ctx.fillStyle = u.void_;
-      ctx.fillRect(x, y - r * 0.55, 260, r * 1.1);
-      ctx.fillStyle = 'rgba(120,150,170,0.22)';
-      ctx.fillRect(x, y + r * 0.34, 260, 2);
-      // arch shading
+      ctx.beginPath();
+      ctx.moveTo(x, y + r * 0.62);
+      ctx.lineTo(x, y - r * 0.30);
+      ctx.quadraticCurveTo(x + SEG * 0.5, y - r * 0.86, x + SEG, y - r * 0.30);
+      ctx.lineTo(x + SEG, y + r * 0.62);
+      ctx.closePath();
+      ctx.fill();
+
+      // Soot and damp staining up the haunches, heaviest at the crown.
+      const sg = ctx.createLinearGradient(0, y - r * 0.86, 0, y + r * 0.62);
+      sg.addColorStop(0, 'rgba(0,0,0,0.45)');
+      sg.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = sg;
+      ctx.fillRect(x, y - r * 0.86, SEG, r * 1.48);
+
+      // Flowing sewage in the invert, with a lit surface and a slow ripple.
+      // Standing water is the single clearest sewer tell.
+      const wl = y + r * 0.30;
+      ctx.fillStyle = 'rgba(46,58,48,0.92)';
+      ctx.fillRect(x, wl, SEG, y + r * 0.62 - wl);
+      ctx.fillStyle = 'rgba(150,178,170,0.30)';
+      ctx.fillRect(x, wl, SEG, 1.6);
+      ctx.fillStyle = 'rgba(190,215,205,0.16)';
+      for (let k = 0; k < 5; k++) {
+        const rx = x + hash01(i * 3.7 + k * 1.9) * SEG;
+        ctx.fillRect(rx, wl + 1 + hash01(k * 5.3) * 2, 10 + hash01(k * 2.1) * 22, 1);
+      }
+
+      // Benching either side of the channel, and the crown shadow.
       ctx.fillStyle = 'rgba(0,0,0,0.34)';
-      ctx.fillRect(x, y - r, 260, 3);
+      ctx.fillRect(x, y - r, SEG, 3);
+      ctx.fillRect(x, y + r * 0.62 - 2, SEG, 2);
     });
     ctx.restore();
   }
@@ -215,22 +277,51 @@ export function createUndercroft(ctx, canvas) {
 
   // Manhole shaft dropping from the street down to the sewer.
   function manhole(px, y0, bh, u) {
-    const depth = bh * 0.56;
+    // Drops from the street cover all the way into the sewer. Depth is set
+    // against the barrel below (crown 0.445, invert ~0.70 of bh) so the shaft
+    // visibly breaks through into the bore rather than stopping in the clay
+    // above it — a shaft to nowhere is what makes a section look diagrammatic.
+    // Drawn after `sewer` in every stage's `kinds`, so it punches through.
+    const depth = bh * 0.66;
     ctx.save();
     run(px, 0.8, 760, (x, i) => {
       if (hash01(i * 6.7) > 0.62) return;
       const w = 26;
+
+      // Precast concrete rings, joints every ring.
       ctx.fillStyle = u.concrete;
       ctx.fillRect(x, y0, w, depth);
+      ctx.fillStyle = 'rgba(0,0,0,0.22)';
+      for (let ry = y0 + 21; ry < y0 + depth; ry += 21) ctx.fillRect(x, ry, w, 1.4);
       ctx.fillStyle = u.void_;
       ctx.fillRect(x + 4, y0, w - 8, depth);
-      // step irons
+
+      // The ladder. Two stiles and rungs the whole drop, so there is a way
+      // down to the sewer rather than a bare hole.
+      const lx = x + 7;
+      const lw = w - 14;
+      const bottom = y0 + depth - 3;
       ctx.fillStyle = u.metal;
-      for (let sy = y0 + 14; sy < y0 + depth - 6; sy += 16) {
-        ctx.fillRect(x + 6, sy, w - 12, 1.6);
+      ctx.fillRect(lx, y0 + 2, 1.7, bottom - y0 - 2);
+      ctx.fillRect(lx + lw - 1.7, y0 + 2, 1.7, bottom - y0 - 2);
+      // Lit down one stile so it reads as round bar, not a painted line.
+      ctx.fillStyle = 'rgba(255,240,210,0.20)';
+      ctx.fillRect(lx, y0 + 2, 0.7, bottom - y0 - 2);
+      for (let sy = y0 + 9; sy < bottom - 2; sy += 10) {
+        ctx.fillStyle = u.metal;
+        ctx.fillRect(lx, sy, lw, 1.7);
+        ctx.fillStyle = 'rgba(0,0,0,0.45)';   // rung shadow on the back wall
+        ctx.fillRect(lx, sy + 1.7, lw, 1);
       }
+
       ctx.fillStyle = 'rgba(0,0,0,0.4)';
       ctx.fillRect(x + w - 4, y0, 4, depth);
+      // Daylight falling in at the top, dying a few rungs down.
+      const lg = ctx.createLinearGradient(0, y0, 0, y0 + depth * 0.4);
+      lg.addColorStop(0, 'rgba(255,226,170,0.16)');
+      lg.addColorStop(1, 'rgba(255,226,170,0)');
+      ctx.fillStyle = lg;
+      ctx.fillRect(x + 4, y0, w - 8, depth * 0.4);
     });
     ctx.restore();
   }

@@ -14,11 +14,13 @@
       -webkit-user-select: none; user-select: none;
       -webkit-tap-highlight-color: transparent;
       -webkit-touch-callout: none;
-      /* Kills double-tap-to-zoom. The viewport meta above asks for
-         user-scalable=no, but iOS Safari has ignored that since iOS 10 —
-         touch-action is the only thing that actually stops it, and a
-         double-tap mid-run zooming the board is unplayable. */
-      touch-action: manipulation;
+      /* No browser zoom anywhere on the page. `manipulation` still leaves
+         iOS pairing taps across two different elements — which is what
+         working the left/right pads does — so this is `none`, and the page
+         does not scroll anyway (overflow is hidden). src/core/input.js
+         covers the routes CSS cannot: paired taps, WebKit gesture events,
+         and ctrl+wheel. */
+      touch-action: none;
     }
     /* Stronger still on the board itself: no double-tap, no pinch, no pan. */
     #game {

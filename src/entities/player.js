@@ -30,6 +30,9 @@ import atlas from '../assets/sprites/will-hill.atlas.json';
 export const PLAYER_SPRITE = { url: spriteSheetUrl, atlas };
 
 const CONTACT_IFRAMES = 75; // ticks, matches Jandé's p.inv=75 on taking a hit
+// A caught toe, not a knockback. Long enough to feel like a loss of control,
+// short enough that it never reads as a stun-lock.
+const STUMBLE_TICKS = 26;
 
 export function createPlayer(x, y) {
   return {
@@ -53,6 +56,7 @@ export function createPlayer(x, y) {
     dashVx: 0,
     dashCd: 0,
 
+    stumble: 0, // ticks left of a pothole trip — steering is disabled
     inv: 0, // i-frame ticks remaining (dash / just-got-hit)
     invulnerableUntil: 0, // ms timestamp — champagne bottle 30s power-up, separate from i-frame ticks
 
@@ -93,11 +97,33 @@ export function damage(p, now, sourceX) {
 }
 
 // Per-tick controller. Call once per fixed physics step (see core/loop.js).
+// Catch a foot in a pothole. Deliberately NOT the same as taking a hit: you
+// pitch forward and lose the ability to steer for a moment, which is what
+// makes a hole in the road feel like a hole in the road rather than a
+// damage box you walk through.
+export function trip(p, now) {
+  if (p.dead || p.stumble > 0 || isInvulnerable(p, now)) return false;
+  p.stumble = STUMBLE_TICKS;
+  p.hearts--;
+  p.inv = CONTACT_IFRAMES;
+  p.anim = 'hit';
+  p.animT = 0;
+  p.frame = 0;
+  p.vx *= 0.22;   // momentum dies in the hole
+  p.vy = -3.2;    // a short pitch forward, not the -6 bounce of a hit
+  if (p.hearts <= 0) p.dead = true;
+  return true;
+}
+
 export function stepPlayer(p, input, map) {
   if (p.dead) return;
 
-  // horizontal movement: lerp toward target velocity
-  const tgt = input.right() ? RUN_SPEED : input.left() ? -RUN_SPEED : 0;
+  if (p.stumble > 0) p.stumble--;
+
+  // horizontal movement: lerp toward target velocity. No steering mid-stumble
+  // — you are going wherever the trip sent you until you recover.
+  const tgt = p.stumble > 0 ? 0
+    : input.right() ? RUN_SPEED : input.left() ? -RUN_SPEED : 0;
   const k = tgt === 0 ? DECEL : ACCEL;
   p.vx += (tgt - p.vx) * k;
   if (tgt === 0 && p.onGround && Math.abs(p.vx) < 0.6) p.vx = 0;
@@ -129,7 +155,9 @@ export function stepPlayer(p, input, map) {
   if (!jumpHeld && p.vy < JUMP_CUT_VY) p.vy = JUMP_CUT_VY; // variable jump height
 
   // dash (roll)
-  if (input.dash() && p.dashCd <= 0 && !p.dashing) {
+  // No dashing out of a stumble — but jumping still works, so there is a way
+  // to recover rather than just waiting it out.
+  if (input.dash() && p.dashCd <= 0 && !p.dashing && p.stumble <= 0) {
     p.dashing = true;
     p.dashT = DASH_TICKS;
     p.dashVx = p.faceL ? -DASH_VX : DASH_VX;

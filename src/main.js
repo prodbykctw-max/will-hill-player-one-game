@@ -8,7 +8,8 @@ import { createLoop } from './core/loop.js';
 import { createCamera } from './core/camera.js';
 import { createInput } from './core/input.js';
 import { advanceAnim } from './core/animate.js';
-import { createPlayer, stepPlayer, isInvulnerable, grantInvulnerability, PLAYER_SPRITE } from './entities/player.js';
+import { createPlayer, stepPlayer, isInvulnerable, grantInvulnerability, trip, PLAYER_SPRITE } from './entities/player.js';
+import { createAudio } from './audio/audio.js';
 import { ENEMY_SPRITES, updateEnemy, resolveEnemyCollision } from './entities/enemy.js';
 import { overlapsPlayer, PROP_SPRITES } from './entities/collectibles.js';
 import { createLevel, buildRunway, genAhead, finishLineX } from './world/generator.js';
@@ -28,6 +29,13 @@ const backdrop = createBackdrop(ctx, canvas);
 const undercroft = createUndercroft(ctx, canvas);
 const hud = createHud(ctx, canvas);
 const input = createInput();
+const audio = createAudio();
+// Browsers keep an AudioContext suspended until a real gesture, so the first
+// key or touch is what actually starts the audio thread. `once` per event so
+// this costs nothing after the first interaction.
+for (const ev of ['keydown', 'pointerdown', 'touchstart']) {
+  window.addEventListener(ev, () => audio.unlock(), { once: true, passive: true });
+}
 const camera = createCamera();
 
 function resize() {
@@ -183,6 +191,7 @@ function update() {
     }
     const result = resolveEnemyCollision(e, player, now);
     if (result === 'stomp') {
+      audio.play('punch');
       state.score += 50; // matches SCORE_RULES.stomp in cloudflare/leaderboard-worker.js
       state.runLog.record('stomp');
     }
@@ -206,14 +215,20 @@ function update() {
     }
   }
 
-  // static hazards
+  // POTHOLES. Not an overlap test. A pothole is sunk INTO the road surface —
+  // its box starts a pixel below the walking plane — and the player's feet
+  // rest exactly on that plane, so `player.y + player.h > hz.y` was never
+  // true and the hazard could never fire. They were decoration you could
+  // stand on.
+  //
+  // What actually matters is whether a foot is over the hole while you are on
+  // the road, so that is what is tested: on the ground, and the middle of the
+  // body horizontally inside the pothole's span. Jump it and you clear it.
   for (const hz of level.obstacles) {
-    const overlap = player.x < hz.x + hz.w && player.x + player.w > hz.x && player.y < hz.y + hz.h && player.y + player.h > hz.y;
-    if (overlap && !isInvulnerable(player, now)) {
-      player.hearts--;
-      player.inv = 75;
-      player.vy = -6;
-      if (player.hearts <= 0) player.dead = true;
+    if (!player.onGround) continue;
+    const foot = player.x + player.w * 0.5;
+    if (foot > hz.x && foot < hz.x + hz.w) {
+      if (trip(player, now)) state.runLog.record('pothole');
     }
   }
 

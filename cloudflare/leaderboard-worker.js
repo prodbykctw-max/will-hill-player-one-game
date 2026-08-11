@@ -42,6 +42,7 @@ const SCORE_RULES = {
   bag: 100, // money bag collected
   stomp: 50, // enemy defeated by stomp
   champagne: 0, // grants invulnerability, no direct score
+  pothole: 0, // tripped in a pothole — costs a heart, never score
 };
 
 const json = (o, status = 200) =>
