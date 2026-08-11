@@ -17,8 +17,9 @@ has to say "that one is the tree, it belongs at 0.81". So this writes a
 proposal sheet for a human to read, not a finished plane set.
 
 Usage:
-    python3 tools/sam_segment.py underground            # propose masks
-    python3 tools/sam_segment.py underground --grid 24  # denser sampling
+    python3 tools/sam_segment.py underground             # propose masks
+    python3 tools/sam_segment.py underground --grid 40   # denser sampling
+    python3 tools/sam_segment.py underground --coarse    # skip the letters
 """
 
 import json
@@ -44,24 +45,32 @@ def load_plate(stage):
     return np.array(im.crop((0, 0, w, int(h * GROUND_FRAC[stage]))))
 
 
-def generate(rgb, grid, fine=False):
+def generate(rgb, grid, coarse=False):
     from segment_anything import SamAutomaticMaskGenerator, sam_model_registry
     sam = sam_model_registry['vit_b'](checkpoint=CKPT)
     sam.to('cpu')
-    # FINE mode is for signage. The defaults are tuned to return objects, and
-    # they drop letters: on L5P a grid-48 pass still missed the C and the I in
-    # CRIMINAL and the big CR monogram, because a letter that size lands under
-    # both the area floor and the confidence bar. Raising the grid alone moved
-    # coverage 85.0% -> 86.0%; lowering the floors is what actually finds them.
+    # TEXT IS FOUND BY DEFAULT. SAM's stock thresholds are tuned to return
+    # objects and they drop letters — on L5P they missed the C and the I in
+    # CRIMINAL and the big CR monogram entirely. Every backdrop in this game is
+    # a real Atlanta storefront covered in signage (CITGO, WELCOME TO EAST
+    # ATLANTA, CRIMINAL RECORDS, WAFFLE HOUSE, McDonald's), so lettering is not
+    # an edge case here, it is most of what is worth isolating. Finding it must
+    # not be something you have to remember to switch on.
+    #
+    # Raising the sampling grid does NOT fix it: 28 -> 48 moved L5P coverage
+    # 85.0% -> 86.0%. A letter that size lands under the area floor and the
+    # confidence bar, so those are what come down.
+    #
+    # --coarse restores the stock thresholds for a quick structural pass.
     gen = SamAutomaticMaskGenerator(
         sam,
         points_per_side=grid,
-        pred_iou_thresh=0.68 if fine else 0.80,
-        stability_score_thresh=0.80 if fine else 0.88,
+        pred_iou_thresh=0.80 if coarse else 0.68,
+        stability_score_thresh=0.88 if coarse else 0.80,
         # These plates are dark and low-contrast; the default crop layers add
         # a lot of CPU time for very little on art this flat.
         crop_n_layers=0,
-        min_mask_region_area=60 if fine else 400,
+        min_mask_region_area=400 if coarse else 60,
     )
     return gen.generate(rgb)
 
@@ -97,7 +106,7 @@ def main():
     if '--emit' in sys.argv:
         emit(stage, sys.argv[sys.argv.index('--emit') + 1])
         return
-    grid = 16
+    grid = 32
     if '--grid' in sys.argv:
         grid = int(sys.argv[sys.argv.index('--grid') + 1])
     rgb = load_plate(stage)
@@ -105,14 +114,14 @@ def main():
     print(f'{stage}: {w}x{h} crop, points_per_side={grid} '
           f'({grid * grid} prompts) — CPU, this takes a while')
 
-    fine = '--fine' in sys.argv
-    masks = generate(rgb, grid, fine)
+    coarse = '--coarse' in sys.argv
+    masks = generate(rgb, grid, coarse)
     print(f'  SAM returned {len(masks)} masks')
 
     # Rank by area. A card is worth having if it is big enough to read as its
     # own object and small enough not to be "most of the picture".
     masks.sort(key=lambda m: -m['area'])
-    floor = 80 if fine else 400
+    floor = 400 if coarse else 80
     keep = [m for m in masks if floor <= m['area'] <= 0.55 * w * h]
     print(f'  {len(keep)} in the usable size band ({floor}px .. 55% of plate)')
 
