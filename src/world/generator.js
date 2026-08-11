@@ -112,8 +112,15 @@ export function genAhead(level, untilCol) {
       } else {
         // Sunk into the street surface, not perched on top of it. Wide and
         // shallow so it reads as a hole in the road at a glance.
-        const pw = 52 + Math.floor(rnd01(c * 8.3 + level.seed) * 34);
-        level.obstacles.push({ x: c * T, y: FLOOR_R * T + 1, w: pw, h: 13 });
+        //
+        // SIZED AGAINST THE JUMP, not picked. A jump hangs for 2*JUMP_V/GRAV
+        // = 49 ticks, which carries 315 world units at RUN_SPEED but only 128
+        // at WALK_SPEED. The old 52-86 was timid — the client asked for
+        // bigger — so this is 76-120: half again as wide, and the widest one
+        // still clears at a walk with margin rather than forcing a run-up.
+        // Deeper too, 13 -> 20, since the renderer takes its cavity from h.
+        const pw = 76 + Math.floor(rnd01(c * 8.3 + level.seed) * 44);
+        level.obstacles.push({ x: c * T, y: FLOOR_R * T + 1, w: pw, h: 20 });
       }
       level.lastFeatureCol = c;
       level.genC = c + 2;
