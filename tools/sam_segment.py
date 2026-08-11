@@ -75,6 +75,50 @@ def generate(rgb, grid, coarse=False):
     return gen.generate(rgb)
 
 
+def iou(a, b):
+    inter = int((a & b).sum())
+    if not inter:
+        return 0.0
+    return inter / int((a | b).sum())
+
+
+def cascade(rgb, grid):
+    """Two passes, coarse then fine, merged — the default.
+
+    One pass cannot do both jobs. The coarse settings return whole objects
+    with clean outlines and silently drop lettering; the fine settings find
+    the 9px-wide I in CRIMINAL but also fragment big shapes into their parts,
+    so a facade comes back as forty bricks instead of a facade. Running both
+    and merging gets the structure AND the detail, which is what a backdrop
+    needs: the big outlines decide the depth cards, the small ones are the
+    glow targets.
+
+    Coarse wins ties. A fine mask is kept only if it is not already telling
+    us the same thing as a coarse one — IoU under 0.75 against every coarse
+    mask — so the merged set is the coarse structure plus whatever detail the
+    fine pass found inside it.
+    """
+    print('  pass 1/2 — coarse, for object outlines')
+    big = generate(rgb, max(16, grid // 2), coarse=True)
+    print(f'    {len(big)} masks')
+    print('  pass 2/2 — fine, for lettering and detail')
+    small = generate(rgb, grid, coarse=False)
+    print(f'    {len(small)} masks')
+
+    bigsegs = [m['segmentation'] for m in big]
+    kept = list(big)
+    dropped = 0
+    for m in small:
+        s = m['segmentation']
+        if any(iou(s, b) >= 0.75 for b in bigsegs):
+            dropped += 1
+            continue
+        kept.append(m)
+    print(f'  merged: {len(kept)} masks ({dropped} fine masks were duplicates '
+          f'of a coarse one)')
+    return kept
+
+
 def emit(stage, groups_path):
     """Freeze chosen SAM masks as committed 1-bit PNGs.
 
@@ -115,7 +159,7 @@ def main():
           f'({grid * grid} prompts) — CPU, this takes a while')
 
     coarse = '--coarse' in sys.argv
-    masks = generate(rgb, grid, coarse)
+    masks = generate(rgb, grid, True) if coarse else cascade(rgb, grid)
     print(f'  SAM returned {len(masks)} masks')
 
     # Rank by area. A card is worth having if it is big enough to read as its
