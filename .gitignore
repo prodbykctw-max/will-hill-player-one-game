@@ -11,13 +11,38 @@ npm-debug.log*
 .env
 .env.local
 
-# Real reference assets (photos, 3D source, raw AutoSprite/Tripo3D exports) —
-# never committed. See docs/GDD.md "Character asset pipeline" for the chain
-# these come from, and README.md for where they live locally.
+# Raw assets — ignored BY DEFAULT, not by rule.
+#
+# The point of this block is to stop UNWANTED EXPOSURE: a sibling project
+# leaked real reference photos and an account cache onto a public branch, and
+# the fix was to stop sweeping whole directories into commits. It was never
+# meant to block recordkeeping, and it should not be read that way.
+#
+# So the default is ignore, and anything irreplaceable is explicitly kept
+# below. The test is simple: if losing the file means the work cannot be
+# rebuilt, it belongs in the repo. If it can be re-downloaded or regenerated,
+# it does not.
+#
+# NOTE the pattern is `/assets/*` and not `/assets/` — git will not descend
+# into an excluded DIRECTORY, so the negations underneath would silently do
+# nothing.
+#
 # Anchored to repo root (leading slash) — composed game-ready output lives in
-# src/assets/ (a different directory, also named "assets") and IS committed;
-# an unanchored "assets/" here would incorrectly swallow that too.
-/assets/
+# src/assets/ (a different directory, also named "assets") and IS committed.
+/assets/*
+
+# KEPT — irreplaceable. prodbyKCTW's own voice: the recording the stomp is cut
+# from. It exists nowhere else but his phone, and tools/make_sfx.py cannot
+# rebuild the punches without it. Committed with his explicit permission.
+!/assets/sfx-src/
+/assets/sfx-src/*
+!/assets/sfx-src/kctw-punches.m4a
+!/assets/sfx-src/README.md
+
+# KEPT — irreplaceable. The v1 SIDESCROLLER export. Regenerating these means
+# paying AutoSprite credits again and risking a different result;
+# tools/compose_player_sheet.py cannot run without them.
+!/assets/raw-sprites/
 
 # Claude Code project settings — local only, never shared via the repo.
 .claude/
