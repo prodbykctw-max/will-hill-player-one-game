@@ -19,6 +19,10 @@
 
 import { T, FLOOR_R } from '../world/tilemap.js';
 
+// Must match FOOTPLANT in render/renderer.js — shadows sink with the feet or
+// they visibly detach from the character standing on them.
+const FOOTPLANT = Math.round(T * 0.28) + 3;
+
 // Street-level practicals repeat at this spacing in WORLD units. It is
 // deliberately tied to the backdrop plate's own tiling period so the pools
 // on the road line up with the lit shopfronts/canopies painted behind them
@@ -105,7 +109,7 @@ export function createLighting(ctx) {
     const lit = litness(cx);
 
     // airborne characters cast a smaller, fainter, offset shadow
-    const groundWorldY = FLOOR_R * T;
+    const groundWorldY = FLOOR_R * T + FOOTPLANT;
     const air = Math.max(0, Math.min(1, (groundWorldY - feet) / 260));
     const alpha = (0.14 + lit * 0.30) * (1 - air * 0.65);
     if (alpha <= 0.02) return;
@@ -197,9 +201,9 @@ export function createLighting(ctx) {
   // shrinks and softens the shadow exactly as it would in life.
   function drawPropShadow(item, drawY, lift) {
     const cx = item.x + item.w / 2;
-    const groundWorldY = FLOOR_R * T;
+    const groundWorldY = FLOOR_R * T + FOOTPLANT;
     // where the prop actually sits, ignoring the bob
-    const rest = item.y + item.h;
+    const rest = item.y + item.h + FOOTPLANT;
     if (rest > groundWorldY + 40) return; // on a ledge we don't model — skip
 
     const lamp = nearestLampX(cx);

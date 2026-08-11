@@ -26,6 +26,16 @@ const SIDEWALK_LIT = '#a8a69d';
 const CURB = '#5c5a55';
 const FRONT_FACE_H = 13; // world units of 2.5D depth on floating platforms
 
+// FOOTPLANT — how far below the collision surface a character is DRAWN.
+//
+// Collision puts the feet exactly on the tile's top edge, which is
+// arithmetically right and visually wrong: the sidewalk cap is the pavement's
+// top surface receding in perspective, so its top edge is the FAR side of the
+// pavement, not the near one. Feet planted there read as balancing on a kerb
+// lip — the "floating" look. Sinking the draw by the cap's depth puts them on
+// the pavement instead. Collision is untouched; this is purely how it reads.
+const FOOTPLANT = Math.round(T * 0.28) + 3;
+
 export function createRenderer(ctx, canvas) {
   const lighting = createLighting(ctx);
 
@@ -226,7 +236,7 @@ export function createRenderer(ctx, canvas) {
     const scale = drawH / cellH;
     const drawW = cellW * scale; // aspect preserved
 
-    const feetY = entity.y + colliderH;
+    const feetY = entity.y + colliderH + FOOTPLANT;
     const dx = entity.x + entity.w / 2 - drawW / 2;
     const dy = feetY - drawH * fit.b;
 
