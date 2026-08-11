@@ -40,10 +40,25 @@ const WALK_RATE = 2.6;      // px/tick closing on the slot
 const ARRIVE_EPS = 3;
 
 // Slot offsets from the body's centre x, and the y nudge for the back slot.
+//
+// MEASURED OFF THE BODY, not chosen. These were ±46 while the knockdown had
+// no clip of its own and fell back to `hit`, which is a man standing up — a
+// narrow silhouette that three enemies could crowd without hiding. The real
+// downed clip is a man lying flat: 162 world units end to end, half-width 81.
+// At ±46 the two side stompers stood inside his own footprint and, being
+// drawn after him, covered him completely. Three men appeared to stomp an
+// empty pavement.
+//
+// ±78 puts each of them just inside an end of the body, so their boots come
+// down at his head and his feet and the middle of him stays visible.
+const BODY_HALF_W = 81;
 const SLOTS = [
-  { dx: -46, dy: 0, flip: false, behind: false },
-  { dx: 46, dy: 0, flip: true, behind: false },
-  { dx: 8, dy: -12, flip: false, behind: true },
+  { dx: -(BODY_HALF_W - 3), dy: 0, flip: false, behind: false },
+  { dx: BODY_HALF_W - 3, dy: 0, flip: true, behind: false },
+  // Set back far enough to clear the body. At dy -12 this one's boots landed
+  // on his chest and its legs cut the torso in half; -30 lifts it clear so
+  // the body reads whole between the three of them.
+  { dx: 8, dy: -30, flip: false, behind: true },
 ];
 
 // Ticks: in, a couple of stomps, gone. 98 ticks is ~1.6s at 60fps — a sting.

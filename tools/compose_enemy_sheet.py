@@ -47,6 +47,19 @@ ANIMATIONS = [
     ('idle',   'idle',   True,  None),
     ('walk',   'walk',   True,  None),
     ('defeat', 'defeat', False, 'plays once when stomped, then the enemy despawns'),
+    # STOMP — what they do to Will Hill once he is down. Until this existed
+    # the knockdown fell back to `walk`, so three men gathered round him and
+    # marched on the spot.
+    #
+    # The source is the generator's `attack` clip: a straight strike thrown
+    # from a planted stance, not literally a foot coming down. Two attempts at
+    # a downward stomp came back unusable — the first drew a SECOND body on
+    # the ground for the enemy to stomp (caught by the bbox-width test, w/h
+    # 1.01-1.16 on a side profile that should be nearer 0.5; see
+    # docs/LESSONS.md), and the retry could not be queued because AutoSprite's
+    # backend was refusing writes. The strike reads correctly at game scale
+    # over a man already lying down, which is what it is drawn over.
+    ('stomp',  'stomp',  True,  'played over the downed player during the knockdown'),
 ]
 
 

@@ -66,7 +66,12 @@ GRID_COLS = 16       # packed sheet width, in frames
 # WHICH SOURCE FRAMES EACH CLIP TAKES, AND WHY.
 # Measured off the sheets, not guessed — see the numbers in each entry.
 #
-#   src   (start, stop, step) into the 96 source frames
+#   src   (start, stop, step) into the source grid
+#   grid  (cols, frames) of the SOURCE sheet, when it is not the v1
+#         SIDESCROLLER export's 10x96. The reaction clips below were generated
+#         one at a time against a 16-frame request and come back as 4x16 (or
+#         5x24), so the geometry has to live on the clip rather than be one
+#         module-level constant.
 #   ticks game ticks per drawn frame at 60Hz. Fractional is fine and is used:
 #         it is how a clip keeps its original duration at a higher frame rate.
 CLIPS = [
@@ -107,6 +112,52 @@ CLIPS = [
     # than a timer, so the pose always matches what the physics is doing.
     {'clip': 'jump', 'src': (36, 42, 1), 'ticks': 4, 'loop': False,
      'driven': True, 'note': 'one arc: 0-1 rise, 2-3 apex, 4-5 fall'},
+
+    # ── REACTION CLIPS ────────────────────────────────────────────────────
+    # Generated one at a time, later than the four above, so each is its own
+    # 16- or 24-frame sheet rather than a slice of the 96-frame export.
+    #
+    # Every one of these prompts had to carry the same two guards, because
+    # without them the generator draws the thing being reacted TO as well as
+    # the reactor: "EXACTLY ONE person in every frame, never a duplicate" and
+    # "nothing lies on the ground". The rejected enemy attempt (kept in
+    # docs/LESSONS.md) came back with a second body lying under the first.
+
+    # HIT — the recoil, with a comic impact flash drawn in at frames 1-2.
+    # The source holds the settled pose from frame 8 to 23 (bbox static to
+    # within 2px), so only the first 10 frames carry motion and the rest are
+    # dropped. 10 frames at 1.2 ticks is exactly 12 ticks, which is the width
+    # of the hit-reaction window player.js opens (inv > CONTACT_IFRAMES - 12).
+    {'clip': 'hit', 'src': (0, 10, 1), 'grid': (5, 24), 'ticks': 1.2,
+     'loop': False, 'note': 'recoil + impact flash; source settles after f8'},
+
+    # DOWNED — lying on the street while he gets stomped out. Loops, because
+    # the knockdown runs 98 ticks (GATHER 24 + STOMP 44 + FLEE 30, see
+    # entities/knockdown.js) and 16 frames at 6 ticks is 96 — one pass, near
+    # enough that it never visibly restarts.
+    #
+    # groundFit: this clip's OWN lowest pixel is its ground contact, so the
+    # renderer must plant it on that rather than on the standing reference.
+    # Measured, not assumed: a body lying down reaches only 0.9283 of the cell
+    # height where the idle reaches 0.9841, and against a 180.6-unit draw
+    # height that gap is 10.1 world units — a third of a tile of daylight
+    # under a man who is supposed to be flat on the street.
+    {'clip': 'downed', 'src': (0, 16, 1), 'grid': (4, 16), 'ticks': 6,
+     'loop': True, 'groundFit': True,
+     'note': 'lying on the ground through the knockdown, ~1.6s'},
+
+    # KNOCKBACK — the Sonic bounce: a full tumble away from whatever hit him.
+    {'clip': 'knockback', 'src': (0, 16, 1), 'grid': (4, 16), 'ticks': 3,
+     'loop': False, 'note': 'one tumble, 0.80s'},
+
+    # FALL — dropping through a hole in the street, arms up, legs kicking,
+    # nothing beneath him. TIMED TO THE ACTUAL DROP: the street surface is
+    # FLOOR_R*T = 448 and FALL_DEATH_Y is 854, so the fall is 406 world units
+    # at TERMINAL_VY 16 — about 27 ticks. 16 frames at 2 ticks is 32, so he
+    # gets through most of one tumble on the way down and never loops back to
+    # the start mid-drop.
+    {'clip': 'fall', 'src': (0, 16, 1), 'grid': (4, 16), 'ticks': 2,
+     'loop': True, 'note': 'tumbling down a hole; the drop lasts ~27 ticks'},
 ]
 
 # Engine animation key -> which clip it draws from.
@@ -118,11 +169,14 @@ KEY_MAP = {
     'jumpStart': 'jump',
     'jumpLand': 'jump',
     'roll': 'run',    # TODO: no roll clip generated yet; run reads as a dash
-    'hit': 'idle',    # TODO: no hit clip yet; the stumble lurch carries it
-    'death': 'idle',  # TODO: no death clip yet; the game-over overlay covers it
+    'hit': 'hit',
+    'knockback': 'knockback',
+    'fall': 'fall',
+    'knockdown': 'downed',
+    'death': 'downed',
 }
 
-NON_LOOPING = {'jumpStart', 'jumpLand', 'death', 'roll'}
+NON_LOOPING = {'jumpStart', 'jumpLand', 'death', 'roll', 'hit', 'knockback'}
 
 
 def main():
@@ -136,7 +190,8 @@ def main():
                 f"assets/raw-sprites/will-hill-pixel/{c['clip']}/spritesheet.png "
                 f"first (assets/ is git-ignored, so a fresh clone has none)."
             )
-        allf = load_grid_frames(src_path, SOURCE_COLS, SOURCE_CELL, SOURCE_FRAMES)
+        cols, total = c.get('grid', (SOURCE_COLS, SOURCE_FRAMES))
+        allf = load_grid_frames(src_path, cols, SOURCE_CELL, total)
         a, b, step = c['src']
         frame_lists[c['clip']] = allf[a:b:step]
 
@@ -161,6 +216,14 @@ def main():
             # The player sets the frame itself from vertical velocity; the
             # shared frame-advance helper must not tick this one.
             animations[key]['driven'] = True
+        if c.get('groundFit'):
+            # Plant on this clip's own lowest pixel instead of the standing
+            # reference's. Opt-in, NOT the default: an airborne clip's lowest
+            # pixel is meant to sit below the anchor (the jump tucks its feet
+            # up, and pinning them to the collider floor would look like he
+            # never leaves the ground), so only clips whose contact point IS
+            # the pavement may ask for this.
+            animations[key]['ownFit'] = True
         if c.get('note'):
             animations[key]['note'] = c['note']
 

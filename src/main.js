@@ -66,6 +66,14 @@ const state = {
   runLog: createRunLog(),
 };
 
+// DEV ONLY — a handle on the live state, so a headless browser can drive the
+// game into states that are deliberately hard to reach: the knockdown needs
+// enemies standing over you at the moment you run out of hearts, and a pit
+// fall needs you to walk into a specific hole. Checking those by playing to
+// them by hand is how they went unverified long enough to ship broken.
+// Vite folds `import.meta.env.DEV` to false and drops this from the build.
+if (import.meta.env.DEV) window.__game = state;
+
 let images = null; // { player, enemy, eav, edgewood, l5p, underground }
 
 function startStage(i) {
@@ -355,6 +363,16 @@ function update() {
       }
       player.anim = 'knockdown';
       player.vx = 0;
+      // CLEAR THE I-FRAMES, or he is invisible for the whole beat.
+      //
+      // drawPlayer flickers the sprite while `inv` is counting down, and the
+      // countdown lives in stepPlayer — which stops being called the moment
+      // he is dead. So `inv` freezes at whatever it was, and 75 happens to
+      // land on an OFF frame of the flicker: three men stomping a bare patch
+      // of pavement, for 98 ticks, every single time, because a knockdown is
+      // always preceded by the hit that caused it. Invulnerability means
+      // nothing to a man already on the ground; zero it and he stays drawn.
+      player.inv = 0;
       const done = stepStompOut(state.stompT++, player, state.stompers, state.dust);
       for (const e of state.stompers) advanceAnim(e, ENEMY_SPRITES[e.variant].atlas);
       if (!done) return;

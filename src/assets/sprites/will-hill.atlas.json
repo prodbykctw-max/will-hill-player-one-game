@@ -1,6 +1,6 @@
 {
   "frameSize": [
-    185,
+    229,
     251
   ],
   "cols": 16,
@@ -9,7 +9,7 @@
     256
   ],
   "origin": [
-    33,
+    15,
     0
   ],
   "animations": {
@@ -100,28 +100,66 @@
       "note": "one stride of 10; the clip holds 9.6"
     },
     "hit": {
-      "start": 0,
-      "frameCount": 32,
-      "loop": true,
-      "ticks": 7.5,
+      "start": 65,
+      "frameCount": 10,
+      "loop": false,
+      "ticks": 1.2,
       "fit": {
-        "h": 0.9402,
-        "b": 0.9801,
-        "bLow": 0.9841
+        "h": 0.9163,
+        "b": 0.9641,
+        "bLow": 0.9681
       },
-      "note": "one breath of the side-view idle, ~4s"
+      "note": "recoil + impact flash; source settles after f8"
+    },
+    "knockback": {
+      "start": 91,
+      "frameCount": 16,
+      "loop": false,
+      "ticks": 3,
+      "fit": {
+        "h": 0.761,
+        "b": 0.8765,
+        "bLow": 0.8805
+      },
+      "note": "one tumble, 0.80s"
+    },
+    "fall": {
+      "start": 107,
+      "frameCount": 16,
+      "loop": true,
+      "ticks": 2,
+      "fit": {
+        "h": 0.9163,
+        "b": 0.9701,
+        "bLow": 0.9761
+      },
+      "note": "tumbling down a hole; the drop lasts ~27 ticks"
+    },
+    "knockdown": {
+      "start": 75,
+      "frameCount": 16,
+      "loop": true,
+      "ticks": 6,
+      "fit": {
+        "h": 0.4821,
+        "b": 0.9104,
+        "bLow": 0.9283
+      },
+      "ownFit": true,
+      "note": "lying on the ground through the knockdown, ~1.6s"
     },
     "death": {
-      "start": 0,
-      "frameCount": 32,
+      "start": 75,
+      "frameCount": 16,
       "loop": false,
-      "ticks": 7.5,
+      "ticks": 6,
       "fit": {
-        "h": 0.9402,
-        "b": 0.9801,
-        "bLow": 0.9841
+        "h": 0.4821,
+        "b": 0.9104,
+        "bLow": 0.9283
       },
-      "note": "one breath of the side-view idle, ~4s"
+      "ownFit": true,
+      "note": "lying on the ground through the knockdown, ~1.6s"
     }
   },
   "fitRef": {

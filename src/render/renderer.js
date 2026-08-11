@@ -15,6 +15,7 @@
 
 import { T, FLOOR_R, SLAB_R } from '../world/tilemap.js';
 import { CHAR_DRAW_H, PLANT_DEPTH } from '../world/scale.js';
+import { resolveClip } from '../core/animate.js';
 import { createLighting } from './lighting.js';
 
 // Street palette, keyed off the reference image's night-street read.
@@ -236,25 +237,9 @@ export function createRenderer(ctx, canvas) {
   // preserving the source aspect ratio. The previous version hardcoded
   // draw dimensions, which squashed Will Hill to 58% width and stretched
   // the enemy 15% too wide.
-  // A clip the sheet does not have yet degrades to the nearest one it does,
-  // rather than vanishing. drawSprite used to `return` on an unknown anim,
-  // which is silent and looks like a rendering bug: during the knockdown both
-  // the player and the enemies stomping him simply disappeared, because
-  // 'knockdown' and 'stomp' are not on the sheets until they are regenerated.
-  // A missing clip should look wrong, not look absent.
-  const CLIP_FALLBACK = {
-    knockdown: 'hit', death: 'hit', hit: 'idle',
-    stomp: 'walk', attack: 'walk', knockback: 'hit',
-    run: 'walk', walk: 'idle',
-  };
-  function resolveClip(atlas, name) {
-    let n = name;
-    for (let i = 0; i < 5 && n; i++) {
-      if (atlas.animations[n]) return atlas.animations[n];
-      n = CLIP_FALLBACK[n];
-    }
-    return atlas.animations.idle;
-  }
+  // Missing-clip degradation lives in core/animate.js, so the frame the
+  // renderer draws and the frame count the animator ticks against can never
+  // come from different animations.
 
   function drawSprite(image, atlas, entity, colliderH, charScaleH, flipX, alpha, stage) {
     const anim = resolveClip(atlas, entity.anim);
@@ -268,10 +253,21 @@ export function createRenderer(ctx, canvas) {
 
     // Anchor on the lowest pixel for a true side profile, on the two-foot
     // midpoint for the isometric sheets. See PLANT_DEPTH in world/scale.js.
-    const plant = atlas.anchor === 'low' ? (fit.bLow || fit.b) : fit.b;
+    //
+    // `ownFit` clips plant on their OWN lowest pixel rather than the standing
+    // reference's — see the note on groundFit in tools/compose_player_sheet.py.
+    // Only the size (drawH) still comes from fitRef, because it must: the
+    // sheet is one camera at one distance, so a man lying down is drawn at the
+    // same scale as the same man standing up, and reading his height off a
+    // clip where he is horizontal would blow him up to twice life size.
+    const anchorFit = anim.ownFit && anim.fit ? anim.fit : fit;
+    const plant = atlas.anchor === 'low' ? (anchorFit.bLow || anchorFit.b) : anchorFit.b;
     // What this sheet's own anchor already sinks the contact pixel by, and
-    // the top-up needed to reach PLANT_DEPTH exactly.
-    const anchorSink = drawH * ((fit.bLow || fit.b) - plant);
+    // the top-up needed to reach PLANT_DEPTH exactly. Measured against the
+    // SAME fit `plant` came from — mixing the two makes the term non-zero on
+    // an anchor:'low' sheet, where by construction it must cancel, and the
+    // clip ends up floating by exactly the amount this was meant to remove.
+    const anchorSink = drawH * ((anchorFit.bLow || anchorFit.b) - plant);
     const feetY = entity.y + colliderH + (PLANT_DEPTH - anchorSink);
     const dx = entity.x + entity.w / 2 - drawW / 2;
     const dy = feetY - drawH * plant;
@@ -344,7 +340,14 @@ export function createRenderer(ctx, canvas) {
     lighting.drawCastShadow(e, e.h, 15);
     // Enemies are people too — scale them off their own collider by the
     // same character ratio so they read as human-sized next to Will Hill.
-    drawSprite(image, atlas, e, e.h, e.charDrawH, e.vx < 0, e.alive ? null : 0.9, stage);
+    // Facing normally comes from travel direction, but a stomper who has
+    // ARRIVED has vx 0, so everyone ends up facing right — including the one
+    // standing to the RIGHT of the body, who then stomps away from him. While
+    // he is stationary in a slot, the slot's side decides which way he looks.
+    // Only while stationary: he still faces his travel direction walking in,
+    // and again running off with the money, which is the way he is going.
+    const flip = e.stomping && e.stompSlot && e.vx === 0 ? e.stompSlot.flip : e.vx < 0;
+    drawSprite(image, atlas, e, e.h, e.charDrawH, flip, e.alive ? null : 0.9, stage);
   }
 
   // ── pickups / hazards ────────────────────────────────────────────────

@@ -23,7 +23,7 @@
 // speed burst + i-frames). No strike/attack branch — no combat.
 
 import { GRAV, TERMINAL_VY, PW, PH, WALK_SPEED, RUN_SPEED, RUN_HOLD_TICKS, RUN_RAMP_TICKS, RUN_ANIM_AT, ACCEL, DECEL, AIR_ACCEL_MUL, AIR_DRAG_MUL, JUMP_V, DOUBLE_JUMP_V, JUMP_CUT_VY, COYOTE_TICKS, JUMP_BUFFER_TICKS, DASH_VX, DASH_TICKS, DASH_IFRAMES, DASH_COOLDOWN } from '../core/physics.js';
-import { collideH, collideV } from '../world/tilemap.js';
+import { collideH, collideV, FLOOR_R, T } from '../world/tilemap.js';
 import spriteSheetUrl from '../assets/sprites/will-hill.webp';
 import atlas from '../assets/sprites/will-hill.atlas.json';
 
@@ -203,6 +203,17 @@ export function stepPlayer(p, input, map) {
     p.anim = 'hit'; // brief hit-reaction window right after taking damage
   } else if (p.dashing) {
     p.anim = 'roll';
+  } else if (!p.onGround && p.y > FLOOR_R * T) {
+    // DOWN A HOLE. Once his whole body is below the street surface there is
+    // no way back up — every solid tile from FLOOR_R down is either there or
+    // carved out by pit(), so being below that line and still airborne means
+    // he is inside a hole and falling to the bottom of the level.
+    //
+    // This gets its own clip rather than holding the jump's falling frame,
+    // which is a controlled descent with his feet under him. Going down a
+    // manhole is not that: arms up, legs kicking, tumbling. It also reads as
+    // final, which it is — main.js kills the run at FALL_DEATH_Y.
+    p.anim = 'fall';
   } else if (!p.onGround) {
     // POSED BY PHYSICS, NOT BY A TIMER.
     //
