@@ -327,7 +327,9 @@ function draw() {
   const groundY = camera.groundScreenY();
   const slabPx = SLAB_R * T * camera.zoom;
 
-  backdrop.drawFar(bgImg, stage, camera, state.tick);
+  const bgObjects = {};
+  for (const o of stage.bg.objects || []) bgObjects[o.key] = images[`${stage.id}_${o.key}`];
+  backdrop.drawFar(bgImg, bgObjects, stage, camera, state.tick);
   undercroft.draw(stage, groundY, slabPx, camera, state.tick);
 
   renderer.withCameraTransform(camera, () => {
@@ -390,7 +392,10 @@ const imageManifest = {
   champagne: PROP_SPRITES.champagne,
 };
 for (const [v, sp] of Object.entries(ENEMY_SPRITES)) imageManifest['enemy_' + v] = sp.url;
-for (const s of STAGES) imageManifest[s.id] = s.bg.img;
+for (const st of STAGES) {
+  imageManifest[st.id] = st.bg.img;
+  for (const o of st.bg.objects || []) imageManifest[`${st.id}_${o.key}`] = o.img;
+}
 
 loadImages(imageManifest)
   .then((loaded) => {

@@ -27,7 +27,10 @@ import { metersToWorld } from '../world/scale.js';
 // exactly, 0 is nailed to the screen. The user asked for pronounced depth,
 // so the spread here is wide (0.10 -> 0.75) rather than Jandé's subtle
 // 0.045 -> 0.157.
-const PLATE_PARALLAX = 0.1;
+// The plate is now the NEAREST layer — fence, trees, verge, everything at
+// the kerb. Distant structures are cut out of it (tools/cut_object.py) and
+// drawn behind at lower rates, so this is the fastest of the three.
+const PLATE_PARALLAX = 0.15;
 const RAIN_TIERS = [
   { n: 26, len: 26, speed: 5.2, alpha: 0.1, width: 1.0, par: 0.18 },
   { n: 20, len: 40, speed: 8.5, alpha: 0.16, width: 1.4, par: 0.4 },
@@ -215,6 +218,38 @@ export function createBackdrop(ctx, canvas) {
     }
   }
 
+  // DISTANT OBJECTS — things cut out of the plate that travel at their OWN
+  // rate, drawn under it or over it depending on where they sit in depth.
+  //
+  // This is perspective, not decoration. Something set far back drifts past
+  // slowly: you spend a long time crossing the length of it, while a fence a
+  // few metres away whips by. Giving the Swifty billboard a rate well BELOW
+  // the plate's is what makes it read as distant — the same reason the moon
+  // seems to hang in place while roadside trees tear past the window.
+  //
+  // Each object stores the fractional position it occupied in the source, so
+  // at matching rates it would drop straight back into its hole; the
+  // difference in rate is the entire effect.
+  function drawObjects(images, stage, camera, plate) {
+    const objs = stage.bg.objects;
+    if (!objs || !plate) return;
+    const period = plate.drawW;
+    for (const o of objs) {
+      const img = images[o.key];
+      if (!img) continue;
+      const w = o.w * plate.drawW;
+      const h = o.h * plate.drawH;
+      const y = plate.by + o.y * plate.drawH;
+      const par = camera.x * camera.zoom * o.parallax;
+      const home = o.x * plate.drawW;
+      for (let rep = -1; rep <= Math.ceil(canvas.width / period) + 1; rep++) {
+        const x = rep * period + home - pmod(par, period);
+        if (x + w < 0 || x > canvas.width) continue;
+        ctx.drawImage(img, x, y, w, h);
+      }
+    }
+  }
+
   // Make the lighting that's PAINTED INTO the backdrop actually emit: each
   // stage declares where its practicals sit as fractions of the plate, and
   // they bloom, flicker and (via render/lighting.js) light the street and
@@ -328,7 +363,7 @@ export function createBackdrop(ctx, canvas) {
 
   return {
     // Everything above the gameplay plane, in paint order.
-    drawFar(img, stage, camera, tick) {
+    drawFar(img, objImgs, stage, camera, tick) {
       const groundY = camera.groundScreenY();
       if (buf.width !== canvas.width || buf.height !== canvas.height) {
         buf.width = canvas.width;
@@ -339,6 +374,10 @@ export function createBackdrop(ctx, canvas) {
       // back in slices without re-deriving the mirror-tiling maths.
       bctx.clearRect(0, 0, buf.width, buf.height);
       const plate = drawPlate(bctx, img, stage, camera, groundY);
+      // Distant objects go down BEFORE the plate: they sit behind
+      // everything the plate still holds, which is what lets the billboard
+      // slide away and be swallowed by the buildings in front of it.
+      drawObjects(objImgs, stage, camera, plate);
       blitWithWind(stage, tick, plate);
       drawPractical(stage, camera, tick, plate);
       drawAerialWash(groundY);
