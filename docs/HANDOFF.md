@@ -24,9 +24,13 @@ paperwork, not on screen.
 **Will Hill** — the artist the game stars, and the player character. Not the
 developer.
 
-**Rare Agency** — prodbyKCTW's agency, co-founded with Kema. Will Hill is a
-client. prodbyKCTW is credited as Lead Developer. *(Spelling of the agency
-name taken from speech and not yet confirmed.)*
+**RARE AGENCY** — prodbyKCTW's agency, co-founded with Kema. Will Hill is a
+client. prodbyKCTW is credited as Lead Developer. **Spelling CONFIRMED from
+the logo** on 2026-08-11, no longer a guess from speech. The mark is a
+light-blue rounded-rectangle border with a notch top-right and bottom-left,
+"RARE" set in black with a blue arrowhead inside the A, and "AGENCY" beneath
+in tracked-out light blue. The logo FILE is not in the repo yet — it has only
+been seen in chat, and end credits cannot ship without it.
 
 ---
 
@@ -198,8 +202,16 @@ the first keydown/pointerdown.
 - **No roll/hit/death clips** for Will Hill; those keys borrow other rows.
   `hit` is now visible (a pothole trip plays it), so it matters more than it
   did.
-- **End-credits sequence** is planned but not built. Needs the Rare Agency
-  logo and prodbyKCTW's logo — neither asset is in the repo.
+- **End-credits sequence.** Now designed: the game ENDS AT CRIMINAL RECORDS
+  with Will Hill performing to a crowd — full screen first, then the credits
+  slide in and share the frame, the way 90s comedies ran outtakes beside the
+  cast list. Still needs, and none of it is in the repo: the RARE AGENCY logo
+  file (seen in chat, spelling confirmed), prodbyKCTW's logo, a performing
+  clip, crowd art, and a small stage/riser.
+- **Between-stage MARTA map.** The client sent the real rail map and the stage
+  order is a real journey on it: East Lake, Edgewood-Candler Park, Five Points
+  (transfer), Inman Park-Reynoldstown. Two stages are named stations. Not
+  built; the map image is not in the repo either.
 - **Four Will Hill tracks**, one per stage, planned. Will need streaming per
   stage rather than up-front loading, and a duck on the music when the punch
   fires.
