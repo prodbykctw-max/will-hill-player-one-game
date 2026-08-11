@@ -22,6 +22,7 @@ import { createBackdrop } from './render/backdrop.js';
 import { createUndercroft } from './render/undercroft.js';
 import { createHud } from './render/hud.js';
 import { createMartaMap } from './render/martamap.js';
+import fivePointsPlate from './assets/backgrounds/underground.webp';
 import { loadImages } from './render/images.js';
 import { createRunLog, lbSubmit } from './net/leaderboard.js';
 
@@ -473,8 +474,11 @@ function draw() {
   // Riding MARTA between neighbourhoods — the map replaces the world
   // entirely, so it returns before any of the stage draw runs.
   if (state.screen === 'riding') {
+    // The Underground plate IS Five Points, so the interstitial stands in the
+    // game's own art rather than in a pattern invented for this screen.
     martaMap.draw(state.rideFrom, STAGES[state.rideTo].id,
-      Math.min(1, state.screenT / RIDE_TICKS), STAGES[state.rideTo].name);
+      Math.min(1, state.screenT / RIDE_TICKS), STAGES[state.rideTo].name,
+      images.fivepoints);
     return;
   }
 
@@ -573,6 +577,12 @@ const imageManifest = {
   player: PLAYER_SPRITE.url,
   bag: PROP_SPRITES.bag,
   champagne: PROP_SPRITES.champagne,
+  // The UNCUT Five Points plate, for the between-stage screen. Deliberately
+  // not `images.underground` — that is `underground-base`, the same plate
+  // with fifteen cards lifted out of it for the multiplane, so it has holes
+  // where the marquee and the columns used to be. Fine behind cards that put
+  // them back; not fine as a wall on its own.
+  fivepoints: fivePointsPlate,
 };
 for (const [v, sp] of Object.entries(ENEMY_SPRITES)) imageManifest['enemy_' + v] = sp.url;
 for (const s of STAGES) {
