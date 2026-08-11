@@ -27,39 +27,42 @@
     },
     "walk": {
       "start": 32,
-      "frameCount": 24,
+      "frameCount": 17,
       "loop": true,
-      "ticks": 3.6,
+      "ticks": 3.85,
       "fit": {
         "h": 0.9641,
         "b": 0.988,
         "bLow": 0.992
-      }
+      },
+      "note": "one stride of 17; the clip holds 5.6"
     },
     "jog": {
-      "start": 56,
-      "frameCount": 24,
+      "start": 49,
+      "frameCount": 10,
       "loop": true,
-      "ticks": 2.0,
+      "ticks": 3.0,
       "fit": {
         "h": 0.8924,
         "b": 0.9721,
         "bLow": 0.9761
-      }
+      },
+      "note": "one stride of 10; the clip holds 9.6"
     },
     "run": {
-      "start": 56,
-      "frameCount": 24,
+      "start": 49,
+      "frameCount": 10,
       "loop": true,
-      "ticks": 2.0,
+      "ticks": 3.0,
       "fit": {
         "h": 0.8924,
         "b": 0.9721,
         "bLow": 0.9761
-      }
+      },
+      "note": "one stride of 10; the clip holds 9.6"
     },
     "jumpStart": {
-      "start": 80,
+      "start": 59,
       "frameCount": 6,
       "loop": false,
       "ticks": 4,
@@ -72,7 +75,7 @@
       "note": "one arc: 0-1 rise, 2-3 apex, 4-5 fall"
     },
     "jumpLand": {
-      "start": 80,
+      "start": 59,
       "frameCount": 6,
       "loop": false,
       "ticks": 4,
@@ -85,15 +88,16 @@
       "note": "one arc: 0-1 rise, 2-3 apex, 4-5 fall"
     },
     "roll": {
-      "start": 56,
-      "frameCount": 24,
+      "start": 49,
+      "frameCount": 10,
       "loop": false,
-      "ticks": 2.0,
+      "ticks": 3.0,
       "fit": {
         "h": 0.8924,
         "b": 0.9721,
         "bLow": 0.9761
-      }
+      },
+      "note": "one stride of 10; the clip holds 9.6"
     },
     "hit": {
       "start": 0,

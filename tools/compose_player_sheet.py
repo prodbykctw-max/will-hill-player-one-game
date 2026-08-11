@@ -79,19 +79,24 @@ CLIPS = [
     {'clip': 'idle', 'src': (0, 32, 1), 'ticks': 7.5, 'loop': True,
      'note': 'one breath of the side-view idle, ~4s'},
 
-    # WALK — one full cycle across the 96 frames, at 24 frames rather than the
-    # original 16 so the motion itself is smooth (16.7fps, not 15).
+    # WALK — the source is NOT one stride. Autocorrelation puts the cycle at
+    # 17 frames (seam 0.015, a clear minimum between 12 and 22), so the clip
+    # holds 5.6 strides. Sampling evenly across the whole thing therefore
+    # played nearly six strides per cycle: at 24 frames over 1.44s that was
+    # 4.2 strides a second, which is why he read as running in place rather
+    # than walking. Exactly the same mistake as the jump clip below.
     #
-    # 3.6 ticks is a 1.44s cycle. It was 1.07s back when he moved at 2.9
-    # px/tick and effectively sprinted everywhere; at a real walking pace that
-    # many steps per second read as frantic — too much motion in too little
-    # time. Cycle length and WALK_SPEED have to move together or the feet
-    # skate, so see WALK_SPEED in src/core/physics.js as well.
-    {'clip': 'walk', 'src': (0, 96, 4), 'ticks': 3.6, 'loop': True},
+    # One cycle, timed to a real walking cadence: 17 frames at 3.85 ticks is
+    # 1.09s per stride, ~55 strides a minute. Against WALK_SPEED that works
+    # out to a 1.47m stride, which is what a person actually does.
+    {'clip': 'walk', 'src': (0, 17, 1), 'ticks': 3.85, 'loop': True,
+     'note': 'one stride of 17; the clip holds 5.6'},
 
-    # RUN — one cycle. Faster than the walk, as a run should be: 24 frames at
-    # 2 ticks is a 0.8s cycle at 30fps.
-    {'clip': 'run', 'src': (0, 96, 4), 'ticks': 2.0, 'loop': True},
+    # RUN — same story, cycle measured at 10 frames (seam 0.037), so the clip
+    # holds 9.6 of them. 10 frames at 3.0 ticks is 0.50s per stride against
+    # RUN_SPEED, a 2.28m stride at ~120 strides a minute.
+    {'clip': 'run', 'src': (0, 10, 1), 'ticks': 3.0, 'loop': True,
+     'note': 'one stride of 10; the clip holds 9.6'},
 
     # JUMP — the source is NOT one jump. It is SEVEN separate hops (airborne
     # runs measured at frames 0-1, 10-14, 23-27, 36-41, 54-58, 68-72, 84-88).

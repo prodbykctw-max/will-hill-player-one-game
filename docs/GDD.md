@@ -154,9 +154,16 @@ a row and column.
 | clip | frames | ticks/frame | duration | why |
 |---|---|---|---|---|
 | idle | 32 | 7.5 | 4.00s | one breath, ~15 breaths/min |
-| walk | 24 | 2.667 | 1.07s | the signed-off pace, at 22.5fps not 15 |
-| run | 24 | 2.0 | 0.80s | faster than the walk, 30fps |
+| walk | 17 | 3.85 | 1.09s | one stride, ~55 strides/min |
+| run | 10 | 3.0 | 0.50s | one stride, ~120 strides/min |
 | jump | 6 | — | — | posed from vertical velocity, not timed |
+
+**Every clip holds more cycles than it looks like.** Measured by
+autocorrelation, not assumed: idle holds 3 breaths, walk 5.6 strides (cycle =
+17 frames, seam 0.015), run 9.6 strides (cycle = 10, seam 0.037), and jump is
+seven separate hops. Sampling evenly across a whole clip therefore plays every
+one of those cycles per loop — the walk was doing 4.2 strides a second and read
+as running in place. Take ONE cycle from each and time it to a real cadence.
 
 Fractional tick rates are deliberate: they let a clip keep its exact original
 duration while gaining frames, which is what makes it smoother rather than
