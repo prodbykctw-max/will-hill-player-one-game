@@ -1,15 +1,28 @@
-// Audio — synthesised, not sampled.
+// Audio — two impact samples, everything else synthesised.
 //
-// Every sound here is built from oscillators and filtered noise at runtime.
-// No .wav or .mp3 ships, which matters for a game that has to load fast on a
-// phone over mobile data at a party: the whole module is a couple of kB
-// against a couple of hundred for even one short sample.
+// Pickups, the power-up glisten and the fallback punch are built from
+// oscillators and filtered noise at runtime, so they cost bytes of code
+// rather than kilobytes of file. That matters for a game that has to load on
+// a phone over mobile data at a party.
+//
+// The stomp is the exception. Synthesis got close but a recorded impact has a
+// density of detail that oscillators do not, so two CC0 samples ship — 18kB
+// the pair, which is worth it for the sound the game makes most often. They
+// alternate, and the synth remains as the fallback until they decode.
 //
 // AUTOPLAY. Browsers create an AudioContext in the `suspended` state and will
 // not start it until a real user gesture. Nothing is heard until `unlock()`
 // runs off a keydown or a pointerdown — src/main.js wires that up. Building
 // the context lazily on first use also keeps us from spinning up an audio
 // thread for a player who never touches the game.
+
+// Two stomp impacts from Kenney's CC0 Impact Sounds. See
+// src/assets/audio/CREDITS.md for what they are and why one is filtered.
+// These are the ONLY files this module ships; everything else is synthesised.
+import punchMediumUrl from '../assets/audio/punch-medium.mp3';
+import punchHeavyUrl from '../assets/audio/punch-heavy.mp3';
+
+const SAMPLES = { punchA: punchMediumUrl, punchB: punchHeavyUrl };
 
 export function createAudio() {
   let ctx = null;
@@ -19,6 +32,9 @@ export function createAudio() {
   let punchBus = null;
   let lastPunch = -99;
   let combo = 0;
+  const buffers = {};
+  let loading = false;
+  let alt = 0;
 
   function ensure() {
     if (ctx) return ctx;
@@ -38,6 +54,35 @@ export function createAudio() {
     const d = noise.getChannelData(0);
     for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
     return ctx;
+  }
+
+  // Decode the impact samples once, off the first gesture. Until they land,
+  // and if anything about them fails, `punch` falls back to the synth — a
+  // silent stomp would be worse than a synthesised one.
+  function loadSamples(c) {
+    if (loading) return;
+    loading = true;
+    for (const [key, url] of Object.entries(SAMPLES)) {
+      fetch(url)
+        .then((r) => r.arrayBuffer())
+        .then((b) => c.decodeAudioData(b))
+        .then((buf) => { buffers[key] = buf; })
+        .catch(() => {});
+    }
+  }
+
+  function playBuffer(c, key, t, { gain = 1, rate = 1 }) {
+    const buf = buffers[key];
+    if (!buf) return false;
+    const src = c.createBufferSource();
+    src.buffer = buf;
+    src.playbackRate.value = rate;
+    const g = c.createGain();
+    g.gain.value = gain;
+    src.connect(g);
+    g.connect(master);
+    src.start(t);
+    return true;
   }
 
   // Soft-clip bus. THE ingredient that separates an arcade impact from a
@@ -145,6 +190,13 @@ export function createAudio() {
       const jitter = 0.94 + Math.random() * 0.12;      // never twice the same
       const p = step * jitter;
 
+      // The two Kenney impacts, alternating so consecutive stomps never sound
+      // identical, pitched by the same combo/jitter the synth uses. Returns
+      // early only if a sample actually played.
+      alt ^= 1;
+      const key = alt ? 'punchA' : 'punchB';
+      if (playBuffer(c, key, t, { gain: 0.95, rate: p })) return;
+
       // 1. THE WHISPER — the fist travelling. Bandpass swept UPWARD, which is
       //    what air moving past something sounds like. It leads the slap by
       //    22ms: far enough to be heard as a swing, close enough that the ear
@@ -215,7 +267,9 @@ export function createAudio() {
     // Call from the first real user gesture, or nothing will ever be heard.
     unlock() {
       const c = ensure();
-      if (c && c.state === 'suspended') c.resume().catch(() => {});
+      if (!c) return;
+      if (c.state === 'suspended') c.resume().catch(() => {});
+      loadSamples(c);
     },
     setMuted(v) {
       muted = !!v;
