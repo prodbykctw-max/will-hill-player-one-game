@@ -82,17 +82,24 @@ Edgewood/L5P/Underground are lit very differently.
 
 ## Known-open issues
 
-- **Will Hill "stands at an angle."** The pixel sprite is generated from
-  AutoSprite's `iso_*_right` kinds, which are an isometric 3/4 view, not a
-  pure side profile — the angle is inherent to the source, not a bug in the
-  renderer. Fixing it means regenerating with SIDESCROLLER `idle/walk/run/
-  jump` kinds, BUT those produced front-facing results for the enemy, so it
-  needs a test generation before committing credits.
-- **Enemy sprites are front-facing** rather than profile, same root cause.
+- ~~**Will Hill "stands at an angle."**~~ FIXED. He was built from AutoSprite's
+  `iso_*_right` kinds — an isometric 3/4 projection — so standing still, his
+  rear foot floated above the pavement: in that projection the far foot sits
+  higher in frame because it is further back in 3D. No renderer offset could
+  fix it; sinking the sprite just buried the planted foot. Replaced with a
+  **v1 SIDESCROLLER export** (idle/walk/run/jump, true flat side profile,
+  facing screen-right). Both feet now land on the same line.
+- **Enemy sprites are still front-facing** rather than profile. Same root
+  cause, not yet regenerated — and note the enemies and Will Hill's walk were
+  explicitly signed off as looking right, so do not "fix" them casually.
 - **No roll/hit/death clips** for the pixel Will Hill; they borrow idle/run
-  (marked TODO in `tools/compose_player_sheet.py`).
-- **Trunk sway unverified.** Rain contaminates pixel-diff sampling, so
-  "is the trunk moving?" hasn't been cleanly answered.
+  (marked TODO in `tools/compose_player_sheet.py`). `hit` now actually gets
+  used — a pothole trip plays it — so this is more visible than it was.
+- **The raw sprite export is not in the repo.** `assets/` is git-ignored by
+  design, so `tools/compose_player_sheet.py` cannot be re-run from a fresh
+  clone without the four source sheets. They came from the user as
+  `Will_Hill_Pixel{idle,walk,run,jump}v1.png`, 2560x2560, and must be dropped
+  into `assets/raw-sprites/will-hill-pixel/<clip>/spritesheet.png` first.
 
 ## Gotchas that cost real time — don't rediscover these
 

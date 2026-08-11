@@ -8,31 +8,30 @@ a single atlas under src/ for Vite to hash and bundle, plus a companion JSON
 describing frame layout. Shared trim/pack/WebP logic lives in
 tools/lib/compose_common.py (also used by tools/compose_enemy_sheet.py).
 
-WHICH SOURCE CLIPS, AND WHY THE ISO ONES
-----------------------------------------
-The AutoSprite export's *named* animations (Sword Idle, Jog, Roll, Jump
-Start, Hit, Death, Punch, Kick...) are ALL rendered from BEHIND — back of
-the cap, no face. Composed into a side-scroller they read as the character
-running away from the player, which is exactly what went wrong in the first
-pass.
-
-The `iso_*_right` clips, despite the "iso" prefix, are true side views
-facing SCREEN-RIGHT — face, glasses and chain all visible — which is what a
-side-scroller actually needs. So locomotion comes from those. The renderer
-mirrors them for left-facing movement, so the source facing (right) matches
+SOURCE CLIPS — TRUE SIDE VIEW (v1 SIDESCROLLER export)
+------------------------------------------------------
+These are rendered as a flat 2D side profile, facing SCREEN-RIGHT. The
+renderer mirrors them for left-facing movement, so the source facing matches
 its un-flipped default.
 
-Gaps this leaves, all deliberate and marked below: there is no side-facing
-roll, hit, or death in the export. `roll` and `hit` borrow side-facing clips
-that read acceptably; only `death` keeps a rear-view clip, since it plays
-once and is covered by the game-over overlay almost immediately. Generating
-proper side-facing roll/hit/death is a follow-up.
+This replaced an earlier pass built on the export's `iso_*_right` clips. Those
+were the least-bad option at the time — the export's *named* animations (Sword
+Idle, Jog, Roll, Jump Start, Hit, Death, Punch, Kick...) are ALL rendered from
+BEHIND, back of the cap, no face, which read as the character running away
+from the player. The iso clips at least faced forward, but they are an
+isometric 3/4 projection, and that had a visible cost in the game: standing
+still, the far foot sits higher in the frame than the near one because it is
+further back in 3D, so Will Hill's rear foot floated above the pavement. No
+vertical offset can fix that — sinking the sprite just buries the planted
+foot. It needed a real side projection, which is what these are.
 
-Source frames are 25 per animation (5x5 grid, 256x256 cells). The rear-view
-sheets close their loop with a duplicate of frame 0 at index 24; the iso
-sheets do not. 24 frames is used uniformly — that drops only the duplicate
-on the former and one frame on the latter, which is imperceptible in a
-24-frame cycle and keeps every row the same width.
+Gaps this still leaves, all deliberate and marked below: there is no roll, hit
+or death clip in this export, so those keys borrow rows that read acceptably.
+Generating them is a follow-up.
+
+Source frames are 96 per animation in a 10x10 grid of 256x256 cells (four
+cells unused). See SOURCE_FRAMES/STRIDE below for why every 6th frame is
+taken.
 
 The character only ever occupies a sub-region of each 256x256 source cell.
 Frames are cropped to a shared union bounding box — same box for every
@@ -60,8 +59,17 @@ OUT_IMG = os.path.join(REPO_ROOT, 'src', 'assets', 'sprites', 'will-hill.webp')
 OUT_JSON = os.path.join(REPO_ROOT, 'src', 'assets', 'sprites', 'will-hill.atlas.json')
 
 SOURCE_CELL = 256
-SOURCE_COLS = 4
-FRAMES = 16
+SOURCE_COLS = 10
+# The v1 SIDESCROLLER export is a 10x10 grid with 96 populated cells, and each
+# clip is ONE complete cycle over those 96 frames (measured: idle/walk/run all
+# return to frame 0 by ~95; jump is a one-shot, which is why jumpStart and
+# jumpLand are non-looping). Taking every 6th frame therefore reproduces the
+# whole cycle in 16 — the same row length the sheet has always used, which
+# keeps the packed texture at ~2900px wide. Going to 24 frames would push it
+# past 4096 and break on the older mobile GPUs this has to run on.
+SOURCE_FRAMES = 96
+STRIDE = 6
+FRAMES = SOURCE_FRAMES // STRIDE  # 16
 
 # Unique source clips -> one sheet row each. (folder, rowKey, note)
 ROWS = [
@@ -98,7 +106,8 @@ def main():
                 f"Extract '{folder}/spritesheet.png' from the AutoSprite export "
                 f"into assets/raw-sprites/will-hill/{folder}/ first."
             )
-        frame_lists[row_key] = load_grid_frames(src_path, SOURCE_COLS, SOURCE_CELL, FRAMES)
+        allf = load_grid_frames(src_path, SOURCE_COLS, SOURCE_CELL, SOURCE_FRAMES)
+        frame_lists[row_key] = allf[::STRIDE]
 
     box = union_bbox(frame_lists, SOURCE_CELL)
     rows = [(row_key, frame_lists[row_key]) for _f, row_key, _n in ROWS]

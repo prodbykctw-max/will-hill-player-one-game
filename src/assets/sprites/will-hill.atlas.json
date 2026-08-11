@@ -1,7 +1,7 @@
 {
   "frameSize": [
-    181,
-    242
+    188,
+    251
   ],
   "cols": 16,
   "sourceCellSize": [
@@ -9,8 +9,8 @@
     256
   ],
   "origin": [
-    32,
-    8
+    31,
+    0
   ],
   "animations": {
     "idle": {
@@ -18,9 +18,9 @@
       "frameCount": 16,
       "loop": true,
       "fit": {
-        "h": 0.9669,
-        "b": 0.9194,
-        "bLow": 0.9835
+        "h": 0.9363,
+        "b": 0.9801,
+        "bLow": 0.9841
       },
       "note": "pixel-art Will Hill, side view facing screen-right"
     },
@@ -29,9 +29,9 @@
       "frameCount": 16,
       "loop": true,
       "fit": {
-        "h": 0.9835,
-        "b": 0.9649,
-        "bLow": 0.9917
+        "h": 0.9641,
+        "b": 0.988,
+        "bLow": 0.992
       }
     },
     "jog": {
@@ -39,9 +39,9 @@
       "frameCount": 16,
       "loop": true,
       "fit": {
-        "h": 0.9256,
-        "b": 0.9587,
-        "bLow": 0.9752
+        "h": 0.8924,
+        "b": 0.9721,
+        "bLow": 0.9761
       }
     },
     "run": {
@@ -49,9 +49,9 @@
       "frameCount": 16,
       "loop": true,
       "fit": {
-        "h": 0.9256,
-        "b": 0.9587,
-        "bLow": 0.9752
+        "h": 0.8924,
+        "b": 0.9721,
+        "bLow": 0.9761
       }
     },
     "jumpStart": {
@@ -59,9 +59,9 @@
       "frameCount": 16,
       "loop": false,
       "fit": {
-        "h": 0.9421,
-        "b": 0.9587,
-        "bLow": 0.9669
+        "h": 0.9522,
+        "b": 0.9462,
+        "bLow": 0.9522
       }
     },
     "jumpLand": {
@@ -69,9 +69,9 @@
       "frameCount": 16,
       "loop": false,
       "fit": {
-        "h": 0.9421,
-        "b": 0.9587,
-        "bLow": 0.9669
+        "h": 0.9522,
+        "b": 0.9462,
+        "bLow": 0.9522
       }
     },
     "roll": {
@@ -79,9 +79,9 @@
       "frameCount": 16,
       "loop": false,
       "fit": {
-        "h": 0.9256,
-        "b": 0.9587,
-        "bLow": 0.9752
+        "h": 0.8924,
+        "b": 0.9721,
+        "bLow": 0.9761
       }
     },
     "hit": {
@@ -89,9 +89,9 @@
       "frameCount": 16,
       "loop": true,
       "fit": {
-        "h": 0.9669,
-        "b": 0.9194,
-        "bLow": 0.9835
+        "h": 0.9363,
+        "b": 0.9801,
+        "bLow": 0.9841
       },
       "note": "pixel-art Will Hill, side view facing screen-right"
     },
@@ -100,16 +100,16 @@
       "frameCount": 16,
       "loop": false,
       "fit": {
-        "h": 0.9669,
-        "b": 0.9194,
-        "bLow": 0.9835
+        "h": 0.9363,
+        "b": 0.9801,
+        "bLow": 0.9841
       },
       "note": "pixel-art Will Hill, side view facing screen-right"
     }
   },
   "fitRef": {
-    "h": 0.9669,
-    "b": 0.9194,
-    "bLow": 0.9835
+    "h": 0.9363,
+    "b": 0.9801,
+    "bLow": 0.9841
   }
 }

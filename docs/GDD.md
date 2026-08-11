@@ -59,17 +59,55 @@ This differs from the Jandé game's chain (Blender + Hyper3D Rodin + manual rig)
 
 ### Animation usage split
 
-**In scope (9 side-view animations) — composed and ready:**
-- `Sword Idle` → `idle` — functions as the base walk/idle loop (frames show a walking bob, not a sword stance; "Sword" is just AutoSprite's preset label, not indicative of function)
-- `Jog`, `Sprint Enter` → `sprintEnter`, `Sprint Exit` → `sprintExit`, `Roll`, `Jump Start` → `jumpStart`, `Jump Land` → `jumpLand`, `Hit`, `Death`
+**Superseded.** The original chain above produced a 39-animation export whose
+*named* clips (Sword Idle, Jog, Roll, Jump Start, Hit, Death, Punch, Kick...)
+were all rendered from BEHIND — back of the cap, no face — and read as the
+character running away from the player. A second pass used the export's
+`iso_*_right` clips, which at least faced forward, but those are an isometric
+3/4 projection: standing still, Will Hill's rear foot floated above the
+pavement, because in that projection the far foot sits higher in frame. That
+is not fixable in the renderer — sinking the sprite just buries the planted
+foot.
 
-**Composed game-ready spritesheet:** `src/assets/sprites/will-hill.webp` + `will-hill.atlas.json` (9 rows × 24 frames — each source sheet's 25th frame duplicates frame 0 as a loop-closer, so it's dropped). Frames are trimmed from the original 256×256 AutoSprite cell down to a shared 184×224 union bounding box, then saved as WebP at quality 92 — visually indistinguishable from lossless but ~4x smaller than the original PNG (3.8MB → 0.86MB). Built by `tools/compose_player_sheet.py` from the raw export in `assets/raw-sprites/will-hill/` (git-ignored); re-run that script any time the source frames change. Imported in `src/entities/player.js` as `PLAYER_SPRITE`.
+**Current source — v1 SIDESCROLLER export.** Four clips, rendered as a flat 2D
+side profile facing screen-right: `idle`, `walk`, `run`, `jump`. The renderer
+mirrors them for left-facing movement, so the source facing matches its
+un-flipped default. Both feet land on the same line.
 
-**Archived, not wired into the engine (11 side-view animations):**
-`Sword Attack`, `Sword Block`, `Sword Enter`, `Sword Exit`, `Slash A`, `Slash B`, `Slash C`, `Combo`, `Kick`, `Punch` — kept in the raw asset export (already generated, cheap to keep) but excluded from the composed game-ready spritesheet.
+Each sheet is 2560x2560: a 10x10 grid of 256x256 cells with 96 populated
+frames (four cells unused). Every clip is ONE complete cycle across those 96
+frames — measured, not assumed: idle, walk and run all return to frame 0 by
+~95, while jump does not, which is why `jumpStart`/`jumpLand` are the two
+non-looping keys.
 
-**Archived, not wired into the engine (20 isometric animations):**
-`iso_idle` / `iso_walk` / `iso_run` / `iso_jump`, each × 5 directions (down/up/right/northeast/southeast, all `_right`-suffixed — presumably meant to mirror for left-facing). Confirmed unused: the game's perspective is side-scroll, not isometric.
+**Composed game-ready spritesheet:** `src/assets/sprites/will-hill.webp` +
+`will-hill.atlas.json` — 4 rows x 16 frames, built by
+`tools/compose_player_sheet.py`. Every 6th source frame is taken, which
+reproduces the whole cycle at the row length the sheet has always used and
+keeps the packed texture at ~3000px wide; 24 frames would push it past 4096
+and break on older mobile GPUs. Frames are trimmed from the 256x256 source
+cell to a shared 188x251 union bounding box and saved as WebP q92 —
+visually indistinguishable from lossless here and far smaller, since this is a
+photo-rendered character with fine shading rather than flat pixel art.
+Imported in `src/entities/player.js` as `PLAYER_SPRITE`.
+
+Nine engine animation keys map onto those four rows. `jog` shares `run`;
+`jumpStart` and `jumpLand` share `jump`; and `roll`, `hit` and `death` borrow
+rows because the export has no clip for them — `roll` reads as a dash on the
+run row, `hit` (now played on a pothole trip) and `death` sit on idle. Proper
+clips for those three are a follow-up.
+
+**Raw source is git-ignored.** `assets/raw-sprites/will-hill-pixel/<clip>/
+spritesheet.png` holds the four sheets; per CLAUDE.md nothing under `assets/`
+is committed, so a fresh clone cannot re-run the compose script until those
+files are put back.
+
+**Archived, not wired into the engine:** everything from the earlier 39-clip
+export — the rear-view named animations, the 11 side-view combat clips
+(`Sword Attack`, `Slash A/B/C`, `Combo`, `Kick`, `Punch`, ...) and the 20
+`iso_*` directional clips. Kept because they are already generated and cheap
+to keep; excluded because the game is a side-scroller and they either face
+the wrong way or duplicate what the SIDESCROLLER export does better.
 
 ## Leaderboard & contest
 
