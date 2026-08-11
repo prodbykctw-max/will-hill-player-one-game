@@ -86,6 +86,32 @@ REGIONS = {
         ('rightpillar',708,    0,  770,  365),
         ('kerb',         0,  282,  770,  363),  # pavement and kerb
     ],
+    # ── Edgewood ─────────────────────────────────────────────────────────
+    # This plate was written off earlier in the project as "a flat head-on
+    # facade with a pure black sky, nothing standing in front of anything".
+    # That was wrong and it came from a bad sample rect: the rect landed in
+    # the black GAPS BETWEEN the distant buildings, so the sky read as
+    # median (0,0,0). Edgewood has a full lit skyline row across y 0-62,
+    # measured — the lit-pixel count climbs from 6px at y=0 to 167px by y=30.
+    # It also has the richest signage of the four stages.
+    'edgewood': [
+        # Detail first: neons and practicals, lifted off the brick.
+        ('neon_ourbar',   70,  165,  145,  262),  # OUR BAR / ATL
+        ('neon_dis',     640,  165,  715,  262),  # DIS ATL HOE
+        ('neon_open',    455,  140,  505,  172),  # OPEN
+        ('sign_blm',     298,  226,  372,  288),  # BLACK LIVES MATTER
+        ('sign_soul',    415,  222,  492,  256),  # SOUL FOOD & SPIRITS
+        ('lamps',          0,   82,  764,  148),  # hanging cone lamps + bulbs
+        # Structure, far -> near.
+        ('skyline',        0,    0,  764,   64),  # distant lit blocks
+        ('parapet',        0,   62,  764,  100),  # top of the bar facade
+        ('bay_left',      30,  120,  195,  305),
+        ('bay_mid1',     270,  118,  400,  312),
+        ('bay_mid2',     400,  118,  570,  312),
+        ('bay_right',    580,  120,  745,  305),
+        ('facade',         0,   95,  764,  312),  # the brick between the bays
+        ('pavement',       0,  296,  764,  372),
+    ],
 }
 
 
