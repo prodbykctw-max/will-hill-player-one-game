@@ -22,7 +22,7 @@
 // clip Will Hill's spritesheet actually has — same role as Jandé's dash:
 // speed burst + i-frames). No strike/attack branch — no combat.
 
-import { GRAV, TERMINAL_VY, PW, PH, RUN_SPEED, ACCEL, DECEL, JUMP_V, DOUBLE_JUMP_V, JUMP_CUT_VY, COYOTE_TICKS, JUMP_BUFFER_TICKS, DASH_VX, DASH_TICKS, DASH_IFRAMES, DASH_COOLDOWN } from '../core/physics.js';
+import { GRAV, TERMINAL_VY, PW, PH, RUN_SPEED, ACCEL, DECEL, AIR_ACCEL_MUL, AIR_DRAG_MUL, JUMP_V, DOUBLE_JUMP_V, JUMP_CUT_VY, COYOTE_TICKS, JUMP_BUFFER_TICKS, DASH_VX, DASH_TICKS, DASH_IFRAMES, DASH_COOLDOWN } from '../core/physics.js';
 import { collideH, collideV } from '../world/tilemap.js';
 import spriteSheetUrl from '../assets/sprites/will-hill.webp';
 import atlas from '../assets/sprites/will-hill.atlas.json';
@@ -124,7 +124,9 @@ export function stepPlayer(p, input, map) {
   // — you are going wherever the trip sent you until you recover.
   const tgt = p.stumble > 0 ? 0
     : input.right() ? RUN_SPEED : input.left() ? -RUN_SPEED : 0;
-  const k = tgt === 0 ? DECEL : ACCEL;
+  // Ground rates as-is; airborne, keep the momentum you took off with.
+  const base = tgt === 0 ? DECEL : ACCEL;
+  const k = p.onGround ? base : base * (tgt === 0 ? AIR_DRAG_MUL : AIR_ACCEL_MUL);
   p.vx += (tgt - p.vx) * k;
   if (tgt === 0 && p.onGround && Math.abs(p.vx) < 0.6) p.vx = 0;
   if (tgt !== 0) p.faceL = tgt < 0;

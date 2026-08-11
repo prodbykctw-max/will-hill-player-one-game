@@ -101,6 +101,31 @@ Edgewood/L5P/Underground are lit very differently.
   `Will_Hill_Pixel{idle,walk,run,jump}v1.png`, 2560x2560, and must be dropped
   into `assets/raw-sprites/will-hill-pixel/<clip>/spritesheet.png` first.
 
+## Player feel — the numbers and why
+
+- **Ground contact is ONE number**: `PLANT_DEPTH` in `src/world/scale.js`.
+  Every character's contact pixel lands exactly that far below the collision
+  floor. It cannot be a flat constant added to each sprite, because the two
+  projections disagree about what their lowest pixel means: an isometric sheet
+  anchors on the midpoint between its two feet (the far one is drawn well
+  above the near one) and so gets extra sink for free, while a true side
+  profile anchors on its lowest pixel and gets none. The renderer measures
+  what each sheet's own anchor already gives and tops up the difference.
+  Move `PLANT_DEPTH` and everyone moves together, still identical.
+  `lighting.js` imports the same constant — it used to be a hand-copied
+  duplicate and it had already drifted, 2 against 3.
+- **Animation timing is per-clip**, in the atlas: `ticks` per frame, and
+  fractional values are used deliberately — they let a clip gain frames
+  without changing its duration, which is what makes it smoother rather than
+  just slower. Idle 32f @7.5 (4.0s, one breath), walk 24f @2.667 (1.07s, the
+  pace that was signed off), run 24f @2.0 (0.8s).
+- **The jump is `driven`** — posed from `vy`, never ticked. `advanceAnim`
+  returns early for driven clips. Do not "fix" it back to a timer.
+- **Air control**: `AIR_ACCEL_MUL` / `AIR_DRAG_MUL` in `core/physics.js`.
+  Ground DECEL is 0.62, which is snappy on purpose; applying it airborne meant
+  releasing the run key for an instant mid-jump dropped you short. Airborne
+  drag is 6% of it.
+
 ## Gotchas that cost real time — don't rediscover these
 
 - **rAF is suspended when the preview pane isn't composited.** The canvas

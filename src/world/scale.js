@@ -42,6 +42,25 @@ export function worldToMeters(w) {
   return w / WORLD_PER_M;
 }
 
+// PLANT_DEPTH — how far below the collision floor a character's ground-contact
+// pixel sits, in world units. ONE number for every character in the game.
+//
+// It has to be one number, and it has to be applied per-projection, because
+// the sheets do not agree on what their lowest pixel means. An isometric 3/4
+// sheet draws the far foot well above the near one, so it anchors on the
+// MIDPOINT between the two and its lowest pixel (the near shoe) ends up well
+// below the anchor. A true side profile has both feet level and anchors on the
+// lowest pixel, so it gets no such offset for free. Left alone, that made Will
+// Hill plant 2.33 units higher than the enemies stood next to him.
+//
+// src/render/renderer.js measures what each sheet's own anchor already gives
+// and makes up exactly the difference, so every character's contact pixel
+// lands on precisely this value — identical by construction, not by two
+// numbers that happen to be close. Move this and everyone moves together.
+//
+// 5.33 is where the enemy sheets already sat, and they were the reference.
+export const PLANT_DEPTH = 5.33;
+
 // Sanity reference points, for anyone tuning level geometry:
 //   1 tile (T=32)            = 0.44 m   — roughly a paving module / curb height
 //   ground jump apex         ~ 2.2 m    — videogame-tall, deliberately

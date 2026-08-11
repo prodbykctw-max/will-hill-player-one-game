@@ -125,6 +125,5 @@
     "b": 0.9801,
     "bLow": 0.9841
   },
-  "anchor": "low",
-  "sink": 0.014
+  "anchor": "low"
 }

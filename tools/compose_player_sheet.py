@@ -157,11 +157,13 @@ def main():
 
     # 'idle' is the standing reference pose the renderer sizes/anchors off.
     size = save_webp(sheet, OUT_IMG, quality=92)
-    # 0.014 matches what the enemy sheets get implicitly from their midpoint
-    # anchor (drawH * (0.9921 - 0.9782)), so player and enemies plant at the
-    # same depth in the pavement instead of Will Hill floating above them.
+    # `anchor: low` is all the atlas needs to say — a true side profile has
+    # both feet level, so it anchors on the lowest pixel. How deep that pixel
+    # then sits in the pavement is PLANT_DEPTH's job, in src/world/scale.js,
+    # so it is one number shared with every other character rather than a
+    # per-sheet fudge that can drift out of agreement.
     write_atlas(OUT_JSON, cell_w, cell_h, GRID_COLS, SOURCE_CELL, box[:2],
-                animations, clip_fit['idle'], anchor='low', sink=0.014)
+                animations, clip_fit['idle'], anchor='low')
 
     total = sum(len(f) for f in frame_lists.values())
     print(f"Trimmed cell: {cell_w}x{cell_h} (from {SOURCE_CELL}x{SOURCE_CELL}, origin {box[0]},{box[1]})")

@@ -14,7 +14,7 @@
 // drawn row.
 
 import { T, FLOOR_R, SLAB_R } from '../world/tilemap.js';
-import { CHAR_DRAW_H } from '../world/scale.js';
+import { CHAR_DRAW_H, PLANT_DEPTH } from '../world/scale.js';
 import { createLighting } from './lighting.js';
 
 // Street palette, keyed off the reference image's night-street read.
@@ -26,25 +26,11 @@ const SIDEWALK_LIT = '#a8a69d';
 const CURB = '#5c5a55';
 const FRONT_FACE_H = 13; // world units of 2.5D depth on floating platforms
 
-// FOOTPLANT — a small extra sink below the collision surface.
-//
-// Two anchors exist, chosen by the atlas's `anchor` field.
-//
-// The ISOMETRIC sheets (the enemies) anchor on `fit.b`, the MIDPOINT BETWEEN
-// THE TWO FEET, because a 3/4 projection draws the far foot well above the
-// near one — ~29px apart. Anchoring those on the lowest pixel plants the near
-// foot and leaves the far one hovering.
-//
-// Will Hill is now a true SIDE PROFILE, where both feet are already level, so
-// he anchors on `fit.bLow`, his lowest pixel. Keeping the midpoint there was
-// lifting him roughly a pixel clear of the pavement — measured at b=0.9801
-// against bLow=0.9841 — which read as him skating rather than walking.
-//
-// This constant adds the last of the sink so the stance sits ON the pavement
-// rather than on its top edge. It is in world units, so it scales with the
-// camera and reads the same at any zoom. Collision is untouched — this is
-// purely how it reads.
-const FOOTPLANT = 3;
+// Ground contact is governed by PLANT_DEPTH in src/world/scale.js — one
+// number for every character. See the note there for why it cannot simply be
+// a constant added to every sprite: the two projections disagree about what
+// their lowest pixel means, so the renderer measures what each sheet's anchor
+// already gives and makes up exactly the difference.
 
 export function createRenderer(ctx, canvas) {
   const lighting = createLighting(ctx);
@@ -247,19 +233,12 @@ export function createRenderer(ctx, canvas) {
     const drawW = cellW * scale; // aspect preserved
 
     // Anchor on the lowest pixel for a true side profile, on the two-foot
-    // midpoint for the isometric sheets. See FOOTPLANT above.
+    // midpoint for the isometric sheets. See PLANT_DEPTH in world/scale.js.
     const plant = atlas.anchor === 'low' ? (fit.bLow || fit.b) : fit.b;
-    // SINK — how far the lowest pixel sits BELOW the feet line, as a fraction
-    // of the drawn height so it scales with the character.
-    //
-    // The isometric sheets get this for free: anchoring on the two-foot
-    // midpoint leaves their lowest pixel drawH*(bLow-b) lower, which for the
-    // enemies is 1.4% — and that is exactly why they read as standing ON the
-    // pavement. Anchoring Will Hill on his lowest pixel gives him none of it,
-    // so he planted 1.4% higher than everyone else and looked like he was
-    // skating over the kerb. Declaring it makes the depth deliberate and
-    // equal for both instead of an accident of projection.
-    const feetY = entity.y + colliderH + FOOTPLANT + drawH * (atlas.sink || 0);
+    // What this sheet's own anchor already sinks the contact pixel by, and
+    // the top-up needed to reach PLANT_DEPTH exactly.
+    const anchorSink = drawH * ((fit.bLow || fit.b) - plant);
+    const feetY = entity.y + colliderH + (PLANT_DEPTH - anchorSink);
     const dx = entity.x + entity.w / 2 - drawW / 2;
     const dy = feetY - drawH * plant;
 

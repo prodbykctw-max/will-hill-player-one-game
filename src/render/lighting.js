@@ -18,10 +18,12 @@
 // tiles they fall on); the sprite buffer is its own local space.
 
 import { T, FLOOR_R } from '../world/tilemap.js';
+import { PLANT_DEPTH } from '../world/scale.js';
 
-// Must match FOOTPLANT in render/renderer.js — shadows sink with the feet or
-// they visibly detach from the character standing on them.
-const FOOTPLANT = 3;
+// Shared with the renderer so shadows sink with the feet. This used to be a
+// hand-copied duplicate and it drifted (2 here against 3 there), which is
+// exactly what docs/HANDOFF.md warns about — now there is only one.
+const FOOTPLANT = PLANT_DEPTH;
 
 // Street-level practicals repeat at this spacing in WORLD units. It is
 // deliberately tied to the backdrop plate's own tiling period so the pools
