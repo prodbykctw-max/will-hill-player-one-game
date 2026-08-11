@@ -10,11 +10,18 @@
 // of opening a boss arena.
 
 import { T, FLOOR_R, LH, groundCol, plat, pit, createTilemap } from './tilemap.js';
-import { createEnemy } from '../entities/enemy.js';
+import { createEnemy, ENEMY_H } from '../entities/enemy.js';
 import { createMoneyBag, createChampagneBottle } from '../entities/collectibles.js';
 
 const RUNWAY_COLS = 26; // safe flat start, same length as Jandé's buildRunner()
-const MIN_ENEMY_SPACING_COLS = 6;
+const MIN_ENEMY_SPACING_COLS = 8;
+// A real street is mostly continuous street. The first pass fired a feature
+// roll on nearly every column, which produced a jumble of small disconnected
+// slabs — the ground has to read as an actual road with things ON it, not as
+// scattered floating chunks. These enforce breathing room between features.
+const MIN_FEATURE_GAP_COLS = 7;
+const PLATFORM_MIN_W = 5;
+const PLATFORM_EXTRA_W = 5;
 
 // Sine-hash pseudo-random in [0,1) — same trick as Jandé's rnd01(seed):
 // deterministic per (column, stage) so the same stage always generates the
@@ -35,6 +42,7 @@ export function createLevel(stage, stageIndex = 0) {
     obstacles: [], // static hazards: {x,y,w,h}
     genC: 0,
     lastEnemyCol: -999,
+    lastFeatureCol: -999,
   };
 }
 
@@ -58,39 +66,49 @@ export function genAhead(level, untilCol) {
     }
 
     const roll = rnd01(c * 1.7 + level.seed);
+    // Enforce a run of plain street between features so the ground reads as
+    // a continuous road rather than a chain of disconnected slabs.
+    const featureOk = c - level.lastFeatureCol >= MIN_FEATURE_GAP_COLS;
 
-    if (roll < recipe.gap) {
+    if (featureOk && roll < recipe.gap) {
       // GAP — jump-only pit, guaranteed landing strip after.
       const w = 2 + Math.floor(rnd01(c * 3.1 + level.seed) * recipe.gapMax);
       pit(level.map, c, w, FLOOR_R, LH - 1);
       groundCol(level.map, c + w, FLOOR_R, LH - 1);
+      level.lastFeatureCol = c + w;
       level.genC = c + w + 3;
       continue;
     }
 
-    if (roll < recipe.gap + recipe.plat) {
-      // BONUS PLATFORM — elevated asphalt strip, ground continues below it.
-      const w = 3 + Math.floor(rnd01(c * 2.3 + level.seed) * 4);
+    if (featureOk && roll < recipe.gap + recipe.plat) {
+      // RAISED STREET FEATURE — a wide slab (stoop, loading dock, awning
+      // ledge). Deliberately long: short floating chunks look like debris.
+      const w = PLATFORM_MIN_W + Math.floor(rnd01(c * 2.3 + level.seed) * PLATFORM_EXTRA_W);
       const heightRows = 2 + Math.floor(rnd01(c * 4.7 + level.seed) * recipe.vert * 10);
       groundCol(level.map, c, FLOOR_R, LH - 1);
       plat(level.map, c, FLOOR_R - heightRows, w);
       if (rnd01(c * 5.3 + level.seed) < recipe.bag) {
-        level.bags.push(createMoneyBag(c * T + 8, (FLOOR_R - heightRows) * T - 24));
+        level.bags.push(createMoneyBag(c * T + w * T * 0.5 - 12, (FLOOR_R - heightRows) * T - 26));
       }
+      level.lastFeatureCol = c + w;
       level.genC = c + w;
       continue;
     }
 
-    if (roll < recipe.gap + recipe.plat + recipe.haz) {
-      // OBSTACLE — ground continues; either an enemy ambush or a static hazard.
+    if (featureOk && roll < recipe.gap + recipe.plat + recipe.haz) {
+      // POTHOLE or an enemy — ground continues straight through either way.
       groundCol(level.map, c, FLOOR_R, LH - 1);
       if (rnd01(c * 6.1 + level.seed) < recipe.enemy && c - level.lastEnemyCol > MIN_ENEMY_SPACING_COLS) {
-        level.enemies.push(createEnemy(c * T, (FLOOR_R - 2) * T));
+        level.enemies.push(createEnemy(c * T, FLOOR_R * T - ENEMY_H));
         level.lastEnemyCol = c;
       } else {
-        level.obstacles.push({ x: c * T + 6, y: (FLOOR_R - 1) * T + 8, w: 20, h: 24 });
+        // Sunk into the street surface, not perched on top of it. Wide and
+        // shallow so it reads as a hole in the road at a glance.
+        const pw = 52 + Math.floor(rnd01(c * 8.3 + level.seed) * 34);
+        level.obstacles.push({ x: c * T, y: FLOOR_R * T + 1, w: pw, h: 13 });
       }
-      level.genC = c + 3;
+      level.lastFeatureCol = c;
+      level.genC = c + 2;
       continue;
     }
 
@@ -103,7 +121,7 @@ export function genAhead(level, untilCol) {
       level.champagnes.push(createChampagneBottle(c * T + 8, (FLOOR_R - 1) * T - 26));
     }
     if (rnd01(c * 11.1 + level.seed) < recipe.enemy * 0.6 && c - level.lastEnemyCol > MIN_ENEMY_SPACING_COLS) {
-      level.enemies.push(createEnemy(c * T, (FLOOR_R - 2) * T));
+      level.enemies.push(createEnemy(c * T, FLOOR_R * T - ENEMY_H));
       level.lastEnemyCol = c;
     }
     level.genC = c + 1;

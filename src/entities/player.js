@@ -164,8 +164,10 @@ export function stepPlayer(p, input, map) {
     p.anim = 'roll';
   } else if (!p.onGround) {
     p.anim = p.vy < 0 ? 'jumpStart' : 'jumpLand';
+  } else if (Math.abs(p.vx) > 4) {
+    p.anim = 'run';
   } else if (Math.abs(p.vx) > 0.5) {
-    p.anim = 'jog';
+    p.anim = 'walk';
   } else {
     p.anim = 'idle';
   }

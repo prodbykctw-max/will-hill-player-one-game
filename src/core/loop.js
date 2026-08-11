@@ -13,6 +13,17 @@
 const STEP_MS = 16.6;
 const MAX_STEPS_PER_FRAME = 3;
 
+// DEV VERIFICATION SHIM. Browsers suspend requestAnimationFrame entirely
+// when the tab/preview pane isn't being composited, which stalls the loop
+// and leaves a blank canvas — indistinguishable from a real rendering bug
+// unless you know to look for it. `?pump=1` swaps rAF for a timer so the
+// game still advances and the canvas can be read back headlessly. Same
+// workaround the Jandé project built into its devserver.
+const usePump = typeof location !== 'undefined' && /[?&]pump=1/.test(location.search);
+const schedule = usePump
+  ? (cb) => setTimeout(() => cb(performance.now()), 16)
+  : (cb) => requestAnimationFrame(cb);
+
 export function createLoop({ update, draw }) {
   let running = false;
   let lastT = 0;
@@ -22,7 +33,7 @@ export function createLoop({ update, draw }) {
     if (!running) return;
     if (!lastT) {
       lastT = ts;
-      requestAnimationFrame(frame);
+      schedule(frame);
       return;
     }
     const dt = Math.min(100, ts - lastT);
@@ -38,7 +49,7 @@ export function createLoop({ update, draw }) {
     if (acc >= STEP_MS) acc = 0; // drop backlog rather than spiral
 
     draw();
-    requestAnimationFrame(frame);
+    schedule(frame);
   }
 
   return {
@@ -47,7 +58,7 @@ export function createLoop({ update, draw }) {
       running = true;
       lastT = 0;
       acc = 0;
-      requestAnimationFrame(frame);
+      schedule(frame);
     },
     stop() {
       running = false;

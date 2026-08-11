@@ -26,37 +26,129 @@ import bgEdgewood from '../assets/backgrounds/edgewood.webp';
 import bgL5p from '../assets/backgrounds/l5p.webp';
 import bgUnderground from '../assets/backgrounds/underground.webp';
 
+// ── `bg` — real-world backdrop metrics (see src/render/backdrop.js) ──
+// These neighbourhoods are real places Will Hill walks through, so the
+// backdrop is sized in METRES against his own height rather than fitted to
+// the screen.
+//   meters     — real-world vertical extent of the ABOVE-GROUND part of the
+//                source image (i.e. of the `groundFrac` crop, not the whole
+//                file). Tune this and the building reads bigger/smaller
+//                against the character.
+//   groundFrac — where the source image's own ground/building-base line
+//                sits, as a fraction down from the top. Everything at or
+//                below it is cropped off; the game draws its own street
+//                there, and leaving the photo's street in reads as two
+//                grounds stacked.
+//   sky/horizon/glow — gradient + wet-street glow behind the plate. `sky`
+//                values were SAMPLED from each reference image's own upper
+//                bands (tools-side median sample) so the gradient can't
+//                drift away from the art.
+// meters/groundFrac are first-pass estimates from identifiable features
+// (a ~2.1m door, a ~1.8m fence, the arch) and are meant to be tuned against
+// the character in the browser — that's the only place the comparison is
+// real.
+
 export const STAGES = [
   {
     id: 'eav',
     name: 'East Atlanta Village',
     bgRef: 'Citgo gas station / "Welcome To East Atlanta" sign, Swifty Car Wash, McDonald’s Drive-Thru',
-    bg: bgEav,
+    bg: {
+      img: bgEav,
+      meters: 8.0, // billboard top down to the grass verge
+      groundFrac: 0.88,
+      sky: ['#090b19', '#141428'],
+      horizon: '#2a2233',
+      glow: 'rgba(255,196,120,0.10)',
+      rain: 0.75,
+    },
+    light: { pool: 'rgba(255,186,96,0.20)', shaft: 'rgba(255,186,96,0.045)', bloom: 'rgba(255,180,90,0.13)', key: '255,206,150', bounce: '150,120,70', shadowRgb: '20,14,30' },
+    under: {
+      // Asphalt -> aggregate base -> fill -> Georgia red clay -> bedrock.
+      asphalt: '#2e2c2b', base: '#4a453d', fill: '#5c4433', mid: '#6b3a24', bottom: '#2c1c15',
+      brick: '#7a4530', metal: '#7a7d82', metalDark: '#3a3c40', concrete: '#5a564f',
+      concreteDark: '#3b3833', gas: '#b8952e', accent: '#c25a2a', root: '#4a3320',
+      tile: '#3a3f42', ballast: '#3d3a35', void_: '#0d0b12', lamp: 'rgba(255,214,140,0.22)',
+      // Big street trees here, so roots are part of the section.
+      kinds: ['roots', 'conduit', 'water', 'sewer', 'manhole', 'footings'],
+    },
     stageEnd: 240, // finish-line column (T=32px/col -> ~7680px)
-    recipe: { gap: 0.12, plat: 0.30, haz: 0.45, gapMax: 2, vert: 0.25, enemy: 0.22, bag: 0.55, champagne: 0.04 },
+    recipe: { gap: 0.08, plat: 0.20, haz: 0.34, gapMax: 2, vert: 0.25, enemy: 0.30, bag: 0.34, champagne: 0.05 },
   },
   {
     id: 'edgewood',
     name: 'Edgewood',
     bgRef: '"Colour Bar ATL" storefront — neon bar signage, Black Lives Matter signage, Soul Food & Spirits',
-    bg: bgEdgewood,
+    bg: {
+      img: bgEdgewood,
+      meters: 7.0, // one-storey bar facade + the skyline strip above it
+      groundFrac: 0.78,
+      sky: ['#010005', '#0a0c12'],
+      horizon: '#1d1a2c',
+      glow: 'rgba(255,120,190,0.11)',
+      rain: 1.0,
+    },
+    light: { pool: 'rgba(255,120,190,0.20)', shaft: 'rgba(255,120,190,0.045)', bloom: 'rgba(255,110,180,0.14)', key: '255,190,220', bounce: '140,60,110', shadowRgb: '18,10,26' },
+    under: {
+      asphalt: '#2b2a2c', base: '#463f3c', fill: '#54382f', mid: '#5d3a2c', bottom: '#241610',
+      brick: '#8a4038', metal: '#7d7f84', metalDark: '#3d3f43', concrete: '#565149',
+      concreteDark: '#38342e', gas: '#b8952e', accent: '#b0446e', root: '#43301f',
+      tile: '#3c3a40', ballast: '#3b3833', void_: '#0c0a10', lamp: 'rgba(255,150,200,0.20)',
+      // Older brick district: brick sewer barrel dominates.
+      kinds: ['conduit', 'water', 'sewer', 'manhole', 'footings'],
+    },
     stageEnd: 260,
-    recipe: { gap: 0.14, plat: 0.32, haz: 0.48, gapMax: 3, vert: 0.30, enemy: 0.28, bag: 0.55, champagne: 0.045 },
+    recipe: { gap: 0.10, plat: 0.22, haz: 0.38, gapMax: 3, vert: 0.30, enemy: 0.36, bag: 0.34, champagne: 0.055 },
   },
   {
     id: 'l5p',
     name: 'Little 5 Points',
     bgRef: '"Criminal Records" record shop storefront — New & Used, Buy Sell Trade',
-    bg: bgL5p,
+    bg: {
+      img: bgL5p,
+      meters: 9.0, // storefront row incl. the sign band
+      groundFrac: 0.75,
+      sky: ['#090b17', '#090d1e'],
+      horizon: '#1c1d33',
+      glow: 'rgba(150,200,255,0.09)',
+      rain: 0.85,
+    },
+    light: { pool: 'rgba(180,215,255,0.19)', shaft: 'rgba(180,215,255,0.04)', bloom: 'rgba(150,200,255,0.12)', key: '210,230,255', bounce: '70,100,140', shadowRgb: '14,14,28' },
+    under: {
+      asphalt: '#2c2b2c', base: '#454039', fill: '#523c2f', mid: '#5a4030', bottom: '#201814',
+      brick: '#7d4a35', metal: '#787e85', metalDark: '#383c41', concrete: '#54514b',
+      concreteDark: '#37342f', gas: '#b8952e', accent: '#4a7a8a', root: '#463322',
+      tile: '#39383f', ballast: '#39352f', void_: '#0b0a11', lamp: 'rgba(150,200,255,0.20)',
+      kinds: ['roots', 'conduit', 'water', 'sewer', 'footings'],
+    },
     stageEnd: 280,
-    recipe: { gap: 0.16, plat: 0.34, haz: 0.50, gapMax: 3, vert: 0.35, enemy: 0.34, bag: 0.55, champagne: 0.05 },
+    recipe: { gap: 0.12, plat: 0.24, haz: 0.42, gapMax: 3, vert: 0.35, enemy: 0.42, bag: 0.34, champagne: 0.06 },
   },
   {
     id: 'underground',
     name: 'The Underground (5 Points)',
     bgRef: '"UNDERGROUND" transit-style entrance arch — Midtown/Westside + East Point/Airport signage, Coca-Cola sign, Waffle House',
-    bg: bgUnderground,
+    bg: {
+      img: bgUnderground,
+      meters: 18.0, // the arch is ~9m; towers run well above it
+      groundFrac: 0.78,
+      sky: ['#080818', '#06091e'],
+      horizon: '#191a30',
+      glow: 'rgba(220,60,60,0.10)',
+      rain: 0.55, // partly sheltered under the arch
+    },
+    light: { pool: 'rgba(255,170,90,0.22)', shaft: 'rgba(255,170,90,0.05)', bloom: 'rgba(240,90,70,0.14)', key: '255,200,140', bounce: '150,90,60', shadowRgb: '12,10,22' },
+    under: {
+      // Five Points sits on top of the MARTA tunnel — the neighbourhood's
+      // literal underground, and the stage's namesake. Deepest section of
+      // the four, so the tunnel gets the slowest sub-parallax of anything.
+      asphalt: '#2a2a2c', base: '#423e39', fill: '#4a4038', mid: '#4c3c30', bottom: '#17141a',
+      brick: '#6f4436', metal: '#8b9199', metalDark: '#3f4348', concrete: '#5c5850',
+      concreteDark: '#3a3733', gas: '#b8952e', accent: '#b04040', root: '#3c2c1e',
+      tile: '#4a5560', ballast: '#332f2b', void_: '#08070c', lamp: 'rgba(255,196,120,0.34)',
+      kinds: ['conduit', 'water', 'sewer', 'tunnel', 'footings'],
+    },
     stageEnd: 300,
-    recipe: { gap: 0.18, plat: 0.36, haz: 0.55, gapMax: 4, vert: 0.40, enemy: 0.40, bag: 0.55, champagne: 0.055 },
+    recipe: { gap: 0.14, plat: 0.26, haz: 0.46, gapMax: 4, vert: 0.40, enemy: 0.48, bag: 0.34, champagne: 0.065 },
   },
 ];

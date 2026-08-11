@@ -13,16 +13,22 @@ import { ENEMY_SPRITE, updateEnemy, resolveEnemyCollision } from './entities/ene
 import { overlapsPlayer } from './entities/collectibles.js';
 import { createLevel, buildRunway, genAhead, finishLineX } from './world/generator.js';
 import { STAGES } from './world/stages.js';
-import { T, FLOOR_R, FALL_DEATH_Y } from './world/tilemap.js';
+import { T, FLOOR_R, SLAB_R, FALL_DEATH_Y, isSolid } from './world/tilemap.js';
 import { createRenderer } from './render/renderer.js';
+import { createBackdrop } from './render/backdrop.js';
+import { createUndercroft } from './render/undercroft.js';
+import { createHud } from './render/hud.js';
 import { loadImages } from './render/images.js';
 import { createRunLog, lbSubmit } from './net/leaderboard.js';
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 const renderer = createRenderer(ctx, canvas);
+const backdrop = createBackdrop(ctx, canvas);
+const undercroft = createUndercroft(ctx, canvas);
+const hud = createHud(ctx, canvas);
 const input = createInput();
-const camera = createCamera({ headroom: true });
+const camera = createCamera();
 
 function resize() {
   canvas.width = window.innerWidth;
@@ -42,6 +48,7 @@ const state = {
   hearts: 3,
   screen: 'loading', // loading | playing | stageClear | gameOver | complete
   screenT: 0,
+  tick: 0,
   runLog: createRunLog(),
 };
 
@@ -75,6 +82,7 @@ function confirmPressed() {
 }
 
 function update() {
+  state.tick++;
   if (state.screen === 'loading') return;
 
   if (state.screen === 'stageClear') {
@@ -151,7 +159,7 @@ function update() {
     }
   }
 
-  camera.follow(player, FLOOR_R * T);
+  camera.follow(player);
   advanceAnim(player, PLAYER_SPRITE.atlas);
   for (const e of level.enemies) advanceAnim(e, ENEMY_SPRITE.atlas);
 
@@ -188,7 +196,8 @@ function drawOverlayText(lines) {
 
 function draw() {
   if (state.screen === 'loading' || !images) {
-    renderer.clear();
+    ctx.fillStyle = '#0a0810';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
     drawOverlayText([['LOADING…', 22]]);
     return;
   }
@@ -198,24 +207,40 @@ function draw() {
   const stage = STAGES[state.stageIndex];
   const bgImg = images[stage.id];
 
-  renderer.clear();
-  renderer.drawBackdrop(bgImg, camera);
+  // Paint order mirrors Jandé's: screen-space backdrop, screen-space
+  // undercroft, then ONE world-transformed block, then screen-space HUD.
+  const groundY = camera.groundScreenY();
+  const slabPx = SLAB_R * T * camera.zoom;
+
+  backdrop.drawFar(bgImg, stage, camera, state.tick);
+  undercroft.draw(stage, groundY, slabPx, camera);
+
   renderer.withCameraTransform(camera, () => {
-    renderer.drawTiles(level.map, camera);
-    for (const bag of level.bags) renderer.drawMoneyBag(bag);
-    for (const bottle of level.champagnes) renderer.drawChampagneBottle(bottle);
+    renderer.drawTiles(level.map, camera, (c, r) => isSolid(level.map, c, r));
+    // Light pools go down BEFORE the entities, so characters stand in the
+    // light rather than having it painted over them.
+    renderer.lighting.drawGroundPools(camera, stage);
+    renderer.drawFinishLine(finishLineX(level), state.tick);
+    for (const bag of level.bags) renderer.drawMoneyBag(bag, state.tick);
+    for (const bottle of level.champagnes) renderer.drawChampagneBottle(bottle, state.tick);
     for (const hz of level.obstacles) renderer.drawHazard(hz);
-    for (const e of level.enemies) renderer.drawEnemy(e, images.enemy, ENEMY_SPRITE.atlas);
-    renderer.drawPlayer(player, images.player, PLAYER_SPRITE.atlas, player.inv > 0);
+    for (const e of level.enemies) renderer.drawEnemy(e, images.enemy, ENEMY_SPRITE.atlas, stage);
+    renderer.drawPlayer(player, images.player, PLAYER_SPRITE.atlas, stage);
+    renderer.lighting.drawBloom(camera, stage);
   });
 
-  renderer.drawHUD({
+  backdrop.drawVignette();
+
+  const champLeft = Math.max(0, player.invulnerableUntil - Date.now());
+  hud.draw({
     score: state.score,
     distanceM: Math.max(0, (player.x - 3 * T) / T),
     hearts: state.hearts,
     maxHearts: player.maxHearts,
     stageName: stage.name,
-    invulnerable: Date.now() < player.invulnerableUntil,
+    champagneFrac: champLeft / 30000,
+    portraitImg: images.player,
+    portraitAtlas: PLAYER_SPRITE.atlas,
   });
 
   if (state.screen === 'stageClear') {
@@ -242,15 +267,23 @@ function draw() {
 
 const loop = createLoop({ update, draw });
 
-loadImages({
-  player: PLAYER_SPRITE.url,
-  enemy: ENEMY_SPRITE.url,
-  eav: STAGES[0].bg,
-  edgewood: STAGES[1].bg,
-  l5p: STAGES[2].bg,
-  underground: STAGES[3].bg,
-}).then((loaded) => {
-  images = loaded;
-  startRun();
-  loop.start();
-});
+const imageManifest = { player: PLAYER_SPRITE.url, enemy: ENEMY_SPRITE.url };
+for (const s of STAGES) imageManifest[s.id] = s.bg.img;
+
+loadImages(imageManifest)
+  .then((loaded) => {
+    images = loaded;
+    startRun();
+    loop.start();
+  })
+  .catch((err) => {
+    // A rejected asset load used to leave a permanently black canvas with
+    // no clue why (loop.start() simply never ran). Fail loudly instead.
+    console.error('Asset load failed:', err);
+    ctx.fillStyle = '#140a0a';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    drawOverlayText([
+      ['ASSET LOAD FAILED', 20, '#e0435f'],
+      ['check the console', 13, 'rgba(255,255,255,0.7)'],
+    ]);
+  });

@@ -1,7 +1,7 @@
 {
   "frameSize": [
-    184,
-    224
+    144,
+    213
   ],
   "cols": 24,
   "sourceCellSize": [
@@ -9,55 +9,97 @@
     256
   ],
   "origin": [
-    41,
-    32
+    62,
+    43
   ],
   "animations": {
     "idle": {
       "row": 0,
       "frameCount": 24,
       "loop": true,
-      "note": "functions as the base walk/idle loop despite the AutoSprite preset name"
+      "fit": {
+        "h": 0.8685,
+        "b": 0.9014
+      },
+      "note": "side view facing screen-right; the named \"Sword Idle\" clip is a rear view"
     },
-    "jog": {
+    "walk": {
       "row": 1,
       "frameCount": 24,
-      "loop": true
+      "loop": true,
+      "fit": {
+        "h": 0.8685,
+        "b": 0.8826
+      }
     },
-    "sprintEnter": {
+    "jog": {
       "row": 2,
       "frameCount": 24,
-      "loop": true
+      "loop": true,
+      "fit": {
+        "h": 0.7981,
+        "b": 0.8826
+      }
     },
-    "sprintExit": {
-      "row": 3,
+    "run": {
+      "row": 2,
       "frameCount": 24,
-      "loop": true
-    },
-    "roll": {
-      "row": 4,
-      "frameCount": 24,
-      "loop": true
+      "loop": true,
+      "fit": {
+        "h": 0.7981,
+        "b": 0.8826
+      }
     },
     "jumpStart": {
-      "row": 5,
+      "row": 3,
       "frameCount": 24,
-      "loop": true
+      "loop": false,
+      "fit": {
+        "h": 0.8545,
+        "b": 0.9155
+      }
     },
     "jumpLand": {
-      "row": 6,
+      "row": 3,
       "frameCount": 24,
-      "loop": true
+      "loop": false,
+      "fit": {
+        "h": 0.8545,
+        "b": 0.9155
+      }
+    },
+    "roll": {
+      "row": 2,
+      "frameCount": 24,
+      "loop": false,
+      "fit": {
+        "h": 0.7981,
+        "b": 0.8826
+      }
     },
     "hit": {
-      "row": 7,
+      "row": 0,
       "frameCount": 24,
-      "loop": true
+      "loop": true,
+      "fit": {
+        "h": 0.8685,
+        "b": 0.9014
+      },
+      "note": "side view facing screen-right; the named \"Sword Idle\" clip is a rear view"
     },
     "death": {
-      "row": 8,
+      "row": 4,
       "frameCount": 24,
-      "loop": true
+      "loop": false,
+      "fit": {
+        "h": 0.9906,
+        "b": 1.0
+      },
+      "note": "ONLY rear-view clip kept \u2014 plays once and the game-over overlay covers it"
     }
+  },
+  "fitRef": {
+    "h": 0.8685,
+    "b": 0.9014
   }
 }

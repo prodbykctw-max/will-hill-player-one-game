@@ -13,6 +13,7 @@
 import spriteSheetUrl from '../assets/sprites/enemy.webp';
 import atlas from '../assets/sprites/enemy.atlas.json';
 import { damage as damagePlayer } from './player.js';
+import { metersToWorld, CHAR_SCALE } from '../world/scale.js';
 
 export const ENEMY_SPRITE = { url: spriteSheetUrl, atlas };
 
@@ -20,13 +21,23 @@ const PATROL_SPEED = 1.4; // px/tick — slower than the player's 6.4 run speed
 const STOMP_BOUNCE_VY = -10.5; // matches Jandé's post-stomp pogo bounce
 const DEFEAT_TICKS = atlas.animations.defeat.frameCount * 3; // ~3 ticks/frame, one full play-through
 
+// These are people, so they're sized in real-world terms like everything
+// else (src/world/scale.js) — a touch shorter than Will Hill's 1.78m so he
+// reads as the bigger presence, but unmistakably human-scaled rather than
+// the squat 40x48 box the first pass used.
+export const ENEMY_HEIGHT_M = 1.72;
+export const ENEMY_H = Math.round(metersToWorld(ENEMY_HEIGHT_M) / CHAR_SCALE); // collider height
+export const ENEMY_DRAW_H = metersToWorld(ENEMY_HEIGHT_M); // drawn character height
+const ENEMY_W = 30;
+
 export function createEnemy(x, y, patrolRange = 96) {
   return {
     x,
     y,
     vx: PATROL_SPEED,
-    w: 40,
-    h: 48,
+    w: ENEMY_W,
+    h: ENEMY_H,
+    charDrawH: ENEMY_DRAW_H,
     originX: x,
     patrolRange,
     alive: true,

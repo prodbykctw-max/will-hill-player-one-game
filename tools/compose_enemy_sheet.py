@@ -25,7 +25,7 @@ import os
 import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib'))
-from compose_common import load_grid_frames, union_bbox, pack_sheet, save_webp, write_atlas  # noqa: E402
+from compose_common import load_grid_frames, union_bbox, pack_sheet, save_webp, write_atlas, measure_fit  # noqa: E402
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RAW_DIR = os.path.join(REPO_ROOT, 'assets', 'raw-sprites', 'enemy')
@@ -61,12 +61,16 @@ def main():
 
     animations = {}
     for row_i, (_folder, key, loop, note) in enumerate(ANIMATIONS):
-        animations[key] = {'row': row_i, 'frameCount': FRAMES, 'loop': loop}
+        animations[key] = {'row': row_i, 'frameCount': FRAMES, 'loop': loop,
+                           'fit': measure_fit(frame_lists[key], box)}
         if note:
             animations[key]['note'] = note
 
+    # 'idle' is the standing reference pose the renderer sizes/anchors off.
+    fit_ref = animations['idle']['fit']
+
     size = save_webp(sheet, OUT_IMG, quality=92)
-    write_atlas(OUT_JSON, cell_w, cell_h, FRAMES, SOURCE_CELL, box[:2], animations)
+    write_atlas(OUT_JSON, cell_w, cell_h, FRAMES, SOURCE_CELL, box[:2], animations, fit_ref)
 
     print(f"Trimmed cell: {cell_w}x{cell_h} (from {SOURCE_CELL}x{SOURCE_CELL} source, origin {box[0]},{box[1]})")
     print(f"Wrote {OUT_IMG} ({sheet.width}x{sheet.height}, {size} bytes)")

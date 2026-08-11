@@ -16,18 +16,34 @@
     "idle": {
       "row": 0,
       "frameCount": 16,
-      "loop": true
+      "loop": true,
+      "fit": {
+        "h": 0.9727,
+        "b": 0.9922
+      }
     },
     "walk": {
       "row": 1,
       "frameCount": 16,
-      "loop": true
+      "loop": true,
+      "fit": {
+        "h": 0.9844,
+        "b": 0.9922
+      }
     },
     "defeat": {
       "row": 2,
       "frameCount": 16,
       "loop": false,
+      "fit": {
+        "h": 0.9062,
+        "b": 0.9648
+      },
       "note": "plays once when stomped, then the enemy despawns"
     }
+  },
+  "fitRef": {
+    "h": 0.9727,
+    "b": 0.9922
   }
 }

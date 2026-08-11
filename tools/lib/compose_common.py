@@ -45,6 +45,32 @@ def union_bbox(frame_lists, source_cell, pad=2):
     return minx, miny, maxx, maxy
 
 
+def measure_fit(frames, box):
+    """Per-animation 'fit' metadata, mirroring Jandé's SPRITES fit values
+    (once-upon-a-time index.html:5388) but MEASURED rather than hand-tuned.
+
+      h = fraction of the trimmed cell's height the character occupies
+      b = fraction of the cell's height at which the character's lowest
+          pixel (its baseline / ground contact) sits
+
+    The renderer uses these to size the sprite off the collision box and to
+    anchor its feet, instead of hardcoded draw dimensions that ignore the
+    source aspect ratio. Measured across every frame of the animation.
+    """
+    minx, miny, maxx, maxy = box
+    cell_h = maxy - miny
+    top, bot = None, 0
+    for f in frames:
+        bb = f.crop((minx, miny, maxx, maxy)).getbbox()
+        if not bb:
+            continue
+        top = bb[1] if top is None else min(top, bb[1])
+        bot = max(bot, bb[3])
+    if top is None:
+        return {'h': 1.0, 'b': 1.0}
+    return {'h': round((bot - top) / cell_h, 4), 'b': round(bot / cell_h, 4)}
+
+
 def pack_sheet(rows, box, frame_count):
     """`rows`: ordered list of (key, frames) pairs, each `frames` a list of
     `frame_count` PIL Images already in source-cell coordinates. Crops every
@@ -67,8 +93,17 @@ def save_webp(image, out_path, quality=92):
     return os.path.getsize(out_path)
 
 
-def write_atlas(out_path, cell_w, cell_h, cols, source_cell, origin, animations):
-    """`animations`: dict of {key: {row, frameCount, loop, [note]}}."""
+def write_atlas(out_path, cell_w, cell_h, cols, source_cell, origin, animations, fit_ref=None):
+    """`animations`: dict of {key: {row, frameCount, loop, [note], [fit]}}.
+
+    `fit_ref` is the single fit the renderer actually sizes and anchors off —
+    taken from a standing/reference pose. AutoSprite renders every animation
+    from ONE fixed 3D camera on ONE ground plane, so the character's scale
+    and ground-contact point are already consistent across sheets; using a
+    single reference keeps genuinely-shorter poses (a curl into a roll)
+    looking shorter instead of being normalized back up to standing height.
+    Per-animation `fit` values are still emitted for tuning/debugging.
+    """
     atlas = {
         'frameSize': [cell_w, cell_h],
         'cols': cols,
@@ -76,6 +111,8 @@ def write_atlas(out_path, cell_w, cell_h, cols, source_cell, origin, animations)
         'origin': list(origin),
         'animations': animations,
     }
+    if fit_ref:
+        atlas['fitRef'] = fit_ref
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     with open(out_path, 'w') as f:
         json.dump(atlas, f, indent=2)

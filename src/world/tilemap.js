@@ -23,6 +23,14 @@ export const T = 32;
 export const FLOOR_R = 14;
 export const LH = 22;
 
+// How many ground rows are actually DRAWN. Collision is unaffected — every
+// row still exists in `solid` and pit() still carves them — this only caps
+// what the renderer paints, so the undercroft cross-section below is not
+// simply buried by opaque tiles (Jandé's SLAB_R, index.html:989/4685).
+// 3 rows = 96 world units ≈ 1.3 m of street section: enough to stack the
+// sidewalk cap, curb and asphalt courses the reference image shows.
+export const SLAB_R = 3;
+
 // Player falls below this world-y -> instant death, regardless of hearts
 // (ported from Jandé's `p.y > LH*T+150` fall-through check).
 export const FALL_DEATH_Y = LH * T + 150;
