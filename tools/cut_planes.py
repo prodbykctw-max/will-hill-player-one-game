@@ -855,6 +855,107 @@ PLANES = {
             'feather': 2.4,
         },
     ],
+
+    # ── Edgewood ─────────────────────────────────────────────────────────
+    # Written off earlier as a flat facade under a pure black sky. It is not:
+    # the sample rect behind that "median (0,0,0)" had landed in the black
+    # GAPS BETWEEN the distant buildings. Measured by row, lit pixels climb
+    # from 6px at y=0 to 167px by y=30 — there is a full skyline up there,
+    # and this plate carries the richest signage of the four.
+    #
+    # Far -> near. Unlit brick between the bays stays on the base plate, and
+    # that is correct: it has no silhouette to cut against and nothing behind
+    # it to reveal. Coverage here is 64.8% against L5P's 92.9% for that
+    # reason alone, not because anything was missed.
+    'edgewood': [
+        {
+            'name': 'skyline',
+            'mask': 'skyline',
+            'min_px': 120,
+            'feather': 0.7,
+        },
+        {
+            'name': 'parapet',
+            'mask': 'parapet',
+            'min_px': 120,
+            'feather': 0.7,
+        },
+        {
+            'name': 'facade',
+            'mask': 'facade',
+            'min_px': 120,
+            'feather': 0.7,
+        },
+        {
+            'name': 'bay_left',
+            'mask': 'bay_left',
+            'min_px': 120,
+            'feather': 0.7,
+        },
+        {
+            'name': 'bay_mid1',
+            'mask': 'bay_mid1',
+            'min_px': 120,
+            'feather': 0.7,
+        },
+        {
+            'name': 'bay_mid2',
+            'mask': 'bay_mid2',
+            'min_px': 120,
+            'feather': 0.7,
+        },
+        {
+            'name': 'bay_right',
+            'mask': 'bay_right',
+            'min_px': 120,
+            'feather': 0.7,
+        },
+        {
+            # Signage and practicals, lifted off the brick they are bolted
+            # to. Same as L5P: these buy independent GLOW, not depth, so each
+            # sits a hundredth of depth from its parent in stages.js.
+            'name': 'sign_blm',
+            'mask': 'sign_blm',
+            'min_px': 40,
+            'feather': 0.7,
+        },
+        {
+            'name': 'sign_soul',
+            'mask': 'sign_soul',
+            'min_px': 40,
+            'feather': 0.7,
+        },
+        {
+            'name': 'neon_open',
+            'mask': 'neon_open',
+            'min_px': 40,
+            'feather': 0.7,
+        },
+        {
+            'name': 'neon_ourbar',
+            'mask': 'neon_ourbar',
+            'min_px': 40,
+            'feather': 0.7,
+        },
+        {
+            'name': 'neon_dis',
+            'mask': 'neon_dis',
+            'min_px': 40,
+            'feather': 0.7,
+        },
+        {
+            'name': 'lamps',
+            'mask': 'lamps',
+            'min_px': 30,
+            'feather': 0.7,
+        },
+        {
+            'name': 'pavement',
+            'mask': 'pavement',
+            'min_px': 150,
+            'feather': 2.4,
+        },
+    ],
 }
 
 

@@ -36,7 +36,21 @@ import eavVerge from '../assets/backgrounds/eav-verge.webp';
 import eavTree from '../assets/backgrounds/eav-tree.webp';
 import eavShrubRight from '../assets/backgrounds/eav-shrub_right.webp';
 import eavPole from '../assets/backgrounds/eav-pole.webp';
-import bgEdgewood from '../assets/backgrounds/edgewood.webp';
+import bgEdgewood from '../assets/backgrounds/edgewood-base.webp';
+import ewSkyline from '../assets/backgrounds/edgewood-skyline.webp';
+import ewParapet from '../assets/backgrounds/edgewood-parapet.webp';
+import ewFacade from '../assets/backgrounds/edgewood-facade.webp';
+import ewBayLeft from '../assets/backgrounds/edgewood-bay_left.webp';
+import ewBayMid1 from '../assets/backgrounds/edgewood-bay_mid1.webp';
+import ewBayMid2 from '../assets/backgrounds/edgewood-bay_mid2.webp';
+import ewBayRight from '../assets/backgrounds/edgewood-bay_right.webp';
+import ewSignBlm from '../assets/backgrounds/edgewood-sign_blm.webp';
+import ewSignSoul from '../assets/backgrounds/edgewood-sign_soul.webp';
+import ewNeonOpen from '../assets/backgrounds/edgewood-neon_open.webp';
+import ewNeonOurbar from '../assets/backgrounds/edgewood-neon_ourbar.webp';
+import ewNeonDis from '../assets/backgrounds/edgewood-neon_dis.webp';
+import ewLamps from '../assets/backgrounds/edgewood-lamps.webp';
+import ewPavement from '../assets/backgrounds/edgewood-pavement.webp';
 import bgL5p from '../assets/backgrounds/l5p-base.webp';
 import l5pFarbuild from '../assets/backgrounds/l5p-farbuild.webp';
 import l5pSign from '../assets/backgrounds/l5p-sign.webp';
@@ -198,6 +212,22 @@ export const STAGES = [
       rain: 1.0,
       windBands: [{ top: 0.02, pivot: 0.34, amp: 2.5, freq: 1.4, xRanges: [[0.00, 0.05]] }],
       // Neon bar frontage — the pink/violet signs are the light source here.
+      cards: [
+        { key: 'skyline', img: ewSkyline, depth: 0.05, span: [0.000, 1.000] },
+        { key: 'parapet', img: ewParapet, depth: 0.20, span: [0.024, 0.997] },
+        { key: 'facade', img: ewFacade, depth: 0.34, span: [0.000, 1.000] },
+        { key: 'bay_left', img: ewBayLeft, depth: 0.44, span: [0.055, 0.243] },
+        { key: 'bay_mid1', img: ewBayMid1, depth: 0.46, span: [0.368, 0.520] },
+        { key: 'bay_mid2', img: ewBayMid2, depth: 0.48, span: [0.525, 0.658] },
+        { key: 'bay_right', img: ewBayRight, depth: 0.44, span: [0.785, 0.935] },
+        { key: 'sign_blm', img: ewSignBlm, depth: 0.47, span: [0.398, 0.490] },
+        { key: 'sign_soul', img: ewSignSoul, depth: 0.49, span: [0.556, 0.630] },
+        { key: 'neon_open', img: ewNeonOpen, depth: 0.49, span: [0.594, 0.653] },
+        { key: 'neon_ourbar', img: ewNeonOurbar, depth: 0.45, span: [0.107, 0.200] },
+        { key: 'neon_dis', img: ewNeonDis, depth: 0.45, span: [0.827, 0.894] },
+        { key: 'lamps', img: ewLamps, depth: 0.62, span: [0.003, 0.997] },
+        { key: 'pavement', img: ewPavement, depth: 0.84, span: [0.001, 1.000], rate: 0.30 },
+      ],
       lights: [
         // OUR BAR ATL — the amber/violet tube, the steadiest of the three
         { x: 0.13, y: 0.52, r: 0.34, rgb: '255,150,60',  a: 0.22, flicker: 0.020, relight: 1.15 },

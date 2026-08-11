@@ -54,12 +54,19 @@ distance. If you import any new clip, measure its period first —
 
 ---
 
-## Background depth: multiplane cards — EAV done, 3 stages to go
+## Background depth: multiplane cards — ALL FOUR STAGES CUT
 
-EAV is cut into 10 isolated items plus a base plate, each drawn at its own
-rate. `tools/cut_planes.py` cuts, `src/render/backdrop.js` draws,
-`src/world/stages.js` holds the depths. Edgewood, L5P and Underground are
-uncut and fall back to the flat plate automatically.
+| stage | cards | recompose | notes |
+|---|---|---|---|
+| EAV | 12 | 0.070% | hand-cut; SAM added only the clouds |
+| Edgewood | 14 | 0.079% | richest signage of the four |
+| L5P | 16 | 0.083% | least headroom left |
+| Underground | 15 | 0.027% | most depth, most headroom |
+
+`tools/sam_segment.py` finds the items, `tools/sam_group.py` folds them into
+cards, `tools/cut_planes.py` cuts, `src/render/backdrop.js` draws,
+`src/world/stages.js` holds the depths. See
+`.claude/skills/backdrop-multiplane/SKILL.md` for the whole process.
 
 **What the client wanted**, arrived at over a long back-and-forth — worth not
 re-litigating:
@@ -87,24 +94,32 @@ an ellipse by hand (a drawn curve never lands on the real edge),
   with a `MAX_SEPARATION` clamp. Wide spreads plus independent wrap phases are
   what made the tree migrate a whole plate width across a stage.
 - **Each card is full-frame RGBA**, so the cutout is already in position.
-  All 10 cards together are **364 kB**.
 - **The base plate is inpainted then deliberately sunk.** 70% of it is hole,
   so there is nothing real to reconstruct; a sharp fill produced ghosts.
 - **Sway is per-card**, not plate-relative. A plant shears on its own pivot
   and cannot wobble the architecture beside it.
 - **Lights carry a `layer`** naming the card they are bolted to.
 
-**Verify before touching the renderer:** `python3 tools/preview_planes.py eav`
-prints a recompose check — base + every card at zero offset must reproduce the
-original plate (**currently 0.077%** of pixels over threshold) — and writes a
-4-position parallax strip. `tools/cut_planes.py eav --debug --proof` writes the
-assignment map, which is the one to read: it shows where the trace actually
-landed, not where the ROI was drawn.
+- **Ground strips are the one exception to the tight spread.** The verge,
+  kerb, street and pavement cards carry an explicit `rate: 0.30` and a 400px
+  clamp instead of the depth-derived rate. MAX_SEPARATION exists to stop a
+  DISCRETE object migrating; a featureless full-width band has no landmark in
+  it to notice having moved, and running it ahead of the buildings is what
+  separates the street from the backdrop.
 
-**Cutting the remaining three** means a `PLANES[<id>]` entry and a `bg.cards`
-list. Expect to re-measure the colour rules — `is_sky`, `is_pale_neutral` and
-friends carry thresholds sampled from EAV's palette, and the other three
-stages are lit very differently.
+**Verify before touching the renderer:** `python3 tools/preview_planes.py <id>`
+prints a recompose check — base + every card at zero offset must reproduce the
+original plate — and writes a 4-position parallax strip. Under 0.1% is the bar.
+`tools/cut_planes.py <id> --debug` writes the assignment map, which is the one
+to read: it shows where the trace actually landed, not where the ROI was drawn.
+LOOK AT IT BEFORE WIRING. Two Underground cards were cut and wired as solid
+rectangles because that step got skipped.
+
+**Detail cards buy GLOW, not depth.** The L5P lettering, the Edgewood neons,
+the Underground marquee — a sign flush against a wall has no gap between it
+and the wall, so it cannot read as parallax. Each sits a hundredth of depth
+from its parent so it cannot visibly slide, and exists so it can be lit on its
+own later.
 
 ---
 
@@ -180,7 +195,6 @@ the first keydown/pointerdown.
 
 ## Still open
 
-- **3 of 4 stages have no multiplane backdrop.** Biggest visible gap.
 - **No roll/hit/death clips** for Will Hill; those keys borrow other rows.
   `hit` is now visible (a pothole trip plays it), so it matters more than it
   did.
