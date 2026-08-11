@@ -4,6 +4,21 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <meta name="theme-color" content="#0a0810" />
+  <!-- Added-to-home-screen behaviour. Without these iOS opens the shortcut in
+       a Safari shell with browser chrome over the board; with them it runs
+       standalone, which is what a game wants. -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Will Hill" />
+  <!-- Never cache the HTML. Every real asset Vite emits is content-hashed and
+       can be cached forever, so this document is the ONLY thing that can go
+       stale — and when it does, a home-screen install keeps launching an old
+       build long after a deploy has landed. That is exactly how a shipped
+       sprite fix appeared not to have shipped. -->
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
   <title>Will Hill: Player One</title>
   <style>
     html, body {
