@@ -236,8 +236,28 @@ export function createRenderer(ctx, canvas) {
   // preserving the source aspect ratio. The previous version hardcoded
   // draw dimensions, which squashed Will Hill to 58% width and stretched
   // the enemy 15% too wide.
+  // A clip the sheet does not have yet degrades to the nearest one it does,
+  // rather than vanishing. drawSprite used to `return` on an unknown anim,
+  // which is silent and looks like a rendering bug: during the knockdown both
+  // the player and the enemies stomping him simply disappeared, because
+  // 'knockdown' and 'stomp' are not on the sheets until they are regenerated.
+  // A missing clip should look wrong, not look absent.
+  const CLIP_FALLBACK = {
+    knockdown: 'hit', death: 'hit', hit: 'idle',
+    stomp: 'walk', attack: 'walk', knockback: 'hit',
+    run: 'walk', walk: 'idle',
+  };
+  function resolveClip(atlas, name) {
+    let n = name;
+    for (let i = 0; i < 5 && n; i++) {
+      if (atlas.animations[n]) return atlas.animations[n];
+      n = CLIP_FALLBACK[n];
+    }
+    return atlas.animations.idle;
+  }
+
   function drawSprite(image, atlas, entity, colliderH, charScaleH, flipX, alpha, stage) {
-    const anim = atlas.animations[entity.anim];
+    const anim = resolveClip(atlas, entity.anim);
     if (!anim || !image) return;
     const [cellW, cellH] = atlas.frameSize;
     const fit = atlas.fitRef || { h: 1, b: 1 };

@@ -4,12 +4,22 @@
 // anims wrap; non-looping ones (e.g. the enemy's `defeat`) hold their last
 // frame instead of restarting.
 
+const FALLBACK = {
+  knockdown: 'hit', death: 'hit', hit: 'idle',
+  stomp: 'walk', attack: 'walk', knockback: 'hit',
+};
+
 export function advanceAnim(entity, atlas, ticksPerFrame = 4, rateScale = 1) {
   if (entity._prevAnim !== entity.anim) {
     entity.animT = 0;
     entity._prevAnim = entity.anim;
   }
-  const anim = atlas.animations[entity.anim];
+  // Same fallback the renderer uses, so the frame COUNT matches the clip that
+  // will actually be drawn. Without it a missing clip ticks against
+  // frameCount 1 while the renderer draws a 16-frame fallback, and the sprite
+  // freezes on frame 0.
+  const anim = atlas.animations[entity.anim] || atlas.animations[FALLBACK[entity.anim]]
+    || atlas.animations.idle;
   // A `driven` clip is posed by the entity itself — the jump picks its frame
   // from vertical velocity so the pose always matches what the physics is
   // doing. Ticking it here as well would fight that and produce the flailing

@@ -21,6 +21,7 @@ import { createRenderer } from './render/renderer.js';
 import { createBackdrop } from './render/backdrop.js';
 import { createUndercroft } from './render/undercroft.js';
 import { createHud } from './render/hud.js';
+import { createMartaMap } from './render/martamap.js';
 import { loadImages } from './render/images.js';
 import { createRunLog, lbSubmit } from './net/leaderboard.js';
 
@@ -30,6 +31,7 @@ const renderer = createRenderer(ctx, canvas);
 const backdrop = createBackdrop(ctx, canvas);
 const undercroft = createUndercroft(ctx, canvas);
 const hud = createHud(ctx, canvas);
+const martaMap = createMartaMap(ctx, canvas);
 const input = createInput();
 const audio = createAudio();
 // Browsers keep an AudioContext suspended until a real gesture, so the first
@@ -48,6 +50,7 @@ function resize() {
 window.addEventListener('resize', resize);
 resize();
 
+const RIDE_TICKS = 150; // ~2.5s on the train between neighbourhoods
 const GEN_LOOKAHEAD_COLS = 24; // stream this many columns beyond the camera's right edge
 
 const state = {
@@ -157,11 +160,23 @@ function update() {
   // still frame of the run rather than a black screen.
   if (state.screen === 'paused') { state.screenT++; return; }
 
+  // THE RIDE. Between stages he takes MARTA, because these are real places on
+  // a real system and the route the stage order describes is one you could
+  // actually make. See render/martamap.js.
+  if (state.screen === 'riding') {
+    state.screenT++;
+    if (state.screenT >= RIDE_TICKS) startStage(state.rideTo);
+    return;
+  }
+
   if (state.screen === 'stageClear') {
     state.screenT++;
     if (state.screenT > 20 && confirmPressed()) {
       if (state.stageIndex + 1 < STAGES.length) {
-        startStage(state.stageIndex + 1); // checkpoint: next neighborhood, hearts carried over
+        state.rideFrom = STAGES[state.stageIndex].id;
+        state.rideTo = state.stageIndex + 1;
+        state.screen = 'riding';
+        state.screenT = 0;
       } else {
         state.screen = 'complete';
         state.screenT = 0;
@@ -434,6 +449,14 @@ function draw() {
     ctx.fillStyle = '#0a0810';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     drawOverlayText([['LOADING…', 22]]);
+    return;
+  }
+
+  // Riding MARTA between neighbourhoods — the map replaces the world
+  // entirely, so it returns before any of the stage draw runs.
+  if (state.screen === 'riding') {
+    martaMap.draw(state.rideFrom, STAGES[state.rideTo].id,
+      Math.min(1, state.screenT / RIDE_TICKS), STAGES[state.rideTo].name);
     return;
   }
 
