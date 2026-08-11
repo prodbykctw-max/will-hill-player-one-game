@@ -354,13 +354,13 @@ export function createRenderer(ctx, canvas) {
     ctx.restore();
   }
 
-  // CHARLIE BROWN DUST — the puff under a boot during the stomp-out.
+  // CHARLIE BROWN DUST — the puff under a boot during the knockdown.
   //
-  // A Peanuts puff is not a soft airbrushed cloud, it is a LOBED outline: a
-  // few round bumps around a centre, with a visible edge. So each puff draws
-  // as five overlapping circles in a rosette plus a stroked rim, and the whole
-  // thing fades out over about a third of a second. Drawn inside the camera
-  // transform, so these are world coordinates.
+  // Classic newspaper-cartoon scuffle dust: not a soft airbrushed cloud but a
+  // LOBED outline, a few round bumps around a centre with a visible drawn
+  // edge. So each puff is five overlapping circles in a rosette plus a
+  // stroked rim, and the whole thing fades out in about a third of a second.
+  // Drawn inside the camera transform, so these are world coordinates.
   function drawDust(dust) {
     for (const d of dust) {
       const k = d.life / d.max;          // 0 -> 1 over its life

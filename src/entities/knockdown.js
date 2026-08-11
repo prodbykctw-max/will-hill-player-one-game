@@ -63,11 +63,12 @@ const DUST_EVERY = 14;    // ticks between puffs per stomper, ~one per stomp
 
 // Dust — CHARLIE BROWN puffs. Small, fast, gone.
 //
-// The Peanuts read is specific and it is not a smoke plume: little round
-// lobed clouds that pop into existence, drift barely at all, and vanish
-// inside a beat. So these are small (r 2.5-5), short-lived (14-22 ticks, a
-// third of a second), and they barely rise — a big slow expanding cloud reads
-// as an explosion, which is the wrong note under a boot.
+// The reference is the newspaper-cartoon scuffle cloud, and it is specific:
+// not a smoke plume but little round lobed puffs that pop into existence,
+// drift barely at all, and vanish inside a beat. So these are small (r
+// 2.5-5), short-lived (14-22 ticks, a third of a second), and they barely
+// rise — a big slow expanding cloud reads as an explosion, which is the wrong
+// note under a boot.
 //
 // Procedural on purpose: a puff of street grit is a few overlapping circles,
 // and generating a sprite sheet for it would be silly.
