@@ -61,18 +61,25 @@ export const STAGES = [
       horizon: '#2a2233',
       glow: 'rgba(255,196,120,0.10)',
       rain: 0.75,
-      // Big street trees fill the left of this plate, so the wind band is
-      // generous and the pivot sits at the canopy base — trunks stay put.
-      wind: {
-        top: 0.04, pivot: 0.66, amp: 14, freq: 1.0,
-        // Plate-local x windows that actually contain foliage. The Citgo
-        // canopy, the Swifty billboard, the fence and the Welcome sign share
-        // this vertical band and must NOT move.
-        // ONLY the left-hand street tree. The Swifty billboard starts at
-        // ~0.13 and the Citgo canopy runs to ~0.50, so anything past ~0.11
-        // visibly wobbles hard architecture. Keep this window tight.
-        xRanges: [[0.00, 0.105]],
-      },
+      // Two independent sway bands, each with its own vertical extent AND
+      // its own horizontal windows. Both are needed: the Citgo canopy, the
+      // Swifty billboard, the fence and the Welcome sign share a vertical
+      // band with the tree crown, so a full-width shear visibly wobbles hard
+      // architecture. Keep these windows tight — the billboard starts at
+      // ~0.13 and the canopy runs to ~0.50.
+      windBands: [
+        {
+          // tall street tree, upper crown — the biggest, slowest motion
+          top: 0.04, pivot: 0.66, amp: 14, freq: 1.0,
+          xRanges: [[0.00, 0.105]],
+        },
+        {
+          // shorter shrubs and low branches along the fence line: a shorter
+          // lever, so less travel at a quicker, fussier frequency
+          top: 0.52, pivot: 0.92, amp: 6, freq: 1.9,
+          xRanges: [[0.00, 0.115]],
+        },
+      ],
       // Practicals actually visible in the art: the Citgo canopy soffit, the
       // backlit Swifty billboard, the McDonald's sign, and the uplighters
       // washing the fence.
