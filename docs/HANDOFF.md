@@ -221,6 +221,63 @@ the first keydown/pointerdown.
   and build scratch stay ignored. The rule is: if losing it means the work
   cannot be rebuilt, it goes in.
 
+## ⚠️ Generated animation: the DOUBLE-BODY trap
+
+**Read this before generating any clip where the character changes posture** —
+dying, falling, collapsing, being knocked down, lying down, getting up.
+
+AutoSprite animates by generating a short VIDEO and slicing it into frames.
+Ask it for "he collapses to the ground" and the video model very often answers
+by drawing BOTH STATES AT ONCE: the character standing, and a second copy of
+the same character already lying dead beside him. Every frame, both bodies.
+
+**This shipped.** The enemy `defeat` clip has been in the game with a corpse
+welded into all 16 frames since the sheets were made — so a stomped enemy
+appeared to stand over its own body. The client spotted it by eye; it went
+unnoticed here for weeks.
+
+**Why the obvious check misses it.** Counting connected components returns
+`bodies=1`, because the standing figure's feet touch the lying figure and the
+two merge into one blob. Do NOT trust a component count.
+
+**What actually catches it — bounding-box WIDTH.** A side-profile human is
+tall and narrow. Measured on this project:
+
+| clip | bbox | verdict |
+|---|---|---|
+| good recoil (one body) | 148 x 227 | narrow, correct |
+| enemy defeat (two bodies) | 180 x 225 | too wide for one figure |
+| player death v1 (two bodies) | 212 x 218 | nearly square — a clear tell |
+
+If width approaches height on a standing side-profile clip, look at the frame.
+
+**How to prevent it.** Say it flatly and repeatedly in the prompt, and name
+the failure rather than describing the goal:
+
+> EXACTLY ONE person visible in every frame. Never two figures. Never a
+> duplicate, copy or clone. Do NOT draw a body already lying on the ground.
+
+That wording fixed both clips on the first retry.
+
+**Two other failure modes seen in the same batch:**
+- **Dissolve.** A clip can evaporate at the end — the first knockback ran
+  10813px at frame 18 down to 137px at frame 23. Check pixel count per frame;
+  anything under ~3000 is a dead frame. Add "never fades, never dissolves,
+  stays fully inside the frame".
+- **Multi-cycle.** Every LOOPING clip holds more cycles than it looks like
+  (see the table at the top of this file). Pass `loop: false` for one-shots
+  and always measure the period before wiring.
+
+**Silver lining, recorded because it is now a real feature:** the bug is what
+gave the client the game-over idea. An enemy standing over a body doing a
+stomping motion was exactly the image he wanted — enemies walking over to
+stomp you out when they kill you, before the fade to Game Over. The fix is not
+to keep the buggy asset (the body is welded into the same frame and cannot be
+positioned) but to generate the two halves separately: a player `death` lying
+pose and an enemy `attack` stomp with empty ground in front of it.
+
+---
+
 ## Gotchas that cost real time
 
 - **rAF is suspended when the preview pane isn't composited.** The canvas goes
