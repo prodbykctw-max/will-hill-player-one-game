@@ -44,7 +44,8 @@ import ugTowers from '../assets/backgrounds/underground-towers.webp';
 import ugBackdrop from '../assets/backgrounds/underground-backdrop.webp';
 import ugLeftblock from '../assets/backgrounds/underground-leftblock.webp';
 import ugMidbuild from '../assets/backgrounds/underground-midbuild.webp';
-import ugArch from '../assets/backgrounds/underground-arch.webp';
+import ugDome from '../assets/backgrounds/underground-dome.webp';
+import ugMarquee from '../assets/backgrounds/underground-marquee.webp';
 import ugLoans from '../assets/backgrounds/underground-loans.webp';
 import ugCoke from '../assets/backgrounds/underground-coke.webp';
 import ugWaffle from '../assets/backgrounds/underground-waffle.webp';
@@ -266,7 +267,8 @@ export const STAGES = [
         { key: 'backdrop', img: ugBackdrop, depth: 0.16, span: [0.270, 0.820] },
         { key: 'leftblock', img: ugLeftblock, depth: 0.26, span: [0.000, 0.251] },
         { key: 'midbuild', img: ugMidbuild, depth: 0.34, span: [0.265, 0.777] },
-        { key: 'arch', img: ugArch, depth: 0.48, span: [0.138, 0.894] },
+        { key: 'dome', img: ugDome, depth: 0.44, span: [0.296, 0.750] },
+        { key: 'marquee', img: ugMarquee, depth: 0.50, span: [0.138, 0.894] },
         { key: 'loans', img: ugLoans, depth: 0.56, span: [0.000, 0.133] },
         { key: 'coke', img: ugCoke, depth: 0.60, span: [0.663, 0.773] },
         { key: 'waffle', img: ugWaffle, depth: 0.62, span: [0.703, 0.786] },
@@ -280,7 +282,7 @@ export const STAGES = [
       // `layer` bolts each glow to its card so it travels with the thing that
       // emits it instead of sliding off it.
       lights: [
-        { x: 0.50, y: 0.30, r: 0.26, rgb: '255,226,160', a: 0.24, flicker: 0.030, layer: 'arch' },
+        { x: 0.50, y: 0.30, r: 0.26, rgb: '255,226,160', a: 0.24, flicker: 0.030, layer: 'marquee' },
         { x: 0.72, y: 0.50, r: 0.24, rgb: '230,60,60',   a: 0.20, layer: 'coke' },
         { x: 0.76, y: 0.62, r: 0.22, rgb: '255,196,90',  a: 0.18, flicker: 0.014, layer: 'waffle' },
         { x: 0.06, y: 0.24, r: 0.28, rgb: '255,196,120', a: 0.12 },

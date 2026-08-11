@@ -592,46 +592,68 @@ PLANES = {
             'feather': 0.7,
         },
         {
-            # THE ARCH — the hero of this plate.
+            # THE WHEEL — the dome above the sign.
             #
-            # The dome's top edge is TRACED, not drawn: for each column the
-            # topmost run of lit masonry was detected and those points are the
-            # polygon below, offset 5px outward so the ROI stays a fence and
-            # the art keeps deciding the edge. It came back symmetric about
-            # x=590 to within a pixel and flat-capped between x=562 and x=626,
-            # which is the check that it followed the building and not noise.
+            # Its top edge is TRACED, not drawn: for each column the topmost
+            # run of lit masonry was detected and those points are the polygon
+            # below, offset 5px outward so the ROI stays a fence and the art
+            # keeps deciding the edge. It came back symmetric about x=590 to
+            # within a pixel and flat-capped between x=562 and x=626, which is
+            # the check that it followed the building and not noise.
             #
-            # The dome is a WHEEL — ribs with real gaps you see through. Cut
-            # with the default hole-fill it came back a filled semicircle,
-            # which is why `holes` is off and why `keep` covers the wheel.
-            # Sampled across it at y=250 the ribs read luminance 71-160 and
-            # the gaps 1-30, so the stone rule splits them. The keep stops at
-            # y=395: below that is the marquee and the bulb rail, dark red
-            # rather than stone, and it would delete them.
-            'name': 'arch',
+            # It is a WHEEL — ribs with real gaps you see through. Cut with the
+            # default hole-fill it came back a filled semicircle, so `holes` is
+            # off and `keep` names the material the ribs are: sampled across it
+            # at y=250 the ribs read luminance 71-160 and the gaps 1-30.
+            'name': 'dome',
+            'roi': [[
+                (338, 335), (354, 303), (370, 273), (386, 259), (402, 236),
+                (418, 227), (434, 204), (450, 195), (466, 186), (482, 182),
+                (498, 172), (514, 167), (530, 167), (546, 158), (562, 154),
+                (578, 154), (594, 154), (610, 154), (626, 154), (642, 158),
+                (658, 163), (674, 168), (690, 172), (706, 181), (722, 191),
+                (738, 200), (754, 209), (770, 227), (786, 241), (802, 264),
+                (818, 274), (826, 283), (846, 320), (860, 372), (290, 372),
+                (310, 340),
+            ]],
+            'keep': ['stone'],
+            'holes': False,
+            'close': 3,
+            'min_px': 120,
+            'feather': 0.7,
+        },
+        {
+            # THE MARQUEE — the lit drum the UNDERGROUND letters sit on.
+            #
+            # A separate card because it is a separate piece of structure, and
+            # because it is the lit one: the letters are not floating in space,
+            # they are mounted on a curved fascia with a bulb rail above the
+            # soffit and a second bulb rail below it. Read off the art at 1:1,
+            # the fascia top runs y=358 at centre to y=385 at the ends, the
+            # upper bulb rail sits y 445-490, and the lower one y 545-580.
+            #
+            # It carries the practical light for the whole arch, so giving it
+            # its own card is what lets that glow travel with the bulbs rather
+            # than with the dome above them.
+            'name': 'marquee',
             'roi': [
                 [
-                    (338, 335), (354, 303), (370, 273), (386, 259), (402, 236),
-                    (418, 227), (434, 204), (450, 195), (466, 186), (482, 182),
-                    (498, 172), (514, 167), (530, 167), (546, 158), (562, 154),
-                    (578, 154), (594, 154), (610, 154), (626, 154), (642, 158),
-                    (658, 163), (674, 168), (690, 172), (706, 181), (722, 191),
-                    (738, 200), (754, 209), (770, 227), (786, 241), (802, 264),
-                    (818, 274), (826, 283),
-                    (860, 340), (884, 400), (884, 578), (285, 578), (285, 400),
-                    (310, 350),
+                    (288, 372), (340, 372), (400, 364), (500, 359), (590, 357),
+                    (700, 361), (800, 369), (884, 380),
+                    (884, 556), (800, 574), (700, 583), (590, 587), (500, 583),
+                    (400, 575), (330, 562), (288, 548),
                 ],
+                # Wing rails either side, over the office block and the towers.
+                # No sky anywhere near them, so `keep` names the stone.
                 [(148, 405), (310, 405), (310, 552), (148, 552)],
                 [(852, 372), (1014, 372), (1014, 536), (852, 536)],
             ],
             'keep': ['stone'],
             'keep_roi': [
-                [(285, 395), (884, 395), (884, 150), (285, 150)],
                 [(148, 405), (310, 405), (310, 552), (148, 552)],
                 [(852, 372), (1014, 372), (1014, 536), (852, 536)],
             ],
-            'holes': False,
-            'close': 3,
+            'close': 2,
             'min_px': 120,
             'feather': 0.7,
         },
