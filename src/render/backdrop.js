@@ -69,8 +69,14 @@ function skyAt(stage, y, groundY) {
 // docs/LIVING_BACKDROPS.md). Jandé pinned LB_SPANS at 16 after measuring:
 // 24 spans still fit in a 16.7ms frame, 49 spans blew the budget. Same
 // number here for the same reason.
-const WIND_SPANS = 16;
-const WIND_OVERLAP = 3; // px, so sheared spans never leave a visible gap
+// Sections are subdivided WITHIN each foliage window rather than across the
+// whole canvas. Slicing the canvas meant a narrow window (the tree is ~10%
+// of the plate) only ever covered 2-3 spans, so the crown lurched as a few
+// rigid blocks. Subdividing the window itself gives the same fine motion no
+// matter how narrow it is, and costs nothing on the stages that barely have
+// foliage — we only ever draw sections we're actually shearing.
+const SECTIONS_PER_RANGE = 14;
+const WIND_OVERLAP = 3; // px, so sheared sections never leave a visible gap
 
 export function createBackdrop(ctx, canvas) {
   // Scratch buffer the plate is composed into before the wind shear blits
@@ -165,33 +171,46 @@ export function createBackdrop(ctx, canvas) {
       return;
     }
 
-    // Rigid base: draw the whole plate, then re-draw each sway band sheared
-    // on top of it. Bands are independent, so a tall crown and low shrubs
-    // move at different amplitudes and rates.
+    // Rigid base first, then each sway section re-drawn sheared on top.
     ctx.drawImage(buf, 0, 0);
 
     const period = plate.drawW;
-    const plateU = (screenX) => pmod(screenX + _par, period) / plate.drawW;
+    const offset = pmod(_par, period);
+    const reps = Math.ceil(canvas.width / period) + 2;
 
-    const spanW = canvas.width / WIND_SPANS;
     for (const band of bands) {
       const bandTop = plate.by + plate.drawH * band.top;
       const pivotY = plate.by + plate.drawH * band.pivot;
       const bandH = Math.max(1, pivotY - bandTop);
-      const inFoliage = (u) => band.xRanges.some(([a, b]) => u >= a && u <= b);
 
-      for (let i = 0; i < WIND_SPANS; i++) {
-        const sx = i * spanW;
-        if (!inFoliage(plateU(sx + spanW * 0.5))) continue;
-        const k = band.amp * gustAt(tick, sx + band.freq * 97, band.freq);
-        ctx.save();
-        ctx.beginPath();
-        ctx.rect(sx, bandTop, spanW + WIND_OVERLAP, bandH);
-        ctx.clip();
-        // shear grows with height above the pivot -> foliage sways, trunk doesn't
-        ctx.transform(1, 0, -k / bandH, 1, (k * pivotY) / bandH, 0);
-        ctx.drawImage(buf, 0, 0);
-        ctx.restore();
+      for (const [a, b] of band.xRanges) {
+        const rangeW = (b - a) * plate.drawW;
+        if (rangeW <= 0) continue;
+        const secW = rangeW / SECTIONS_PER_RANGE;
+
+        for (let rep = -1; rep < reps; rep++) {
+          const base = rep * period + a * plate.drawW - offset;
+          for (let i = 0; i < SECTIONS_PER_RANGE; i++) {
+            const sx = base + i * secW;
+            if (sx + secW < 0 || sx > canvas.width) continue;
+
+            // Phase is keyed to the section's position ON THE PLATE (plus the
+            // repeat index), so neighbouring sections drift out of step with
+            // each other instead of the whole crown pulsing as one — and a
+            // given branch always sways the same way on every repeat.
+            const phase = (a * plate.drawW + i * secW) * 2.7 + rep * 211 + band.top * 900;
+            const k = band.amp * gustAt(tick, phase, band.freq);
+
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(sx, bandTop, secW + WIND_OVERLAP, bandH);
+            ctx.clip();
+            // shear grows with height above the pivot -> tips travel, base doesn't
+            ctx.transform(1, 0, -k / bandH, 1, (k * pivotY) / bandH, 0);
+            ctx.drawImage(buf, 0, 0);
+            ctx.restore();
+          }
+        }
       }
     }
   }

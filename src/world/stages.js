@@ -70,13 +70,13 @@ export const STAGES = [
       windBands: [
         {
           // tall street tree, upper crown — the biggest, slowest motion
-          top: 0.04, pivot: 0.66, amp: 14, freq: 1.0,
+          top: 0.03, pivot: 0.70, amp: 5, freq: 0.9,
           xRanges: [[0.00, 0.105]],
         },
         {
           // shorter shrubs and low branches along the fence line: a shorter
           // lever, so less travel at a quicker, fussier frequency
-          top: 0.52, pivot: 0.92, amp: 6, freq: 1.9,
+          top: 0.50, pivot: 0.95, amp: 2.5, freq: 1.7,
           xRanges: [[0.00, 0.115]],
         },
       ],
@@ -116,7 +116,7 @@ export const STAGES = [
       horizon: '#1d1a2c',
       glow: 'rgba(255,120,190,0.11)',
       rain: 1.0,
-      windBands: [{ top: 0.02, pivot: 0.34, amp: 5, freq: 1.4, xRanges: [[0.00, 0.05]] }],
+      windBands: [{ top: 0.02, pivot: 0.34, amp: 2.5, freq: 1.4, xRanges: [[0.00, 0.05]] }],
       // Neon bar frontage — the pink/violet signs are the light source here.
       lights: [
         { x: 0.13, y: 0.52, r: 0.34, rgb: '255,150,60',  a: 0.20, flicker: 0.020 },
@@ -150,7 +150,7 @@ export const STAGES = [
       horizon: '#1c1d33',
       glow: 'rgba(150,200,255,0.09)',
       rain: 0.85,
-      windBands: [{ top: 0.02, pivot: 0.30, amp: 5, freq: 1.2, xRanges: [[0.12, 0.22]] }],
+      windBands: [{ top: 0.02, pivot: 0.30, amp: 2.5, freq: 1.2, xRanges: [[0.12, 0.22]] }],
       // Storefront windows and the OPEN sign do the work on this block.
       lights: [
         { x: 0.20, y: 0.56, r: 0.30, rgb: '255,214,140', a: 0.18 },
@@ -182,7 +182,7 @@ export const STAGES = [
       horizon: '#191a30',
       glow: 'rgba(220,60,60,0.10)',
       rain: 0.55, // partly sheltered under the arch
-      windBands: [{ top: 0.02, pivot: 0.26, amp: 4, freq: 1.1, xRanges: [[0.60, 0.70]] }],
+      windBands: [{ top: 0.02, pivot: 0.26, amp: 2, freq: 1.1, xRanges: [[0.60, 0.70]] }],
       // The arch marquee bulbs, the Coca-Cola disc and the Waffle House
       // frontage — the three things genuinely emitting in this plate.
       lights: [
