@@ -261,6 +261,13 @@ export function createRenderer(ctx, canvas) {
     if (item.got || !img) return;
     const bob = Math.sin(tick * 0.055 + item.x * 0.01) * 3;
     const y = item.y + bob;
+
+    // Anything that occludes light casts a shadow — pickups included. Same
+    // practical drives it as the characters', so a bag's shadow leans away
+    // from the same lamp theirs does, and the bob lifts the shadow off the
+    // ground the way a real one would.
+    lighting.drawPropShadow(item, y, bob);
+
     ctx.save();
     const g = ctx.createRadialGradient(
       item.x + item.w / 2, y + item.h / 2, 1,

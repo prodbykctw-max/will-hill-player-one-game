@@ -64,7 +64,24 @@ function skyAt(stage, y, groundY) {
   ];
 }
 
+// Wind is applied by slicing the plate into vertical spans and shearing each
+// one — a direct port of Jandé's _lbWind/_lbWindDraw (index.html:3902-3952,
+// docs/LIVING_BACKDROPS.md). Jandé pinned LB_SPANS at 16 after measuring:
+// 24 spans still fit in a 16.7ms frame, 49 spans blew the budget. Same
+// number here for the same reason.
+const WIND_SPANS = 16;
+const WIND_OVERLAP = 3; // px, so sheared spans never leave a visible gap
+
 export function createBackdrop(ctx, canvas) {
+  // Scratch buffer the plate is composed into before the wind shear blits
+  // it back in slices.
+  const buf = document.createElement('canvas');
+  const bctx = buf.getContext('2d');
+
+  // The plate's current parallax offset, stashed by drawPlate so the wind
+  // and practical passes can map screen x back to plate-local coordinates.
+  let _par = 0;
+
   function drawSky(stage, groundY) {
     const [top, upper] = stage.bg.sky;
     const g = ctx.createLinearGradient(0, 0, 0, Math.max(1, groundY));
@@ -77,7 +94,7 @@ export function createBackdrop(ctx, canvas) {
 
   // The painted plate, at real-world scale, mirror-tiled, welded to the
   // world floor.
-  function drawPlate(img, stage, camera, groundY) {
+  function drawPlate(g, img, stage, camera, groundY) {
     if (!img) return;
 
     // Crop off everything at/below the source image's own ground line — the
@@ -94,10 +111,11 @@ export function createBackdrop(ctx, canvas) {
     const by = bottom - drawH;
 
     const par = camera.x * camera.zoom * PLATE_PARALLAX;
+    _par = par;
     const period = drawW * 2;
     let off = -pmod(par, period);
 
-    ctx.save();
+    g.save();
     for (let x = off; x < canvas.width + drawW; x += drawW) {
       const x0 = Math.round(x);
       const x1 = Math.round(x + drawW);
@@ -107,16 +125,16 @@ export function createBackdrop(ctx, canvas) {
       // four of ours are) repeats without a hard vertical seam.
       const k = Math.round((x + par) / drawW);
       if (k & 1) {
-        ctx.save();
-        ctx.translate(x0 + tw, 0);
-        ctx.scale(-1, 1);
-        ctx.drawImage(img, 0, 0, img.width, srcH, 0, by, tw, drawH);
-        ctx.restore();
+        g.save();
+        g.translate(x0 + tw, 0);
+        g.scale(-1, 1);
+        g.drawImage(img, 0, 0, img.width, srcH, 0, by, tw, drawH);
+        g.restore();
       } else {
-        ctx.drawImage(img, 0, 0, img.width, srcH, x0, by, tw, drawH);
+        g.drawImage(img, 0, 0, img.width, srcH, x0, by, tw, drawH);
       }
     }
-    ctx.restore();
+    g.restore();
 
     // Dissolve the plate's top edge into the sky. Without this the crop
     // leaves a hard horizontal line across the frame wherever the building
@@ -125,13 +143,105 @@ export function createBackdrop(ctx, canvas) {
     // above it.
     const feather = Math.min(drawH * 0.3, Math.max(40, drawH * 0.16));
     if (by + feather > 0 && by < canvas.height) {
-      const [r, g, b] = skyAt(stage, Math.max(0, by), groundY);
-      const fg = ctx.createLinearGradient(0, by, 0, by + feather);
-      fg.addColorStop(0, `rgb(${r},${g},${b})`);
-      fg.addColorStop(1, `rgba(${r},${g},${b},0)`);
-      ctx.fillStyle = fg;
-      ctx.fillRect(0, by, canvas.width, feather);
+      const [r, gg, b] = skyAt(stage, Math.max(0, by), groundY);
+      const fg = g.createLinearGradient(0, by, 0, by + feather);
+      fg.addColorStop(0, `rgb(${r},${gg},${b})`);
+      fg.addColorStop(1, `rgba(${r},${gg},${b},0)`);
+      g.fillStyle = fg;
+      g.fillRect(0, by, canvas.width, feather);
     }
+    return { by, drawH, drawW };
+  }
+
+  // Gust curve — two sines beaten together with a squared envelope, so the
+  // foliage surges and settles instead of oscillating mechanically.
+  function gustAt(t, x, freq) {
+    const env = 0.30 + 0.70 * Math.pow(0.5 + 0.5 * Math.sin(t * 0.0062 + x * 0.0007 * freq), 2);
+    return env * (Math.sin(t * 0.030 + x * 0.0013 * freq) + 0.40 * Math.sin(t * 0.071 + x * 0.0032 * freq));
+  }
+
+  // Blit the composed plate back in vertical spans, shearing each above the
+  // pivot line. Only the band the stage declares as foliage moves — the
+  // buildings behind it must stay rigid or the whole frame looks liquid.
+  function blitWithWind(stage, tick, plate) {
+    const bands = stage.bg.windBands;
+    if (!bands || !bands.length || !plate) {
+      ctx.drawImage(buf, 0, 0);
+      return;
+    }
+
+    // Rigid base: draw the whole plate, then re-draw each sway band sheared
+    // on top of it. Bands are independent, so a tall crown and low shrubs
+    // move at different amplitudes and rates.
+    ctx.drawImage(buf, 0, 0);
+
+    const period = plate.drawW * 2;
+    const plateU = (screenX) => {
+      const local = pmod(screenX + _par, period);
+      return local < plate.drawW
+        ? local / plate.drawW
+        : 1 - (local - plate.drawW) / plate.drawW;
+    };
+
+    const spanW = canvas.width / WIND_SPANS;
+    for (const band of bands) {
+      const bandTop = plate.by + plate.drawH * band.top;
+      const pivotY = plate.by + plate.drawH * band.pivot;
+      const bandH = Math.max(1, pivotY - bandTop);
+      const inFoliage = (u) => band.xRanges.some(([a, b]) => u >= a && u <= b);
+
+      for (let i = 0; i < WIND_SPANS; i++) {
+        const sx = i * spanW;
+        if (!inFoliage(plateU(sx + spanW * 0.5))) continue;
+        const k = band.amp * gustAt(tick, sx + band.freq * 97, band.freq);
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(sx, bandTop, spanW + WIND_OVERLAP, bandH);
+        ctx.clip();
+        // shear grows with height above the pivot -> foliage sways, trunk doesn't
+        ctx.transform(1, 0, -k / bandH, 1, (k * pivotY) / bandH, 0);
+        ctx.drawImage(buf, 0, 0);
+        ctx.restore();
+      }
+    }
+  }
+
+  // Make the lighting that's PAINTED INTO the backdrop actually emit: each
+  // stage declares where its practicals sit as fractions of the plate, and
+  // they bloom, flicker and (via render/lighting.js) light the street and
+  // the characters standing under them.
+  function drawPractical(stage, camera, tick, plate) {
+    const lights = stage.bg.lights;
+    if (!lights || !plate) return;
+    const par = camera.x * camera.zoom * PLATE_PARALLAX;
+    const period = plate.drawW * 2;
+
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    for (let li = 0; li < lights.length; li++) {
+      const L = lights[li];
+      // neon/sodium practicals never sit perfectly steady
+      const flick = L.flicker
+        ? 0.78 + 0.22 * Math.sin(tick * L.flicker + li * 2.1) * Math.sin(tick * L.flicker * 0.37 + li)
+        : 1;
+      const ly = plate.by + plate.drawH * L.y;
+      const r = L.r * plate.drawH;
+      // repeat with the plate's mirror tiling so a light stays glued to the
+      // thing that emits it
+      for (let rep = -1; rep <= Math.ceil(canvas.width / period) + 1; rep++) {
+        for (const mirror of [0, 1]) {
+          const base = rep * period + (mirror ? plate.drawW * 2 - L.x * plate.drawW : L.x * plate.drawW);
+          const lx = base - pmod(par, period);
+          if (lx < -r || lx > canvas.width + r) continue;
+          const g = ctx.createRadialGradient(lx, ly, 1, lx, ly, r);
+          g.addColorStop(0, `rgba(${L.rgb},${(L.a * flick).toFixed(3)})`);
+          g.addColorStop(1, `rgba(${L.rgb},0)`);
+          ctx.fillStyle = g;
+          ctx.fillRect(lx - r, ly - r, r * 2, r * 2);
+        }
+      }
+    }
+    ctx.restore();
   }
 
   // Depth haze toward the ground line — pushes the plate back behind the
@@ -214,8 +324,17 @@ export function createBackdrop(ctx, canvas) {
     // Everything above the gameplay plane, in paint order.
     drawFar(img, stage, camera, tick) {
       const groundY = camera.groundScreenY();
+      if (buf.width !== canvas.width || buf.height !== canvas.height) {
+        buf.width = canvas.width;
+        buf.height = canvas.height;
+      }
       drawSky(stage, groundY);
-      drawPlate(img, stage, camera, groundY);
+      // Plate goes to the scratch buffer first so the wind pass can shear it
+      // back in slices without re-deriving the mirror-tiling maths.
+      bctx.clearRect(0, 0, buf.width, buf.height);
+      const plate = drawPlate(bctx, img, stage, camera, groundY);
+      blitWithWind(stage, tick, plate);
+      drawPractical(stage, camera, tick, plate);
       drawAerialWash(groundY);
       drawRain(stage, camera, tick, groundY);
       drawFloorFog(stage, groundY);

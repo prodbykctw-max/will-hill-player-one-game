@@ -55,21 +55,20 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib
 from compose_common import load_grid_frames, union_bbox, pack_sheet, save_webp, write_atlas, measure_fit  # noqa: E402
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-RAW_DIR = os.path.join(REPO_ROOT, 'assets', 'raw-sprites', 'will-hill')
+RAW_DIR = os.path.join(REPO_ROOT, 'assets', 'raw-sprites', 'will-hill-pixel')
 OUT_IMG = os.path.join(REPO_ROOT, 'src', 'assets', 'sprites', 'will-hill.webp')
 OUT_JSON = os.path.join(REPO_ROOT, 'src', 'assets', 'sprites', 'will-hill.atlas.json')
 
 SOURCE_CELL = 256
-SOURCE_COLS = 5
-FRAMES = 24
+SOURCE_COLS = 4
+FRAMES = 16
 
 # Unique source clips -> one sheet row each. (folder, rowKey, note)
 ROWS = [
-    ('iso_idle_right_right', 'idle', 'side view facing screen-right; the named "Sword Idle" clip is a rear view'),
-    ('iso_walk_right_right', 'walk', None),
-    ('iso_run_right_right',  'run',  None),
-    ('iso_jump_right_right', 'jump', None),
-    ('Death',                'death', 'ONLY rear-view clip kept — plays once and the game-over overlay covers it'),
+    ('idle', 'idle', 'pixel-art Will Hill, side view facing screen-right'),
+    ('walk', 'walk', None),
+    ('run',  'run',  None),
+    ('jump', 'jump', None),
 ]
 
 # Engine animation key -> which row it draws from. Several keys share a row
@@ -81,9 +80,9 @@ KEY_MAP = {
     'run': 'run',
     'jumpStart': 'jump',
     'jumpLand': 'jump',
-    'roll': 'run',    # TODO: no side-facing roll in the export; run reads as a dash
-    'hit': 'idle',    # TODO: no side-facing hit; the i-frame flicker carries it
-    'death': 'death',
+    'roll': 'run',    # TODO: no roll clip generated yet; run reads as a dash
+    'hit': 'idle',    # TODO: no hit clip yet; the i-frame flicker carries it
+    'death': 'idle',  # TODO: no death clip yet; the game-over overlay covers it
 }
 
 NON_LOOPING = {'jumpStart', 'jumpLand', 'death', 'roll'}

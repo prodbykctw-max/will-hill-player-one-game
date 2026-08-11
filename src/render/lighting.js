@@ -19,6 +19,11 @@
 
 import { T, FLOOR_R } from '../world/tilemap.js';
 
+// Street-level practicals repeat at this spacing in WORLD units. It is
+// deliberately tied to the backdrop plate's own tiling period so the pools
+// on the road line up with the lit shopfronts/canopies painted behind them
+// — "make the background lighting manifest" means the light on the street
+// has to come from the thing in the picture, not an arbitrary grid.
 const LAMP_SPACING = 420; // world units between street lamps (~5.8 m)
 const LAMP_HEIGHT = 300; // world units above the street the source sits
 const POOL_RX = 250;
@@ -29,9 +34,19 @@ export function createLighting(ctx) {
   const buf = document.createElement('canvas');
   const bctx = buf.getContext('2d');
 
-  // World x of the lamp nearest a given world x.
+  // World x of the practical nearest a given world x. Shadows and sprite
+  // key-light both derive from this, so a character's shadow swings as they
+  // pass under a canopy light and softens between them.
   function nearestLampX(x) {
     return Math.round(x / LAMP_SPACING) * LAMP_SPACING + LAMP_SPACING * 0.5;
+  }
+
+  // Colour of the light at a point, taken from the stage's declared
+  // practicals rather than a fixed palette entry — so the street picks up
+  // the neon of whatever is actually glowing on that block.
+  function keyRgbFor(stage) {
+    const ls = stage.bg && stage.bg.lights;
+    return ls && ls.length ? ls[0].rgb : stage.light.key;
   }
 
   // How lit a point is, 0..1, by its distance from the nearest lamp.
@@ -130,8 +145,9 @@ export function createLighting(ctx) {
     bctx.save();
     bctx.globalCompositeOperation = 'source-atop';
     const ramp = bctx.createLinearGradient(0, 0, 0, sh);
-    ramp.addColorStop(0, `rgba(${stage.light.key},${0.10 + lit * 0.26})`);
-    ramp.addColorStop(0.45, `rgba(${stage.light.key},${0.03 + lit * 0.10})`);
+    const key = keyRgbFor(stage);
+    ramp.addColorStop(0, `rgba(${key},${0.10 + lit * 0.26})`);
+    ramp.addColorStop(0.45, `rgba(${key},${0.03 + lit * 0.10})`);
     ramp.addColorStop(1, `rgba(${stage.light.shadowRgb},${0.34 - lit * 0.12})`);
     bctx.fillStyle = ramp;
     bctx.fillRect(0, 0, sw, sh);
@@ -175,5 +191,38 @@ export function createLighting(ctx) {
     ctx.restore();
   }
 
-  return { drawGroundPools, drawCastShadow, drawLitSprite, drawBloom, litness };
+  // Cast shadow for a static prop resting on (or bobbing just above) the
+  // street. Direction and stretch come from the same practical the
+  // characters use; `lift` is how far the prop is currently hovering, which
+  // shrinks and softens the shadow exactly as it would in life.
+  function drawPropShadow(item, drawY, lift) {
+    const cx = item.x + item.w / 2;
+    const groundWorldY = FLOOR_R * T;
+    // where the prop actually sits, ignoring the bob
+    const rest = item.y + item.h;
+    if (rest > groundWorldY + 40) return; // on a ledge we don't model — skip
+
+    const lamp = nearestLampX(cx);
+    const dx = cx - lamp;
+    const lit = litness(cx);
+    const hover = Math.max(0, Math.abs(lift)) / 10;
+
+    const w = item.w * 0.46 * (1 - hover * 0.12);
+    const alpha = (0.16 + lit * 0.30) * (1 - hover * 0.18);
+    const skew = Math.max(-1.5, Math.min(1.5, dx / (LAMP_SPACING * 0.5)));
+    const stretch = 1 + Math.min(1.8, Math.abs(dx) / (LAMP_SPACING * 0.45));
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = '#000';
+    ctx.translate(cx + skew * w * 0.9, rest);
+    ctx.transform(1, 0, skew * 0.5, 1, 0, 0);
+    ctx.scale(stretch, 1);
+    ctx.beginPath();
+    ctx.ellipse(0, 0, w, w * 0.3, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  return { drawGroundPools, drawCastShadow, drawPropShadow, drawLitSprite, drawBloom, litness };
 }

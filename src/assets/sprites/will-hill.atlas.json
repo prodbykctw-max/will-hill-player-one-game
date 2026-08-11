@@ -1,105 +1,105 @@
 {
   "frameSize": [
-    144,
-    213
+    181,
+    242
   ],
-  "cols": 24,
+  "cols": 16,
   "sourceCellSize": [
     256,
     256
   ],
   "origin": [
-    62,
-    43
+    32,
+    8
   ],
   "animations": {
     "idle": {
       "row": 0,
-      "frameCount": 24,
+      "frameCount": 16,
       "loop": true,
       "fit": {
-        "h": 0.8685,
-        "b": 0.9014
+        "h": 0.9669,
+        "b": 0.9835
       },
-      "note": "side view facing screen-right; the named \"Sword Idle\" clip is a rear view"
+      "note": "pixel-art Will Hill, side view facing screen-right"
     },
     "walk": {
       "row": 1,
-      "frameCount": 24,
+      "frameCount": 16,
       "loop": true,
       "fit": {
-        "h": 0.8685,
-        "b": 0.8826
+        "h": 0.9835,
+        "b": 0.9917
       }
     },
     "jog": {
       "row": 2,
-      "frameCount": 24,
+      "frameCount": 16,
       "loop": true,
       "fit": {
-        "h": 0.7981,
-        "b": 0.8826
+        "h": 0.9256,
+        "b": 0.9752
       }
     },
     "run": {
       "row": 2,
-      "frameCount": 24,
+      "frameCount": 16,
       "loop": true,
       "fit": {
-        "h": 0.7981,
-        "b": 0.8826
+        "h": 0.9256,
+        "b": 0.9752
       }
     },
     "jumpStart": {
       "row": 3,
-      "frameCount": 24,
+      "frameCount": 16,
       "loop": false,
       "fit": {
-        "h": 0.8545,
-        "b": 0.9155
+        "h": 0.9421,
+        "b": 0.9669
       }
     },
     "jumpLand": {
       "row": 3,
-      "frameCount": 24,
+      "frameCount": 16,
       "loop": false,
       "fit": {
-        "h": 0.8545,
-        "b": 0.9155
+        "h": 0.9421,
+        "b": 0.9669
       }
     },
     "roll": {
       "row": 2,
-      "frameCount": 24,
+      "frameCount": 16,
       "loop": false,
       "fit": {
-        "h": 0.7981,
-        "b": 0.8826
+        "h": 0.9256,
+        "b": 0.9752
       }
     },
     "hit": {
       "row": 0,
-      "frameCount": 24,
+      "frameCount": 16,
       "loop": true,
       "fit": {
-        "h": 0.8685,
-        "b": 0.9014
+        "h": 0.9669,
+        "b": 0.9835
       },
-      "note": "side view facing screen-right; the named \"Sword Idle\" clip is a rear view"
+      "note": "pixel-art Will Hill, side view facing screen-right"
     },
     "death": {
-      "row": 4,
-      "frameCount": 24,
+      "row": 0,
+      "frameCount": 16,
       "loop": false,
       "fit": {
-        "h": 0.9906,
-        "b": 1.0
+        "h": 0.9669,
+        "b": 0.9835
       },
-      "note": "ONLY rear-view clip kept \u2014 plays once and the game-over overlay covers it"
+      "note": "pixel-art Will Hill, side view facing screen-right"
     }
   },
   "fitRef": {
-    "h": 0.8685,
-    "b": 0.9014
+    "h": 0.9669,
+    "b": 0.9835
   }
 }

@@ -61,6 +61,27 @@ export const STAGES = [
       horizon: '#2a2233',
       glow: 'rgba(255,196,120,0.10)',
       rain: 0.75,
+      // Big street trees fill the left of this plate, so the wind band is
+      // generous and the pivot sits at the canopy base — trunks stay put.
+      wind: {
+        top: 0.04, pivot: 0.66, amp: 14, freq: 1.0,
+        // Plate-local x windows that actually contain foliage. The Citgo
+        // canopy, the Swifty billboard, the fence and the Welcome sign share
+        // this vertical band and must NOT move.
+        // ONLY the left-hand street tree. The Swifty billboard starts at
+        // ~0.13 and the Citgo canopy runs to ~0.50, so anything past ~0.11
+        // visibly wobbles hard architecture. Keep this window tight.
+        xRanges: [[0.00, 0.105]],
+      },
+      // Practicals actually visible in the art: the Citgo canopy soffit, the
+      // backlit Swifty billboard, the McDonald's sign, and the uplighters
+      // washing the fence.
+      lights: [
+        { x: 0.30, y: 0.36, r: 0.42, rgb: '255,208,140', a: 0.20 },
+        { x: 0.15, y: 0.14, r: 0.30, rgb: '190,215,255', a: 0.12 },
+        { x: 0.93, y: 0.42, r: 0.26, rgb: '255,196,90',  a: 0.16, flicker: 0.012 },
+        { x: 0.60, y: 0.92, r: 0.24, rgb: '255,180,90',  a: 0.18 },
+      ],
     },
     light: { pool: 'rgba(255,186,96,0.20)', shaft: 'rgba(255,186,96,0.045)', bloom: 'rgba(255,180,90,0.13)', key: '255,206,150', bounce: '150,120,70', shadowRgb: '20,14,30' },
     under: {
@@ -88,6 +109,14 @@ export const STAGES = [
       horizon: '#1d1a2c',
       glow: 'rgba(255,120,190,0.11)',
       rain: 1.0,
+      windBands: [{ top: 0.02, pivot: 0.34, amp: 5, freq: 1.4, xRanges: [[0.00, 0.05]] }],
+      // Neon bar frontage — the pink/violet signs are the light source here.
+      lights: [
+        { x: 0.13, y: 0.52, r: 0.34, rgb: '255,150,60',  a: 0.20, flicker: 0.020 },
+        { x: 0.86, y: 0.52, r: 0.34, rgb: '255,70,90',   a: 0.20, flicker: 0.017 },
+        { x: 0.50, y: 0.40, r: 0.30, rgb: '255,225,190', a: 0.16 },
+        { x: 0.50, y: 0.22, r: 0.40, rgb: '255,190,120', a: 0.10 },
+      ],
     },
     light: { pool: 'rgba(255,120,190,0.20)', shaft: 'rgba(255,120,190,0.045)', bloom: 'rgba(255,110,180,0.14)', key: '255,190,220', bounce: '140,60,110', shadowRgb: '18,10,26' },
     under: {
@@ -114,6 +143,13 @@ export const STAGES = [
       horizon: '#1c1d33',
       glow: 'rgba(150,200,255,0.09)',
       rain: 0.85,
+      windBands: [{ top: 0.02, pivot: 0.30, amp: 5, freq: 1.2, xRanges: [[0.12, 0.22]] }],
+      // Storefront windows and the OPEN sign do the work on this block.
+      lights: [
+        { x: 0.20, y: 0.56, r: 0.30, rgb: '255,214,140', a: 0.18 },
+        { x: 0.52, y: 0.60, r: 0.24, rgb: '120,200,255', a: 0.16, flicker: 0.025 },
+        { x: 0.78, y: 0.52, r: 0.32, rgb: '255,226,170', a: 0.16 },
+      ],
     },
     light: { pool: 'rgba(180,215,255,0.19)', shaft: 'rgba(180,215,255,0.04)', bloom: 'rgba(150,200,255,0.12)', key: '210,230,255', bounce: '70,100,140', shadowRgb: '14,14,28' },
     under: {
@@ -139,6 +175,15 @@ export const STAGES = [
       horizon: '#191a30',
       glow: 'rgba(220,60,60,0.10)',
       rain: 0.55, // partly sheltered under the arch
+      windBands: [{ top: 0.02, pivot: 0.26, amp: 4, freq: 1.1, xRanges: [[0.60, 0.70]] }],
+      // The arch marquee bulbs, the Coca-Cola disc and the Waffle House
+      // frontage — the three things genuinely emitting in this plate.
+      lights: [
+        { x: 0.50, y: 0.30, r: 0.26, rgb: '255,226,160', a: 0.24, flicker: 0.030 },
+        { x: 0.72, y: 0.50, r: 0.24, rgb: '230,60,60',   a: 0.20 },
+        { x: 0.76, y: 0.62, r: 0.22, rgb: '255,196,90',  a: 0.18, flicker: 0.014 },
+        { x: 0.06, y: 0.24, r: 0.28, rgb: '255,196,120', a: 0.12 },
+      ],
     },
     light: { pool: 'rgba(255,170,90,0.22)', shaft: 'rgba(255,170,90,0.05)', bloom: 'rgba(240,90,70,0.14)', key: '255,200,140', bounce: '150,90,60', shadowRgb: '12,10,22' },
     under: {

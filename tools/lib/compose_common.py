@@ -12,6 +12,18 @@ import json
 import os
 from PIL import Image
 
+# Background removal leaves a halo of near-transparent pixels around the
+# subject — and, critically, a few rows of them BELOW the feet. Pillow's
+# getbbox() counts any non-zero alpha, so those ghost rows became the
+# measured "baseline" and the character rendered hovering above the ground.
+# Every bbox here is taken from an alpha mask thresholded past that halo.
+ALPHA_FLOOR = 40
+
+
+def _solid_bbox(img):
+    """bbox of pixels whose alpha clears ALPHA_FLOOR (ignores the halo)."""
+    return img.getchannel('A').point(lambda a: 255 if a >= ALPHA_FLOOR else 0).getbbox()
+
 
 def load_grid_frames(sheet_path, cols, cell, frame_count):
     """Load `frame_count` frames from a `cols`-column grid of `cell`x`cell`
@@ -32,7 +44,7 @@ def union_bbox(frame_lists, source_cell, pad=2):
     minx, miny, maxx, maxy = source_cell, source_cell, 0, 0
     for frames in lists:
         for f in frames:
-            bbox = f.getbbox()
+            bbox = _solid_bbox(f)
             if not bbox:
                 continue
             x0, y0, x1, y1 = bbox
@@ -61,7 +73,7 @@ def measure_fit(frames, box):
     cell_h = maxy - miny
     top, bot = None, 0
     for f in frames:
-        bb = f.crop((minx, miny, maxx, maxy)).getbbox()
+        bb = _solid_bbox(f.crop((minx, miny, maxx, maxy)))
         if not bb:
             continue
         top = bb[1] if top is None else min(top, bb[1])
