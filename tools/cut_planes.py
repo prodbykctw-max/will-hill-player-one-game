@@ -380,6 +380,18 @@ def pyramid_inpaint(rgb, hole, levels=9):
 PLANES = {
     'eav': [
         {
+            # Cloud bank across the top of the sky — SAM-traced, and the only
+            # thing in this plate farther away than the skyline. Everything
+            # else here was cut before SAM existed and is left exactly as it
+            # is; the tree in particular has hand-tuned sway the client
+            # signed off on, and re-cutting it to gain nothing would be a
+            # bad trade.
+            'name': 'clouds',
+            'mask': 'clouds',
+            'min_px': 150,
+            'feather': 1.6,   # soft-edged in the art; keep them soft
+        },
+        {
             # Downtown skyline and the lit storefront row across the
             # intersection — the farthest built thing in frame.
             'name': 'skyline',

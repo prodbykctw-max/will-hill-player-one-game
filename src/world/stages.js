@@ -25,6 +25,7 @@
 // every item lifted off it, plus one card per item. See that script for how
 // the cutting works and src/render/backdrop.js for how the cards are driven.
 import bgEav from '../assets/backgrounds/eav-base.webp';
+import eavClouds from '../assets/backgrounds/eav-clouds.webp';
 import eavSkyline from '../assets/backgrounds/eav-skyline.webp';
 import eavMcdonalds from '../assets/backgrounds/eav-mcdonalds.webp';
 import eavCars from '../assets/backgrounds/eav-cars.webp';
@@ -115,6 +116,7 @@ export const STAGES = [
       // billboard and canopy sharing the same horizontal band, and wobbled
       // the architecture anyway.
       cards: [
+        { key: 'clouds', img: eavClouds, depth: 0.02, span: [0.428, 1.000] },
         { key: 'skyline', img: eavSkyline, depth: 0.07, span: [0.780, 1.000] },
         { key: 'mcdonalds', img: eavMcdonalds, depth: 0.16, span: [0.913, 1.000] },
         { key: 'cars', img: eavCars, depth: 0.21, span: [0.784, 0.999] },
