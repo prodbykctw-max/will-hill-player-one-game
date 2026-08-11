@@ -69,15 +69,21 @@ export const STAGES = [
       // ~0.13 and the canopy runs to ~0.50.
       windBands: [
         {
-          // tall street tree, upper crown — the biggest, slowest motion
-          top: 0.03, pivot: 0.70, amp: 5, freq: 0.9,
+          // CANOPY ONLY. The pivot sits at the bottom of the leaf mass, not
+          // partway down the tree — shear is zero at the pivot and grows
+          // upward, so anything below it is untouched and the trunk stays
+          // dead still.
+          top: 0.02, pivot: 0.44, amp: 5, freq: 0.9,
           xRanges: [[0.00, 0.105]],
         },
         {
-          // shorter shrubs and low branches along the fence line: a shorter
-          // lever, so less travel at a quicker, fussier frequency
-          top: 0.50, pivot: 0.95, amp: 2.5, freq: 1.7,
-          xRanges: [[0.00, 0.115]],
+          // Low shrubs along the fence, at a shorter lever so less travel at
+          // a quicker frequency. Starts at x 0.085 to clear the trunk
+          // column: the trunk sits below the canopy pivot AND left of this
+          // window, so it falls in NO band and never moves. This band is low
+          // enough (y 0.52+) to miss the billboard entirely.
+          top: 0.52, pivot: 0.92, amp: 2.5, freq: 1.7,
+          xRanges: [[0.085, 0.30]],
         },
       ],
       // Practicals actually visible in the art: the Citgo canopy soffit, the
@@ -98,7 +104,7 @@ export const STAGES = [
       concreteDark: '#3b3833', gas: '#b8952e', accent: '#c25a2a', root: '#4a3320',
       tile: '#3a3f42', ballast: '#3d3a35', void_: '#0d0b12', lamp: 'rgba(255,214,140,0.22)',
       // Big street trees here, so roots are part of the section.
-      kinds: ['roots', 'conduit', 'water', 'sewer', 'manhole', 'footings', 'rats'],
+      kinds: ['roots', 'conduit', 'water', 'sewer', 'manhole', 'rats', 'footings'],
     },
     enemyVariants: ['a'],
     stageEnd: 240, // finish-line column (T=32px/col -> ~7680px)
@@ -132,7 +138,7 @@ export const STAGES = [
       concreteDark: '#38342e', gas: '#b8952e', accent: '#b0446e', root: '#43301f',
       tile: '#3c3a40', ballast: '#3b3833', void_: '#0c0a10', lamp: 'rgba(255,150,200,0.20)', rat: '#2a2320',
       // Older brick district: brick sewer barrel dominates.
-      kinds: ['conduit', 'water', 'sewer', 'manhole', 'footings', 'rats'],
+      kinds: ['conduit', 'water', 'sewer', 'manhole', 'rats', 'footings'],
     },
     enemyVariants: ['b'],
     stageEnd: 260,
@@ -164,7 +170,7 @@ export const STAGES = [
       brick: '#7d4a35', metal: '#787e85', metalDark: '#383c41', concrete: '#54514b',
       concreteDark: '#37342f', gas: '#b8952e', accent: '#4a7a8a', root: '#463322',
       tile: '#39383f', ballast: '#39352f', void_: '#0b0a11', lamp: 'rgba(150,200,255,0.20)', rat: '#272220',
-      kinds: ['roots', 'conduit', 'water', 'sewer', 'footings', 'rats'],
+      kinds: ['roots', 'conduit', 'water', 'sewer', 'rats', 'footings'],
     },
     enemyVariants: ['c'],
     stageEnd: 280,
@@ -201,7 +207,7 @@ export const STAGES = [
       brick: '#6f4436', metal: '#8b9199', metalDark: '#3f4348', concrete: '#5c5850',
       concreteDark: '#3a3733', gas: '#b8952e', accent: '#b04040', root: '#3c2c1e',
       tile: '#4a5560', ballast: '#332f2b', void_: '#08070c', lamp: 'rgba(255,196,120,0.34)', rat: '#2b2622',
-      kinds: ['conduit', 'water', 'sewer', 'tunnel', 'footings', 'train', 'rats'],
+      kinds: ['conduit', 'water', 'sewer', 'tunnel', 'rats', 'train', 'footings'],
     },
     enemyVariants: ['a', 'b', 'c'],
     stageEnd: 300,

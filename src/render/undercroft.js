@@ -354,6 +354,12 @@ export function createUndercroft(ctx, canvas) {
   // Rats — the undercroft should feel inhabited, not like a diagram. They
   // scurry along the sewer crown and the tunnel floor, pause, then bolt.
   // Positions are time-driven rather than hashed so they genuinely move.
+  //
+  // DRAW ORDER MATTERS: the stage's `kinds` list places rats BEFORE
+  // 'footings' (and before the train), so the concrete columns and passing
+  // trains occlude them. A rat that slips behind a column and reappears the
+  // other side reads as being down there in the space, rather than as a
+  // sprite skating across the front of it.
   function rats(px, y0, bh, u, tick) {
     const lanes = [y0 + bh * 0.455, y0 + bh * 0.70, y0 + bh * 0.30];
     ctx.save();
