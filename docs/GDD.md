@@ -2,6 +2,19 @@
 
 **Status: living document, comprehensive as of 2026-08-10 — not a locked spec.** This captures every design decision confirmed in development conversation so far. Update it as the design evolves; don't let decisions live only in chat history.
 
+## Who's who
+
+Worth stating plainly, because it has already been got wrong once:
+
+- **Will Hill** is the ARTIST the game stars, and the player character. The
+  run through the stages is him making his way to his performance.
+- **Knowledge / KC TW** (`prodbykctw`) is the DEVELOPER — the person building
+  this. Not the character.
+
+So "the user ran the asset chain" below means KC TW ran it, producing art OF
+Will Hill. Any voice or foley recorded for the game is KC TW's own unless a
+source says otherwise, and should be credited to him, not to Will Hill.
+
 ## Story & core loop
 
 Will Hill is on his way to his performance — the run through the game's stages *is* him making his way to the show.
