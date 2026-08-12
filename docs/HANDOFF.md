@@ -587,6 +587,15 @@ OPTIONS still pulses, on the opposite beat to PRESS START and in a cooler
 colour, via `stillscene.pulseRect` — the screen-space twin of `pulsePrompt`,
 which can no longer express it as a rectangle of the plate.
 
+Confirmed on the **production** bundle (`scratchpad/liveopts.mjs` against
+`vite preview`, where the DEV hooks are gone and everything is read off
+pixels): the word lands at y 675..696, x 136..292, centred to within 2px;
+tapping it opens the panel; tapping the art starts the run; no failed
+requests. **One** bright pixel is left where the word used to be — a stray at
+plate (877, 952) that SAM's mask missed — and at 87 per channel it is *below*
+the surrounding road's own maximum speckle of 91, i.e. inside the dither and
+not distinguishable from it.
+
 ---
 
 ## Button feedback: click, confirm, and a tick under the thumb
@@ -888,3 +897,17 @@ offline audio rendering settled the punch. Every time this project guessed
 instead of measuring, it guessed wrong.
 
 Portrait targets: ground line **65%** of screen height, character ~10% of it.
+
+**Checking the PRODUCTION build.** `window.__game` / `__camera` / `__audio` /
+`__title` are DEV-only, so a harness pointed at `dist/` has to go by pixels and
+behaviour — which is the harder and better test. Serve it with
+`npx vite preview --port 5299 --outDir dist`.
+
+⚠️ **A HEADLESS BROWSER CANNOT REACH THE DEPLOYED URL FROM THIS ENVIRONMENT.**
+Chromium will not go through the session's egress proxy — with `proxy:`,
+`--proxy-server`, or neither, the navigation fails `ERR_CONNECTION_RESET` and
+the proxy's own log shows it never receives the CONNECT (only Chromium's
+telemetry to clients2.google.com). `curl` works fine, so **confirm the deploy
+landed by fetching the live index.html and matching its `assets/index-*.js`
+hash against `dist/index.html`**, then exercise behaviour against
+`vite preview`. That pair covers everything except Pages' own caching.
