@@ -24,10 +24,23 @@ import {
 
 const $ = (id) => document.getElementById(id);
 
+// ALL THREE FIELDS ARE REQUIRED. An earlier pass made only the phone
+// mandatory on the reasoning that every required field costs entrants — true
+// in general, and wrong for this form. This is a contest entry, not a
+// newsletter: a name is what goes ON the board, and one contact route with no
+// backup means a winner with a dead number cannot be reached at all. The
+// client asked for all three, and for the form to say so.
+//
+// Each check returns which FIELD failed as well as why, so the offending box
+// can be outlined and focused instead of the player hunting for it.
+function nameProblem(v) {
+  const s = String(v || '').trim();
+  if (!s) return 'Pick a name — it is what shows on the leaderboard.';
+  if (s.replace(/[^\p{L}\p{N}]/gu, '').length < 2) return 'That name is too short.';
+  return null;
+}
+
 // A US ten-digit number, which is what a contest run out of Atlanta needs.
-// Deliberately the ONLY hard requirement: the name has a default and the
-// email is optional, because every required field costs entrants and the
-// phone is the one the prize is actually claimed on.
 function phoneProblem(v) {
   const d = phoneDigits(v);
   if (!d) return 'A phone number is how we reach you if you win.';
@@ -41,7 +54,7 @@ function phoneProblem(v) {
 // than storing an address that turns out to be wrong.
 function emailProblem(v) {
   const s = String(v || '').trim();
-  if (!s) return null;
+  if (!s) return 'An email is the backup way to reach you.';
   return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(s) ? null : 'That does not look like an email address.';
 }
 
@@ -120,10 +133,21 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange }) {
 
   function save() {
     const err = $('formErr');
-    const p = phoneProblem($('fPhone').value) || emailProblem($('fEmail').value);
-    if (p) {
-      err.textContent = p;
+    // Checked in the order they are read, so the message and the outline
+    // always point at the FIRST thing wrong rather than the last.
+    const checks = [
+      ['fName', nameProblem($('fName').value)],
+      ['fPhone', phoneProblem($('fPhone').value)],
+      ['fEmail', emailProblem($('fEmail').value)],
+    ];
+    for (const [id] of checks) $(id).classList.remove('bad');
+    const bad = checks.find(([, problem]) => problem);
+    if (bad) {
+      const [id, problem] = bad;
+      err.textContent = problem;
       err.hidden = false;
+      $(id).classList.add('bad');
+      $(id).focus();
       return;
     }
     setLbName($('fName').value);
@@ -154,6 +178,12 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange }) {
   $('btnSkip').addEventListener('click', () => show('board'));
   $('btnSave').addEventListener('click', save);
   // Enter on the last field submits, the way a form should.
+  for (const id of ['fName', 'fPhone', 'fEmail']) {
+    $(id).addEventListener('input', () => {
+      $(id).classList.remove('bad');
+      $('formErr').hidden = true;
+    });
+  }
   $('fEmail').addEventListener('keydown', (e) => { if (e.key === 'Enter') save(); });
   $('fPhone').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('fEmail').focus(); });
   $('fName').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('fPhone').focus(); });

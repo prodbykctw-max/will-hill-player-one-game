@@ -388,8 +388,17 @@ a keyboard and still getting none of the numeric pad, `@` key, autofill or
 paste that a real `<input>` gives free on a phone. Inputs are 16px minimum or
 iOS zooms the page on focus.
 
-**Only the phone is required.** The name defaults and the email is optional —
-every required field costs entrants.
+**All three fields are required**, and the form says so — on the intro line,
+as a `required` tag beside each label, and as in-field helper text. An earlier
+pass made only the phone mandatory on the "every required field costs
+entrants" reasoning, which is true for a newsletter and wrong for a contest
+entry: the name is what goes ON the board, and a single contact route with no
+backup means a winner with a dead number cannot be reached at all.
+
+The helper text lives INSIDE each field as well as beside the label, because
+on a phone the label scrolls out of view the moment the keyboard opens and the
+placeholder is the only line still visible. Validation reports the FIRST
+failing field, outlines it and focuses it.
 
 **Runs bank locally regardless** (`wh_local_runs`, best 10). That is what the
 board shows while `LB_URL` is empty, and the fallback when a phone is on a bad

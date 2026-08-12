@@ -172,6 +172,15 @@
       font-weight: 400; letter-spacing: 0; text-transform: none;
       color: rgba(242,234,216,0.42);
     }
+    #panel label .req {
+      font-weight: 700; letter-spacing: 0; text-transform: none;
+      color: rgba(255,143,122,0.85);
+    }
+    /* The in-field helper is the line the player can still see once the
+       keyboard has pushed the label off screen, so it has to stay legible
+       rather than fade to furniture. */
+    #panel ::placeholder { color: rgba(242,234,216,0.38); opacity: 1; }
+    #panel input.bad { border-color: rgba(255,143,122,0.85); }
     #panel input[type=text], #panel input[type=tel], #panel input[type=email],
     #panel select {
       display: block; width: 100%; box-sizing: border-box; margin-top: 6px;
@@ -272,21 +281,29 @@
 
       <div id="pvForm" class="pv" hidden>
         <p class="note">
-          Your <b>name</b> and score go on the board. Your <b>phone</b> and
-          <b>email</b> stay private — they are only how Will Hill's team
-          reaches you if you win.
+          All three are required. Your <b>name</b> and score go on the board.
+          Your <b>phone</b> and <b>email</b> stay private — they are only how
+          Will Hill's team reaches you if you win.
         </p>
-        <label>NAME <span class="sub">shown publicly</span>
-          <input id="fName" type="text" maxlength="16" autocomplete="nickname"
-                 enterkeyhint="next" placeholder="PLAYER ONE" />
+        <!-- The helper text lives INSIDE each field as a placeholder as well
+             as beside the label. On a phone the label scrolls out of view the
+             moment the keyboard opens and the field is all you can still see,
+             so a placeholder that only repeats the label wastes the one line
+             the player is actually looking at. Each says what to type and, on
+             the two private ones, why it is being asked for. -->
+        <label>NAME <span class="req">required</span> <span class="sub">shown publicly</span>
+          <input id="fName" type="text" maxlength="16" autocomplete="nickname" required
+                 enterkeyhint="next" placeholder="The name on the leaderboard" />
         </label>
-        <label>PHONE <span class="sub">private</span>
-          <input id="fPhone" type="tel" inputmode="tel" maxlength="20"
-                 autocomplete="tel" enterkeyhint="next" placeholder="(404) 555-0100" />
+        <label>PHONE <span class="req">required</span> <span class="sub">private</span>
+          <input id="fPhone" type="tel" inputmode="tel" maxlength="20" required
+                 autocomplete="tel" enterkeyhint="next"
+                 placeholder="10 digits — how we reach a winner" />
         </label>
-        <label>EMAIL <span class="sub">private</span>
-          <input id="fEmail" type="email" inputmode="email" maxlength="128"
-                 autocomplete="email" enterkeyhint="done" placeholder="you@example.com" />
+        <label>EMAIL <span class="req">required</span> <span class="sub">private</span>
+          <input id="fEmail" type="email" inputmode="email" maxlength="128" required
+                 autocomplete="email" enterkeyhint="done"
+                 placeholder="Backup contact, never shown" />
         </label>
         <p id="formErr" class="err" hidden></p>
         <button class="btn" id="btnSave" type="button">SAVE &amp; ENTER</button>
