@@ -11,7 +11,7 @@
 
 import { T, FLOOR_R, LH, groundCol, plat, pit, createTilemap } from './tilemap.js';
 import { createEnemy, ENEMY_H } from '../entities/enemy.js';
-import { createMoneyBag, createChampagneBottle } from '../entities/collectibles.js';
+import { createMoneyBag, createChampagneBottle, champagneTopFor } from '../entities/collectibles.js';
 
 const RUNWAY_COLS = 26; // safe flat start, same length as Jandé's buildRunner()
 const MIN_ENEMY_SPACING_COLS = 8;
@@ -238,7 +238,8 @@ export function genAhead(level, untilCol) {
     // mark that falls inside a long feature simply lands just after it.
     if (level.champagneMarks.length && c >= level.champagneMarks[0]) {
       level.champagneMarks.shift();
-      level.champagnes.push(createChampagneBottle(c * T + 8, (FLOOR_R - 1) * T - 26));
+      level.champagnes.push(createChampagneBottle(
+        c * T + 8, champagneTopFor(FLOOR_R * T)));
     }
     if (rnd01(c * 11.1 + level.seed) < recipe.enemy * 0.6 && c - level.lastEnemyCol > MIN_ENEMY_SPACING_COLS) {
       level.enemies.push(createEnemy(c * T, FLOOR_R * T - ENEMY_H, PATROL_RANGE, pickVariant(level, c)));

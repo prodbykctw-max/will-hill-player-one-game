@@ -265,16 +265,31 @@ const STAGE_DEFS = [
     // day plate IS cut, nineteen cards, and is what the other three are
     // being brought up to.
     //
-    // `groundFrac` derived by aligning the day plate's row-wise edge-energy
-    // profile against its night twin's, since the exports are not the same
-    // height. Sky and horizon are MEDIANS SAMPLED OFF THE PLATE, not picked
-    // by eye — a sky gradient that disagrees with the image it sits behind
-    // shows as a band along the top of the frame.
+    // `groundFrac` and `meters` are MEASURED AGAINST THE NIGHT PLATE by
+    // matching a named landmark across the two — see tools/check_day_framing.py,
+    // which prints the derivation and writes a proof image showing the match.
+    // Sky and horizon are MEDIANS SAMPLED OFF THE PLATE, not picked by eye —
+    // a sky gradient that disagrees with the image it sits behind shows as a
+    // band along the top of the frame.
+    //
+    // ⚠️ THESE WERE WRONG, AND THE METHOD THAT GOT THEM WRONG IS RECORDED IN
+    // THAT TOOL. They were set by aligning the two plates' row-wise
+    // edge-energy profiles, which cannot tell scale from offset — collapsing
+    // an image to one number per row throws away which feature a peak belongs
+    // to. Re-run honestly it returns groundFrac 1.595 for eav, a row 866 of a
+    // 543-row file. Do not go back to it.
     day: {
       bg: {
         img: bgEavDay,
-        meters: 8.0,
-        groundFrac: 0.766,
+        // Landmark: the WELCOME TO EAST ATLANTA oval, matched at scale
+        // 0.985 — the two paintings are drawn at all but the same source
+        // scale, which is why the corrected groundFrac lands within 0.002
+        // of the night plate's 0.88 rather than 0.11 away from it.
+        // 0.766 cut the frame off through the MIDDLE OF THE FENCE and
+        // threw away the footings, the grass verge and the base of the
+        // tree, while rendering what was left 19.7% too big.
+        meters: 7.81,
+        groundFrac: 0.882,
         sky: ['#4390ef', '#9dbbe6'],
         horizon: '#c8d8ec',
         glow: 'rgba(255,244,214,0.09)',
@@ -354,16 +369,28 @@ const STAGE_DEFS = [
     // day plate IS cut, nineteen cards, and is what the other three are
     // being brought up to.
     //
-    // `groundFrac` derived by aligning the day plate's row-wise edge-energy
-    // profile against its night twin's, since the exports are not the same
-    // height. Sky and horizon are MEDIANS SAMPLED OFF THE PLATE, not picked
-    // by eye — a sky gradient that disagrees with the image it sits behind
-    // shows as a band along the top of the frame.
+    // `groundFrac` and `meters` are MEASURED AGAINST THE NIGHT PLATE by
+    // matching a named landmark across the two — see tools/check_day_framing.py,
+    // which prints the derivation and writes a proof image showing the match.
+    // Sky and horizon are MEDIANS SAMPLED OFF THE PLATE, not picked by eye —
+    // a sky gradient that disagrees with the image it sits behind shows as a
+    // band along the top of the frame.
+    //
+    // ⚠️ THESE WERE WRONG, AND THE METHOD THAT GOT THEM WRONG IS RECORDED IN
+    // THAT TOOL. They were set by aligning the two plates' row-wise
+    // edge-energy profiles, which cannot tell scale from offset — collapsing
+    // an image to one number per row throws away which feature a peak belongs
+    // to. Re-run honestly it returns groundFrac 1.595 for eav, a row 866 of a
+    // 543-row file. Do not go back to it.
     day: {
       bg: {
         img: bgEdgewoodDay,
-        meters: 7.0,
-        groundFrac: 0.816,
+        // Landmark: the OUR BAR ATL window, matched at scale 0.990. The
+        // crop line was already right here — 2 rows out — but the plate
+        // was rendering 7.7% SMALL, so the bar was a shorter building by
+        // day than by night.
+        meters: 7.70,
+        groundFrac: 0.821,
         sky: ['#3e8bf1', '#8fb8ea'],
         horizon: '#c2d6ee',
         glow: 'rgba(255,244,214,0.09)',
@@ -564,16 +591,27 @@ const STAGE_DEFS = [
     // day plate IS cut, nineteen cards, and is what the other three are
     // being brought up to.
     //
-    // `groundFrac` derived by aligning the day plate's row-wise edge-energy
-    // profile against its night twin's, since the exports are not the same
-    // height. Sky and horizon are MEDIANS SAMPLED OFF THE PLATE, not picked
-    // by eye — a sky gradient that disagrees with the image it sits behind
-    // shows as a band along the top of the frame.
+    // `groundFrac` and `meters` are MEASURED AGAINST THE NIGHT PLATE by
+    // matching a named landmark across the two — see tools/check_day_framing.py,
+    // which prints the derivation and writes a proof image showing the match.
+    // Sky and horizon are MEDIANS SAMPLED OFF THE PLATE, not picked by eye —
+    // a sky gradient that disagrees with the image it sits behind shows as a
+    // band along the top of the frame.
+    //
+    // ⚠️ THESE WERE WRONG, AND THE METHOD THAT GOT THEM WRONG IS RECORDED IN
+    // THAT TOOL. They were set by aligning the two plates' row-wise
+    // edge-energy profiles, which cannot tell scale from offset — collapsing
+    // an image to one number per row throws away which feature a peak belongs
+    // to. Re-run honestly it returns groundFrac 1.595 for eav, a row 866 of a
+    // 543-row file. Do not go back to it.
     day: {
       bg: {
         img: bgL5pDay,
-        meters: 9.0,
-        groundFrac: 0.677,
+        // Landmark: the CRIMINAL RECORDS fascia, matched at scale 0.980.
+        // 0.677 cut through the shop windows, losing the RECORDS-TAPES-CDS
+        // board, the bottom of every display window and the kerb.
+        meters: 9.25,
+        groundFrac: 0.730,
         sky: ['#3885ee', '#7fa9e2'],
         horizon: '#bed2ea',
         glow: 'rgba(255,244,214,0.09)',

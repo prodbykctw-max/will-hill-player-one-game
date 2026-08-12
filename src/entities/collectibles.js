@@ -20,8 +20,36 @@ export const BAG_VALUE = 100;
 // readability — a pickup has to catch the eye at portrait scale.
 const BAG_H = metersToWorld(0.62);
 const BAG_W = BAG_H * (162 / 168); // source aspect
-const BOTTLE_H = metersToWorld(0.66);
+
+// ── THE BOTTLE IS DELIBERATELY NOT A REAL BOTTLE ─────────────────────────
+//
+// A champagne bottle is about 0.32m tall. At true scale that is 27 world
+// units on a street where Will Hill draws 181, and it would be a green speck.
+// So it was already exaggerated to 0.66m — and measured against the game that
+// was still not enough, in a way that only shows up as a RATIO:
+//
+//   bottle 17.8 x 55.5   money bag 50.3 x 52.1
+//
+// The bottle covered **0.38x the money bag's screen area**. The power-up —
+// the only thing in the game that changes what you can do — was a third the
+// size of the commonest pickup on the street, because a bottle's silhouette
+// is narrow (54:168 in the source art) and height alone cannot make up for
+// it. On the capture it reads as a sliver you walk past.
+//
+// 1.0m puts it at 84 x 27, which is 0.87x the bag's area and HALF Will
+// Hill's drawn height. Now it out-reads the bag on silhouette — the one axis
+// a narrow object can win on — rather than losing on both.
+//
+// The aspect ratio is untouched. Widening the bottle to match the bag would
+// mean stretching the art, and a non-uniform scale on this project's pixel
+// work has been rejected every time it has come up.
+const BOTTLE_H = metersToWorld(1.0);
 const BOTTLE_W = BOTTLE_H * (54 / 168);
+
+// How far a bottle's base floats above the ground line before the bob is
+// applied. The bob is +-3, so this keeps it from sinking into the pavement at
+// the bottom of its travel.
+const BOTTLE_FLOAT = 3;
 
 export function createMoneyBag(x, y) {
   return { kind: 'bag', x, y, w: BAG_W, h: BAG_H, got: false, value: BAG_VALUE };
@@ -48,6 +76,17 @@ export function createDroppedBag(x, y, vx, vy, now, worth = BAG_VALUE) {
 
 export function createChampagneBottle(x, y) {
   return { kind: 'champagne', x, y, w: BOTTLE_W, h: BOTTLE_H, got: false };
+}
+
+// Where a bottle's TOP goes so that its base rests on `groundY`.
+//
+// The generator used to spell this out as `(FLOOR_R - 1) * T - 26`, which is
+// the right answer for one specific bottle height and silently wrong for any
+// other — grow the bottle and it grows downward into the pavement, because y
+// is the top edge. Asking the module that owns the height is the only version
+// of this that cannot drift.
+export function champagneTopFor(groundY) {
+  return groundY - BOTTLE_H - BOTTLE_FLOAT;
 }
 
 // p: player body with {x, y, w, h}. Same generous-margin AABB test as

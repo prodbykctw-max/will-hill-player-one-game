@@ -37,11 +37,13 @@ CKPT = '/root/sam/sam_vit_b.pth'
 # groundFrac per stage — must match src/world/stages.js, since the cards are
 # cut from the same crop the renderer draws.
 GROUND_FRAC = {'eav': 0.88, 'underground': 0.78, 'l5p': 0.80, 'edgewood': 0.82,
-               # DAYTIME PLATES. Same scenes, so the same ground fractions —
-               # except Five Points, whose day composition sits the arch
-               # higher and shows more plaza (see stages.js).
-               'underground-day': 0.78, 'eav-day': 0.88,
-               'edgewood-day': 0.82, 'l5p-day': 0.80,
+               # DAYTIME PLATES. NOT "the same scenes so the same fractions" —
+               # that assumption is what put eav-day's crop through the middle
+               # of the fence. Each is measured against its night twin by
+               # landmark match; see tools/check_day_framing.py, and keep
+               # these in step with src/world/stages.js.
+               'underground-day': 0.78, 'eav-day': 0.882,
+               'edgewood-day': 0.821, 'l5p-day': 0.730,
                # TITLE SCREEN. Not a stage — there is no ground line to crop
                # to, and the parallax wants the whole picture including the
                # wet road at the bottom, so this one is 1.0.
