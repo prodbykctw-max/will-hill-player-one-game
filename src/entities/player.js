@@ -126,6 +126,35 @@ export function trip(p, now) {
   return true;
 }
 
+// HE STILL FALLS. Called instead of stepPlayer once he has been knocked
+// down: no input, no steering, just gravity and the floor.
+//
+// NOT `stepCorpse`, and the name matters here. He is not dead — he got jumped
+// and robbed, and the whole beat that follows is three men standing him up
+// out of the frame. This repo has already lost five sprite generations to
+// death-and-victim vocabulary leaking into the work; keep it out of the code
+// too.
+//
+// stepPlayer returns immediately when `dead`, which meant a knockdown taken in
+// mid-air left him hanging exactly where he was hit — and the stomp-out beat
+// started anyway, so three men gathered on the pavement and stomped a patch of
+// empty road while he floated above them. The client's words: "he stays
+// floating in the air... they were stomping the ground, he wasn't there."
+//
+// Horizontal momentum is kept and bled off rather than zeroed: he was knocked
+// in a direction, and nothing stops in mid-air just because the run ended.
+export function stepKnockedDown(p, map) {
+  if (p.onGround) { p.vx = 0; return true; }
+  p.vx *= 0.94;
+  p.vy = Math.min(p.vy + GRAV, TERMINAL_VY);
+  p.x += p.vx;
+  collideH(map, p, p.w, p.h);
+  p.x = Math.max(0, p.x);
+  p.y += p.vy;
+  collideV(map, p, p.w, p.h);
+  return p.onGround;
+}
+
 export function stepPlayer(p, input, map) {
   if (p.dead) return;
 

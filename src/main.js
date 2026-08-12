@@ -8,7 +8,7 @@ import { createLoop } from './core/loop.js';
 import { createCamera } from './core/camera.js';
 import { createInput } from './core/input.js';
 import { advanceAnim } from './core/animate.js';
-import { createPlayer, stepPlayer, isInvulnerable, grantInvulnerability, trip, CHAMPAGNE_SECONDS, PLAYER_SPRITE } from './entities/player.js';
+import { createPlayer, stepPlayer, stepKnockedDown, isInvulnerable, grantInvulnerability, trip, CHAMPAGNE_SECONDS, PLAYER_SPRITE } from './entities/player.js';
 import { createAudio } from './audio/audio.js';
 import { WALK_SPEED, RUN_SPEED } from './core/physics.js';
 import { ENEMY_SPRITES, updateEnemy, resolveEnemyCollision } from './entities/enemy.js';
@@ -535,6 +535,28 @@ function update() {
     // fade, because there is nobody standing there to do it. Short on
     // purpose, ~1.6s. See entities/stompout.js.
     if (player.deathCause === 'enemy') {
+      // HE HAS TO LAND FIRST. Taken down in mid-air he used to hang there —
+      // stepPlayer stops running the moment he is dead, so nothing applied
+      // gravity — while the beat below started regardless and three men
+      // gathered on the pavement to stomp an empty patch of road under him.
+      // Nobody is stomped in the air, so nothing begins until he is down.
+      if (!player.onGround) {
+        // WHICH CLIP DEPENDS ON THE DROP, and `fall` is usually the wrong one.
+        // That clip is the MANHOLE — arms up, legs kicking, tumbling, authored
+        // to read as final (see stepPlayer's note on it). Coming off a
+        // mistimed jump at an enemy is not that: he got clipped and is
+        // dropping a metre onto the pavement, so `knockback` is the honest
+        // read and it is what the sheet has that clip for.
+        //
+        // Keyed on speed rather than on a measured height because speed IS
+        // the drop — he has to have been falling a while to build it. 10.6
+        // units/tick is about 108 units of fall, a metre and a bit, which is
+        // further than any failed stomp and about where a tumble stops
+        // looking overdone.
+        player.anim = player.vy > 10.6 ? 'fall' : 'knockback';
+        stepKnockedDown(player, level.map);
+        return;
+      }
       if (state.stompT === undefined) {
         state.stompT = 0;
         state.stompers = beginStompOut(player, level.enemies);
@@ -555,6 +577,16 @@ function update() {
       const done = stepStompOut(state.stompT++, player, state.stompers, state.dust);
       for (const e of state.stompers) advanceAnim(e, ENEMY_SPRITES[e.variant].atlas);
       if (!done) return;
+    }
+    // A POTHOLE OR A LAST-HEART HIT ALSO DROPS HIM. Same reason: nothing is
+    // applying gravity to a dead player, and a body that stops in mid-air on
+    // the way to the fade reads as the game hanging. A fall down a hole is the
+    // exception — falling IS the death, and main's FALL_DEATH_Y already owns
+    // it — so that one goes straight through.
+    if (player.deathCause !== 'fall' && !player.onGround) {
+      player.anim = player.vy > 10.6 ? 'fall' : 'knockback';
+      stepKnockedDown(player, level.map);
+      return;
     }
     state.screen = 'gameOver';
     state.screenT = 0;

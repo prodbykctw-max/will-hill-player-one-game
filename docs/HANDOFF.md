@@ -243,6 +243,50 @@ jitter is larger than the thing being measured.
 
 ---
 
+## Knocked down in mid-air — he has to land first
+
+**`stepPlayer` returns immediately when `dead`**, so nothing applied gravity
+to a knocked-down player. Take the hit at the top of a jump and he hung there
+— while the stomp-out beat started anyway, three men gathering on the
+pavement to stomp an empty patch of road underneath him. The client's words:
+"he stays floating in the air… they were stomping the ground, he wasn't
+there."
+
+`stepKnockedDown(p, map)` in `entities/player.js` runs instead: gravity,
+terminal velocity, both collide passes, no input. `main.js` calls it and
+`return`s until `onGround`, so `state.stompT` is not set — and therefore the
+stompers are not summoned — until he is actually down. The same gate covers
+pothole trips and last-heart hits; a fall down a hole goes straight through,
+because falling **is** that death and `FALL_DEATH_Y` already owns it.
+
+Horizontal momentum is bled (`vx *= 0.94`) rather than zeroed. He was knocked
+in a direction and nothing stops dead in mid-air.
+
+**`fall` is the wrong clip for a botched stomp.** That clip is the MANHOLE —
+arms up, legs kicking, authored to read as final. Coming off a mistimed jump
+at an enemy is a metre onto the pavement, so it plays `knockback` instead, and
+`fall` is kept for genuine drops. The switch is on **speed, not height**:
+`vy > 10.6` (about 108 units of fall) — speed *is* the drop, since he has to
+have been falling a while to build it, and it needs no extra state.
+
+Not `stepCorpse`, and the name matters. He is not dead; he got jumped and
+robbed. This repo has already lost five sprite generations to death-and-victim
+vocabulary leaking into the work — keep it out of the code as well.
+
+Verified with `scratchpad/airdeath.mjs`, which puts him at a given height,
+knocks him down, and traces every frame:
+
+| knocked down at | lands on frame | stomp-out starts | clips used |
+|---|---|---|---|
+| 45 units up | 10 | 11 | `knockback` → `knockdown` |
+| 150 units up | 18 | 19 | `fall` → `knockback` → `knockdown` |
+| 320 units up | 26 | 27 | `fall` → `knockback` → `knockdown` |
+
+Landing always precedes the beat by exactly one frame — the gate releases, the
+next tick sets `stompT`.
+
+---
+
 ## Player feel — current numbers
 
 Animation timing is per-clip, in the atlas (`ticks` per frame). Fractional
