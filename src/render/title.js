@@ -170,17 +170,36 @@ export function titleCards(images) {
     // omitted from this layer because no cloud ever reaches down there and
     // the base already has it.
     { img: images.title_front },
+    // ── THE TWO ROADSIDE SIGNS ────────────────────────────────────────
+    //
+    // ⚠️ THESE CARDS ONCE CARRIED THE SKYLINE WITH THEM, and it is the failure
+    // mode to watch for on every SAM group: a card sways whatever is IN it, so
+    // one wrongly-assigned mask puts a building on a pole. The client caught
+    // it — "the sign on the left, the building is moving behind it… the one
+    // closest to the left, touching the sign on the right, is still moving" —
+    // and he was exactly right about which buildings. signL had swallowed the
+    // tall spire (mask #52), the whole streetlamp and two clouds; signR had
+    // taken the block against its left edge (#109), which is the one he named.
+    //
+    // Both groups are now derived by CONTAINMENT in the sign's own footprint
+    // rather than by hand-picked mask lists — 70% inside the panel-and-posts
+    // box, the same rule sam_group.py uses on the stage plates. That dropped
+    // 14 masks from signL and 1 from signR, and it is a rule rather than a
+    // patch, so a re-cut cannot quietly re-admit them.
+    //
+    // `top` is each sign's REAL top edge now, not a guess above it. The shear
+    // ramps linearly from `pivot` to `top`, so a band starting 170 rows above
+    // the object gave the object only part of the amplitude.
     {
       img: images.title_signL,
-      // Mask y 298..708: the plate starts at 0.291 and the posts are planted
-      // at 0.691.
-      sway: [{ top: 0.29, pivot: 0.692, ampFrac: 0.0045, freq: 1.0,
+      // Mask x 1..387, y 468..707 — panel at 0.457, posts planted at 0.691.
+      sway: [{ top: 0.457, pivot: 0.692, ampFrac: 0.0045, freq: 1.0,
         xRanges: [[0.0, 0.256]] }],
     },
     {
       img: images.title_signR,
-      // Mask y 420..775, x 1213..1534.
-      sway: [{ top: 0.41, pivot: 0.757, ampFrac: 0.0045, freq: 1.25,
+      // Mask x 1213..1534, y 462..775.
+      sway: [{ top: 0.451, pivot: 0.757, ampFrac: 0.0045, freq: 1.25,
         xRanges: [[0.786, 1.0]] }],
     },
     {
