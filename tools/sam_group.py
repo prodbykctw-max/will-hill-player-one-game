@@ -131,6 +131,50 @@ REGIONS = {
         ('rightpillar',708,    0,  770,  365),
         ('kerb',         0,  282,  770,  363),  # pavement and kerb
     ],
+
+    'edgewood-day': [
+        # Sky and clouds exist only in the day plates — the night versions are
+        # a black band — so these two have no night box to transform and are
+        # read off the day art. Clouds FIRST: most-specific-first is what stops
+        # the skyline claiming them, and the client's note is that they have to
+        # move in the daytime as well.
+        ('clouds',         0,    0,  762,  100),
+        ('neon_ourbar',   71,  199,  145,  295),
+        ('neon_dis',     635,  199,  709,  295),
+        ('neon_open',    452,  174,  501,  205),
+        ('sign_blm',     297,  259,  370,  320),
+        ('sign_soul',    412,  255,  489,  289),
+        ('lamps',          2,  116,  758,  182),
+        ('skyline',        2,   35,  758,   99),
+        ('parapet',        2,   97,  758,  134),
+        ('bay_left',      31,  154,  195,  337),
+        ('bay_mid1',     269,  152,  398,  344),
+        ('bay_mid2',     398,  152,  566,  344),
+        ('bay_right',    576,  154,  739,  337),
+        ('facade',         2,  129,  758,  344),
+        ('pavement',       2,  328,  758,  403),
+    ],
+
+    'l5p-day': [
+        ('clouds',         0,    0,  764,  120),
+        ('openneon',     355,  220,  425,  266),
+        ('poster',       608,  217,  696,  313),
+        ('newusedsign',  120,  166,  241,  203),
+        ('buysell',      255,  161,  318,  223),
+        ('awning',       563,  166,  751,  205),
+        ('letters',      386,   34,  706,  151, 3000),
+        ('pole',          53,    9,  112,  342),
+        ('farbuild',      14,   63,  117,  303),
+        ('sign',         345,   14,  721,  184),
+        ('newused',      112,   99,  246,  339),
+        ('brick',        233,   66,  353,  350),
+        ('bayleft',      345,  184,  463,  350),
+        ('baymid',       457,  184,  565,  354),
+        ('bayright',     555,  164,  747,  354),
+        ('rightpillar',  708,    9,  768,  367),
+        ('kerb',          14,  286,  768,  365),
+    ],
+
     # ── Edgewood ─────────────────────────────────────────────────────────
     # This plate was written off earlier in the project as "a flat head-on
     # facade with a pure black sky, nothing standing in front of anything".
@@ -139,6 +183,26 @@ REGIONS = {
     # median (0,0,0). Edgewood has a full lit skyline row across y 0-62,
     # measured — the lit-pixel count climbs from 6px at y=0 to 167px by y=30.
     # It also has the richest signage of the four stages.
+    # ── DAYTIME EDGEWOOD / LITTLE 5 POINTS ───────────────────────────────
+    #
+    # NOT hand-authored off the proposal sheets, and deliberately. The night
+    # and day paintings of each corner are the SAME COMPOSITION at 0.98-0.99
+    # scale — tools/check_day_framing.py measures that by matching a named
+    # landmark, and it is the same finding that fixed the day plates' framing.
+    # So the night plate's boxes, which were read off the art by hand and have
+    # already been through a cut, transform straight across:
+    #
+    #     edgewood   day = 0.9900 * night + (1.5, 35.2)
+    #     l5p        day = 0.9800 * night + (13.9, 9.3)
+    #
+    # That is better than re-authoring fourteen boxes by eye, not just faster:
+    # the night boxes are KNOWN GOOD, so a bad day assignment can only come
+    # from the transform or from SAM proposing differently, and both of those
+    # show up on --map. Regenerate with the snippet in the commit that added
+    # these if either plate is ever re-exported.
+    #
+    # ⚠️ --map BEFORE CUTTING. Two Underground cards shipped as solid
+    # rectangles because that step was skipped once already.
     'edgewood': [
         # Detail first: neons and practicals, lifted off the brick.
         ('neon_ourbar',   70,  165,  145,  262),  # OUR BAR / ATL
