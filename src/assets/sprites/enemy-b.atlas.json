@@ -1,6 +1,6 @@
 {
   "frameSize": [
-    233,
+    213,
     250
   ],
   "cols": 16,
@@ -9,7 +9,7 @@
     256
   ],
   "origin": [
-    15,
+    22,
     3
   ],
   "animations": {
@@ -38,11 +38,12 @@
       "frameCount": 16,
       "loop": false,
       "fit": {
-        "h": 0.944,
-        "b": 0.964,
-        "bLow": 0.984
+        "h": 0.284,
+        "b": 0.672,
+        "bLow": 0.68
       },
-      "note": "plays once when stomped, then the enemy despawns"
+      "note": "plays once when stomped, then the enemy despawns",
+      "ownFit": true
     },
     "stomp": {
       "row": 3,

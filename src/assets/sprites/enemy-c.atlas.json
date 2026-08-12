@@ -1,7 +1,7 @@
 {
   "frameSize": [
-    232,
-    251
+    208,
+    250
   ],
   "cols": 16,
   "sourceCellSize": [
@@ -9,8 +9,8 @@
     256
   ],
   "origin": [
-    24,
-    0
+    23,
+    1
   ],
   "animations": {
     "idle": {
@@ -18,8 +18,8 @@
       "frameCount": 16,
       "loop": true,
       "fit": {
-        "h": 0.9801,
-        "b": 0.9761,
+        "h": 0.984,
+        "b": 0.976,
         "bLow": 0.992
       }
     },
@@ -28,8 +28,8 @@
       "frameCount": 16,
       "loop": true,
       "fit": {
-        "h": 0.9761,
-        "b": 0.9841,
+        "h": 0.98,
+        "b": 0.984,
         "bLow": 0.992
       }
     },
@@ -38,27 +38,28 @@
       "frameCount": 16,
       "loop": false,
       "fit": {
-        "h": 0.9602,
-        "b": 0.9422,
-        "bLow": 0.9602
+        "h": 0.308,
+        "b": 0.678,
+        "bLow": 0.684
       },
-      "note": "plays once when stomped, then the enemy despawns"
+      "note": "plays once when stomped, then the enemy despawns",
+      "ownFit": true
     },
     "stomp": {
       "row": 3,
       "frameCount": 16,
       "loop": true,
       "fit": {
-        "h": 0.9243,
-        "b": 0.9502,
-        "bLow": 0.9602
+        "h": 0.928,
+        "b": 0.95,
+        "bLow": 0.96
       },
       "note": "played over the downed player during the knockdown"
     }
   },
   "fitRef": {
-    "h": 0.9801,
-    "b": 0.9761,
+    "h": 0.984,
+    "b": 0.976,
     "bLow": 0.992
   }
 }

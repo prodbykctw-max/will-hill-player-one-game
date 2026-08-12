@@ -44,9 +44,30 @@ SOURCE_COLS = 4
 FRAMES = 16
 
 ANIMATIONS = [
-    ('idle',   'idle',   True,  None),
-    ('walk',   'walk',   True,  None),
-    ('defeat', 'defeat', False, 'plays once when stomped, then the enemy despawns'),
+    ('idle',   'idle',   True,  None, False),
+    ('walk',   'walk',   True,  None, False),
+    # DEFEAT — him on the ground, and it took FIVE generations to get one
+    # body in the frame.
+    #
+    # The sheet this replaces was the game's most-reported bug: an enemy
+    # STANDING OVER A SECOND ENEMY AND STOMPING IT, in all sixteen frames, so
+    # every enemy you beat appeared to stomp itself out. It is also, by
+    # accident, where the player knockdown came from — the client saw it and
+    # said do that to ME.
+    #
+    # Four attempts to prompt it away failed, including one that spelled out
+    # "never two figures" and "nothing already lying on the ground". The word
+    # that summons a victim is the SUBJECT: any prompt containing defeat,
+    # knocked down, stomped or beaten draws someone to be defeated. The fifth
+    # attempt describes only a man lying flat on his back, asleep, with no
+    # reference to why — and came back with exactly one body. Same trick the
+    # player's `downed` clip got right first time. Do not reintroduce that
+    # vocabulary when regenerating this.
+    #
+    # groundFit: it is a body ON the pavement, so it plants on its own lowest
+    # pixel rather than on the standing reference's — see the same flag in
+    # tools/compose_player_sheet.py.
+    ('defeat', 'defeat', False, 'plays once when stomped, then the enemy despawns', True),
     # STOMP — what they do to Will Hill once he is down. Until this existed
     # the knockdown fell back to `walk`, so three men gathered round him and
     # marched on the spot.
@@ -69,14 +90,14 @@ ANIMATIONS = [
     # driven straight down, upper body leaning over it. An earlier pass used
     # the generator's `attack` clip instead — a straight forward strike — and
     # it read as boxing the air above him rather than stomping him.
-    ('stomp',  'stomp',  True,  'played over the downed player during the knockdown'),
+    ('stomp',  'stomp',  True,  'played over the downed player during the knockdown', False),
 ]
 
 
 def compose(v):
     RAW_DIR, OUT_IMG, OUT_JSON = paths_for(v)
     frame_lists = {}
-    for folder, key, _loop, _note in ANIMATIONS:
+    for folder, key, _loop, _note, _gf in ANIMATIONS:
         src_path = os.path.join(RAW_DIR, folder, 'spritesheet.png')
         if not os.path.exists(src_path):
             raise SystemExit(
@@ -87,15 +108,17 @@ def compose(v):
         frame_lists[key] = load_grid_frames(src_path, SOURCE_COLS, SOURCE_CELL, FRAMES)
 
     box = union_bbox(frame_lists, SOURCE_CELL)
-    rows = [(key, frame_lists[key]) for _folder, key, _loop, _note in ANIMATIONS]
+    rows = [(key, frame_lists[key]) for _folder, key, _loop, _note, _gf in ANIMATIONS]
     sheet, cell_w, cell_h = pack_sheet(rows, box, FRAMES)
 
     animations = {}
-    for row_i, (_folder, key, loop, note) in enumerate(ANIMATIONS):
+    for row_i, (_folder, key, loop, note, ground_fit) in enumerate(ANIMATIONS):
         animations[key] = {'row': row_i, 'frameCount': FRAMES, 'loop': loop,
                            'fit': measure_fit(frame_lists[key], box)}
         if note:
             animations[key]['note'] = note
+        if ground_fit:
+            animations[key]['ownFit'] = True
 
     # 'idle' is the standing reference pose the renderer sizes/anchors off.
     fit_ref = animations['idle']['fit']
