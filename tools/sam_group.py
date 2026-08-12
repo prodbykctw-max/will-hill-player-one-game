@@ -157,6 +157,54 @@ REGIONS = {
         ('facade',         0,   95,  764,  312),  # the brick between the bays
         ('pavement',       0,  296,  764,  372),
     ],
+    # ── STILL SCENES: the title painting and the ending painting ─────────
+    #
+    # THESE ARE NOT STAGE BACKDROPS AND THE REGION LIST IS DELIBERATELY
+    # SHORTER. A stage plate has to account for every pixel, because each card
+    # scrolls at its own rate and anything left behind in the base would slide
+    # against the thing it belongs to. A still scene does not scroll at all:
+    # the painting is shown WHOLE and the only cards are the handful of pieces
+    # that MOVE. Everything else stays in the base, where it is already
+    # correct, and `UNASSIGNED` in the report below is the expected outcome
+    # for most of the plate rather than a gap to go and fix.
+    #
+    # Boxes measured off a 100px grid laid over the 1536x1024 plates, not
+    # estimated — see tools/README.md.
+
+    # Title screen. Movers: the cloud bank drifts, Will Hill breathes, the two
+    # roadside signs rock on their posts, PRESS START pulses.
+    'title': [
+        # Listed first purely to keep the lettering OUT of `clouds` — the
+        # WILL HILL: line sits inside the sky band and would otherwise be
+        # picked up and set drifting across the screen. This group is emitted
+        # and then dropped; nothing animates the title text.
+        ('letters',   300,  15, 1245,  330),
+        ('star',      235, 200,  305,  285),   # the two red stars flanking it
+        ('star',     1245, 200, 1315,  285),
+        ('signL',       5, 370,  355,  710),   # WELCOME TO ATLANTA + posts
+        ('signR',    1240, 440, 1532,  710),   # AHEAD ON THE COME UP + posts
+        ('hero',      650, 325,  900,  855),   # Will Hill himself
+        ('prompt',    495, 845, 1040,  925),   # PRESS START
+        # Last, and stopping at the rooftops: below y 235 the box would start
+        # claiming towers, and a drifting skyline is a different game.
+        ('clouds',      0,   0, 1536,  235),
+    ],
+
+    # Ending screen. The client asked for the crowd to sway "like the trees".
+    #
+    # NO `bulbs` CARD. The pendant lamps were grouped first and the group map
+    # showed the box taking the client's own flavour lines with them — EAST
+    # ATLANTA IS YOURS / RESPECT EARNED / LEGEND UNLOCKED sit interleaved with
+    # the lamps at the same heights, and ending.js only overpaints the title
+    # and the stats panel, so that text stays visible. Swaying it would have
+    # been a regression on the thing he asked to keep. The lamps go back into
+    # the base, where they hang still — which is what lamps do.
+    'ending': [
+        # First, or the plaque joins the crowd and sways with it.
+        ('prompt',   1190, 875, 1490,  990),   # PRESS START TO CONTINUE
+        ('hero',      165, 275,  445,  975),   # Will Hill on the mic
+        ('crowd',     385, 550, 1525, 1015),
+    ],
 }
 
 

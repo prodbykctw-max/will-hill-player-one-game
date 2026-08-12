@@ -22,11 +22,10 @@ import { createBackdrop } from './render/backdrop.js';
 import { createUndercroft } from './render/undercroft.js';
 import { createHud } from './render/hud.js';
 import { createMartaMap } from './render/martamap.js';
-import { createEnding, statsFrom } from './render/ending.js';
+import { createEnding, statsFrom, endingCards, ENDING_IMAGES, PROMPT as ENDING_PROMPT } from './render/ending.js';
 import { createStillScene } from './render/stillscene.js';
+import { createTitle, TITLE_IMAGES, SRC_W as STILL_W, SRC_H as STILL_H } from './render/title.js';
 import martaMapArt from './assets/backgrounds/marta-map.webp';
-// The client's concert painting, cropped out of the ending mockup.
-import endingArt from './assets/backgrounds/ending.webp';
 import { loadImages } from './render/images.js';
 import { createRunLog, lbSubmit } from './net/leaderboard.js';
 
@@ -39,6 +38,7 @@ const hud = createHud(ctx, canvas);
 const martaMap = createMartaMap(ctx, canvas);
 const ending = createEnding(ctx, canvas);
 const still = createStillScene(ctx, canvas);
+const title = createTitle(ctx, canvas, still);
 const input = createInput();
 const audio = createAudio();
 // Browsers keep an AudioContext suspended until a real gesture, so the first
@@ -57,11 +57,6 @@ function resize() {
 window.addEventListener('resize', resize);
 resize();
 
-// Swaying pieces of the ending painting. Empty until its SAM cut lands —
-// the scene renders as the flat painting until then, which is correct rather
-// than broken. See render/stillscene.js.
-const ENDING_CARDS = [];
-
 const RIDE_TICKS = 150; // ~2.5s on the train between neighbourhoods
 const GEN_LOOKAHEAD_COLS = 24; // stream this many columns beyond the camera's right edge
 
@@ -71,7 +66,7 @@ const state = {
   player: null,
   score: 0,
   hearts: 3,
-  screen: 'loading', // loading | playing | paused | stageClear | gameOver | complete
+  screen: 'loading', // loading | title | playing | paused | riding | stageClear | gameOver | complete
   resumeTo: 'playing', // what pausing interrupted, so resume goes back to it
   screenT: 0,
   tick: 0,
@@ -173,6 +168,20 @@ canvas.addEventListener('pointerdown', (e) => {
   const x = (e.clientX - r.left) * (canvas.width / r.width);
   const y = (e.clientY - r.top) * (canvas.height / r.height);
 
+  // PRESS START means press anywhere. The jump pad still works, but nobody
+  // hunts for a button on a title card or a results board — they tap the
+  // picture. Same for the between-screens: every non-run screen whose only
+  // interaction is "acknowledge and move on" takes a tap anywhere, which is
+  // also why the pads are hidden on them.
+  if (state.screen === 'title') {
+    if (state.screenT > TITLE_ARM_TICKS) { startRun(); e.preventDefault(); }
+    return;
+  }
+  if (state.screen === 'stageClear' || state.screen === 'gameOver'
+      || state.screen === 'complete') {
+    if (state.screenT > 20) { advanceFromScreen(); e.preventDefault(); }
+    return;
+  }
   if (state.screen === 'playing') {
     if (hit(hud.pauseRect, x, y)) { pause(); e.preventDefault(); }
     return;
@@ -197,9 +206,81 @@ document.addEventListener('visibilitychange', () => {
   if (document.hidden) pause();
 });
 
+// THE ATTRACT SCREEN. The game boots here rather than straight into stage
+// one, which is what the client's painting is FOR — it carries the logo, the
+// PRESS START and the HI SCORE line, and a game that skips past its own title
+// card has thrown away its front door.
+//
+// The delay before it will accept a press is not politeness, it is a bug
+// fix waiting to happen: `confirmPressed()` is the jump button, so without it
+// the tap that ends a run's GAME KNOCKED screen carries straight through the
+// title and into the next run.
+const TITLE_ARM_TICKS = 24;
+
+function showTitle() {
+  state.screen = 'title';
+  state.screenT = 0;
+  audio.ambience(0);
+}
+
+// WHAT "CONTINUE" DOES ON EACH BETWEEN-SCREEN. One function rather than a
+// branch inside update(), because the same decision is now reachable two
+// ways — the JUMP button and a tap anywhere on the art — and having the tap
+// path re-implement it is how the two drift apart.
+function advanceFromScreen() {
+  if (state.screen === 'stageClear') {
+    state.distanceM += Math.max(0, (state.player.x - 3 * T) / T);
+    if (state.stageIndex + 1 < STAGES.length) {
+      state.rideFrom = STAGES[state.stageIndex].id;
+      state.rideTo = state.stageIndex + 1;
+      state.screen = 'riding';
+      state.screenT = 0;
+    } else {
+      state.screen = 'complete';
+      state.screenT = 0;
+      state.finalLog = state.runLog.finish();
+      lbSubmit(state.finalLog);
+    }
+    return;
+  }
+  // Spend the continue if there is one and this was a knockdown, not the end
+  // of the game. Hearts come back full and the stage restarts from its
+  // beginning; the score carries, because the money was already earned and
+  // taking it back would make the continue worthless.
+  if (state.screen === 'gameOver' && state.continues > 0) {
+    state.continues--;
+    state.runLog.record('continue');
+    state.hearts = 3;
+    startStage(state.stageIndex);
+    return;
+  }
+  // Back to the attract screen, not straight into a fresh run. Restarting the
+  // instant you acknowledge the last run gives you no moment to stop playing,
+  // and it throws away the board with your score on it — which on a contest
+  // build is the screen that matters most.
+  showTitle();
+}
+
+// The pads belong to the run. Every other screen is either full-bleed art you
+// tap anywhere to dismiss, or the pause menu, which has its own buttons.
+let padsShown = null;
+function syncPads() {
+  const want = !(state.screen === 'playing' || state.screen === 'paused');
+  if (want === padsShown) return;
+  padsShown = want;
+  document.body.classList.toggle('nopads', want);
+}
+
 function update() {
   state.tick++;
+  syncPads();
   if (state.screen === 'loading') return;
+
+  if (state.screen === 'title') {
+    state.screenT++;
+    if (state.screenT > TITLE_ARM_TICKS && confirmPressed()) startRun();
+    return;
+  }
   // Paused freezes the world but keeps drawing, so the menu sits over a
   // still frame of the run rather than a black screen.
   if (state.screen === 'paused') { state.screenT++; return; }
@@ -213,41 +294,10 @@ function update() {
     return;
   }
 
-  if (state.screen === 'stageClear') {
+  if (state.screen === 'stageClear' || state.screen === 'gameOver'
+      || state.screen === 'complete') {
     state.screenT++;
-    if (state.screenT > 20 && confirmPressed()) {
-      state.distanceM += Math.max(0, (state.player.x - 3 * T) / T);
-      if (state.stageIndex + 1 < STAGES.length) {
-        state.rideFrom = STAGES[state.stageIndex].id;
-        state.rideTo = state.stageIndex + 1;
-        state.screen = 'riding';
-        state.screenT = 0;
-      } else {
-        state.screen = 'complete';
-        state.screenT = 0;
-        state.finalLog = state.runLog.finish();
-        lbSubmit(state.finalLog);
-      }
-    }
-    return;
-  }
-
-  if (state.screen === 'gameOver' || state.screen === 'complete') {
-    state.screenT++;
-    if (state.screenT > 20 && confirmPressed()) {
-      // Spend the continue if there is one and this was a knockdown, not the
-      // end of the game. Hearts come back full and the stage restarts from
-      // its beginning; the score carries, because the money was already
-      // earned and taking it back would make the continue worthless.
-      if (state.screen === 'gameOver' && state.continues > 0) {
-        state.continues--;
-        state.runLog.record('continue');
-        state.hearts = 3;
-        startStage(state.stageIndex);
-      } else {
-        startRun();
-      }
-    }
+    if (state.screenT > 20 && confirmPressed()) advanceFromScreen();
     return;
   }
 
@@ -529,6 +579,34 @@ function draw() {
     return;
   }
 
+  // The attract screen replaces the world entirely — there is no level behind
+  // it to draw, and on boot there is not even one built yet.
+  if (state.screen === 'title') {
+    title.draw(images, state.tick);
+    return;
+  }
+
+  // The results board is a whole screen of its own, and it covers the frame.
+  // It used to be checked further down, AFTER a full world render that it
+  // then painted over — a wasted backdrop, undercroft, tile and entity pass
+  // every frame you sat looking at your score, and a hard crash if it was
+  // ever reached without a level built.
+  if (state.screen === 'complete') {
+    // The painting first, with its swaying crowd, then the run's numbers
+    // drawn onto the panel the painting already has. `box` is where the
+    // painting landed, so everything lands on its own coordinates.
+    //
+    // The base is the INPAINTED plate (tools/cut_still.py), not the original:
+    // the crowd and Will Hill have been lifted off it onto cards so they can
+    // move, and leaving them in the base as well would show a second, still
+    // crowd behind the moving one the moment it swayed.
+    const box = still.draw(images.ending_base, endingCards(images), state.tick);
+    ending.draw(statsFrom(state.finalLog, state.score, state.distanceM || 0),
+      state.screenT, box);
+    still.pulsePrompt(box, ENDING_PROMPT, STILL_W, STILL_H, state.tick);
+    return;
+  }
+
   // Riding MARTA between neighbourhoods — the map replaces the world
   // entirely, so it returns before any of the stage draw runs.
   if (state.screen === 'riding') {
@@ -595,19 +673,6 @@ function draw() {
 
   backdrop.drawVignette();
 
-  // The ending board is a whole screen of its own. Drawing the run HUD over
-  // it left a health bar, a pause button and the stage name across the top of
-  // the results.
-  if (state.screen === 'complete') {
-    // The painting first, with its swaying cards, then the run's numbers
-    // drawn onto the panel the painting already has. `box` is where the
-    // painting landed, so everything lands on its own coordinates.
-    const box = still.draw(images.endingart, ENDING_CARDS, state.tick);
-    ending.draw(statsFrom(state.finalLog, state.score, state.distanceM || 0),
-      state.screenT, box);
-    return;
-  }
-
   const champLeft = Math.max(0, player.invulnerableUntil - Date.now());
   hud.draw({
     score: state.score,
@@ -659,7 +724,10 @@ const imageManifest = {
   champagne: PROP_SPRITES.champagne,
   // The client's stylized MARTA rail map, for the between-stage screen.
   martamap: martaMapArt,
-  endingart: endingArt,
+  // The two still scenes: an inpainted base plus the pieces cut off it that
+  // move. See render/title.js and render/ending.js.
+  ...TITLE_IMAGES,
+  ...ENDING_IMAGES,
 };
 for (const [v, sp] of Object.entries(ENEMY_SPRITES)) imageManifest['enemy_' + v] = sp.url;
 for (const s of STAGES) {
@@ -670,7 +738,7 @@ for (const s of STAGES) {
 loadImages(imageManifest)
   .then((loaded) => {
     images = loaded;
-    startRun();
+    showTitle();
     loop.start();
   })
   .catch((err) => {

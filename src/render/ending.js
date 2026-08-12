@@ -24,10 +24,78 @@
 // the rows. A board reporting "BOSSES DEFEATED 0" every single run tells the
 // player nothing except that the board was copied from somewhere else.
 
+import endingBase from '../assets/backgrounds/ending-base.webp';
+import endingCrowd from '../assets/backgrounds/ending-crowd.webp';
+import endingHero from '../assets/backgrounds/ending-hero.webp';
+
+// Loaded through main.js's one image manifest, like everything else.
+export const ENDING_IMAGES = {
+  ending_base: endingBase,
+  ending_crowd: endingCrowd,
+  ending_hero: endingHero,
+};
+
 const HOT = '#ffc46b';
 const PALE = '#f2ead8';
 const DIM = 'rgba(242,234,216,0.62)';
 const INK = 'rgba(10,8,14,0.86)';
+
+// ── THE CROWD SWAYS ──────────────────────────────────────────────────────
+//
+// "can you not animate the actual image i gave you using sam to give a little
+// crowd sway? like the trees?" — so it is literally the trees' gust field
+// (render/stillscene.js gustAt, shared with the EAV canopy), applied to a
+// crowd cut out of his painting by the SAM pass.
+//
+// THREE BANDS, NOT ONE. A single shear over the whole crowd moves nine
+// hundred people as one sheet of card. Split into depth rows instead, each
+// shearing about ITS OWN floor and each with a bigger amplitude the nearer it
+// is to camera — which is just perspective: the front row is twice the size
+// on screen, so the same physical shift is twice the pixels.
+//
+// The bands do not overlap, because drawCard composites each band separately
+// and an overlap would double up the feathered alpha. The seam between two
+// bands lands where one row of heads ends and the next row's begin — they are
+// different people, so them moving differently is not a tear, it is a crowd.
+//
+// Amplitudes are FRACTIONS OF THE PAINTING'S DRAWN WIDTH, so this reads the
+// same on a phone and on a desktop. 0.004 is about 1.7px on a 430px phone —
+// deliberately small. The client asked for "a little" sway, and a crowd
+// visibly rocking in unison stops looking like an audience and starts looking
+// like seaweed.
+//
+// Card mask extents from tools/cut_still.py: crowd x 394..1528, y 530..1015;
+// hero x 151..452, y 234..988. Divided by the 1536x1024 plate.
+export function endingCards(images) {
+  return [
+    {
+      img: images.ending_crowd,
+      sway: [
+        // Back rows. Small, quick, and split into three horizontal groups so
+        // the far side of the room is not in step with the near side.
+        { top: 0.518, pivot: 0.645, ampFrac: 0.0022, freq: 1.35,
+          xRanges: [[0.255, 0.48], [0.48, 0.72], [0.72, 1.0]] },
+        // Middle.
+        { top: 0.645, pivot: 0.80, ampFrac: 0.0034, freq: 1.05,
+          xRanges: [[0.255, 0.55], [0.55, 1.0]] },
+        // Front row, biggest on screen and so the biggest shift.
+        { top: 0.80, pivot: 0.995, ampFrac: 0.0052, freq: 0.8,
+          xRanges: [[0.255, 0.62], [0.62, 1.0]] },
+      ],
+    },
+    {
+      // Will Hill on the mic. He is performing, not standing in a crowd, so
+      // he gets his own slower beat rather than being swept along with them.
+      img: images.ending_hero,
+      sway: [{ top: 0.229, pivot: 0.955, ampFrac: 0.0026, freq: 0.55,
+        xRanges: [[0.09, 0.30]] }],
+    },
+  ];
+}
+
+// PRESS START TO CONTINUE, in the painting's own pixels — mask bbox
+// x 1217..1477, y 888..977, padded to the plaque's edge.
+export const PROMPT = { x: 1200, y: 878, w: 292, h: 104 };
 
 // Rank thresholds, in dollars banked. Set against what a run actually pays:
 // four stages of roughly 15 bags at BAG_VALUE 100 plus 50 a stomp puts a
@@ -88,7 +156,18 @@ export function createEnding(ctx, canvas) {
   // Measured against the ink: the lettering runs y 40..178.
   const TITLE = { x: 1022, y: 38, w: 420, h: 142 };
   const PANEL = { x: 1030, y: 336, w: 448, h: 250 };
-  const ROW0 = 368, ROW_PITCH = 30;
+  // NINE LINES INSIDE 250px. Seven stats, then SCORE, then RANK. At the old
+  // 30px pitch the last two fell out of the bottom of the panel — RANK landed
+  // at y 624 against a panel ending at 586 — so the letter everybody
+  // screenshots was printed on the crowd instead of on the wall. That was
+  // survivable while the crowd was a still photograph and is not now that it
+  // sways: the rank would ride up and down on somebody's head.
+  //
+  // Widening the panel was the wrong fix — it is a black rectangle painted
+  // over the client's art, and another 60px of it would have taken the tops
+  // off the right-hand crowd. So the rows tighten instead: 25px pitch puts
+  // RANK's baseline at 575, thirteen inside the panel's own edge.
+  const ROW0 = 364, ROW_PITCH = 25;
   const LABEL_X = 1052, VALUE_X = 1452;
 
   const INK_HI = '#f5cd77';
@@ -175,7 +254,7 @@ export function createEnding(ctx, canvas) {
     }
 
     if (t > rows.length * 7) {
-      const ry = Y(ROW0 + rows.length * ROW_PITCH + 6);
+      const ry = Y(ROW0 + rows.length * ROW_PITCH + 2);
       ctx.textAlign = 'left';
       ctx.fillStyle = INK_FACE;
       ctx.fillText('SCORE', X(LABEL_X), ry);
@@ -185,7 +264,7 @@ export function createEnding(ctx, canvas) {
     }
     if (t > rows.length * 7 + 12) {
       const r = rankFor(stats.score, stats);
-      const ry = Y(ROW0 + (rows.length + 1) * ROW_PITCH + 16);
+      const ry = Y(ROW0 + (rows.length + 1) * ROW_PITCH + 6);
       ctx.textAlign = 'left';
       ctx.fillStyle = INK_FACE;
       ctx.font = `700 ${rpx}px system-ui, sans-serif`;
@@ -194,8 +273,8 @@ export function createEnding(ctx, canvas) {
       const pop = Math.max(0, 1 - (t - rows.length * 7 - 12) / 12);
       ctx.textAlign = 'right';
       ctx.fillStyle = r.colour;
-      ctx.font = `900 ${Math.round(rpx * (1.7 + pop * 0.7))}px system-ui, sans-serif`;
-      ctx.fillText(r.letter, X(VALUE_X), ry + P(8));
+      ctx.font = `900 ${Math.round(rpx * (1.5 + pop * 0.7))}px system-ui, sans-serif`;
+      ctx.fillText(r.letter, X(VALUE_X), ry + P(5));
     }
 
     // NO PROMPT DRAWN. The painting has PRESS START TO CONTINUE on it

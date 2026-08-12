@@ -65,6 +65,11 @@
        indicator sits exactly where a jump button wants to be. */
     #touch { display: none; }
     body.touch #touch { display: block; }
+    /* Off on any screen that is not the run. The title card and the results
+       board are full-bleed art you tap anywhere to dismiss, and four control
+       pads sitting over them are clutter advertising controls that do
+       nothing. main.js sets this from the game state. */
+    body.nopads #touch { display: none; }
 
     #touch .pad {
       position: fixed; z-index: 10;
