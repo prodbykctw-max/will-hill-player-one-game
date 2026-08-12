@@ -115,7 +115,7 @@ export const OPTIONS_PROMPT = { x: 600, y: 926, w: 336, h: 62 };
 // screen is cut in two: everything above the line starts the game, everything
 // below opens the panel. Both targets are enormous and there is exactly one
 // boundary to miss instead of two adjacent edges.
-export const TITLE_ZOOM = 1.06;
+export const TITLE_ZOOM = 1.07;
 export const TITLE_BIAS = 0;
 // In the painting's own rows: below PRESS START (ends 913), above OPTIONS
 // (starts ~926). Everything at or under this — including all the black below
@@ -167,8 +167,59 @@ export function createTitle(ctx, canvas, still) {
     // OPTIONS breathes too, on the opposite beat and cooler, so it reads as a
     // second thing you can press rather than as a caption under the first.
     still.pulsePrompt(box, OPTIONS_PROMPT, SRC_W, SRC_H, tick + 57, '150,210,255');
+    drawOptionsButton(box, tick);
     return box;
   }
+  // ── THE OPTIONS BUTTON ────────────────────────────────────────────────
+  //
+  // Drawn in the black BELOW the card, because the painted labels cannot be
+  // separated. PRESS START and OPTIONS sit 4 screen pixels apart in the
+  // artwork and the zoom is already at its measured ceiling, so no amount of
+  // scaling pulls them apart — at 1.07 they are still under four pixels from
+  // each other. A dead zone between them would be three pixels wide, which
+  // buys nothing.
+  //
+  // So the reachable OPTIONS control moves off the label entirely and into
+  // the empty space underneath: a real, thumb-sized button with 60px of clear
+  // black between it and the bottom of the card. Nobody aiming at it can
+  // land on PRESS START, and nobody tapping the picture to start can land on
+  // it. The painted word is not a decoy — it is inside the same lower zone,
+  // so pressing it does the same thing.
+  const BTN = { w: 232, h: 60, gapBelowCard: 60 };
+
+  function optionsButton(box) {
+    if (!box) return null;
+    const y = Math.min(canvas.height - BTN.h - 24,
+      box.dy + box.dh + BTN.gapBelowCard);
+    return { x: (canvas.width - BTN.w) / 2, y, w: BTN.w, h: BTN.h };
+  }
+
+  function drawOptionsButton(box, tick) {
+    const b = optionsButton(box);
+    if (!b) return;
+    const pulse = 0.5 + 0.5 * Math.sin(tick * 0.045);
+    ctx.save();
+    ctx.beginPath();
+    const r = 12;
+    ctx.moveTo(b.x + r, b.y);
+    ctx.arcTo(b.x + b.w, b.y, b.x + b.w, b.y + b.h, r);
+    ctx.arcTo(b.x + b.w, b.y + b.h, b.x, b.y + b.h, r);
+    ctx.arcTo(b.x, b.y + b.h, b.x, b.y, r);
+    ctx.arcTo(b.x, b.y, b.x + b.w, b.y, r);
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(18,14,28,0.72)';
+    ctx.fill();
+    ctx.strokeStyle = `rgba(255,214,110,${(0.36 + 0.24 * pulse).toFixed(3)})`;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.fillStyle = '#ffd66e';
+    ctx.font = '800 17px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('LEADERBOARD  ·  OPTIONS', b.x + b.w / 2, b.y + b.h / 2 + 1);
+    ctx.restore();
+  }
+
   // Which half of the screen was tapped. Above the line starts the game,
   // at or below it opens the panel — and "below" runs all the way to the
   // bottom of the display, not just to the bottom of the painting.
@@ -176,5 +227,5 @@ export function createTitle(ctx, canvas, still) {
     if (!box) return false;
     return y >= box.dy + (SPLIT_Y / SRC_H) * box.dh;
   }
-  return { draw, hitOptions };
+  return { draw, hitOptions, optionsButton };
 }

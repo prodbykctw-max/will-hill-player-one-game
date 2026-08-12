@@ -449,7 +449,18 @@ Fixed two ways, because neither alone is enough:
   under the card — opens the panel. Measured on a 430x932 phone that is a
   414px target and a 518px target with one boundary between them, instead of
   two adjacent boxes.
-- **`TITLE_ZOOM` 1.06**, which scales past contain-fit and trims the left and
+- **`TITLE_ZOOM` 1.07 — the measured ceiling.** Every discrete element keyed
+  by its own colour (luminance just returns the full width on a full-bleed
+  scene): green WELCOME face from x 65, red 1UP from 54, pale 000000 from
+  53; HI SCORE, 125680 and AHEAD ON all end by 1475. Leftmost 53, rightmost
+  1475 -> 1.074. As large as the card goes without clipping his art.
+- **A real OPTIONS button, drawn in the black below the card.** The painted
+  PRESS START and OPTIONS sit **4 screen pixels apart** and the zoom is
+  maxed, so nothing separates them — a dead zone between them would be 3px
+  wide. The reachable control moves off the label into the empty space
+  underneath, 60px clear. The painted word is not a decoy: it is inside the
+  same lower zone and does the same thing.
+- ~~`TITLE_ZOOM` 1.06~~, which scales past contain-fit and trims the left and
   right edges. The ceiling is measured, not chosen: the 1UP / HI SCORE row
   runs x 52..1475 of 1536, capping zoom at 1.07. **1.16 was tried first** and
   the screenshot showed exactly what the arithmetic predicts — "ELCOME TO" and
