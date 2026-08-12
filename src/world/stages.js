@@ -639,6 +639,13 @@ export function timeOfDay() {
     const m = /[?&]tod=(day|night)/.exec(location.search);
     if (m) return m[1];
   }
+  // Then the player's own choice from the settings panel. Read straight out
+  // of storage rather than imported from src/ui — the world layer should not
+  // depend on the interface layer, and this is one key.
+  try {
+    const v = localStorage.getItem('wh_tod');
+    if (v === 'day' || v === 'night') return v;
+  } catch (_e) { /* private mode, or storage disabled */ }
   return isNightNow() ? 'night' : 'day';
 }
 

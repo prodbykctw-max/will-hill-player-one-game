@@ -27,7 +27,8 @@ import { createStillScene } from './render/stillscene.js';
 import { createTitle, TITLE_IMAGES, SRC_W as STILL_W, SRC_H as STILL_H } from './render/title.js';
 import martaMapArt from './assets/backgrounds/marta-map.webp';
 import { loadImages } from './render/images.js';
-import { createRunLog, lbSubmit } from './net/leaderboard.js';
+import { createRunLog, lbSubmit, bankLocalRun, isRegistered } from './net/leaderboard.js';
+import { createPanel, soundEnabled } from './ui/panel.js';
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
@@ -41,6 +42,15 @@ const still = createStillScene(ctx, canvas);
 const title = createTitle(ctx, canvas, still);
 const input = createInput();
 const audio = createAudio();
+audio.setMuted(!soundEnabled());
+
+// THE PANEL — leaderboard, contest sign-up, settings. Opening it pauses the
+// run and takes the pads away with it (syncPads only shows them on `playing`),
+// so there is never a frame where you can see controls over a dialog.
+const panel = createPanel({
+  onClose: () => { if (state.screen === 'paused' && state.resumeTo) resume(); },
+  onSoundChange: (on) => audio.setMuted(!on),
+});
 // Browsers keep an AudioContext suspended until a real gesture, so a key or
 // touch is what actually starts the audio thread.
 //
@@ -189,7 +199,14 @@ canvas.addEventListener('pointerdown', (e) => {
   // interaction is "acknowledge and move on" takes a tap anywhere, which is
   // also why the pads are hidden on them.
   if (state.screen === 'title') {
-    if (state.screenT > TITLE_ARM_TICKS) { startRun(); e.preventDefault(); }
+    if (state.screenT <= TITLE_ARM_TICKS) return;
+    e.preventDefault();
+    // OPTIONS, in the painting's own pixels. It was painted into the client's
+    // title art and did nothing, which reads as a broken button; it is the
+    // leaderboard and settings now. Checked BEFORE the start-anywhere tap, or
+    // it could never be hit.
+    if (state.titleBox && inTitleRect(OPTIONS_RECT, x, y)) { panel.open('board'); return; }
+    startRun();
     return;
   }
   if (state.screen === 'stageClear' || state.screen === 'gameOver'
@@ -232,6 +249,20 @@ document.addEventListener('visibilitychange', () => {
 // title and into the next run.
 const TITLE_ARM_TICKS = 24;
 
+// OPTIONS, measured off the 1536x1024 title painting — the word sits at
+// x 645..865, y 928..992, padded to a thumb. `state.titleBox` is where the
+// still scene put the painting this frame, so this converts through it and
+// stays correct at any screen size.
+const OPTIONS_RECT = { x: 620, y: 918, w: 300, h: 86 };
+
+function inTitleRect(r, x, y) {
+  const b = state.titleBox;
+  if (!b) return false;
+  const S = b.dw / STILL_W;
+  return x >= b.dx + r.x * S && x <= b.dx + (r.x + r.w) * S
+      && y >= b.dy + r.y * S && y <= b.dy + (r.y + r.h) * S;
+}
+
 function showTitle() {
   state.screen = 'title';
   state.screenT = 0;
@@ -254,6 +285,10 @@ function advanceFromScreen() {
       state.screen = 'complete';
       state.screenT = 0;
       state.finalLog = state.runLog.finish();
+      // Banked on the device FIRST, and unconditionally. The Worker is not
+      // deployed yet and a phone at a party is not always on a network;
+      // either way the run happened and the player should be able to see it.
+      bankLocalRun(state.score);
       lbSubmit(state.finalLog);
     }
     return;
@@ -269,10 +304,19 @@ function advanceFromScreen() {
     startStage(state.stageIndex);
     return;
   }
-  // Back to the attract screen, not straight into a fresh run. Restarting the
-  // instant you acknowledge the last run gives you no moment to stop playing,
-  // and it throws away the board with your score on it — which on a contest
-  // build is the screen that matters most.
+  // FINISHED A FULL RUN? The tap off the results board opens the panel rather
+  // than dropping straight to the title — this is the one moment the player
+  // definitely cares what their score was worth, which makes it the only
+  // moment worth asking for a phone number. Somebody who has not entered gets
+  // the form; somebody who has gets the board with their name on it. Closing
+  // it lands on the title.
+  if (state.screen === 'complete') {
+    showTitle();
+    panel.open(isRegistered() ? 'board' : 'form');
+    return;
+  }
+  // Otherwise back to the attract screen. Restarting the instant you
+  // acknowledge the last run gives you no moment to stop playing.
   showTitle();
 }
 
@@ -298,6 +342,11 @@ function syncPads() {
 
 function update() {
   state.tick++;
+  // The panel is modal. The art behind it keeps breathing — a frozen title
+  // card under a dialog looks like a crash — but nothing the player presses
+  // reaches the game while it is up, or a Space bar meant for the form would
+  // also start a run.
+  if (panel.isOpen) { audio.ambienceTick(); return; }
   // ON EVERY SCREEN, not just during play. This is the heartbeat that starts
   // the ambience once the audio context has actually woken up — it used to sit
   // below the between-screen early-returns, so a context that came up a beat
@@ -618,7 +667,10 @@ function draw() {
   // The attract screen replaces the world entirely — there is no level behind
   // it to draw, and on boot there is not even one built yet.
   if (state.screen === 'title') {
-    title.draw(images, state.tick);
+    // Keep where the painting landed — the OPTIONS hit test converts through
+    // it, so the button follows the art on any screen instead of living at a
+    // guessed screen coordinate.
+    state.titleBox = title.draw(images, state.tick);
     return;
   }
 

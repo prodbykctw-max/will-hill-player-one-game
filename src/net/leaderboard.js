@@ -39,6 +39,15 @@ export function setLbName(v) {
 }
 
 // ── contest registration (private — phone/email, captured once) ──
+//
+// THE PHONE NUMBER IS THE IDENTITY, and there is no SMS verification. That is
+// a decision, not an omission. A web page cannot stop somebody typing a
+// made-up number, and the usual substitutes — device fingerprints, a flag in
+// localStorage — are both weak and clearable by reinstalling. What actually
+// protects a contest is that the prize is CLAIMED on the number and address
+// given, so a fake entry wins nothing and costs nothing to allow. The Worker
+// keys entries on the number so a player's later runs update their line
+// instead of filling the board.
 export function contestRegistration() {
   try {
     return JSON.parse(localStorage.getItem('wh_contest_reg') || 'null');
@@ -47,8 +56,20 @@ export function contestRegistration() {
   }
 }
 
+export function isRegistered() {
+  const r = contestRegistration();
+  return !!(r && phoneDigits(r.phone).length >= 10);
+}
+
+// Digits only, and a leading US 1 dropped, so "+1 (404) 555-0100" and
+// "4045550100" are the same person on both sides of the wire. The Worker
+// normalises identically — if you change one, change the other.
+export function phoneDigits(v) {
+  return String(v == null ? '' : v).replace(/\D/g, '').replace(/^1(?=\d{10}$)/, '');
+}
+
 export function setContestRegistration({ phone, email }) {
-  const reg = { phone: phone || '', email: email || '' };
+  const reg = { phone: phoneDigits(phone), email: String(email || '').trim().slice(0, 128) };
   try {
     localStorage.setItem('wh_contest_reg', JSON.stringify(reg));
   } catch (_e) {}
@@ -76,9 +97,42 @@ export function createRunLog() {
   };
 }
 
+// ── THE LOCAL BOARD ──────────────────────────────────────────────────────
+//
+// Every run is banked on the device whether or not the Worker is up. This is
+// what the board shows while `LB_URL` is empty — which is right now, and will
+// be right up until the KV namespace is created — and it is also the fallback
+// when a phone is on a bad connection at a party, which is exactly where this
+// game gets played. A board that says "could not load" is worse than a board
+// showing your own last ten runs.
+const LOCAL_KEY = 'wh_local_runs';
+
+export function localRuns() {
+  try {
+    const a = JSON.parse(localStorage.getItem(LOCAL_KEY) || '[]');
+    return Array.isArray(a) ? a : [];
+  } catch (_e) {
+    return [];
+  }
+}
+
+export function bankLocalRun(score) {
+  if (!(score > 0)) return;
+  const runs = localRuns();
+  runs.push({ name: lbName(), score, t: Date.now(), me: true });
+  runs.sort((a, b) => b.score - a.score || a.t - b.t);
+  try {
+    localStorage.setItem(LOCAL_KEY, JSON.stringify(runs.slice(0, 10)));
+  } catch (_e) {}
+}
+
 // ── submit + fetch top ──
 export function lbSubmit(runLogResult) {
-  if (!lbOn() || !runLogResult) return;
+  if (!runLogResult) return;
+  if (!lbOn()) return;
+  // No contact details means no contest entry — the Worker rejects it too,
+  // and sending it anyway just burns a request on a phone's data.
+  if (!isRegistered()) return;
   const reg = contestRegistration();
   try {
     fetch(LB_URL + '/submit', {

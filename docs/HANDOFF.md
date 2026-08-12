@@ -344,6 +344,64 @@ before the game drew and reports a one-frame lag that is the harness's.
 
 ---
 
+## Leaderboard and the contest
+
+**Decided with the client, 2026-08-12.**
+
+**THE PHONE NUMBER IS THE IDENTITY.** Not the display name — two people called
+Will are two people, and one person can type six different names. The Worker
+keys entries on the digits, so later runs UPDATE a player's line instead of
+filling the board, and it keeps their best.
+
+**NO SMS VERIFICATION.** Client's decision, and the reasoning holds: a web
+page cannot stop somebody typing a made-up number, and the usual substitutes —
+device fingerprinting, a localStorage flag — are weak and clear on reinstall.
+What protects a contest is that the PRIZE IS CLAIMED on the number and address
+given, so a fake entry wins nothing and costs nothing to allow. Verification
+can be added later without changing the schema. **Do not re-litigate this
+without new information.**
+
+**Storage is split, and the split is the point:**
+
+| key | contents | who reads it |
+|---|---|---|
+| `lb:runs` | `{ id, name, score, t }` × CAP, sorted | `/top`, public |
+| `pii:<id>` | `{ phone, email, name, t }`, one key each | **nothing** — read out of the KV dashboard by hand when contacting a winner |
+
+`id` is a truncated SHA-256 of the normalised digits, so nothing leaving the
+Worker walks back to a phone. The old shape kept phone and email inside the
+public array and relied on `/top` remembering to project them away; one
+forgotten field in one response and the entrant list is public. Separate keys
+cannot be leaked by forgetting.
+
+**Where it lives:** the panel (`src/ui/panel.js`, markup in `index.html`),
+reached from **OPTIONS on the title card** — which was painted into the
+client's artwork and did nothing until now — and automatically off the tap
+that leaves the results board.
+
+**When it asks:** at the END of a run, never before. Nobody fills a form
+before they know whether they like the game, and the moment you have just
+seen your score is the only moment a phone number is worth asking for.
+
+**It is HTML, not canvas.** A canvas text field means hand-rolling a caret and
+a keyboard and still getting none of the numeric pad, `@` key, autofill or
+paste that a real `<input>` gives free on a phone. Inputs are 16px minimum or
+iOS zooms the page on focus.
+
+**Only the phone is required.** The name defaults and the email is optional —
+every required field costs entrants.
+
+**Runs bank locally regardless** (`wh_local_runs`, best 10). That is what the
+board shows while `LB_URL` is empty, and the fallback when a phone is on a bad
+connection at a party, which is exactly where this gets played. A board that
+says "could not load" is worse than one showing your own last ten runs.
+
+**Still to decide:** the prize and how the winner is contacted. That does not
+change the schema — the private key already holds both phone and email — but
+it does decide how hard the identity check needs to be.
+
+---
+
 ## Still open
 
 - **Daytime multiplane for EAV, Edgewood and L5P.** The biggest outstanding
@@ -358,15 +416,10 @@ before the game drew and reports a one-frame lag that is the harness's.
 - **Four Will Hill tracks**, one per stage. There is no music at all yet —
   four SFX plus the procedural street bed. Will need streaming per stage
   rather than up-front loading, and a duck on the music when the punch fires.
-- **Leaderboard Worker is written but not deployed** — `LB_URL` is empty and
-  the KV namespace does not exist. Deliberately a manual step, but the contest
-  cannot run without it, so it is the item most likely to bite on a deadline.
-  Registration flow (name public, phone/email private, one entry per person)
-  is still being designed.
-- **OPTIONS on the title screen does nothing.** It is painted into the
-  client's artwork and a tap anywhere starts the game, so it currently reads
-  as a broken button. Either wire it to something real or accept it as set
-  dressing — the client has flagged it as redundant.
+- **The Worker is still not deployed.** Everything client-side is built and
+  works against the local fallback; `LB_URL` is empty and the KV namespace
+  does not exist. Creating it and running `wrangler deploy` touches the live
+  Cloudflare account and stays a manual, explicitly-confirmed step.
 
 ### Corrected — these were listed as open and are DONE
 
