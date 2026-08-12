@@ -731,6 +731,40 @@ PLANES = {
     # entirely in the top half it tripped the sky guard, which now identifies
     # sky by shape (touches the top edge, spans 90% of the width) rather than
     # by size and position.
+    # ── DAYTIME FIVE POINTS ─────────────────────────────────────────────
+    # Every item is a frozen SAM mask (tools/sam_masks/underground-day/),
+    # grouped by tools/sam_group.py and checked against its --map render
+    # before any of it was wired. Far -> near; the depth each card gets is set
+    # in src/world/stages.js, not here.
+    'underground-day': [
+        {'name': 'clouds',    'mask': 'clouds',    'min_px': 120, 'feather': 0.8},
+        {'name': 'spire',     'mask': 'spire',     'min_px': 120, 'feather': 0.7},
+        {'name': 'towers',    'mask': 'towers',    'min_px': 150, 'feather': 0.7},
+        {'name': 'backdrop',  'mask': 'backdrop',  'min_px': 150, 'feather': 0.7},
+        {'name': 'leftblock', 'mask': 'leftblock', 'min_px': 200, 'feather': 0.7},
+        {'name': 'midbuild',  'mask': 'midbuild',  'min_px': 200, 'feather': 0.7},
+        # The arch is the hero of this plate. `holes: False` because the stone
+        # wheel is a WHEEL — you see sky through the spokes — and filling it
+        # comes back a solid semicircle. Same trap the night cut hit.
+        {'name': 'arch',      'mask': 'arch',      'min_px': 150, 'feather': 0.7,
+         'holes': False},
+        # UNDERGROUND, lifted off the drum it is painted on so the marquee
+        # glow can be bolted to the letters rather than the whole sign.
+        {'name': 'letters',   'mask': 'letters',   'min_px': 20,  'feather': 0.5,
+         'holes': False},
+        {'name': 'loans',     'mask': 'loans',     'min_px': 60,  'feather': 0.6},
+        {'name': 'checks',    'mask': 'checks',    'min_px': 60,  'feather': 0.6},
+        {'name': 'coke',      'mask': 'coke',      'min_px': 80,  'feather': 0.6},
+        {'name': 'waffle',    'mask': 'waffle',    'min_px': 60,  'feather': 0.6},
+        {'name': 'dirsign',   'mask': 'dirsign',   'min_px': 60,  'feather': 0.6},
+        {'name': 'ped',       'mask': 'ped',       'min_px': 40,  'feather': 0.6},
+        {'name': 'trees',     'mask': 'trees',     'min_px': 120, 'feather': 0.8},
+        {'name': 'newsbox',   'mask': 'newsbox',   'min_px': 60,  'feather': 0.6},
+        {'name': 'poles',     'mask': 'poles',     'min_px': 40,  'feather': 0.5},
+        # Nearest: the two cast-iron columns, almost at the kerb.
+        {'name': 'columns',   'mask': 'columns',   'min_px': 150, 'feather': 0.7},
+        {'name': 'street',    'mask': 'street',    'min_px': 200, 'feather': 0.8},
+    ],
     'l5p': [
         {
             # Distant lit blocks down the left, past the end of the row.

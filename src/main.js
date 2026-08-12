@@ -96,9 +96,18 @@ function startStage(i) {
   state.screenT = 0;
 }
 
+// ONE CONTINUE PER RUN. Restart from the top of the stage you went down on,
+// keeping the money you had banked. Deliberately one, and deliberately per
+// RUN rather than per stage — it is the way back in now that the pause menu
+// no longer offers a restart, without turning a contest run into unlimited
+// retries. It is recorded in the replay log, so a continued run is legible
+// to the leaderboard rather than hidden from it.
+const CONTINUES_PER_RUN = 1;
+
 function startRun() {
   state.score = 0;
   state.hearts = 3;
+  state.continues = CONTINUES_PER_RUN;
   state.runLog = createRunLog();
   state.runLog.start();
   startStage(0);
@@ -197,7 +206,20 @@ function update() {
 
   if (state.screen === 'gameOver' || state.screen === 'complete') {
     state.screenT++;
-    if (state.screenT > 20 && confirmPressed()) startRun();
+    if (state.screenT > 20 && confirmPressed()) {
+      // Spend the continue if there is one and this was a knockdown, not the
+      // end of the game. Hearts come back full and the stage restarts from
+      // its beginning; the score carries, because the money was already
+      // earned and taking it back would make the continue worthless.
+      if (state.screen === 'gameOver' && state.continues > 0) {
+        state.continues--;
+        state.runLog.record('continue');
+        state.hearts = 3;
+        startStage(state.stageIndex);
+      } else {
+        startRun();
+      }
+    }
     return;
   }
 
@@ -566,10 +588,20 @@ function draw() {
     // typo for "knocked out". Leave it exactly as written. He is not dead:
     // "GAME OVER" in blood red over a body reads far grimmer than this game
     // is meant to be. He got jumped and robbed; he gets back up.
-    drawOverlayText([
+    // The prompt has to say WHICH it is. Pressing JUMP either spends the
+    // continue and puts you back at the top of this stage, or starts a fresh
+    // run — and a player who thinks they are continuing when they are not
+    // has lost a run to an ambiguous line of text.
+    drawOverlayText(state.continues > 0 ? [
       ['GAME KNOCKED', 28, '#e8a13f'],
       [`$${state.score.toLocaleString()}`, 18],
-      ['press JUMP to get back up', 13, 'rgba(255,255,255,0.7)'],
+      [`${state.continues} CONTINUE`, 15, '#8fe08f'],
+      [`press JUMP to get back up in ${STAGES[state.stageIndex].name}`, 13, 'rgba(255,255,255,0.7)'],
+    ] : [
+      ['GAME KNOCKED', 28, '#e8a13f'],
+      [`$${state.score.toLocaleString()}`, 18],
+      ['no continues left', 13, 'rgba(255,140,120,0.85)'],
+      ['press JUMP to start a new run', 13, 'rgba(255,255,255,0.7)'],
     ]);
   } else if (state.screen === 'complete') {
     drawOverlayText([

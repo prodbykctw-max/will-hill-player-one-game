@@ -105,7 +105,7 @@ import bgUnderground from '../assets/backgrounds/underground-base.webp';
 // are narrower — so the night plate's fifteen multiplane cards do NOT line up
 // with it and are not used while this is the base. Its own cut is in
 // progress; see assets/refs/underground-day.webp and tools/cut_planes.py.
-import bgUndergroundDay from '../assets/backgrounds/underground-day.webp';
+import bgUndergroundDayBase from '../assets/backgrounds/underground-day-base.webp';
 import ugClouds from '../assets/backgrounds/underground-clouds.webp';
 import ugSpire from '../assets/backgrounds/underground-spire.webp';
 import ugTowers from '../assets/backgrounds/underground-towers.webp';
@@ -121,6 +121,27 @@ import ugDirsign from '../assets/backgrounds/underground-dirsign.webp';
 import ugPed from '../assets/backgrounds/underground-ped.webp';
 import ugStreet from '../assets/backgrounds/underground-street.webp';
 import ugColumns from '../assets/backgrounds/underground-columns.webp';
+// The DAY set, cut from the day plate by tools/cut_planes.py against SAM
+// masks grouped in tools/sam_groups/underground-day.json.
+import ugdClouds from '../assets/backgrounds/underground-day-clouds.webp';
+import ugdSpire from '../assets/backgrounds/underground-day-spire.webp';
+import ugdTowers from '../assets/backgrounds/underground-day-towers.webp';
+import ugdBackdrop from '../assets/backgrounds/underground-day-backdrop.webp';
+import ugdLeftblock from '../assets/backgrounds/underground-day-leftblock.webp';
+import ugdMidbuild from '../assets/backgrounds/underground-day-midbuild.webp';
+import ugdArch from '../assets/backgrounds/underground-day-arch.webp';
+import ugdLetters from '../assets/backgrounds/underground-day-letters.webp';
+import ugdTrees from '../assets/backgrounds/underground-day-trees.webp';
+import ugdLoans from '../assets/backgrounds/underground-day-loans.webp';
+import ugdChecks from '../assets/backgrounds/underground-day-checks.webp';
+import ugdCoke from '../assets/backgrounds/underground-day-coke.webp';
+import ugdWaffle from '../assets/backgrounds/underground-day-waffle.webp';
+import ugdDirsign from '../assets/backgrounds/underground-day-dirsign.webp';
+import ugdPed from '../assets/backgrounds/underground-day-ped.webp';
+import ugdNewsbox from '../assets/backgrounds/underground-day-newsbox.webp';
+import ugdPoles from '../assets/backgrounds/underground-day-poles.webp';
+import ugdStreet from '../assets/backgrounds/underground-day-street.webp';
+import ugdColumns from '../assets/backgrounds/underground-day-columns.webp';
 
 // ── `bg` — real-world backdrop metrics (see src/render/backdrop.js) ──
 // These neighbourhoods are real places Will Hill walks through, so the
@@ -295,7 +316,7 @@ export const STAGES = [
     name: 'The Underground (5 Points)',
     bgRef: '"UNDERGROUND" transit-style entrance arch — Midtown/Westside + East Point/Airport signage, Coca-Cola sign, Waffle House',
     bg: {
-      img: bgUndergroundDay,
+      img: bgUndergroundDayBase,
       // SCALE, AND IT WAS BADLY WRONG. `meters` is how much real-world height
       // the plate's visible band spans, and at 18.0 this plate drew 976px tall
       // — against the 559px of screen that exists above the ground line. Four
@@ -325,13 +346,37 @@ export const STAGES = [
       // other dark buildings with nothing to separate them, so cutting them
       // gave back rectangles, and rectangles read as hard cuts. They are the
       // matrix; the cards are what stands in front of it.
-      // NO CARDS WHILE THE DAY PLATE IS THE BASE. The fifteen below were cut
-      // from the NIGHT plate, and the two compositions do not register — the
-      // day arch sits higher and its columns are narrower — so they would
-      // float night-lit fragments over a daylit street. The parallax comes
-      // back as soon as the day plate's own SAM cut lands; the night set is
-      // kept in the git history, not deleted from it.
-      cards: [],
+      // THE DAY SET — nineteen cards, far to near, cut from the day plate's
+      // own SAM pass. The night plate's fifteen are in the git history; they
+      // never registered with this composition (the day arch sits higher and
+      // its columns are narrower), which is why they were dropped rather
+      // than reused.
+      //
+      // Spans are the cutter's own reported x-extents over the 1122px plate,
+      // not estimates. `letters` sits two hundredths in front of `arch` so
+      // the UNDERGROUND lettering can be lit on its own without ever visibly
+      // sliding against the drum it is painted on.
+      cards: [
+        { key: 'clouds', img: ugdClouds, depth: 0.03, span: [0.359, 0.999] },
+        { key: 'spire', img: ugdSpire, depth: 0.08, span: [0.758, 0.888] },
+        { key: 'towers', img: ugdTowers, depth: 0.12, span: [0.480, 0.999] },
+        { key: 'backdrop', img: ugdBackdrop, depth: 0.16, span: [0.299, 0.348] },
+        { key: 'leftblock', img: ugdLeftblock, depth: 0.26, span: [0.000, 0.302] },
+        { key: 'midbuild', img: ugdMidbuild, depth: 0.34, span: [0.272, 0.884] },
+        { key: 'arch', img: ugdArch, depth: 0.46, span: [0.183, 0.888] },
+        { key: 'letters', img: ugdLetters, depth: 0.48, span: [0.281, 0.775] },
+        { key: 'trees', img: ugdTrees, depth: 0.52, span: [0.689, 0.999] },
+        { key: 'loans', img: ugdLoans, depth: 0.56, span: [0.034, 0.146] },
+        { key: 'checks', img: ugdChecks, depth: 0.58, span: [0.000, 0.143] },
+        { key: 'coke', img: ugdCoke, depth: 0.60, span: [0.657, 0.773] },
+        { key: 'waffle', img: ugdWaffle, depth: 0.62, span: [0.681, 0.880] },
+        { key: 'dirsign', img: ugdDirsign, depth: 0.70, span: [0.448, 0.616] },
+        { key: 'ped', img: ugdPed, depth: 0.74, span: [0.320, 0.434] },
+        { key: 'newsbox', img: ugdNewsbox, depth: 0.78, span: [0.501, 0.597] },
+        { key: 'poles', img: ugdPoles, depth: 0.80, span: [0.356, 0.875] },
+        { key: 'street', img: ugdStreet, depth: 0.86, span: [0.000, 0.999] , rate: 0.30 },
+        { key: 'columns', img: ugdColumns, depth: 0.94, span: [0.155, 0.837] },
+      ],
       // The arch marquee bulbs, the Coca-Cola disc and the Waffle House
       // frontage — the three things genuinely emitting in this plate.
       // `layer` bolts each glow to its card so it travels with the thing that
@@ -341,7 +386,7 @@ export const STAGES = [
       // they did is what makes a day scene look like a night scene with the
       // brightness turned up. Those two are gone; the marquee is halved.
       lights: [
-        { x: 0.50, y: 0.30, r: 0.22, rgb: '255,236,190', a: 0.10, flicker: 0.030 },
+        { x: 0.50, y: 0.55, r: 0.20, rgb: '255,236,190', a: 0.12, flicker: 0.030, layer: 'letters' },
       ],
     },
     light: { pool: 'rgba(255,244,214,0.10)', shaft: 'rgba(255,246,220,0.04)', bloom: 'rgba(255,240,200,0.07)', key: '255,248,226', bounce: '150,170,200', shadowRgb: '30,36,52' },
