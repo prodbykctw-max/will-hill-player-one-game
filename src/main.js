@@ -84,7 +84,12 @@ const state = {
 // fall needs you to walk into a specific hole. Checking those by playing to
 // them by hand is how they went unverified long enough to ship broken.
 // Vite folds `import.meta.env.DEV` to false and drops this from the build.
-if (import.meta.env.DEV) window.__game = state;
+// The camera goes too. A verification pass that wants two builds to draw the
+// SAME frame has to pin the camera, and pinning the player is not enough —
+// the camera lerps toward him in both axes, so a few px of difference in
+// where he came to rest shifts the whole frame and swamps whatever was
+// actually being compared.
+if (import.meta.env.DEV) { window.__game = state; window.__camera = camera; }
 
 let images = null; // { player, enemy, eav, edgewood, l5p, underground }
 
@@ -92,6 +97,9 @@ function startStage(i) {
   const stage = STAGES[i];
   state.stageIndex = i;
   state.level = createLevel(stage, i);
+  // Baked street tiles are keyed by column/row, and every stage restarts at
+  // column 0 — so without this the new stage would blit the old one's asphalt.
+  renderer.invalidateTiles();
   buildRunway(state.level);
   genAhead(state.level, camera.vw / T + GEN_LOOKAHEAD_COLS);
 
@@ -549,7 +557,9 @@ function draw() {
   undercroft.draw(stage, groundY, slabPx, camera, state.tick);
 
   renderer.withCameraTransform(camera, () => {
-    renderer.drawTiles(level.map, camera, (c, r) => isSolid(level.map, c, r));
+    // `genC` is the streaming generator's write head — the renderer needs it
+    // to know which columns have stopped changing and can be baked.
+    renderer.drawTiles(level.map, camera, (c, r) => isSolid(level.map, c, r), level.genC);
     // Straight after the tiles and before anything else: the holes have to be
     // drawn, not just left undrawn. See drawPitMouths in render/renderer.js.
     renderer.drawPitMouths(level.map, camera,

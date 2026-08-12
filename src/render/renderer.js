@@ -53,23 +53,143 @@ export function createRenderer(ctx, canvas) {
     return x - Math.floor(x);
   }
 
-  function drawTiles(map, camera, isSolidAt) {
-    const c0 = Math.floor(camera.x / T) - 1;
-    const c1 = Math.floor((camera.x + camera.vw) / T) + 1;
+  // ── THE TILE BAKERY ──────────────────────────────────────────────────
+  //
+  // Painting one street tile is about twenty canvas operations: a gradient
+  // body, fourteen aggregate specks, cracks, joints, a sidewalk cap with its
+  // own grain and expansion joint, a curb, sometimes a drain or a puddle.
+  // Sixty-six tiles are on screen at once, so the street alone was issuing
+  // ~1,100 fillRect and ~150 gradient constructions EVERY FRAME. Measured at
+  // 430x932 that held the whole game at 33fps — and a game running at 33fps
+  // feels stiff no matter how good the input layer is.
+  //
+  // None of it moves. Every one of those operations is a pure function of
+  // (column, row, tile type, which sides are exposed) through the
+  // deterministic hash `th` — that is the whole reason the speckle does not
+  // shimmer as the camera scrolls. A pure function called with the same
+  // arguments sixty times a second is a cache waiting to happen: each tile is
+  // painted ONCE into its own little canvas and from then on it is a single
+  // drawImage.
+  //
+  // IN CHUNKS OF SIXTEEN COLUMNS, NOT ONE TILE AT A TIME. Per-tile bakes were
+  // the obvious first cut and they were measurably wrong: each little bitmap
+  // gets resampled independently when the camera's zoom lands it on a
+  // fractional pixel, so neighbouring tiles no longer agree at their shared
+  // edge. A pixel diff against the vector renderer showed a seam on every
+  // tile boundary — 7.2% of the street band off by more than 8 levels, and
+  // the worst columns repeating at exactly the 20.6px tile pitch.
+  //
+  // A chunk is drawn as ONE continuous vector pass, so inside it the tiles
+  // meet the way they always did, and the whole chunk is resampled as a unit.
+  // Sixteen columns is a full screen and a half at this zoom, so in practice
+  // two or three blits cover the street.
+  //
+  // BAKED AT 1:1 WORLD SCALE and blitted inside the camera transform, so the
+  // zoom is applied once, to the finished bitmap, exactly as it was applied to
+  // the vector drawing before.
+  const MX = 12;   // side margin: cracks wander up to ~10 units outside a tile
+  const MY = 2;    // top margin: the crack stroke starts on the tile's top edge
+  const MB = FRONT_FACE_H + 6;   // bottom: 2.5D front face + its cast shadow
+  const CHUNK_COLS = 16;
+  const MAX_CHUNKS = 12;
+  let chunks = new Map();
 
+  // A chunk can only be baked once the columns it covers will not change
+  // again. The world streams in ahead of the camera (genAhead), and a tile's
+  // own drawing depends on whether its neighbours exist — the exposed-side
+  // shading and the 2.5D front face both do — so a chunk baked while its
+  // right-hand columns were still empty would bake edges that are about to
+  // stop being edges. `genC` is the generator's write head; anything left of
+  // it is finished. The one chunk straddling it draws live that frame.
+  function bakedChunk(map, k, isSolidAt, genC) {
+    let ch = chunks.get(k);
+    if (ch) return ch;
+
+    const cA = k * CHUNK_COLS;
+    const cB = cA + CHUNK_COLS - 1;
+    const mine = [];
+    let rMin = Infinity;
+    let rMax = -Infinity;
     for (const t of map.tiles) {
       if (t.t !== 'G' && t.t !== 'P') continue;
-      if (t.c < c0 || t.c > c1) continue;
-      // Below the drawn slab the undercroft shows through.
+      if (t.c < cA || t.c > cB) continue;
       if (t.t === 'G' && t.r >= FLOOR_R + SLAB_R) continue;
+      mine.push(t);
+      if (t.r < rMin) rMin = t.r;
+      if (t.r > rMax) rMax = t.r;
+    }
+    if (!mine.length) { ch = { empty: true }; chunks.set(k, ch); return ch; }
 
-      const x = t.c * T;
-      const y = t.r * T;
-      const isTop = !isSolidAt(t.c, t.r - 1);
-      const isL = !isSolidAt(t.c - 1, t.r);
-      const isR = !isSolidAt(t.c + 1, t.r);
-      const isBtm = !isSolidAt(t.c, t.r + 1);
+    // Only the rows this chunk actually uses. Most chunks are the ground
+    // slab and at most one floating platform, so this is a few hundred
+    // pixels rather than the level's full 22-row height.
+    const ox = cA * T - MX;
+    const oy = rMin * T - MY;
+    const img = document.createElement('canvas');
+    img.width = CHUNK_COLS * T + MX * 2;
+    img.height = (rMax - rMin + 1) * T + MY + MB;
+    const g = img.getContext('2d');
+    for (const t of mine) {
+      paintTile(g, t.c * T - ox, t.r * T - oy, t,
+        !isSolidAt(t.c, t.r - 1), !isSolidAt(t.c - 1, t.r),
+        !isSolidAt(t.c + 1, t.r), !isSolidAt(t.c, t.r + 1));
+    }
 
+    ch = { img, ox, oy, w: img.width, h: img.height };
+    // Oldest-first eviction. Map keeps insertion order, so the first key is
+    // the least recently baked — for a side-scroller, the furthest behind.
+    if (chunks.size >= MAX_CHUNKS) chunks.delete(chunks.keys().next().value);
+    chunks.set(k, ch);
+    return ch;
+  }
+
+  // Dropped when the tiles behind them could have changed. Every stage
+  // restarts at column 0, so without this a new stage blits the old one's
+  // asphalt.
+  function invalidateTiles() {
+    chunks = new Map();
+  }
+
+  function drawTiles(map, camera, isSolidAt, genC = Infinity) {
+    const c0 = Math.floor(camera.x / T) - 1;
+    const c1 = Math.floor((camera.x + camera.vw) / T) + 1;
+    const kA = Math.floor(c0 / CHUNK_COLS);
+    const kB = Math.floor(c1 / CHUNK_COLS);
+
+    // DEV A/B. The live path below is the original vector renderer, kept as
+    // the fallback for chunks the generator is still writing into — which
+    // makes it exactly the right thing to diff the baked path against. This
+    // switch forces it for every chunk so a verification pass can shoot both
+    // renderings of the SAME frame from one build, rather than trying to make
+    // two builds land on the same camera position.
+    const live = import.meta.env.DEV && typeof window !== 'undefined' && window.__noTileCache;
+
+    for (let k = kA; k <= kB; k++) {
+      if (k < 0) continue;
+      // Settled? Then blit it. Still being written into? Draw it live.
+      if (!live && (k + 1) * CHUNK_COLS < genC) {
+        const ch = bakedChunk(map, k, isSolidAt, genC);
+        if (!ch.empty) ctx.drawImage(ch.img, ch.ox, ch.oy, ch.w, ch.h);
+        continue;
+      }
+      const cA = k * CHUNK_COLS;
+      const cB = cA + CHUNK_COLS - 1;
+      for (const t of map.tiles) {
+        if (t.t !== 'G' && t.t !== 'P') continue;
+        if (t.c < cA || t.c > cB) continue;
+        if (t.t === 'G' && t.r >= FLOOR_R + SLAB_R) continue;
+        paintTile(ctx, t.c * T, t.r * T, t,
+          !isSolidAt(t.c, t.r - 1), !isSolidAt(t.c - 1, t.r),
+          !isSolidAt(t.c + 1, t.r), !isSolidAt(t.c, t.r + 1));
+      }
+    }
+  }
+
+  // The actual painting. `ctx` here is the BAKE canvas's context, shadowing
+  // the frame's on purpose so the body below is unchanged from when it drew
+  // straight to the screen — (x, y) is the tile's top-left in that context.
+  function paintTile(ctx, x, y, t, isTop, isL, isR, isBtm) {
+    {
       // Base asphalt body + vertical tint so the slab has some depth.
       const g = ctx.createLinearGradient(x, y, x, y + T);
       g.addColorStop(0, ASPHALT_LIT);
@@ -838,6 +958,7 @@ export function createRenderer(ctx, canvas) {
     lighting,
     withCameraTransform,
     drawTiles,
+    invalidateTiles,
     drawPitMouths,
     drawPlayer,
     drawEnemy,

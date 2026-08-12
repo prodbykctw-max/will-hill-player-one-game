@@ -71,54 +71,130 @@ export function createInput() {
   // the controls impossible to exercise in a desktop test harness.
   if (isTouchDevice()) document.body.classList.add('touch');
 
+  // ── THE PAD ROUTER ────────────────────────────────────────────────────
+  //
+  // WHY THIS IS NOT PER-ELEMENT LISTENERS ANY MORE. It used to be: each pad
+  // took its own pointerdown and called setPointerCapture so a thumb that
+  // drifted a few px off the button did not drop the press. That is right for
+  // an action button and WRONG for a d-pad, and it was measured doing exactly
+  // the wrong thing — press LEFT, slide the thumb across onto RIGHT without
+  // lifting, and LEFT stays lit while RIGHT never fires, because capture had
+  // routed every subsequent event back to LEFT. Every single direction change
+  // therefore cost a full lift-and-retap. That is the "stiff".
+  //
+  // So the pointer is routed here instead, against live geometry, and the two
+  // kinds of control get the behaviour each actually wants:
+  //
+  //   MOVEMENT pads RE-TARGET. A pointer that went down on the movement
+  //   cluster is re-tested on every move and drives whichever of ◀ / ▶ it is
+  //   over. Rolling a thumb from one to the other switches direction with no
+  //   lift, and the gap between them belongs to the nearer pad, so there is no
+  //   dead strip in the middle to fall into.
+  //
+  //   ACTION pads LATCH. A pointer that went down on JUMP or DASH keeps it
+  //   held until that finger lifts, wherever it wanders. Losing a jump to a
+  //   few px of thumb drift is miserable, and unlike direction there is
+  //   nothing you would ever want to slide ONTO mid-press.
+  //
+  // Multi-touch still works because state is per pointerId, not global: the
+  // movement thumb and the jump thumb are independent pointers and neither
+  // one's lift can clear the other. (The bug that taught us that: a
+  // window-level pointerup that cleared every pad, so releasing the movement
+  // thumb cancelled an in-flight jump — i.e. jumping forward, which is most
+  // of what you do in a platformer.)
   {
-    for (const act of TOUCH_ACTS) {
-      const el = document.querySelector(`#touch [data-act="${act}"]`);
-      if (!el) continue;
+    const MOVE_ACTS = ['left', 'right'];
+    const els = {};
+    for (const act of TOUCH_ACTS) els[act] = document.querySelector(`#touch [data-act="${act}"]`);
 
-      const set = (on) => {
-        touch[act] = on;
-        el.classList.toggle('on', on);
-      };
+    const set = (act, on) => {
+      if (!els[act] || touch[act] === on) return;
+      touch[act] = on;
+      els[act].classList.toggle('on', on);
+    };
 
-      // MULTI-TOUCH. Each pad remembers WHICH pointer pressed it and only
-      // responds to that one. The first version also had a window-level
-      // pointerup that cleared every pad, so lifting the movement thumb
-      // simultaneously cancelled jump — which made jumping forward, the most
-      // common thing you do in a platformer, nearly impossible.
-      let ownerId = null;
-
-      // Capture keeps the press alive if the thumb slides off the pad
-      // mid-jump; losing a jump to a few px of drift is miserable.
-      el.addEventListener('pointerdown', (e) => {
-        e.preventDefault();
-        ownerId = e.pointerId;
-        el.setPointerCapture?.(e.pointerId);
-        set(true);
-      });
-      const release = (e) => {
-        if (e) {
-          if (ownerId !== null && e.pointerId !== ownerId) return; // another finger
-          e.preventDefault();
-        }
-        ownerId = null;
-        set(false);
-      };
-      el.addEventListener('pointerup', release);
-      el.addEventListener('pointercancel', release);
-      el.addEventListener('lostpointercapture', release);
+    // Which movement pad is this point on — or, if it is in the gap between
+    // them or just past an edge, which is it nearest? SLOP is generous on
+    // purpose: a thumb is ~20px across and lands where it lands.
+    const SLOP = 26;
+    function movePadAt(x, y) {
+      let best = null;
+      let bestD = Infinity;
+      for (const act of MOVE_ACTS) {
+        const el = els[act];
+        if (!el) continue;
+        const r = el.getBoundingClientRect();
+        // Distance outside the rect, 0 when inside.
+        const dx = Math.max(r.left - x, 0, x - r.right);
+        const dy = Math.max(r.top - y, 0, y - r.bottom);
+        const d = Math.hypot(dx, dy);
+        if (d < bestD) { bestD = d; best = act; }
+      }
+      return bestD <= SLOP ? best : null;
     }
 
-    // Coming back from a backgrounded tab with a pad stuck "down" would run
-    // the player off a ledge on their own.
-    document.addEventListener('visibilitychange', () => {
-      if (document.hidden) {
-        for (const act of TOUCH_ACTS) {
-          touch[act] = false;
-          document.querySelector(`#touch [data-act="${act}"]`)?.classList.remove('on');
+    // pointerId -> { kind: 'move' | 'latch', act }
+    const active = new Map();
+
+    // Listeners on the container, not the pads, so a pointer that leaves a
+    // pad is still ours to route. Capture phase and non-passive so the press
+    // is claimed before anything else can treat it as a scroll or a tap.
+    const root = document.getElementById('touch');
+    if (root) {
+      root.addEventListener('pointerdown', (e) => {
+        const el = e.target.closest?.('[data-act]');
+        if (!el) return;
+        e.preventDefault();
+        const act = el.dataset.act;
+        if (MOVE_ACTS.includes(act)) {
+          active.set(e.pointerId, { kind: 'move', act });
+          set(act, true);
+        } else {
+          // Capture only the latching buttons. On a movement pointer capture
+          // is the bug; here it is the feature — it guarantees the matching
+          // pointerup arrives even if the thumb has wandered off the button.
+          root.setPointerCapture?.(e.pointerId);
+          active.set(e.pointerId, { kind: 'latch', act });
+          set(act, true);
         }
-      }
-    });
+      }, { passive: false });
+
+      root.addEventListener('pointermove', (e) => {
+        const cur = active.get(e.pointerId);
+        if (!cur || cur.kind !== 'move') return;
+        e.preventDefault();
+        const act = movePadAt(e.clientX, e.clientY);
+        if (act === cur.act) return;
+        set(cur.act, false);
+        // Off the cluster entirely: stop moving, but keep owning the pointer
+        // so sliding back on picks straight back up without a re-press.
+        cur.act = act;
+        if (act) set(act, true);
+      }, { passive: false });
+
+      const release = (e) => {
+        const cur = active.get(e.pointerId);
+        if (!cur) return;
+        active.delete(e.pointerId);
+        if (cur.act) set(cur.act, false);
+      };
+      root.addEventListener('pointerup', release);
+      root.addEventListener('pointercancel', release);
+      // A capture torn down by the browser (element removed, gesture stolen)
+      // fires this and nothing else; without it a latched button sticks on.
+      root.addEventListener('lostpointercapture', release);
+    }
+
+    const clearAll = () => {
+      active.clear();
+      for (const act of TOUCH_ACTS) set(act, false);
+    };
+    // Coming back from a backgrounded tab with a pad stuck "down" would run
+    // the player off a ledge on their own. `blur` covers the iOS case that
+    // visibilitychange misses: the app switcher and the control centre pull
+    // the finger off without ever sending a pointerup.
+    document.addEventListener('visibilitychange', () => { if (document.hidden) clearAll(); });
+    window.addEventListener('blur', clearAll);
   }
 
   function isDown(code) {

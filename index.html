@@ -68,48 +68,64 @@
 
     #touch .pad {
       position: fixed; z-index: 10;
+      box-sizing: border-box;   /* so the widths below ARE the hit widths */
       display: flex; align-items: center; justify-content: center;
       font: 700 15px/1 system-ui, sans-serif; letter-spacing: 0.06em;
       color: rgba(255,255,255,0.82);
       background: rgba(18,14,28,0.42);
       border: 2px solid rgba(255,214,110,0.34);
       border-radius: 16px;
-      backdrop-filter: blur(3px);
       touch-action: none;
-      transition: background 60ms linear, transform 60ms linear;
+      /* NO backdrop-filter. It was blur(3px) — invisible over this art, and
+         not free: a backdrop filter on four fixed elements sitting over a
+         canvas that repaints every frame makes the compositor re-sample the
+         backdrop every frame too, for all four.
+
+         RELEASE fades, PRESS does not. The transition used to run 60ms in
+         BOTH directions, so the button lit up a full sixteenth of a second
+         after the thumb landed — the input had already registered and the
+         control still looked late, which is most of what "stiff" is. Lighting
+         up on the same frame as the touch is the entire point of the
+         highlight. Coming back down can take its time. */
+      transition: background 90ms linear, border-color 90ms linear, transform 90ms linear;
     }
     #touch .pad.on {
       background: rgba(255,214,110,0.30);
       border-color: rgba(255,214,110,0.75);
       transform: scale(0.96);
+      transition: none;
     }
 
-    /* left cluster: move. right cluster: jump + dash. */
-    #tL, #tR { bottom: calc(18px + env(safe-area-inset-bottom, 0px)); width: 74px; height: 74px; }
+    /* left cluster: move. right cluster: jump + dash.
+       The movement pads sit 4px apart rather than the old 6-10px, and
+       src/core/input.js hit-tests them with 26px of slop, so the seam
+       between ◀ and ▶ belongs to whichever is nearer instead of being a
+       dead strip your thumb can rest in and stop the character. */
+    #tL, #tR { bottom: calc(18px + env(safe-area-inset-bottom, 0px)); width: 82px; height: 82px; }
     #tL { left: calc(16px + env(safe-area-inset-left, 0px)); }
-    #tR { left: calc(100px + env(safe-area-inset-left, 0px)); }
+    #tR { left: calc(102px + env(safe-area-inset-left, 0px)); }
 
     #tJump, #tDash { right: calc(16px + env(safe-area-inset-right, 0px)); }
     #tJump {
       bottom: calc(18px + env(safe-area-inset-bottom, 0px));
-      width: 92px; height: 92px; border-radius: 50%;
+      width: 96px; height: 96px; border-radius: 50%;
       border-color: rgba(120,220,255,0.45);
       background: rgba(30,60,90,0.42);
     }
     #tJump.on { background: rgba(120,220,255,0.32); border-color: rgba(120,220,255,0.85); }
     #tDash {
-      bottom: calc(122px + env(safe-area-inset-bottom, 0px));
-      width: 70px; height: 70px; border-radius: 50%;
+      bottom: calc(126px + env(safe-area-inset-bottom, 0px));
+      width: 74px; height: 74px; border-radius: 50%;
       font-size: 13px;
     }
 
     /* Landscape on a phone is short: shrink and tuck the pads in so they
        never eat the play area. */
     @media (orientation: landscape) and (max-height: 560px) {
-      #tL, #tR { width: 60px; height: 60px; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); }
+      #tL, #tR { width: 64px; height: 64px; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); }
       #tR { left: calc(84px + env(safe-area-inset-left, 0px)); }
-      #tJump { width: 74px; height: 74px; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); }
-      #tDash { width: 58px; height: 58px; bottom: calc(94px + env(safe-area-inset-bottom, 0px)); }
+      #tJump { width: 78px; height: 78px; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); }
+      #tDash { width: 62px; height: 62px; bottom: calc(96px + env(safe-area-inset-bottom, 0px)); }
     }
   </style>
 </head>
