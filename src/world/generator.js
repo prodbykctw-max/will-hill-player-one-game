@@ -128,9 +128,25 @@ function pickVariant(level, c) {
   return vs.length === 1 ? vs[0] : vs[Math.floor(rnd01(c * 13.7 + level.seed) * vs.length) % vs.length];
 }
 
+// How far past the finish line the flat plaza keeps being laid.
+//
+// IT HAS TO OUTRUN THE CAMERA, and 8 did not. The player stops AT the line but
+// the camera keeps looking past it, and the tile bakery draws nothing for a
+// column that was never generated — so the STAGE CLEAR card came up over a
+// street that stopped mid-frame, with the undercroft section beyond it in
+// hard grey rectangles. The client: "the edges of each stage should still look
+// neat and clean as if they're still gonna repeat continuously."
+//
+// 48 columns is 1536 world units, wider than the visible frame at any zoom
+// this game runs at, plus the 24-column streaming lookahead on top. Flat
+// ground is cheap — it is one groundCol per column with no features, no
+// spawns and no hazards — so overshooting costs nothing and running short
+// costs a visible hole in the last screenshot of every stage.
+const PLAZA_COLS = 48;
+
 export function genAhead(level, untilCol) {
   const { recipe, stageEnd } = level.stage;
-  const cap = Math.min(untilCol, stageEnd + 8);
+  const cap = Math.min(untilCol, stageEnd + PLAZA_COLS);
 
   while (level.genC < cap) {
     const c = level.genC;
