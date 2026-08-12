@@ -21,6 +21,11 @@ import punchAUrl from '../assets/audio/punch-a.mp3';
 import punchBUrl from '../assets/audio/punch-b.mp3';
 import coinUrl from '../assets/audio/coin.mp3';
 import glistenUrl from '../assets/audio/glisten.mp3';
+// MUSIC SHARES THIS MODULE'S CONTEXT AND MASTER BUS, and is handed accessors
+// rather than the nodes themselves because both are created lazily — the
+// context does not exist until the first gesture, and a music player that
+// captured `null` at construction would never find it.
+import { createMusic } from './music.js';
 
 const SAMPLES = { punchA: punchAUrl, punchB: punchBUrl, coin: coinUrl, glisten: glistenUrl };
 
@@ -40,6 +45,7 @@ export function createAudio() {
   // The ambience the game has ASKED for, held until there is a context that
   // is actually running to put it on. See ambience() / startPending().
   let pendingAmb = null;
+  const music = createMusic(() => ctx, () => master);
 
   // ── OUTDOOR AMBIENCE ────────────────────────────────────────────────────
   //
@@ -553,6 +559,7 @@ export function createAudio() {
     },
     setMuted(v) {
       muted = !!v;
+      music.setMuted(muted);
       if (amb && ctx) amb.out.gain.setTargetAtTime(muted ? 0 : 0.06, ctx.currentTime, 0.2);
     },
 
@@ -574,11 +581,18 @@ export function createAudio() {
     // is due, and is also the heartbeat that gets a pending ambience going if
     // the context woke up a moment after the gesture rather than during it.
     ambienceTick() {
+      // Music ticks even while muted: it is what recovers a cue the browser
+      // refused before the first gesture, and a muted player still has to
+      // know which slot it should be on when the sound comes back.
+      music.tick();
       if (muted) return;
       if (pendingAmb !== null) startPending();
       if (!ctx || !amb) return;
       ambientTick(ctx);
     },
+    // The soundtrack, addressed by screen. See audio/music.js — the slots are
+    // named by FUNCTION so swapping a song is a manifest edit.
+    music,
     play(name) {
       if (muted) return;
       const c = ensure();
@@ -586,6 +600,8 @@ export function createAudio() {
       if (c.state === 'suspended') c.resume().catch(() => {});
       const fn = SOUNDS[name];
       if (fn) fn(c, c.currentTime);
+      // A stomp disappearing into a chorus is a stomp that did not land.
+      if (name === 'punch') music.duck();
     },
     stop() {},
 

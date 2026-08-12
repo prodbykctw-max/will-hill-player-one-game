@@ -30,6 +30,7 @@ import { loadImages } from './render/images.js';
 import { createRunLog, lbSubmit, bankLocalRun, isRegistered } from './net/leaderboard.js';
 import { createPanel, soundEnabled } from './ui/panel.js';
 import { createHaptics } from './core/haptics.js';
+import { STAGE_SLOTS, MAP_SLOTS } from './audio/music.js';
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
@@ -356,12 +357,54 @@ function syncPads() {
   document.body.classList.toggle('playing', want);
 }
 
+
+// ── WHICH SONG IS PLAYING, DERIVED FROM THE SCREEN ───────────────────────
+//
+// Stated declaratively and re-stated every frame rather than fired at each
+// transition. `music.play()` on the cue already playing is a no-op, so this
+// cannot double-trigger — and more importantly it cannot MISS a transition,
+// which is the failure mode of hanging a play() call on every screen change:
+// there are nine ways into `title` and the day somebody adds a tenth is the
+// day the music stops.
+//
+// Slots are looked up in the tables from audio/music.js, never built by
+// concatenating a stage index into a string. A typo there is a silent missing
+// track, which is the hardest kind of audio bug to notice.
+function cueForScreen() {
+  const st = state;
+  switch (st.screen) {
+    case 'title':
+    case 'loading':
+      return 'title';
+    case 'playing':
+      return STAGE_SLOTS[st.stageIndex] || null;
+    case 'riding':
+      // Named for the pair it bridges, so the map cue is the one the cue
+      // sheet says it is regardless of which stage the ride starts from.
+      return MAP_SLOTS[st.stageIndex] || null;
+    case 'paused':
+      return 'ui_pause';
+    case 'complete':
+      // ARRIVING AT THE SHOW. The one cue that plays start to finish.
+      return 'credits';
+    case 'stageClear':
+      // Hold whatever the stage was playing — the card is a beat, not a
+      // scene, and cutting the track for two seconds reads as a glitch.
+      return STAGE_SLOTS[st.stageIndex] || null;
+    case 'gameOver':
+      return null;
+    default:
+      return null;
+  }
+}
+
 function update() {
   state.tick++;
   // The panel is modal. The art behind it keeps breathing — a frozen title
   // card under a dialog looks like a crash — but nothing the player presses
   // reaches the game while it is up, or a Space bar meant for the form would
   // also start a run.
+  audio.music.play(cueForScreen());
   if (panel.isOpen) { audio.ambienceTick(); return; }
   // ON EVERY SCREEN, not just during play. This is the heartbeat that starts
   // the ambience once the audio context has actually woken up — it used to sit

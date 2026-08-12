@@ -869,9 +869,39 @@ it does decide how hard the identity check needs to be.
   stats, swaying crowd). The credits that share the frame with it are not, and
   are blocked on files that have only ever been in chat: the RARƎ AGENCY logo
   and prodbyKCTW's logo.
-- **Four Will Hill tracks**, one per stage. There is no music at all yet —
-  four SFX plus the procedural street bed. Will need streaming per stage
-  rather than up-front loading, and a duck on the music when the punch fires.
+- **The ten soundtrack cues — the SYSTEM IS BUILT, the FILES are not here.**
+  `src/audio/music.js` holds a manifest keyed by FUNCTION (`title`,
+  `stage_01`, `map_01_02`, `ui_pause`, `credits`…), every `src` currently
+  `null`, which is a supported state: the game runs silent-but-correct and
+  gains music the day the files land in `src/assets/music/` and the nulls
+  become paths. **Do not rename a slot to a song title.** Four of the ten are
+  explicitly volatile — BLOCK HOT is already circling `stage_02` — and the
+  client's instruction was that a swap should be a manifest edit, not a
+  refactor.
+
+  Cue sheet, in play order: title=En Vogue · stage_01=TAKE A RISK ·
+  map_01_02=Million Dollar Baby · stage_02=BENDING CORNERS (alt BLOCK HOT) ·
+  map_02_03=Don't Wanna Leave · stage_03=JAPANESE PANTS ·
+  map_03_04=Pretty Girls Love Me · stage_04=LOVE THE HUSTLE ·
+  ui_pause=Creepin' (Interlude) · credits=I'm The Man (the only one that does
+  not loop).
+
+  **`<audio>` elements, not `decodeAudioData`.** Decoded to buffers, JAPANESE
+  PANTS alone is ~90MB of RAM and ten cues would be most of a gigabyte on a
+  phone. Media elements stream; they are routed through
+  `createMediaElementSource` into the same master bus as everything else, so
+  one mute switch covers them and the punch can duck them.
+
+  ⚠️ **NOBODY WILL EVER HEAR THE END OF A STAGE CUE.** A stage is 30-37s flat
+  out against songs of 3-4 minutes. Each slot has a `startAt` in seconds for
+  exactly this — a cue can begin at its hook instead of its intro — and the
+  right value is different for every song.
+
+  Verified with a stand-in file injected into all ten slots (an all-null
+  manifest is silent whether the routing is right or wrong): title→title,
+  playing→stage_01, paused→ui_pause, stageClear→stage_01 (holds the stage
+  track; the card is a beat, not a scene), complete→credits, gameOver→silence,
+  riding→map_01_02. Punch ducks to 0.42 and recovers.
 - **The Worker is still not deployed.** Everything client-side is built and
   works against the local fallback; `LB_URL` is empty and the KV namespace
   does not exist. Creating it and running `wrangler deploy` touches the live
