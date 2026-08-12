@@ -45,7 +45,10 @@ GROUND_FRAC = {'eav': 0.88, 'underground': 0.78, 'l5p': 0.80, 'edgewood': 0.82,
                # TITLE SCREEN. Not a stage — there is no ground line to crop
                # to, and the parallax wants the whole picture including the
                # wet road at the bottom, so this one is 1.0.
-               'title': 1.0}
+               'title': 1.0,
+               # ENDING SCREEN. Also not a stage — the whole frame is the
+               # picture, crowd to ceiling, so nothing is cropped off.
+               'ending': 1.0}
 
 
 def load_plate(stage):
