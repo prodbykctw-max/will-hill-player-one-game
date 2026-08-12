@@ -850,21 +850,28 @@ it does decide how hard the identity check needs to be.
 - **Daytime multiplane — DONE for all four stages.** Every day plate is now
   cut and wired: eav-day 10 cards, edgewood-day 15, l5p-day 17, plus
   underground-day's existing 19. See "Day and night" above.
-- **The EAV plate's mirror-tile seam is visible.** Reported from a phone with
-  a screenshot: on Edgewood you can see where the plate repeats — the greenery
-  restarts abruptly at the tile boundary. The backdrop mirror-tiles to give an
-  endless street, and on a plate whose left and right edges are very different
-  (a tree at one end, open sky at the other) the mirrored join reads as a
-  vertical edge. Not yet investigated. Likely candidates: widen the plate, or
-  cross-fade the join, or pick a per-stage tile period that lands the seam
-  behind a solid card.
-- **Edgewood wants its trees and building separated.** Client: "on stage two
-  you should isolate the trees and the building separately and the skyline,
-  and parallax them all — a tree is not where that building is, but it covers
-  it up." The day cut has 15 cards but the trees at the frame edges are inside
-  `facade`/`skyline` rather than being their own card, so they cannot sit at
-  their own depth or sway. Needs a `trees` region added to `edgewood-day` in
-  sam_group.py and a re-cut.
+- **The plate's REPEAT SEAM is visible, and now it is measured.** The backdrop
+  repeats straight (not mirrored — mirroring renders CITGO backwards), so the
+  seam is the plate's right edge butting its own left edge. How bad that is
+  varies enormously by stage, which is why it shows on some and not others.
+  Mean per-pixel difference between the two edge columns, 0-255:
+
+  | plate | mismatch | |
+  |---|---|---|
+  | eav-base | **8.6** | effectively seamless — this is why EAV night looks fine |
+  | edgewood-day-base | 31.6 | |
+  | eav-day-base | 63.2 | |
+  | l5p-day-base | 74.3 | |
+  | **l5p-base** | **250.7** | dark street meeting a lit pillar — the worst by far |
+
+  Individual CARDS have their own seams and some are worse than the base:
+  edgewood-day-facade 40.1, edgewood-skyline 66.0, l5p-day-clouds 143.1.
+
+  NOT FIXED. The obvious move is to cross-fade a strip across the wrap so the
+  plate tiles, applied identically to the base and every card. Two cautions
+  for whoever does it: the blend has to be applied to the CARDS TOO or they
+  will seam against a base that no longer does, and the strip has to be narrow
+  enough not to ghost real signage into the opposite edge. Start with l5p.
 - **End-credits sequence.** The ending SCREEN is built (his painting, real
   stats, swaying crowd). The credits that share the frame with it are not, and
   are blocked on files that have only ever been in chat: the RARƎ AGENCY logo

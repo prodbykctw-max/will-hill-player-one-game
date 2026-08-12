@@ -938,6 +938,11 @@ PLANES = {
     # is a black band and has nothing in it to lift.
     'edgewood-day': [
         {'name': 'clouds',       'mask': 'clouds',       'min_px':  120, 'feather': 0.8},
+        # The overhanging tree, day-only. `holes: False` because you see sky
+        # through the leaves and filling them comes back a solid blob — the
+        # same trap the arch and the EAV canopy both hit.
+        {'name': 'trees',        'mask': 'trees',        'min_px':  120, 'feather': 0.9,
+         'holes': False},
         {'name': 'skyline',      'mask': 'skyline',      'min_px':  120, 'feather': 0.7},
         {'name': 'parapet',      'mask': 'parapet',      'min_px':  120, 'feather': 0.7},
         {'name': 'facade',       'mask': 'facade',       'min_px':  120, 'feather': 0.7},

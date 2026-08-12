@@ -85,6 +85,7 @@ import eavDayVerge from '../assets/backgrounds/eav-day-verge.webp';
 import eavDayTree from '../assets/backgrounds/eav-day-tree.webp';
 import eavDayPole from '../assets/backgrounds/eav-day-pole.webp';
 import edgewoodDayClouds from '../assets/backgrounds/edgewood-day-clouds.webp';
+import edgewoodDayTrees from '../assets/backgrounds/edgewood-day-trees.webp';
 import edgewoodDaySkyline from '../assets/backgrounds/edgewood-day-skyline.webp';
 import edgewoodDayParapet from '../assets/backgrounds/edgewood-day-parapet.webp';
 import edgewoodDayFacade from '../assets/backgrounds/edgewood-day-facade.webp';
@@ -553,6 +554,25 @@ const STAGE_DEFS = [
           // black band with nothing in it to lift. Farthest thing in the
           // picture, so it gets the smallest depth and barely moves.
           { key: 'clouds', img: edgewoodDayClouds, depth: 0.02, drift: -0.035, span: [0.046, 1.000] },
+          // ── THE OVERHANGING TREE ────────────────────────────────────
+          // Its own card at last. It was split between `skyline` (25% of the
+          // canopy, travelling with the buildings) and the static base (the
+          // other 75%) — a tree torn in half along a line nobody drew.
+          //
+          // DEPTH 0.70 puts it well in FRONT of the facade at 0.34, which is
+          // the client's point: "a tree is not where that building is, but it
+          // covers it up." It overhangs the near side of the frame, so it
+          // should travel faster than the wall behind it.
+          //
+          // Sway pivots at the bottom of the leaf mass, the same model as the
+          // EAV canopy — the trunk below is not in this card at all, so
+          // everything in it is allowed to move.
+          {
+            key: 'trees', img: edgewoodDayTrees, depth: 0.70,
+            span: [0.000, 0.274],
+            sway: [{ top: 0.0, pivot: 0.328, amp: 4, freq: 0.85,
+              xRanges: [[0.000, 0.274]] }],
+          },
           { key: 'skyline', img: edgewoodDaySkyline, depth: 0.05, span: [0.096, 1.000] },
           { key: 'parapet', img: edgewoodDayParapet, depth: 0.20, span: [0.049, 0.102] },
           { key: 'facade', img: edgewoodDayFacade, depth: 0.34, span: [0.000, 1.000] },

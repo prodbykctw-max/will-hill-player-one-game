@@ -165,6 +165,23 @@ REGIONS = {
     ],
 
     'edgewood-day': [
+        # ── THE TREE, FIRST BECAUSE IT IS THE SMALLEST BOX ────────────────
+        # Day-only, like `clouds`: the night plate's corresponding corner is
+        # black. Measured by keying green-dominant pixels off the day plate —
+        # foliage is the only green thing in a picture whose sky is blue and
+        # whose walls are grey brick — which found a 9093px canopy at
+        # x 2..202, y 2..91 and a strip of leaves down the left edge.
+        #
+        # IT WAS BEING TORN IN HALF. 25% of the canopy fell inside the
+        # `skyline` box and travelled with the buildings; the other 75% was
+        # unassigned and stayed in the static base. The client saw it: "on
+        # stage two you should isolate the trees and the building separately
+        # and the skyline… a tree is not where that building is, but it covers
+        # it up."
+        #
+        # Two boxes, one card — same trick underground uses for its columns.
+        ('trees',          0,    0,  208,   96),
+        ('trees',          0,   92,   26,  200),
         ('neon_ourbar',   71,  199,  145,  295),
         ('neon_dis',     635,  199,  709,  295),
         ('neon_open',    452,  174,  501,  205),
