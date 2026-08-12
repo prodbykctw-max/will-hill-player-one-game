@@ -201,11 +201,13 @@ canvas.addEventListener('pointerdown', (e) => {
   if (state.screen === 'title') {
     if (state.screenT <= TITLE_ARM_TICKS) return;
     e.preventDefault();
-    // OPTIONS, in the painting's own pixels. It was painted into the client's
-    // title art and did nothing, which reads as a broken button; it is the
-    // leaderboard and settings now. Checked BEFORE the start-anywhere tap, or
-    // it could never be hit.
-    if (state.titleBox && inTitleRect(OPTIONS_RECT, x, y)) { panel.open('board'); return; }
+    // THE SCREEN IS SPLIT, NOT DOTTED WITH BUTTONS. The two controls are
+    // painted 15 rows apart, which is 4.2 screen pixels on a phone — a gap
+    // nobody can aim inside, and the client kept getting START when he meant
+    // OPTIONS. So the whole lower part of the display, including the black
+    // below the card, opens the panel, and everything above it starts the
+    // game. Two enormous targets, one boundary.
+    if (title.hitOptions(state.titleBox, y)) { panel.open('board'); return; }
     startRun();
     return;
   }
@@ -249,19 +251,6 @@ document.addEventListener('visibilitychange', () => {
 // title and into the next run.
 const TITLE_ARM_TICKS = 24;
 
-// OPTIONS, measured off the 1536x1024 title painting — the word sits at
-// x 645..865, y 928..992, padded to a thumb. `state.titleBox` is where the
-// still scene put the painting this frame, so this converts through it and
-// stays correct at any screen size.
-const OPTIONS_RECT = { x: 620, y: 918, w: 300, h: 86 };
-
-function inTitleRect(r, x, y) {
-  const b = state.titleBox;
-  if (!b) return false;
-  const S = b.dw / STILL_W;
-  return x >= b.dx + r.x * S && x <= b.dx + (r.x + r.w) * S
-      && y >= b.dy + r.y * S && y <= b.dy + (r.y + r.h) * S;
-}
 
 function showTitle() {
   state.screen = 'title';
@@ -493,10 +482,21 @@ function update() {
     if (overlapsPlayer(bottle, player, now)) {
       bottle.got = true;
       audio.play('glisten');
+      audio.powerUp();
       grantInvulnerability(player, now, CHAMPAGNE_SECONDS);
       state.runLog.record('champagne');
     }
   }
+
+  // POWER DOWN, on the tick the champagne actually runs out. Watched here
+  // rather than scheduled at pickup because the timer is a timestamp the
+  // player can outlive in several ways — finishing the stage, dying, taking
+  // the continue — and a sound scheduled 9 seconds ahead would fire over the
+  // MARTA map or the results board. This only speaks when he was powered on
+  // the previous tick and is not now.
+  const poweredNow = player.invulnerableUntil > now;
+  if (state.wasPowered && !poweredNow && !player.dead) audio.powerDown();
+  state.wasPowered = poweredNow;
 
   // POTHOLES. Not an overlap test. A pothole is sunk INTO the road surface —
   // its box starts a pixel below the walking plane — and the player's feet

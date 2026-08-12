@@ -77,6 +77,40 @@ export const TITLE_IMAGES = {
 // y 869..913; padded out to take in the two ◀ ▶ arrows either side, which SAM
 // grouped separately and which should light up with the words.
 const PROMPT = { x: 488, y: 858, w: 548, h: 62 };
+// OPTIONS, one row below it.
+export const OPTIONS_PROMPT = { x: 600, y: 926, w: 336, h: 62 };
+
+// ── ZOOM, AND WHY THE TWO CONTROLS STOPPED BEING BOXES ───────────────────
+//
+// The client kept hitting START when he meant OPTIONS, and the measurement
+// says of course he did: the two are painted 15 rows apart, which at plain
+// contain-fit on a 430px phone is FOUR AND A TWO TENTHS SCREEN PIXELS. A
+// thumb is ten times that. No amount of care aims inside it.
+//
+// Two changes, because either alone is not enough.
+//
+// ZOOM scales the card past its contain fit, which on a portrait phone trims
+// the left and right edges — so the ceiling is set by what is nearest those
+// edges, and that is measured rather than guessed. The 1UP / HI SCORE row runs
+// x 52..1475 of 1536, which caps it at 1.07; 1.16 was tried first and the
+// screenshot showed exactly what the arithmetic predicts, "ELCOME TO" and a
+// clipped score. 1.06 shows x 43..1493: the whole score line, both signs'
+// words, and only the outer edge of the right-hand sign's panel.
+//
+// BIAS -0.55 lifts the card toward the top of the frame. That is not
+// cosmetic: it is what turns the dead letterbox underneath into somewhere the
+// OPTIONS zone can live.
+//
+// And the controls are no longer two small boxes at all — see SPLIT_Y. The
+// screen is cut in two: everything above the line starts the game, everything
+// below opens the panel. Both targets are enormous and there is exactly one
+// boundary to miss instead of two adjacent edges.
+export const TITLE_ZOOM = 1.06;
+export const TITLE_BIAS = -0.55;
+// In the painting's own rows: below PRESS START (ends 913), above OPTIONS
+// (starts ~926). Everything at or under this — including all the black below
+// the card — is the OPTIONS half.
+export const SPLIT_Y = 920;
 
 // `key` indexes the loaded image set. Bands are in 0..1 of the painting.
 // ORDER IS PAINT ORDER: clouds first, then the layer that must cover them,
@@ -117,9 +151,20 @@ export function titleCards(images) {
 
 export function createTitle(ctx, canvas, still) {
   function draw(images, tick) {
-    const box = still.draw(images.title_base, titleCards(images), tick);
+    const box = still.draw(images.title_base, titleCards(images), tick,
+      TITLE_ZOOM, TITLE_BIAS);
     still.pulsePrompt(box, PROMPT, SRC_W, SRC_H, tick);
+    // OPTIONS breathes too, on the opposite beat and cooler, so it reads as a
+    // second thing you can press rather than as a caption under the first.
+    still.pulsePrompt(box, OPTIONS_PROMPT, SRC_W, SRC_H, tick + 57, '150,210,255');
     return box;
   }
-  return { draw };
+  // Which half of the screen was tapped. Above the line starts the game,
+  // at or below it opens the panel — and "below" runs all the way to the
+  // bottom of the display, not just to the bottom of the painting.
+  function hitOptions(box, y) {
+    if (!box) return false;
+    return y >= box.dy + (SPLIT_Y / SRC_H) * box.dh;
+  }
+  return { draw, hitOptions };
 }

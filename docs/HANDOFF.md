@@ -435,6 +435,32 @@ before the game drew and reports a one-frame lag that is the harness's.
 
 ---
 
+## The title card's two controls
+
+**They were 4.2 screen pixels apart.** PRESS START ends at painting row 913
+and OPTIONS starts at 926 — 15 rows, which at contain-fit on a 430px phone is
+four pixels. A thumb is ten times that, so the client kept getting START when
+he meant OPTIONS. No amount of care aims inside it.
+
+Fixed two ways, because neither alone is enough:
+
+- **The screen is SPLIT, not dotted with buttons.** Everything above painting
+  row 920 starts the game; everything at or below it — including all the black
+  under the card — opens the panel. Measured on a 430x932 phone that is a
+  414px target and a 518px target with one boundary between them, instead of
+  two adjacent boxes.
+- **`TITLE_ZOOM` 1.06**, which scales past contain-fit and trims the left and
+  right edges. The ceiling is measured, not chosen: the 1UP / HI SCORE row
+  runs x 52..1475 of 1536, capping zoom at 1.07. **1.16 was tried first** and
+  the screenshot showed exactly what the arithmetic predicts — "ELCOME TO" and
+  a clipped score. `TITLE_BIAS` -0.55 lifts the card so the freed space below
+  belongs to the OPTIONS half rather than being wasted letterbox.
+
+OPTIONS also pulses now, on the opposite beat to PRESS START and in a cooler
+colour, so it reads as a second thing you can press rather than a caption.
+
+---
+
 ## Leaderboard and the contest
 
 **Decided with the client, 2026-08-12.**

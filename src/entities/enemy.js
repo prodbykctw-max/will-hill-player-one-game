@@ -191,7 +191,16 @@ export function updateEnemy(enemy, map) {
 // apex of a full-hold jump (81 above the head) with margin, and still lets a
 // DOUBLE jump sail over without killing anyone, which is the one case where
 // passing over is the actual intent.
-const STOMP_REACH = 95;   // world units above the enemy's head
+// 95 -> 72. The client's read after playing it: "I love how easy it is to
+// jump on an enemy now... could we take that box back like half a pixel, one
+// too easy to jump on them". So a trim, not a retreat — the three-tick window
+// this replaced is not something to go back toward.
+//
+// 72 still clears the whole useful part of the arc: a tapped jump apexes 130
+// units up and their head is at 86, so the feet pass 44 units above them at
+// the top — comfortably inside 72. What it removes is the outer band where you
+// were killing people you were plainly sailing over rather than landing on.
+const STOMP_REACH = 72;   // world units above the enemy's head
 const STOMP_DEPTH = 0.62; // how far down into the enemy the feet may go
 const STOMP_SIDE = 6;     // horizontal slop, per side, beyond the two boxes
 // NOT "must be falling". The old rule needed vy > 3, which is six ticks past

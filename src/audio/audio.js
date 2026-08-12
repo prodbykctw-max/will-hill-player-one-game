@@ -432,6 +432,45 @@ export function createAudio() {
     } catch (_e) { /* older engines; resume alone will have to do */ }
   }
 
+  // ── POWER UP / POWER DOWN ─────────────────────────────────────────────
+  //
+  // The Mario shape, and the shape is the whole point: a RISING run of notes
+  // for growing and the SAME run inverted for shrinking. Two cues that are
+  // obviously each other's opposite need no explanation — you hear the second
+  // one once and you already know what it means, because you heard the first.
+  //
+  // Synthesised rather than sampled for the same reason as everything else
+  // here: it is a few lines against a few kilobytes, on a game that has to
+  // load over mobile data at a party.
+  //
+  // Square waves, because that is the timbre the reference is made of. A sine
+  // arpeggio is a wind chime; the square's odd harmonics are what make it read
+  // as a game.
+  function arpeggio(c, t0, notes, step, gain) {
+    for (let i = 0; i < notes.length; i++) {
+      const t = t0 + i * step;
+      const o = c.createOscillator();
+      o.type = 'square';
+      o.frequency.setValueAtTime(notes[i], t);
+      const g = c.createGain();
+      // Each note gets its own tiny envelope. Without the attack ramp a square
+      // wave starting at full amplitude clicks, and eight clicks in a row is
+      // what a broken sound effect sounds like.
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.linearRampToValueAtTime(gain, t + 0.008);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + step * 1.9);
+      o.connect(g).connect(master);
+      o.start(t);
+      o.stop(t + step * 2.2);
+    }
+  }
+
+  // Two octaves of a major arpeggio climbing, the way a mushroom does.
+  const UP_NOTES = [392, 523.25, 659.25, 784, 1046.5, 1318.5, 1568];
+  // The same notes falling, and slower — a loss should land heavier than a
+  // gain, not just play the tape backwards at the same speed.
+  const DOWN_NOTES = [784, 659.25, 523.25, 440, 349.23, 261.63];
+
   return {
     // Call from EVERY user gesture until it takes, not just the first — a
     // resume() can be refused, and a listener registered `once` gives the
@@ -490,6 +529,23 @@ export function createAudio() {
       if (fn) fn(c, c.currentTime);
     },
     stop() {},
+
+    // Called when a champagne bottle is picked up, and when the power runs
+    // out. See the arpeggio note above for why these are each other's mirror.
+    powerUp() {
+      if (muted) return;
+      const c = ensure();
+      if (!c) return;
+      if (c.state === 'suspended') c.resume().catch(() => {});
+      arpeggio(c, c.currentTime, UP_NOTES, 0.055, 0.16);
+    },
+    powerDown() {
+      if (muted) return;
+      const c = ensure();
+      if (!c) return;
+      if (c.state === 'suspended') c.resume().catch(() => {});
+      arpeggio(c, c.currentTime, DOWN_NOTES, 0.075, 0.13);
+    },
 
     // ── IS ANYTHING ACTUALLY COMING OUT? ────────────────────────────────
     //

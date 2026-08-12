@@ -40,16 +40,24 @@ export function createStillScene(ctx, canvas) {
   // Fit the whole painting on screen. CONTAIN, not cover — these images carry
   // their own layout (a title, a stats panel, a PRESS START button) and
   // cropping to fill would throw part of that off the side of the phone.
-  function fit(img) {
-    const s = Math.min(canvas.width / img.width, canvas.height / img.height);
+  //
+  // `zoom` scales past that fit, which on a portrait phone means trimming the
+  // left and right edges. Used by the title card, where the controls painted
+  // into the art land 4.2 screen pixels apart at plain contain-fit — a gap a
+  // thumb cannot aim inside. `bias` slides the result vertically (-1 top,
+  // +1 bottom) so the space freed below can be given to the OPTIONS zone
+  // instead of being wasted letterbox.
+  function fit(img, zoom = 1, bias = 0) {
+    const s = Math.min(canvas.width / img.width, canvas.height / img.height) * zoom;
     const dw = img.width * s;
     const dh = img.height * s;
-    return { s, dw, dh, dx: (canvas.width - dw) / 2, dy: (canvas.height - dh) / 2 };
+    const slack = (canvas.height - dh) / 2;
+    return { s, dw, dh, dx: (canvas.width - dw) / 2, dy: slack + slack * bias };
   }
 
   // `cards`: [{ img, sway: [{ top, pivot, amp, freq, xRanges: [[a,b],...] }] }]
   // in the painting's own 0..1 coordinates.
-  function draw(base, cards, tick) {
+  function draw(base, cards, tick, zoom = 1, bias = 0) {
     const w = canvas.width;
     const h = canvas.height;
     ctx.save();
@@ -58,7 +66,7 @@ export function createStillScene(ctx, canvas) {
     ctx.fillRect(0, 0, w, h);
     if (!base || !base.width) { ctx.restore(); return null; }
 
-    const box = fit(base);
+    const box = fit(base, zoom, bias);
 
     // THE LETTERBOX IS BLACK, and that is the client's call after seeing the
     // alternative. These are 3:2 landscape paintings on a 2.17:1 portrait
