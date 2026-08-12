@@ -47,44 +47,6 @@ export function createStillScene(ctx, canvas) {
     return { s, dw, dh, dx: (canvas.width - dw) / 2, dy: (canvas.height - dh) / 2 };
   }
 
-  // Stretch the painting's outermost rows/columns out to the screen edge.
-  // STRIP is deliberately a few rows rather than one: a single row of a
-  // dithered pixel painting carries its dither pattern, and stretching that
-  // gives vertical stripes. Averaging several by drawing them squashed into
-  // a 1px-tall destination would need another buffer; taking six and letting
-  // them stretch keeps the gradient the painting already has.
-  const STRIP = 6;
-  function extendEdges(base, box, w, h) {
-    const topH = Math.ceil(box.dy) + 1;
-    const btmY = Math.floor(box.dy + box.dh) - 1;
-    if (topH > 0) {
-      ctx.drawImage(base, 0, 0, base.width, STRIP, box.dx, -1, box.dw, topH + 1);
-    }
-    if (btmY < h) {
-      ctx.drawImage(base, 0, base.height - STRIP, base.width, STRIP,
-        box.dx, btmY, box.dw, h - btmY + 1);
-    }
-    // Landscape: the same on the sides.
-    if (box.dx > 0) {
-      const lw = Math.ceil(box.dx) + 1;
-      ctx.drawImage(base, 0, 0, STRIP, base.height, -1, box.dy, lw + 1, box.dh);
-      const rx = Math.floor(box.dx + box.dw) - 1;
-      ctx.drawImage(base, base.width - STRIP, 0, STRIP, base.height,
-        rx, box.dy, w - rx + 1, box.dh);
-    }
-    // Sink the extension away from the art so the eye reads the band as the
-    // subject and the rest as its surround, not as part of the picture.
-    const g = ctx.createLinearGradient(0, 0, 0, h);
-    const mid0 = Math.max(0, box.dy / h);
-    const mid1 = Math.min(1, (box.dy + box.dh) / h);
-    g.addColorStop(0, 'rgba(7,6,10,0.72)');
-    g.addColorStop(Math.max(0, mid0 - 0.001), 'rgba(7,6,10,0.10)');
-    g.addColorStop(Math.min(1, mid1 + 0.001), 'rgba(7,6,10,0.10)');
-    g.addColorStop(1, 'rgba(7,6,10,0.80)');
-    ctx.fillStyle = g;
-    ctx.fillRect(0, 0, w, h);
-  }
-
   // `cards`: [{ img, sway: [{ top, pivot, amp, freq, xRanges: [[a,b],...] }] }]
   // in the painting's own 0..1 coordinates.
   function draw(base, cards, tick) {
@@ -98,42 +60,20 @@ export function createStillScene(ctx, canvas) {
 
     const box = fit(base);
 
-    // FILL THE LETTERBOX WITH THE PAINTING ITSELF, TWICE OVER.
-    //
-    // These are 3:2 landscape paintings and the game's screen is a 2.17:1
-    // portrait phone, so a contain fit puts the art in a band across the
-    // middle third and leaves two thirds of the display black. That is not a
-    // framing choice, it reads as a broken screen. Cropping is not the way
-    // out either: filling a 2.17:1 frame from a 1.5:1 image means throwing
-    // away two thirds of the WIDTH, and the title's logo alone spans 60% of
-    // it.
-    //
-    // So the band stays, and the space around it is made of the painting:
-    //
-    //   1. A cover-fit copy, blurred and pushed right down into the dark. It
-    //      is barely visible and it never competes with the art; its job is
-    //      to make sure the edge extension below has something to sit on
-    //      other than flat black.
-    //   2. THE PAINTING'S OWN EDGE ROWS, STRETCHED OUT. Both of these images
-    //      end in something that continues naturally — the title in open sky
-    //      at the top and wet asphalt at the bottom, the ending in its own
-    //      frame border. Pulling those few rows out to the screen edge reads
-    //      as more sky and more street rather than as a smear, and it is what
-    //      turns the letterbox into a frame.
-    const cs = Math.max(w / base.width, h / base.height);
-    ctx.save();
-    ctx.filter = 'blur(18px) brightness(0.42) saturate(0.7)';
-    ctx.drawImage(base, (w - base.width * cs) / 2, (h - base.height * cs) / 2,
-      base.width * cs, base.height * cs);
-    ctx.restore();
-    ctx.fillStyle = 'rgba(7,6,10,0.45)';
-    ctx.fillRect(0, 0, w, h);
-    extendEdges(base, box, w, h);
-
+    // THE LETTERBOX IS BLACK, and that is the client's call after seeing the
+    // alternative. These are 3:2 landscape paintings on a 2.17:1 portrait
+    // phone, so a contain fit leaves a lot of empty screen, and two goes at
+    // filling it with the painting itself — a blurred cover-fit copy, then
+    // the plate's own edge rows stretched out to the frame — both failed the
+    // only test that matters, which is looking at it: "it has lines in it,
+    // isn't smooth, you can easily see it. It'll be better off this black."
+    // He is right. Stretching six rows of a DITHERED pixel painting carries
+    // the dither with it, and dither stretched vertically is a set of
+    // stripes. Flat black has no artefacts to notice.
     ctx.drawImage(base, box.dx, box.dy, box.dw, box.dh);
 
     for (const card of cards || []) {
-      if (!card.img || !card.img.width) continue;
+      if (!card.sprites && (!card.img || !card.img.width)) continue;
       drawCard(card, box, tick);
     }
     ctx.restore();
@@ -141,20 +81,28 @@ export function createStillScene(ctx, canvas) {
   }
 
   function drawCard(card, box, tick) {
-    // DRIFT — the whole card translated, nothing clipped. This is what the
-    // sky does: clouds do not bend in the wind, they travel across it. It is
-    // deliberately applied to the entire card rather than to bands of it,
-    // because a band boundary would cut any cloud that straddled it in half
-    // and slide the two halves apart.
-    if (card.drift) {
-      const d = card.drift;
-      const ax = ampOf(d, box);
-      const ay = (d.ampFracY != null ? d.ampFracY * box.dw : 0);
-      // A slow sine, not the gust field: gusts come in waves, which is right
-      // for something anchored and bending and wrong for something adrift.
-      const k = Math.sin(tick * (d.rate || 0.0016));
-      const k2 = Math.sin(tick * (d.rate || 0.0016) * 0.61 + 1.2);
-      ctx.drawImage(card.img, box.dx + ax * k, box.dy + ay * k2, box.dw, box.dh);
+    // TRAVELLING SPRITES — each its own cropped image, crossing the frame at
+    // its own speed and wrapping round.
+    //
+    // This replaced a whole-card drift, which was the wrong model twice over.
+    // Physically: one card can only be shifted as a unit, so the entire sky
+    // slid back and forth as a sheet. And practically it barely moved — the
+    // note back was that clouds should "move across the sky", travelling, not
+    // breathing in place.
+    //
+    // The cycle is srcW + w long and the sprite's own painted x is its phase,
+    // so at tick 0 every cloud is exactly where the painting put it and it
+    // goes on from there. It is never in two places at once: x runs from -w
+    // (just off the left) continuously to srcW (just off the right), so one
+    // draw covers the whole crossing with no seam to hide.
+    if (card.sprites) {
+      const S = box.dw / card.srcW;
+      for (const s of card.sprites) {
+        if (!s.img || !s.img.width) continue;
+        const P = card.srcW + s.w;
+        const x = (((s.x + s.w + tick * s.speed) % P) + P) % P - s.w;
+        ctx.drawImage(s.img, box.dx + x * S, box.dy + s.y * S, s.w * S, s.h * S);
+      }
       return;
     }
 

@@ -1,0 +1,36 @@
+{
+  "clouds": [
+    {
+      "file": "title-clouds0.webp",
+      "x": 13,
+      "y": 28,
+      "w": 316,
+      "h": 119,
+      "px": 16663
+    },
+    {
+      "file": "title-clouds1.webp",
+      "x": 1222,
+      "y": 28,
+      "w": 309,
+      "h": 117,
+      "px": 15512
+    },
+    {
+      "file": "title-clouds3.webp",
+      "x": 1410,
+      "y": 168,
+      "w": 121,
+      "h": 49,
+      "px": 2529
+    },
+    {
+      "file": "title-clouds2.webp",
+      "x": 8,
+      "y": 119,
+      "w": 98,
+      "h": 38,
+      "px": 1660
+    }
+  ]
+}

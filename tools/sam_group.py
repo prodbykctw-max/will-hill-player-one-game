@@ -185,9 +185,24 @@ REGIONS = {
         ('signR',    1240, 440, 1532,  710),   # AHEAD ON THE COME UP + posts
         ('hero',      650, 325,  900,  855),   # Will Hill himself
         ('prompt',    495, 845, 1040,  925),   # PRESS START
-        # Last, and stopping at the rooftops: below y 235 the box would start
-        # claiming towers, and a drifting skyline is a different game.
+        # Stopping at the rooftops: below y 235 the box starts claiming
+        # towers, and the buildings must not move. Clouds travel; the skyline
+        # is planted.
         ('clouds',      0,   0, 1536,  235),
+        # THE SKY, kept as a layer rather than dropped. Normally the sky is
+        # never a card — it is the background every silhouette is cut against
+        # and it is already the base plate. But clouds that TRAVEL have to
+        # pass behind the skyline and behind the logo, and that means the
+        # picture has to be split into what is behind them and what is in
+        # front. This is the "behind".
+        #
+        # THE BOX IS DELIBERATELY EMPTY. This entry exists only to tell the
+        # matcher above that this scene wants the sky kept; the mask is routed
+        # there by the sky test, never by containment. A real full-plate box
+        # here turns the entry into a catch-all that contains every mask in
+        # the picture — tried it, and `sky` came back with 156 masks and two
+        # thirds of the plate, with `unassigned` at zero.
+        ('sky',         0,   0,    0,    0),
     ],
 
     # Ending screen. The client asked for the crowd to sway "like the trees".
@@ -238,6 +253,12 @@ def main():
         # width; the sign spans 48% of it and starts 11px down.
         x0, y0, x1, _y1 = r['bbox']
         if y0 <= 2 and (x1 - x0) > 0.90 * W and r['area'] > 0.08 * W * H:
+            # ...unless the scene asks for it. A still scene with travelling
+            # clouds needs the plate split into what is behind them and what
+            # is in front, and the sky IS the behind. See the 'sky' note in
+            # the title region list.
+            if any(reg[0] == 'sky' for reg in regions):
+                groups.setdefault('sky', []).append(r['i'])
             continue
         best, score = None, CONTAIN
         for reg in regions:

@@ -27,21 +27,50 @@
 // screen size, and they stay correct if the plate is ever re-exported larger.
 
 import titleBase from '../assets/backgrounds/title-base.webp';
-import titleClouds from '../assets/backgrounds/title-clouds.webp';
+import titleFront from '../assets/backgrounds/title-front.webp';
 import titleSignL from '../assets/backgrounds/title-signL.webp';
 import titleSignR from '../assets/backgrounds/title-signR.webp';
 import titleHero from '../assets/backgrounds/title-hero.webp';
+import spriteManifest from '../assets/backgrounds/title-sprites.json';
 
 export const SRC_W = 1536;
 export const SRC_H = 1024;
 
+// The cloud sprites are cut by connected component, so how MANY there are is
+// decided by the art, not by this file — globbing them keeps a re-cut that
+// finds five clouds instead of four from silently dropping one.
+const cloudUrls = import.meta.glob('../assets/backgrounds/title-clouds*.webp',
+  { eager: true, query: '?url', import: 'default' });
+const urlFor = (file) => cloudUrls[`../assets/backgrounds/${file}`];
+
+// HOW FAST EACH CLOUD CROSSES. Source px per tick, so a full crossing is
+// (1536 + w) / speed ticks — at 60Hz these work out at roughly 50 to 95
+// seconds end to end. Slow enough to be weather rather than a screensaver,
+// quick enough that you can see it happening while you read the logo.
+//
+// Ordered biggest-first by the cutter, and the bigger clouds are the nearer
+// ones, so they get the higher speeds. That is the same parallax rule the
+// stage backdrops use, doing the same job: it stops the sky reading as one
+// flat sheet sliding past.
+const CLOUD_SPEEDS = [0.62, 0.54, 0.34, 0.28];
+
+export const CLOUD_SPRITES = (spriteManifest.clouds || []).map((s, i) => ({
+  key: `title_cloud${i}`,
+  url: urlFor(s.file),
+  x: s.x, y: s.y, w: s.w, h: s.h,
+  speed: CLOUD_SPEEDS[i] ?? 0.3,
+}));
+
 // Loaded through the same manifest as everything else; see main.js.
 export const TITLE_IMAGES = {
   title_base: titleBase,
-  title_clouds: titleClouds,
+  // Buildings and the logo, drawn AFTER the clouds so they travel behind the
+  // skyline instead of over it. The client's note: the buildings stay put.
+  title_front: titleFront,
   title_signL: titleSignL,
   title_signR: titleSignR,
   title_hero: titleHero,
+  ...Object.fromEntries(CLOUD_SPRITES.map((s) => [s.key, s.url])),
 };
 
 // PRESS START, in the painting's pixels. The mask came back x 504..964,
@@ -50,14 +79,20 @@ export const TITLE_IMAGES = {
 const PROMPT = { x: 488, y: 858, w: 548, h: 62 };
 
 // `key` indexes the loaded image set. Bands are in 0..1 of the painting.
+// ORDER IS PAINT ORDER: clouds first, then the layer that must cover them,
+// then the things standing in front of everything.
 export function titleCards(images) {
   return [
     {
-      img: images.title_clouds,
-      // Slow. A cloud bank that crosses the frame while you are reading the
-      // title is not weather, it is a screensaver.
-      drift: { ampFrac: 0.014, ampFracY: 0.0035, rate: 0.0021 },
+      srcW: SRC_W,
+      srcH: SRC_H,
+      sprites: CLOUD_SPRITES.map((s) => ({ ...s, img: images[s.key] })),
     },
+    // The skyline and the logo, over the clouds. Nothing animates it — it is
+    // here purely to be in front. Everything below y 340 in the painting is
+    // omitted from this layer because no cloud ever reaches down there and
+    // the base already has it.
+    { img: images.title_front },
     {
       img: images.title_signL,
       // Mask y 298..708: the plate starts at 0.291 and the posts are planted
