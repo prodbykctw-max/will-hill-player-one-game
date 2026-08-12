@@ -850,6 +850,21 @@ it does decide how hard the identity check needs to be.
 - **Daytime multiplane — DONE for all four stages.** Every day plate is now
   cut and wired: eav-day 10 cards, edgewood-day 15, l5p-day 17, plus
   underground-day's existing 19. See "Day and night" above.
+- **The EAV plate's mirror-tile seam is visible.** Reported from a phone with
+  a screenshot: on Edgewood you can see where the plate repeats — the greenery
+  restarts abruptly at the tile boundary. The backdrop mirror-tiles to give an
+  endless street, and on a plate whose left and right edges are very different
+  (a tree at one end, open sky at the other) the mirrored join reads as a
+  vertical edge. Not yet investigated. Likely candidates: widen the plate, or
+  cross-fade the join, or pick a per-stage tile period that lands the seam
+  behind a solid card.
+- **Edgewood wants its trees and building separated.** Client: "on stage two
+  you should isolate the trees and the building separately and the skyline,
+  and parallax them all — a tree is not where that building is, but it covers
+  it up." The day cut has 15 cards but the trees at the frame edges are inside
+  `facade`/`skyline` rather than being their own card, so they cannot sit at
+  their own depth or sway. Needs a `trees` region added to `edgewood-day` in
+  sam_group.py and a re-cut.
 - **End-credits sequence.** The ending SCREEN is built (his painting, real
   stats, swaying crowd). The credits that share the frame with it are not, and
   are blocked on files that have only ever been in chat: the RARƎ AGENCY logo

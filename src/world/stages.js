@@ -293,7 +293,15 @@ const STAGE_DEFS = [
           key: 'shrub_right', img: eavShrubRight, depth: 0.85, span: [0.737, 0.820],
           sway: [{ top: 0.66, pivot: 0.88, amp: 2.5, freq: 1.7, xRanges: [[0.737, 0.820]] }],
         },
-        { key: 'pole', img: eavPole, depth: 1.00, span: [0.823, 0.916] },
+        // ⚠️ PLANTED ON THE GROUND STRIP, SO IT TRAVELS WITH IT.
+          // The kerb/verge carries an explicit rate: 0.30 with the 400px strip
+          // clamp, while a depth-derived card is clamped at 90 — so a pole
+          // standing ON the kerb could drift 310px away from the pavement it
+          // is planted in. Client: "the street on the left of that pole, as
+          // you move to the right it separates from the pole." A thing whose
+          // base is IN another card is not at its own depth; it is at that
+          // card's rate.
+          { key: 'pole', img: eavPole, depth: 1.00, span: [0.823, 0.916], rate: 0.30 },
       ],
       // Practicals actually visible in the art: the Citgo canopy soffit, the
       // backlit Swifty billboard, the McDonald's sign, and the uplighters
@@ -395,7 +403,15 @@ const STAGE_DEFS = [
             { top: 0.52, pivot: 0.92, amp: 2.5, freq: 1.7, xRanges: [[0.077, 0.290]] },
           ],
           },
-          { key: 'pole', img: eavDayPole, depth: 1.00, span: [0.810, 0.911] },
+          // ⚠️ PLANTED ON THE GROUND STRIP, SO IT TRAVELS WITH IT.
+          // The kerb/verge carries an explicit rate: 0.30 with the 400px strip
+          // clamp, while a depth-derived card is clamped at 90 — so a pole
+          // standing ON the kerb could drift 310px away from the pavement it
+          // is planted in. Client: "the street on the left of that pole, as
+          // you move to the right it separates from the pole." A thing whose
+          // base is IN another card is not at its own depth; it is at that
+          // card's rate.
+          { key: 'pole', img: eavDayPole, depth: 1.00, span: [0.810, 0.911], rate: 0.30 },
         ],
         lights: [],
       },
@@ -727,7 +743,15 @@ const STAGE_DEFS = [
         { key: 'bayright', img: l5pBayright, depth: 0.64, span: [0.726, 0.969] },
         { key: 'poster', img: l5pPoster, depth: 0.65, span: [0.794, 0.899] },
         { key: 'kerb', img: l5pKerb, depth: 0.82, span: [0.004, 0.965] , rate: 0.30 },
-        { key: 'pole', img: l5pPole, depth: 0.96, span: [0.055, 0.132] },
+        // ⚠️ PLANTED ON THE GROUND STRIP, SO IT TRAVELS WITH IT.
+          // The kerb/verge carries an explicit rate: 0.30 with the 400px strip
+          // clamp, while a depth-derived card is clamped at 90 — so a pole
+          // standing ON the kerb could drift 310px away from the pavement it
+          // is planted in. Client: "the street on the left of that pole, as
+          // you move to the right it separates from the pole." A thing whose
+          // base is IN another card is not at its own depth; it is at that
+          // card's rate.
+          { key: 'pole', img: l5pPole, depth: 0.96, span: [0.055, 0.132], rate: 0.30 },
       ],
       lights: [
         { x: 0.20, y: 0.56, r: 0.30, rgb: '255,214,140', a: 0.18 },
@@ -818,7 +842,15 @@ const STAGE_DEFS = [
           { key: 'bayright', img: l5pDayBayright, depth: 0.64, span: [0.767, 0.940] },
           { key: 'poster', img: l5pDayPoster, depth: 0.65, span: [0.800, 0.907] },
           { key: 'kerb', img: l5pDayKerb, depth: 0.82, span: [0.000, 0.952] , rate: 0.30 },
-          { key: 'pole', img: l5pDayPole, depth: 0.96, span: [0.055, 0.165] },
+          // ⚠️ PLANTED ON THE GROUND STRIP, SO IT TRAVELS WITH IT.
+          // The kerb/verge carries an explicit rate: 0.30 with the 400px strip
+          // clamp, while a depth-derived card is clamped at 90 — so a pole
+          // standing ON the kerb could drift 310px away from the pavement it
+          // is planted in. Client: "the street on the left of that pole, as
+          // you move to the right it separates from the pole." A thing whose
+          // base is IN another card is not at its own depth; it is at that
+          // card's rate.
+          { key: 'pole', img: l5pDayPole, depth: 0.96, span: [0.055, 0.165], rate: 0.30 },
         ],
         lights: [],
       },

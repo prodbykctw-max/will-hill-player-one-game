@@ -217,12 +217,26 @@ export function createLighting(ctx) {
   // street. Direction and stretch come from the same practical the
   // characters use; `lift` is how far the prop is currently hovering, which
   // shrinks and softens the shadow exactly as it would in life.
+  // How far above the ground counts as AIRBORNE for the shadow test. A
+  // resting pickup sits within a few units of the floor; a thrown bag is
+  // tens of units up within a frame or two of leaving him.
+  const AIRBORNE = 26;
+
   function drawPropShadow(item, drawY, lift) {
     const cx = item.x + item.w / 2;
     const groundWorldY = FLOOR_R * T + FOOTPLANT;
     // where the prop actually sits, ignoring the bob
     const rest = item.y + item.h + FOOTPLANT;
     if (rest > groundWorldY + 40) return; // on a ledge we don't model — skip
+    // NOTHING IN THE AIR CASTS A SHADOW UNDER ITSELF. A bag knocked loose by
+    // an enemy arcs across the street, and this was drawing its shadow pinned
+    // to the bag rather than to the ground — a shadow travelling with the
+    // object it belongs to reads as the object being stuck to the floor.
+    // Client: "money bags that are in the air shouldn't have shadows
+    // underneath them." `lift` (the bob) is deliberately not counted: a bag
+    // bobbing 3px on the pavement is resting, not airborne, and its shadow is
+    // already softened by `hover` below.
+    if (rest < groundWorldY - AIRBORNE) return;
 
     const lamp = nearestLampX(cx);
     const dx = cx - lamp;
