@@ -31,6 +31,7 @@ import titleFront from '../assets/backgrounds/title-front.webp';
 import titleSignL from '../assets/backgrounds/title-signL.webp';
 import titleSignR from '../assets/backgrounds/title-signR.webp';
 import titleHero from '../assets/backgrounds/title-hero.webp';
+import titleOptions from '../assets/backgrounds/title-options0.webp';
 import spriteManifest from '../assets/backgrounds/title-sprites.json';
 
 export const SRC_W = 1536;
@@ -70,6 +71,7 @@ export const TITLE_IMAGES = {
   title_signL: titleSignL,
   title_signR: titleSignR,
   title_hero: titleHero,
+  title_options: titleOptions,
   ...Object.fromEntries(CLOUD_SPRITES.map((s) => [s.key, s.url])),
 };
 
@@ -77,15 +79,44 @@ export const TITLE_IMAGES = {
 // y 869..913; padded out to take in the two ◀ ▶ arrows either side, which SAM
 // grouped separately and which should light up with the words.
 const PROMPT = { x: 488, y: 858, w: 548, h: 62 };
-// OPTIONS, one row below it.
-export const OPTIONS_PROMPT = { x: 600, y: 926, w: 336, h: 62 };
+
+// ── OPTIONS: HIS WORD, LIFTED OFF THE PLATE ──────────────────────────────
+//
+// This is the one piece of the painting that does not stay where he put it,
+// and it is cut rather than redrawn for the same reason everything else here
+// is: it should be HIS lettering.
+//
+// SAM mask #92 is the word — one connected component, x 671..853, y 946..979,
+// holding 99.8% of the word's pixels with three stray pixels left in the whole
+// band outside it. tools/cut_still.py lifts it and fills the hole; the road
+// under it is near-black (mean 24 of 255), so the rim delta after the pyramid
+// fill measures 0.5 levels. There is nothing there to see.
+//
+// WHY IT HAD TO MOVE. Measured on a 430px phone at the current zoom: PRESS
+// START's baseline ends at screen y 584 and OPTIONS begins at 597. THIRTEEN
+// PIXELS. And the word itself renders 54.5 x 8.7 px — smaller than the text
+// you are reading. A thumb is 40-50px across; there is no aiming inside that,
+// which is exactly what the client kept hitting.
+//
+// It replaces a drawn "LEADERBOARD · OPTIONS" button that sat in the black
+// below the card. That button worked and was the wrong answer twice over: it
+// was a system-ui rounded rectangle stuck under a hand-painted arcade card,
+// and it duplicated a control the painting already had. Same position, his
+// artwork, one control instead of two.
+const OPT = (spriteManifest.options || [])[0] || null;
 
 // ── ZOOM, AND WHY THE TWO CONTROLS STOPPED BEING BOXES ───────────────────
 //
 // The client kept hitting START when he meant OPTIONS, and the measurement
-// says of course he did: the two are painted 15 rows apart, which at plain
-// contain-fit on a 430px phone is FOUR AND A TWO TENTHS SCREEN PIXELS. A
-// thumb is ten times that. No amount of care aims inside it.
+// says of course he did: colour-keyed off the plate, PRESS START ends on row
+// 907 and OPTIONS begins on row 950, and 43 painting rows is THIRTEEN SCREEN
+// PIXELS on a 430px phone. A thumb is three to four times that. No amount of
+// care aims inside it.
+//
+// (An earlier note here said 4.2 pixels, from 15 rows. Both were wrong — the
+// rows were read off the SAM masks' padded boxes rather than off the glyphs.
+// Thirteen is measured from the lettering itself and matches the screen:
+// 43 x 0.2995. It does not change the conclusion, only its size.)
 //
 // Two changes, because either alone is not enough.
 //
@@ -117,9 +148,11 @@ export const OPTIONS_PROMPT = { x: 600, y: 926, w: 336, h: 62 };
 // boundary to miss instead of two adjacent edges.
 export const TITLE_ZOOM = 1.07;
 export const TITLE_BIAS = 0;
-// In the painting's own rows: below PRESS START (ends 913), above OPTIONS
-// (starts ~926). Everything at or under this — including all the black below
-// the card — is the OPTIONS half.
+// In the painting's own rows: below PRESS START, which ends on row 907. Row
+// 950 used to be the top of OPTIONS; the word has since been lifted out and
+// re-placed below the card, so there is nothing painted under this line at
+// all now and the boundary sits in clear road. Everything at or under it —
+// including every pixel of black beneath the card — is the OPTIONS half.
 export const SPLIT_Y = 920;
 
 // `key` indexes the loaded image set. Bands are in 0..1 of the painting.
@@ -164,68 +197,82 @@ export function createTitle(ctx, canvas, still) {
     const box = still.draw(images.title_base, titleCards(images), tick,
       TITLE_ZOOM, TITLE_BIAS);
     still.pulsePrompt(box, PROMPT, SRC_W, SRC_H, tick);
-    // OPTIONS breathes too, on the opposite beat and cooler, so it reads as a
-    // second thing you can press rather than as a caption under the first.
-    still.pulsePrompt(box, OPTIONS_PROMPT, SRC_W, SRC_H, tick + 57, '150,210,255');
-    drawOptionsButton(box, tick);
+    drawOptions(images.title_options, box, tick);
     return box;
   }
-  // ── THE OPTIONS BUTTON ────────────────────────────────────────────────
-  //
-  // Drawn in the black BELOW the card, because the painted labels cannot be
-  // separated. PRESS START and OPTIONS sit 4 screen pixels apart in the
-  // artwork and the zoom is already at its measured ceiling, so no amount of
-  // scaling pulls them apart — at 1.07 they are still under four pixels from
-  // each other. A dead zone between them would be three pixels wide, which
-  // buys nothing.
-  //
-  // So the reachable OPTIONS control moves off the label entirely and into
-  // the empty space underneath: a real, thumb-sized button with 60px of clear
-  // black between it and the bottom of the card. Nobody aiming at it can
-  // land on PRESS START, and nobody tapping the picture to start can land on
-  // it. The painted word is not a decoy — it is inside the same lower zone,
-  // so pressing it does the same thing.
-  const BTN = { w: 232, h: 60, gapBelowCard: 60 };
 
-  function optionsButton(box) {
-    if (!box) return null;
-    const y = Math.min(canvas.height - BTN.h - 24,
-      box.dy + box.dh + BTN.gapBelowCard);
-    return { x: (canvas.width - BTN.w) / 2, y, w: BTN.w, h: BTN.h };
+  // ── WHERE THE LIFTED WORD LANDS, AND HOW BIG ─────────────────────────
+  //
+  // IT IS MEASURED FROM THE SPLIT LINE, NOT FROM THE BOTTOM OF THE CARD, and
+  // that is the whole correctness argument. Anchoring it below the card was
+  // the obvious way and it is right only while there IS black below the card.
+  // Widen the window to landscape and `fit`'s zoom makes the card TALLER than
+  // the display, so the card's bottom is off-screen, the placement clamps to
+  // the last row that fits, and the word lands straddling the boundary — at
+  // 1280x800 it came out with its top on 740.0 against a split at 741.1.
+  // Tapping the top edge of the OPTIONS control would have started the game.
+  //
+  // So the band the word lives in runs from `floor` — below BOTH the split
+  // line and the painted PRESS START, whichever is lower — to the bottom of
+  // the display. That band always exists, so the word is always reachable,
+  // always in its own tap zone, and never touching the other control.
+  //
+  // Three caps on the scale, smallest wins, because one number cannot be
+  // right on both a 430px phone and a desktop window:
+  //
+  //   40% OF THE DISPLAY WIDTH — a control you can read without leaning in.
+  //   3x THE CARD'S OWN SAMPLING RATE — the word is 189 source pixels and the
+  //     plate is dithered. Past 3x the dither becomes blocks, which is the
+  //     same artefact that got the stretched letterbox filler thrown out.
+  //   A THIRD OF THE BAND — where the band is small the word has to be small,
+  //     and it is better to be legible-and-small than clipped.
+  //
+  // On the target phone the first two land within 1.3% of each other (0.910
+  // against 0.898) so the pixel-grid cap is the one that bites, which is the
+  // right one to be bound by. Measured there: 84px between the word and the
+  // bottom of PRESS START, up from THIRTEEN.
+  const CAP_W = 0.40;
+  const CAP_SCALE = 3;
+  const CAP_BAND = 0.34;
+  const START_BOTTOM = 907;   // last painted row of PRESS START, colour-keyed
+
+  function optionsRect(box) {
+    if (!box || !OPT) return null;
+    const floor = Math.max(box.dy + (SPLIT_Y / SRC_H) * box.dh,
+      box.dy + (START_BOTTOM / SRC_H) * box.dh);
+    const band = Math.max(1, canvas.height - floor);
+    const s = Math.min(canvas.width * CAP_W / OPT.w, box.s * CAP_SCALE,
+      CAP_BAND * band / OPT.h);
+    const w = OPT.w * s;
+    const h = OPT.h * s;
+    // A quarter of the band as breathing room, capped at 80 so that on a tall
+    // phone the word stays tied to the card instead of drifting off down the
+    // screen on its own.
+    const gap = Math.min(80, Math.max(10, band * 0.24));
+    const y = Math.min(canvas.height - h - 10, floor + gap);
+    return { x: (canvas.width - w) / 2, y, w, h };
   }
 
-  function drawOptionsButton(box, tick) {
-    const b = optionsButton(box);
-    if (!b) return;
-    const pulse = 0.5 + 0.5 * Math.sin(tick * 0.045);
+  function drawOptions(img, box, tick) {
+    const r = optionsRect(box);
+    if (!r || !img || !img.width) return;
     ctx.save();
-    ctx.beginPath();
-    const r = 12;
-    ctx.moveTo(b.x + r, b.y);
-    ctx.arcTo(b.x + b.w, b.y, b.x + b.w, b.y + b.h, r);
-    ctx.arcTo(b.x + b.w, b.y + b.h, b.x, b.y + b.h, r);
-    ctx.arcTo(b.x, b.y + b.h, b.x, b.y, r);
-    ctx.arcTo(b.x, b.y, b.x + b.w, b.y, r);
-    ctx.closePath();
-    ctx.fillStyle = 'rgba(18,14,28,0.72)';
-    ctx.fill();
-    ctx.strokeStyle = `rgba(255,214,110,${(0.36 + 0.24 * pulse).toFixed(3)})`;
-    ctx.lineWidth = 2;
-    ctx.stroke();
-    ctx.fillStyle = '#ffd66e';
-    ctx.font = '800 17px system-ui, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('LEADERBOARD  ·  OPTIONS', b.x + b.w / 2, b.y + b.h / 2 + 1);
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(img, r.x, r.y, r.w, r.h);
     ctx.restore();
+    // It breathes on the opposite beat to PRESS START and cooler, so it reads
+    // as a second thing you can press rather than as a caption under the
+    // first. Same additive glow over his lettering — nothing is drawn on top.
+    still.pulseRect(r.x, r.y, r.w, r.h, tick + 57, '150,210,255');
   }
 
   // Which half of the screen was tapped. Above the line starts the game,
   // at or below it opens the panel — and "below" runs all the way to the
-  // bottom of the display, not just to the bottom of the painting.
+  // bottom of the display, not just to the bottom of the painting, so the
+  // relocated word is inside its own zone by construction.
   function hitOptions(box, y) {
     if (!box) return false;
     return y >= box.dy + (SPLIT_Y / SRC_H) * box.dh;
   }
-  return { draw, hitOptions, optionsButton };
+  return { draw, hitOptions, optionsRect };
 }

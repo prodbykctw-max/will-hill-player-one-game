@@ -29,6 +29,7 @@ import martaMapArt from './assets/backgrounds/marta-map.webp';
 import { loadImages } from './render/images.js';
 import { createRunLog, lbSubmit, bankLocalRun, isRegistered } from './net/leaderboard.js';
 import { createPanel, soundEnabled } from './ui/panel.js';
+import { createHaptics } from './core/haptics.js';
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
@@ -40,9 +41,22 @@ const martaMap = createMartaMap(ctx, canvas);
 const ending = createEnding(ctx, canvas);
 const still = createStillScene(ctx, canvas);
 const title = createTitle(ctx, canvas, still);
-const input = createInput();
+const haptics = createHaptics();
+const input = createInput(haptics);
 const audio = createAudio();
 audio.setMuted(!soundEnabled());
+
+// PRESSING A THING SHOULD FEEL LIKE PRESSING A THING. One helper rather than
+// two calls at every site, because the two halves are one idea and the way
+// they drift apart is somebody adding a button and remembering only the sound.
+//
+//   press()   you touched a control
+//   commit()  that control did something irreversible-ish — a run started, a
+//             form saved, a stage was left behind
+//   back()    you went the other way
+function press() { audio.click(); haptics.tap(); }
+function commit() { audio.confirm(); haptics.confirm(); }
+function goBack() { audio.back(); haptics.tap(); }
 
 // THE PANEL — leaderboard, contest sign-up, settings. Opening it pauses the
 // run and takes the pads away with it (syncPads only shows them on `playing`),
@@ -50,6 +64,9 @@ audio.setMuted(!soundEnabled());
 const panel = createPanel({
   onClose: () => { if (state.screen === 'paused' && state.resumeTo) resume(); },
   onSoundChange: (on) => audio.setMuted(!on),
+  onHapticsChange: (on) => haptics.setEnabled(on),
+  haptics,
+  audio,
 });
 // Browsers keep an AudioContext suspended until a real gesture, so a key or
 // touch is what actually starts the audio thread.
@@ -109,7 +126,14 @@ const state = {
 // the camera lerps toward him in both axes, so a few px of difference in
 // where he came to rest shifts the whole frame and swamps whatever was
 // actually being compared.
-if (import.meta.env.DEV) { window.__game = state; window.__camera = camera; window.__audio = audio; }
+if (import.meta.env.DEV) {
+  window.__game = state; window.__camera = camera; window.__audio = audio;
+  // The title's controls are geometry, not constants — the OPTIONS word's
+  // placement is three caps against the live window — so the harness asks the
+  // screen where it put things rather than re-deriving it and grading its own
+  // arithmetic. That mistake has already cost this project a day.
+  window.__title = title;
+}
 
 let images = null; // { player, enemy, eav, edgewood, l5p, underground }
 
@@ -207,22 +231,25 @@ canvas.addEventListener('pointerdown', (e) => {
     // OPTIONS. So the whole lower part of the display, including the black
     // below the card, opens the panel, and everything above it starts the
     // game. Two enormous targets, one boundary.
-    if (title.hitOptions(state.titleBox, y)) { panel.open('board'); return; }
+    if (title.hitOptions(state.titleBox, y)) { press(); panel.open('board'); return; }
+    // The run starting is the biggest commitment on the screen, so it gets the
+    // triad rather than the click.
+    commit();
     startRun();
     return;
   }
   if (state.screen === 'stageClear' || state.screen === 'gameOver'
       || state.screen === 'complete') {
-    if (state.screenT > 20) { advanceFromScreen(); e.preventDefault(); }
+    if (state.screenT > 20) { press(); advanceFromScreen(); e.preventDefault(); }
     return;
   }
   if (state.screen === 'playing') {
-    if (hit(hud.pauseRect, x, y)) { pause(); e.preventDefault(); }
+    if (hit(hud.pauseRect, x, y)) { press(); pause(); e.preventDefault(); }
     return;
   }
   if (state.screen === 'paused') {
     for (const b of menuButtons) {
-      if (hit(b, x, y)) { b.action(); e.preventDefault(); return; }
+      if (hit(b, x, y)) { press(); b.action(); e.preventDefault(); return; }
     }
   }
 });
@@ -345,7 +372,7 @@ function update() {
 
   if (state.screen === 'title') {
     state.screenT++;
-    if (state.screenT > TITLE_ARM_TICKS && confirmPressed()) startRun();
+    if (state.screenT > TITLE_ARM_TICKS && confirmPressed()) { commit(); startRun(); }
     return;
   }
   // Paused freezes the world but keeps drawing, so the menu sits over a
@@ -364,7 +391,7 @@ function update() {
   if (state.screen === 'stageClear' || state.screen === 'gameOver'
       || state.screen === 'complete') {
     state.screenT++;
-    if (state.screenT > 20 && confirmPressed()) advanceFromScreen();
+    if (state.screenT > 20 && confirmPressed()) { press(); advanceFromScreen(); }
     return;
   }
 

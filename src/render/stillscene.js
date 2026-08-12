@@ -42,11 +42,12 @@ export function createStillScene(ctx, canvas) {
   // cropping to fill would throw part of that off the side of the phone.
   //
   // `zoom` scales past that fit, which on a portrait phone means trimming the
-  // left and right edges. Used by the title card, where the controls painted
-  // into the art land 4.2 screen pixels apart at plain contain-fit — a gap a
-  // thumb cannot aim inside. `bias` slides the result vertically (-1 top,
-  // +1 bottom) so the space freed below can be given to the OPTIONS zone
-  // instead of being wasted letterbox.
+  // left and right edges. Used by the title card, where the two controls
+  // painted into the art land 13 screen pixels apart at plain contain-fit — a
+  // gap a thumb cannot aim inside. (Zoom alone never closed that; see
+  // render/title.js, where the OPTIONS word is cut off the plate and moved.)
+  // `bias` slides the result vertically, -1 top to +1 bottom; the title leaves
+  // it at 0 and the space below the card is the OPTIONS zone regardless.
   function fit(img, zoom = 1, bias = 0) {
     const s = Math.min(canvas.width / img.width, canvas.height / img.height) * zoom;
     const dw = img.width * s;
@@ -185,10 +186,14 @@ export function createStillScene(ctx, canvas) {
   function pulsePrompt(box, rect, srcW, srcH, tick, colour = '255,206,110') {
     if (!box) return;
     const S = box.dw / srcW;
-    const x = box.dx + rect.x * S;
-    const y = box.dy + rect.y * S;
-    const w = rect.w * S;
-    const h = rect.h * S;
+    pulseRect(box.dx + rect.x * S, box.dy + rect.y * S,
+      rect.w * S, rect.h * S, tick, colour);
+  }
+
+  // The same throb, given a rect in SCREEN pixels. The title's OPTIONS is cut
+  // out of the painting and re-placed below it (see render/title.js), so its
+  // glow cannot be expressed as a rectangle of the plate any more.
+  function pulseRect(x, y, w, h, tick, colour = '255,206,110') {
     const b = 0.5 + 0.5 * Math.sin(tick * 0.055);
     const a = 0.06 + 0.62 * b * b;   // squared, so it dwells dark and flares
     const cx = x + w / 2;
@@ -213,5 +218,5 @@ export function createStillScene(ctx, canvas) {
     ctx.restore();
   }
 
-  return { draw, fit, pulsePrompt };
+  return { draw, fit, pulsePrompt, pulseRect };
 }

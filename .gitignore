@@ -91,6 +91,12 @@ skills-lock.json
 tools/captures/
 __pycache__/
 *.pyc
+# Playwright harness screenshots. Written into the repo root by the
+# scratchpad scripts (day/night sweeps, stage proofs) and regenerated on
+# every run — verification output, not source. Ignored rather than tidied
+# away by hand because the thing that must never happen on this project is
+# harness output riding into a commit unnoticed; see the top of CLAUDE.md.
+shots/
 
 # Cloudflare
 .wrangler/

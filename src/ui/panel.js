@@ -58,9 +58,26 @@ function emailProblem(v) {
   return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(s) ? null : 'That does not look like an email address.';
 }
 
-export function createPanel({ onClose, onTimeOfDayChange, onSoundChange }) {
+export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
+  onHapticsChange, haptics, audio }) {
   const el = $('panel');
   if (!el) return { open() {}, close() {}, get isOpen() { return false; } };
+
+  // EVERY BUTTON IN HERE MAKES A NOISE AND A TICK, and the three shapes say
+  // three different things — see the note on the cues in audio/audio.js.
+  // Wired as one wrapper per button rather than a `click` listener on the card
+  // that guesses from the target: the panel also contains a checkbox, a
+  // select and three text fields, and a blanket handler would click at every
+  // keystroke and every tap into a field.
+  const feedback = {
+    press: () => { audio?.click(); haptics?.tap(); },
+    commit: () => { audio?.confirm(); haptics?.confirm(); },
+    back: () => { audio?.back(); haptics?.tap(); },
+  };
+  const on = (id, cue, fn) => $(id)?.addEventListener('click', () => {
+    feedback[cue]();
+    fn();
+  });
 
   const views = { board: $('pvBoard'), form: $('pvForm'), settings: $('pvSettings') };
   const title = $('panelTitle');
@@ -148,10 +165,15 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange }) {
       err.hidden = false;
       $(id).classList.add('bad');
       $(id).focus();
+      // The descending pair, not the triad. On a phone the keyboard is over
+      // the error line at exactly this moment, so the sound is often the only
+      // thing the player gets — it has to be the one that means "no".
+      feedback.back();
       return;
     }
     setLbName($('fName').value);
     setContestRegistration({ phone: $('fPhone').value, email: $('fEmail').value });
+    feedback.commit();
     show('board');
   }
 
@@ -165,18 +187,40 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange }) {
     } catch (_e) {}
     $('sTod').value = tod;
     $('sSound').checked = snd;
+    const h = $('sHaptics');
+    if (h) {
+      h.checked = haptics ? haptics.isEnabled() : true;
+      // A switch that cannot do anything should say so rather than sit there
+      // being flipped. Desktop has no vibration motor; iOS below 17.4 has no
+      // route to one at all.
+      const sup = haptics ? haptics.support() : 'none';
+      h.disabled = sup === 'none';
+      const note = $('hapticsNote');
+      if (note) {
+        note.textContent = sup === 'none'
+          ? 'This device has no vibration for the browser to use.'
+          : (sup === 'ios-switch'
+            ? 'Uses the iPhone’s Taptic Engine. Needs iOS 17.4 or newer.'
+            : '');
+        note.hidden = !note.textContent;
+      }
+    }
     $('todNote').textContent = tod === 'auto'
       ? 'The stages match the time of day on your phone — night streets after 7pm.'
       : 'Takes effect next time the game loads.';
   }
 
   // ── wiring ────────────────────────────────────────────────────────────
-  $('panelClose').addEventListener('click', () => api.close());
-  $('btnRegister').addEventListener('click', () => show('form'));
-  $('btnSettings').addEventListener('click', () => show('settings'));
-  $('btnBack').addEventListener('click', () => show('board'));
-  $('btnSkip').addEventListener('click', () => show('board'));
-  $('btnSave').addEventListener('click', save);
+  on('panelClose', 'back', () => api.close());
+  on('btnRegister', 'press', () => show('form'));
+  on('btnSettings', 'press', () => show('settings'));
+  on('btnBack', 'back', () => show('board'));
+  on('btnSkip', 'back', () => show('board'));
+  // SAVE decides its own cue, because it has two outcomes. A rejected form
+  // that played the happy triad would be lying to you, and on a phone — where
+  // the keyboard is covering the error line — the sound may be the first thing
+  // you notice. See save().
+  $('btnSave')?.addEventListener('click', save);
   // Enter on the last field submits, the way a form should.
   for (const id of ['fName', 'fPhone', 'fEmail']) {
     $(id).addEventListener('input', () => {
@@ -189,9 +233,22 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange }) {
   $('fName').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('fPhone').focus(); });
 
   $('sSound').addEventListener('change', (e) => {
-    const on = e.target.checked;
-    try { localStorage.setItem('wh_sound', on ? 'on' : 'off'); } catch (_e) {}
-    onSoundChange?.(on);
+    const v = e.target.checked;
+    try { localStorage.setItem('wh_sound', v ? 'on' : 'off'); } catch (_e) {}
+    onSoundChange?.(v);
+    // Only on the way ON, and after the mute has lifted — a click confirming
+    // that you just turned the sound off would be a contradiction, and it
+    // would not play anyway.
+    if (v) feedback.press();
+  });
+  // HAPTICS ARE THEIR OWN SWITCH, not a rider on SOUND. They are the setting
+  // that matters most to the person who plays with the sound off, which is
+  // most people at a party — turning the volume down should not also take the
+  // feel of the buttons away. Toggling it ON ticks, which is the only honest
+  // way to show what the setting does.
+  $('sHaptics')?.addEventListener('change', (e) => {
+    onHapticsChange?.(e.target.checked);
+    if (e.target.checked) haptics?.tap();
   });
   $('sTod').addEventListener('change', (e) => {
     try { localStorage.setItem('wh_tod', e.target.value); } catch (_e) {}
@@ -201,8 +258,16 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange }) {
 
   // Tapping the dimmed area behind the card closes it. Not the card itself,
   // or every mis-tap while typing would throw the form away.
-  el.addEventListener('pointerdown', (e) => { if (e.target === el) api.close(); });
-  window.addEventListener('keydown', (e) => { if (open && e.key === 'Escape') api.close(); });
+  el.addEventListener('pointerdown', (e) => {
+    if (e.target !== el) return;
+    feedback.back();
+    api.close();
+  });
+  window.addEventListener('keydown', (e) => {
+    if (!open || e.key !== 'Escape') return;
+    feedback.back();
+    api.close();
+  });
 
   const api = {
     get isOpen() { return open; },

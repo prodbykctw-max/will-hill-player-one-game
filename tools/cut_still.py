@@ -48,15 +48,18 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BG = os.path.join(ROOT, 'src', 'assets', 'backgrounds')
 SAM = os.path.join(ROOT, 'tools', 'sam_masks')
 
-# Which emitted groups are actually animated. A group that is not listed here
-# was cut for one of two reasons and is then thrown away: to keep it OUT of a
-# bigger group it would otherwise have polluted (`letters`, which sits inside
-# the sky band and would have gone drifting off with the clouds), or because
-# it turned out to be better handled without a card at all (`prompt`, whose
-# cut came back partial — half the letters of PRESS START — and which is
-# animated as a pulse over the painting's own text instead).
+# Which emitted groups are actually LIFTED off the plate. A group that is not
+# listed here was cut for one of two reasons and is then thrown away: to keep
+# it OUT of a bigger group it would otherwise have polluted (`letters`, which
+# sits inside the sky band and would have gone drifting off with the clouds),
+# or because it turned out to be better handled without a card at all
+# (`prompt`, whose cut came back partial — half the letters of PRESS START —
+# and which is animated as a pulse over the painting's own text instead).
+#
+# `options` is not lifted in order to MOVE, it is lifted in order to be
+# RELOCATED — see SPRITES below.
 MOVERS = {
-    'title': ['clouds', 'signL', 'signR', 'hero'],
+    'title': ['clouds', 'signL', 'signR', 'hero', 'options'],
     'ending': ['crowd', 'hero'],
 }
 
@@ -71,8 +74,17 @@ MOVERS = {
 # nested proposals for a cloud bank — #16 spans x 11..325 and #26 is a piece
 # of the same clump at x 94..321 — and animating those as separate clouds
 # would tear one cloud into two sliding halves.
-SPRITES = {'title': ['clouds']}
+SPRITES = {'title': ['clouds', 'options']}
 MIN_SPRITE_PX = 400
+
+# Sprite groups emitted as ONE crop instead of one per connected component.
+#
+# OPTIONS is a WORD. Split by component it comes out as seven letters that
+# would then have to be re-spaced by hand, and any drift between them is a
+# typo. SAM returned it as a single blob anyway (mask #92, one component,
+# 5401px) — this just says so out loud, so a future re-cut that happens to
+# separate the O from the P cannot silently turn the word into confetti.
+WHOLE = {'options'}
 
 # Layers that must be drawn IN FRONT of the moving sprites. Without one, a
 # cloud crossing the sky slides over the skyline and over the logo instead of
@@ -87,6 +99,59 @@ OCCLUDER = {
 }
 
 FEATHER = 1.1   # px of gaussian softening on the alpha edge
+
+# Groups whose card is RE-PLACED somewhere else instead of being drawn back
+# over its own footprint. Everything else here is covered by itself at rest, so
+# the fill underneath is never seen and the pyramid blur is plenty. `options`
+# is lifted and moved, so its hole is on show permanently — and a blur is
+# exactly the wrong texture to leave in a dithered pixel painting.
+#
+# MEASURED, because "you can't see it" was wrong. The fill came out with a
+# high-frequency energy of 0.80 against the surrounding road's 4.35-5.68, and
+# a mean of 15 against the road's 23-30. Blown up 4x it reads as a smooth,
+# slightly dark rounded patch sitting in a speckled road — the shape of the
+# word that used to be there, in negative.
+RELOCATED = {'options'}
+
+
+def retexture(rgb, base, mask, name):
+    """Give a permanently-visible hole the road's own grain back.
+
+    GRAIN ONLY, and the level is deliberately left alone. The fill looked 8-15
+    levels too dark next to the road above it, and correcting for that made it
+    WORSE: measured at the boundary itself the pyramid fill was already within
+    0.5 levels of the road it meets, and adding an offset on top pushed the rim
+    to -2.4 and put a visible edge where there had been none. The road has a
+    real vertical gradient — 30 at the top of the strip, 23 at the bottom — so
+    "the road nearby" is not one number to match, and the fill already carries
+    that gradient correctly. The rim is the only honest test.
+
+    What a blur genuinely cannot do is invent dither, so it is BORROWED: the
+    high-frequency residual of a same-sized strip of real, untouched road
+    directly below the hole is added on top. Real grain from the same material,
+    not synthetic noise pretending to be it — this plate's dither is an ordered
+    pattern rather than a random one, and gaussian noise does not look like it.
+    """
+    ys, xs = np.where(mask)
+    y0, y1, x0, x1 = ys.min(), ys.max() + 1, xs.min(), xs.max() + 1
+    H, W = y1 - y0, x1 - x0
+    h, w = mask.shape
+
+    # Donor strip: directly below, then directly above if that runs off the
+    # plate. It has to be clear of the hole itself and of the plate's edge.
+    dy = y1 + 4
+    if dy + H > h:
+        dy = y0 - 4 - H
+    if dy < 0 or dy + H > h:
+        raise SystemExit(f'{name}: nowhere to take a texture donor from')
+    donor = rgb[dy:dy + H, x0:x1].astype(np.float32)
+    grain = donor - ndi.gaussian_filter(donor, (1.4, 1.4, 0))
+
+    out = base.astype(np.float32)
+    sub = mask[y0:y1, x0:x1][..., None]
+    out[y0:y1, x0:x1] = np.where(sub, out[y0:y1, x0:x1] + grain,
+                                 out[y0:y1, x0:x1])
+    return np.clip(out, 0, 255).astype(np.uint8)
 
 
 def load_mask(scene, name, w, h):
@@ -123,6 +188,11 @@ def main():
     # One fill for all of them at once. Filling them one at a time would let
     # an earlier card's blurred hole become source material for a later one.
     base = pyramid_inpaint(rgb, claimed)
+    # Then put the grain back under anything that is not coming back to cover
+    # its own hole. After the fill, so the donor is taken from the original.
+    for name in names:
+        if name in RELOCATED:
+            base = retexture(rgb, base, cards[name], name)
 
     if debug:
         Image.fromarray(base).save(f'/tmp/{scene}_base_proof.png')
@@ -146,8 +216,12 @@ def main():
     manifest = {}
     for name, m in cards.items():
         if name in sprite_groups:
-            lab, n = ndi.label(m)
-            sizes = ndi.sum(m, lab, range(1, n + 1))
+            if name in WHOLE:
+                lab, n = np.where(m, 1, 0), 1
+                sizes = [int(m.sum())]
+            else:
+                lab, n = ndi.label(m)
+                sizes = ndi.sum(m, lab, range(1, n + 1))
             items = []
             for i, sz in enumerate(sizes, start=1):
                 if sz < MIN_SPRITE_PX:

@@ -471,6 +471,65 @@ export function createAudio() {
   // gain, not just play the tape backwards at the same speed.
   const DOWN_NOTES = [784, 659.25, 523.25, 440, 349.23, 261.63];
 
+  // ── THE UI CUES ───────────────────────────────────────────────────────
+  //
+  // Three of them, and they are three rather than one because a menu makes
+  // three different KINDS of statement and a single beep for all of them
+  // teaches you nothing. You learn these in one pass each and then you can
+  // work the menu without reading it:
+  //
+  //   click    "I heard you."          — moving between things
+  //   confirm  "that did something."   — a decision that committed
+  //   back     "we went the other way." — closing, cancelling, going up
+  //
+  // ALL THREE ARE UNDER 130ms. A UI sound is heard hundreds of times in a
+  // session, and the ONLY sin available to it is being long enough to notice
+  // twice. The click is 45ms — shorter than a single frame of animation at
+  // this game's tick rate would suggest is even audible, and it is plenty.
+  //
+  // They share the square-wave timbre of the power-up cues rather than being
+  // sine beeps, so the menu sounds like it belongs to the same machine as the
+  // game. And they are quiet — 0.09 against the punch's 0.95 — because
+  // feedback that competes with the action is not feedback, it is noise.
+
+  // The click: a tight blip with a physical transient on the front. The blip
+  // alone is a beep; the noise tick is what makes it read as a BUTTON, the
+  // same way the punch needs its whisper before the slap. 6ms apart, which
+  // binds them into one event.
+  function clickAt(c, t) {
+    const o = c.createOscillator();
+    const g = c.createGain();
+    o.type = 'square';
+    o.frequency.setValueAtTime(1180, t);
+    o.frequency.exponentialRampToValueAtTime(1560, t + 0.018);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(0.085, t + 0.004);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.045);
+    o.connect(g).connect(master);
+    o.start(t);
+    o.stop(t + 0.06);
+    burst(c, t, { freq: 5200, q: 0.6, gain: 0.10, decay: 0.011, type: 'highpass' });
+  }
+
+  // The happy one. A major triad taken at a run — root, third, fifth — which
+  // is the shortest arrangement of notes that is unambiguously PLEASED. Two
+  // notes could be going anywhere; a minor third would be the wrong news.
+  const CONFIRM_NOTES = [784, 987.77, 1318.5];   // G5 B5 E6
+
+  // And its opposite: a fifth dropping. Not a sad sound, just a downward one —
+  // closing a menu is not a failure and should not be scored like one.
+  const BACK_NOTES = [880, 587.33];
+
+  // Run a UI cue against a context that is definitely awake. See the note on
+  // click()/confirm()/back() for why the deferral is not paranoia.
+  function uiCue(fn) {
+    if (muted) return;
+    const c = ensure();
+    if (!c) return;
+    if (c.state === 'running') { startPending(); fn(c); return; }
+    c.resume().then(() => { startPending(); fn(c); }).catch(() => {});
+  }
+
   return {
     // Call from EVERY user gesture until it takes, not just the first — a
     // resume() can be refused, and a listener registered `once` gives the
@@ -546,6 +605,33 @@ export function createAudio() {
       if (c.state === 'suspended') c.resume().catch(() => {});
       arpeggio(c, c.currentTime, DOWN_NOTES, 0.075, 0.13);
     },
+
+    // ── UI ────────────────────────────────────────────────────────────
+    //
+    // These are also the game's most reliable UNLOCK, and that is not an
+    // accident of ordering. Every one of them fires from inside a pointerdown
+    // or a click — a real user gesture — which is the exact condition an
+    // AudioContext needs to start. So the first button the player touches
+    // both makes its noise AND wakes the context, and startPending() picks up
+    // the ambience that has been waiting since boot. See the note on
+    // startPending for the iOS trap this belongs to.
+    //
+    // THE FIRST ONE IS THE AWKWARD ONE, and it needed `uiCue` to get right.
+    // The canvas pointerdown handler runs before the window-level unlock
+    // listener — events bubble outward — so the very first press reaches this
+    // code with a context that has only just been constructed and is still
+    // suspended. Scheduling the cue at `currentTime` on a suspended context
+    // schedules it in a clock that is not running: by the time resume() lands,
+    // that moment is in the past and the note is dropped or clipped. Measured
+    // on the first tap of a session at a peak bus RMS of 0.00075 against
+    // 0.030-0.067 for every press after it — audible as "the first button on
+    // the title screen is silent".
+    //
+    // So a suspended context defers the cue until resume() resolves. Slightly
+    // late once, at boot, rather than missing once, at boot.
+    click: () => uiCue((c) => clickAt(c, c.currentTime)),
+    confirm: () => uiCue((c) => arpeggio(c, c.currentTime, CONFIRM_NOTES, 0.042, 0.11)),
+    back: () => uiCue((c) => arpeggio(c, c.currentTime, BACK_NOTES, 0.055, 0.09)),
 
     // ── IS ANYTHING ACTUALLY COMING OUT? ────────────────────────────────
     //

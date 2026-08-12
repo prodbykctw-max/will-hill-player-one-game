@@ -20,7 +20,8 @@ function isTouchDevice() {
   );
 }
 
-export function createInput() {
+// `haptics` is optional so a test harness can build input on its own.
+export function createInput(haptics) {
   const keys = new Set();
   window.addEventListener('keydown', (e) => {
     keys.add(e.code);
@@ -107,10 +108,22 @@ export function createInput() {
     const els = {};
     for (const act of TOUCH_ACTS) els[act] = document.querySelector(`#touch [data-act="${act}"]`);
 
+    // A PAD GETS A TICK, NOT A CLICK. The haptic fires on the edge into `on`
+    // and nowhere else, so rolling a thumb from ◀ to ▶ ticks once for the new
+    // direction rather than twice for the swap.
+    //
+    // There is deliberately NO SOUND here, and that is a judgement rather than
+    // an omission. These four pads are pressed several hundred times in a run;
+    // a menu click on every one of them would be a metronome playing over the
+    // punches and the money bags, which are the sounds that carry information.
+    // The tick is silent, private to the hand holding the phone, and can fire
+    // as often as it likes without ever being in the way. Menu buttons — where
+    // a press is an occasional, considered thing — get both.
     const set = (act, on) => {
       if (!els[act] || touch[act] === on) return;
       touch[act] = on;
       els[act].classList.toggle('on', on);
+      if (on && haptics) haptics.tick();
     };
 
     // Which movement pad is this point on — or, if it is in the gap between

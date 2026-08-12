@@ -352,6 +352,10 @@ Kenney's own `impactPunch_*` files were tried and rejected — measured at
 84–94% low-frequency energy, they are thuds and read as a kick drum. Full
 reasoning in `src/assets/audio/CREDITS.md`.
 
+Synthesised on top of those four: the ambience bed, the power-up/power-down
+arpeggios, and the three UI cues — see "Button feedback" below, which also
+covers the haptics that go with them.
+
 ### Unlocking it, and the bug that hid inside that
 
 The AudioContext is suspended until a real gesture. Getting that right took
@@ -481,44 +485,185 @@ before the game drew and reports a one-frame lag that is the harness's.
 
 ## The title card's two controls
 
-**They were 4.2 screen pixels apart.** PRESS START ends at painting row 913
-and OPTIONS starts at 926 — 15 rows, which at contain-fit on a 430px phone is
-four pixels. A thumb is ten times that, so the client kept getting START when
-he meant OPTIONS. No amount of care aims inside it.
+**They were THIRTEEN screen pixels apart.** Colour-keyed off the plate, PRESS
+START's last painted row is 907 and OPTIONS's first is 950 — 43 rows, which at
+the current fit on a 430px phone is 12.9 screen pixels. A thumb is three to
+four times that, so the client kept getting START when he meant OPTIONS.
 
-Fixed two ways, because neither alone is enough:
+(An earlier version of this section said 4.2 pixels, from 15 rows. Both were
+wrong: the rows had been read off the SAM masks' padded bounding boxes rather
+than off the lettering. It never changed the conclusion, only its size —
+and the correct number is still far inside a thumb.)
+
+Fixed three ways.
 
 - **The screen is SPLIT, not dotted with buttons.** Everything above painting
   row 920 starts the game; everything at or below it — including all the black
   under the card — opens the panel. Measured on a 430x932 phone that is a
-  414px target and a 518px target with one boundary between them, instead of
+  588px target and a 344px target with one boundary between them, instead of
   two adjacent boxes.
 - **`TITLE_ZOOM` 1.07 — the measured ceiling.** Every discrete element keyed
   by its own colour (luminance just returns the full width on a full-bleed
   scene): green WELCOME face from x 65, red 1UP from 54, pale 000000 from
   53; HI SCORE, 125680 and AHEAD ON all end by 1475. Leftmost 53, rightmost
   1475 -> 1.074. As large as the card goes without clipping his art.
-- **A real OPTIONS button, drawn in the black below the card.** The painted
-  PRESS START and OPTIONS sit **4 screen pixels apart** and the zoom is
-  maxed, so nothing separates them — a dead zone between them would be 3px
-  wide. The reachable control moves off the label into the empty space
-  underneath, 60px clear. The painted word is not a decoy: it is inside the
-  same lower zone and does the same thing.
-- ~~`TITLE_ZOOM` 1.06~~, which scales past contain-fit and trims the left and
-  right edges. The ceiling is measured, not chosen: the 1UP / HI SCORE row
-  runs x 52..1475 of 1536, capping zoom at 1.07. **1.16 was tried first** and
-  the screenshot showed exactly what the arithmetic predicts — "ELCOME TO" and
-  a clipped score. `TITLE_BIAS` stays **0** — the card is CENTRED. It was
-  briefly lifted to -0.55 to hand the space below to the OPTIONS half, which
-  was solving a problem the split had already solved: centred, there is still
-  ~345px under the boundary, eight times a thumb. Client's note — it should
-  "stay center and stretched in the up-and-down directions so it appears
-  larger", i.e. bigger about its own middle, and bigger means the UNIFORM
-  zoom, never a vertical stretch. A non-uniform scale on a dithered pixel
-  painting is the same mistake as the letterbox filler that got thrown out.
+  `TITLE_BIAS` stays **0** — the card is CENTRED. It was briefly lifted to
+  -0.55 to hand the space below to the OPTIONS half, which was solving a
+  problem the split had already solved. Client's note: it should "stay center
+  and stretched in the up-and-down directions so it appears larger", i.e.
+  bigger about its own middle, and bigger means the UNIFORM zoom, never a
+  vertical stretch. A non-uniform scale on a dithered pixel painting is the
+  same mistake as the letterbox filler that got thrown out.
+- **THE WORD ITSELF MOVED.** See below.
 
-OPTIONS also pulses now, on the opposite beat to PRESS START and in a cooler
-colour, so it reads as a second thing you can press rather than a caption.
+### OPTIONS is cut out of the painting and re-placed
+
+The client's instruction, and it is the right one: *"we could basically lift
+options off of the page and then move it down slightly... we could use SAM on
+that portion just options to lift it and do whatever we need to do to make sure
+the background stays the same."*
+
+**SAM mask #92 is the word** — one connected component, x 671..853, y 946..979,
+5401px, holding **99.8%** of the word's colour-keyed glyph pixels with only
+three stray bright pixels left in the entire band outside it. Added to
+`tools/sam_groups/title.json` as its own group; `tools/cut_still.py` emits it
+as a `WHOLE` sprite (one crop, not one per connected component — a word split
+into seven letters that have to be re-spaced by hand is a typo waiting to
+happen) and fills the hole.
+
+**Placement is measured from the SPLIT LINE, not from the bottom of the card**,
+and that is the correctness argument rather than a style choice. Anchoring
+below the card is the obvious way and it is right only while there IS black
+below the card. Widen the window to landscape and the zoom makes the card
+taller than the display, the card's bottom goes off-screen, the placement
+clamps to the last row that fits — and at 1280x800 the word came out with its
+top on 740.0 against a split at 741.1. **Tapping the top edge of the OPTIONS
+control would have started the game.** The band now runs from below both the
+split and the painted PRESS START to the bottom of the display, which always
+exists.
+
+Three caps on the size, smallest wins: 40% of the display width, **3x the
+card's own sampling rate** (past that the plate's dither becomes blocks — the
+same artefact that got the stretched letterbox thrown out), and a third of the
+band. On the target phone the first two land within 1.3% of each other so the
+pixel-grid cap is the one that bites.
+
+Measured on the live page at three window sizes:
+
+| window | OPTIONS lands | scale | gap from PRESS START | on screen | in its own zone |
+|---|---|---|---|---|---|
+| 430x932 phone | y 668.2, 169.8x35.9 | 3.00x the card | **83.9px** (was 12.9) | yes | yes |
+| 932x430 landscape | y 408.3, 50.9x10.8 | 0.60x | 15.8px | yes | yes |
+| 1280x800 desktop | y 755.2, 94.7x20.0 | 0.60x | 25.0px | yes | yes |
+
+Tapping the word opens the panel and tapping the art starts the game, at all
+three sizes.
+
+**The hole needed the grain putting back, and that is a new step.** Every other
+mover is drawn back over its own footprint at rest, so the fill under it is
+never seen and the pyramid blur is plenty. This one is relocated, so its hole
+is on permanent show — and measured, the fill was wrong: **high-frequency
+energy 0.80 against the surrounding road's 4.35-5.68.** At 4x it read as a
+smooth patch in a speckled road, the shape of the word in negative.
+`retexture()` in cut_still.py adds the high-frequency residual of a same-sized
+strip of real road taken from just below the hole. After: **dither 3.89, rim
+delta 0.83 levels, 3 bright pixels left of 1951.**
+
+⚠️ A LEVEL CORRECTION WAS TRIED FIRST AND MADE IT WORSE. The fill looked 8-15
+levels too dark next to the road above it, so it was offset to match — and the
+rim went from 0.5 to -2.4, putting a visible edge where there had been none.
+The road has a real vertical gradient (30 at the top of the strip, 23 at the
+bottom), so "the road nearby" is not one number, and the pyramid fill already
+carries the gradient correctly. **The rim is the only honest test.**
+
+**What this replaced:** a drawn `LEADERBOARD · OPTIONS` button in the black
+below the card. It worked, and it was wrong twice — a system-ui rounded
+rectangle under a hand-painted arcade card, duplicating a control the painting
+already had. Client: *"the big ass leaderboard option button at the bottom is
+kind of redundant... let's use these tools."* Same position, his artwork, one
+control instead of two.
+
+OPTIONS still pulses, on the opposite beat to PRESS START and in a cooler
+colour, via `stillscene.pulseRect` — the screen-space twin of `pulsePrompt`,
+which can no longer express it as a rectangle of the plate.
+
+---
+
+## Button feedback: click, confirm, and a tick under the thumb
+
+Client: *"I want happy feedback and a clicking noise like button select noise
+when you're selecting buttons"*, plus *"haptic feedback"*.
+
+**THREE CUES, NOT ONE**, because a menu makes three different kinds of
+statement and one beep for all of them teaches nothing:
+
+| cue | says | sound | haptic |
+|---|---|---|---|
+| `click` | I heard you | 1180→1560Hz square, 45ms, + a 11ms noise tick | 14ms |
+| `confirm` | that committed | G5-B5-E6 major triad at 42ms | 14, 40, 26 |
+| `back` | we went the other way | A5→D5 falling fifth | 14ms |
+
+All three are under 130ms. A UI sound is heard hundreds of times a session and
+the only sin available to it is being long enough to notice twice. They share
+the square-wave timbre of the power-up cues so the menu sounds like the same
+machine as the game, and they sit at ~0.09 against the punch's 0.95.
+
+**THE PADS GET A TICK AND NO SOUND**, deliberately. The four movement/action
+pads are pressed several hundred times in a run; a menu click on each would be
+a metronome over the punches and the money bags, which are the sounds that
+carry information. The haptic is silent, private to the hand, and can fire as
+often as it likes. It fires on the edge into `on` only, so rolling a thumb
+from ◀ to ▶ ticks once, not twice.
+
+**iOS HAS NO VIBRATION API and never has.** `navigator.vibrate` is undefined on
+every version of iOS Safari. `src/core/haptics.js` carries the one route that
+exists — since iOS 17.4 a `<input type="checkbox" switch>` plays a haptic when
+toggled inside a gesture — gated to iOS so it cannot touch any other platform.
+
+⚠️ **THE iOS PATH IS UNVERIFIED AND NEEDS ONE PASS ON A REAL IPHONE.**
+Playwright's "iPhone" profile is Chromium wearing an iOS user-agent: it
+reports `navigator.vibrate` as a function, which real Safari does not, so
+there is no way to tell "this works" from "the harness is lying". The Android
+path IS verified.
+
+**VIBRATION IS ITS OWN SETTING, not a rider on SOUND.** It is the setting that
+matters most to the person playing with the sound off, which at a party is
+most people. The switch disables itself and explains why when the device has
+no route to a motor.
+
+Verified with `scratchpad/feedback.mjs`, which wraps `navigator.vibrate` to
+record every call and reads the master bus RMS through `audio.level()`:
+
+```
+tap OPTIONS (the word)   vibrate [14]          SAVE, empty form   vibrate [14]      back cue
+ENTER THE CONTEST        vibrate [14]          SAVE, valid form   vibrate [14,40,26] triad
+SETTINGS / BACK / close  vibrate [14]          tap the artwork    vibrate [14,40,26]
+two pad presses          vibrate [8,8]         muted              silent, still [8]
+```
+
+Warm peak bus RMS: click 0.045, confirm 0.067, back 0.056. Muted: 0.00018.
+
+**A cold first cue needed deferring.** The canvas pointerdown handler runs
+before the window-level unlock listener — events bubble outward — so the very
+first press of a session reaches the audio with a context that was constructed
+one line earlier and is still `suspended`. Scheduling at `currentTime` on a
+suspended context schedules into a clock that is not running, and by the time
+`resume()` lands that moment is past. `uiCue()` defers until the resume
+resolves: slightly late once, at boot, rather than missing once, at boot.
+
+⚠️ AND THE FIRST MEASUREMENT OF THAT WAS ITSELF A HARNESS ARTEFACT. A cold
+click read 0.00714 against a warm 0.045, which looks like a silent first
+button — but `audio.level()` builds its AnalyserNode on FIRST USE, which on a
+cold session is 13ms into a 45ms exponential decay. Predicted level at that
+point: 0.085 x (0.0001/0.085)^(13/45) = **0.0071**. Measured 0.00714. Building
+the probe first gives a cold click 0.021-0.030, same as a warm one. The
+deferral is still correct; the quiet reading was not evidence for it.
+
+⚠️ AND THE PAD CHECK HAD ONE TOO. Hardcoded tap coordinates put y=830 two
+pixels above the left pad's top edge (it starts at 832), and the harness
+reported a missing haptic that was never missing. **Read pad rects off the
+live DOM.** Same class of bug as the unpinned camera and the stale feet
+position — three now.
 
 ---
 
@@ -607,6 +752,17 @@ it does decide how hard the identity check needs to be.
   works against the local fallback; `LB_URL` is empty and the KV namespace
   does not exist. Creating it and running `wrangler deploy` touches the live
   Cloudflare account and stays a manual, explicitly-confirmed step.
+- **The iOS haptics path has never run on an iPhone.** One pass on real
+  hardware is all it needs: open the game, tap OPTIONS, feel for a tick. If
+  nothing happens the fallback is inert rather than broken — the sound still
+  plays and nothing else changes. See "Button feedback" for why it cannot be
+  tested from here.
+- **The enemy walk clip holds ~4 strides in 16 frames** (autocorrelation
+  conf 0.67, confirmed by eye) — 3.8 strides/sec at 4 ticks/frame, the same
+  bug class the player's walk had. Found and reported, deliberately NOT
+  changed: it touches `tools/compose_enemy_sheet.py` and `DEFEAT_TICKS`
+  depends on the same rate, so it wants its own pass with the stomp harness
+  re-run afterwards.
 
 ### Corrected — these were listed as open and are DONE
 
