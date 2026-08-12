@@ -83,14 +83,26 @@ Eight plates now, not four — every stage has a night and a day version. See
 
 | stage | night cards | day cards | notes |
 |---|---|---|---|
-| EAV | 12 | **flat** | hand-cut; SAM added only the clouds |
-| Edgewood | 14 | **flat** | richest signage of the four |
+| EAV | 12 | 10 | night hand-cut; the day regions came from the night CARDS' own alpha boxes |
+| Edgewood | 14 | 15 | richest signage of the four; day gains a `clouds` card |
 | Underground | 15 | 19 | most depth; day and night are DIFFERENT compositions, so the night cards do not fit the day plate and it got its own pass |
-| L5P | 16 | **flat** | least headroom left |
+| L5P | 16 | 17 | day gains a `clouds` card |
 
-The three **flat** day plates render as single-plate backdrops. That is the
-outstanding work, and the client has asked for the same treatment on every
-plate.
+**All eight plates are cut.** The day sets are the night sets — same card
+names, same depths, same `rate`/`clamp`, same sway `top`/`pivot`/`amp`/`freq`
+— with only `span` and the sway `xRanges` recomputed, from each day card's own
+alpha bbox and the measured night→day transform, because the exports differ by
+a percent or two in size. The client's framing, which is the right one: line
+the two up as exactly as possible and reuse the prior cut "unless there's
+something that specifically requires it to be specific to that version".
+
+The day plates gain a `clouds` card that the night ones cannot have — their
+sky is a black band with nothing in it to lift.
+
+⚠️ **A DAY `bg.img` MUST POINT AT `<stage>-day-base.webp`, NOT `<stage>-day.webp`.**
+The base is the inpainted plate with every card lifted out of it. Point it at
+the whole painting and every item appears twice the moment parallax moves a
+card.
 
 `tools/sam_segment.py` finds the items, `tools/sam_group.py` folds them into
 cards, `tools/cut_planes.py` cuts, `src/render/backdrop.js` draws,
