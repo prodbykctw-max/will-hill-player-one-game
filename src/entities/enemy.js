@@ -52,18 +52,35 @@ const DEFEAT_TICKS = atlas.animations.defeat.frameCount * 3; // ~3 ticks/frame, 
 // like teenagers next to Will Hill's 2.02m, and the client's note was exactly
 // that: "the enemies are either too small or he is too tall".
 //
-// 1.80 IS THE ANSWER BECAUSE THE HEIGHT WAS NEVER THE REAL CONSTRAINT. What
-// made stomping hard was the shape of the hit test, not the size of the
-// target — see the STOMP BOX note below, where a three-tick window came from
-// the stomp being a sub-case of body overlap. With that fixed the height is
-// free to be whatever reads right, and 89% of his is a grown man who is
-// slightly shorter than him rather than a child.
+// 1.80 -> 1.85, AND THE HEIGHT WAS NEVER THE REAL CONSTRAINT. What made
+// stomping hard was the shape of the hit test, not the size of the target —
+// see the STOMP BOX note below, where a three-tick window came from the stomp
+// being a sub-case of body overlap. With that fixed, the height is free to be
+// whatever reads right.
 //
-// Clearance still checked, not assumed: the collider is 77 units, a tapped
-// jump measures 130 units of apex and a held one 158, so there is 53 units of
-// room over their heads on the SHORT version of the jump. Re-derive if JUMP_V
-// or GRAV move.
-export const ENEMY_HEIGHT_M = 1.80;
+// THE SPEC AND THE INTENT DISAGREED, AND THE INTENT WON. The client asked for
+// the top of their head to reach "row 36, the top line of Will Hill's
+// glasses", pointing at a line on a marked-up crop of the sheet. Measured
+// back through the renderer's own box — row 36 of his 251-row cell lands
+// 151.8 world units above his feet — and the enemy's walking head at 1.80m
+// was ALREADY at 152.0. The line he picked was where they already stood, so
+// following it literally would have changed nothing, while the sentence next
+// to it was "he needs to be a little bit bigger".
+//
+// 1.90m puts the head 8.6 units past that line, which is a visible step up
+// and still leaves him clearly shorter than Will Hill's 168.4 — 95% of him,
+// a bigger man rather than the same man.
+//
+// MEASURE, DO NOT SCALE FROM THE METRES. The two sheets carry different
+// amounts of empty space in their cells and different `fit.h`, so equal metre
+// figures do NOT render as equal heights. The number that matters is the
+// renderer's own box (`entity.__box` in DEV), not the arithmetic. Three
+// attempts to derive this off the atlas disagreed with the screen before that
+// hook existed.
+//
+// Clearance still checked, not assumed: the collider is 81 units against a
+// 130-unit tapped apex and 158 held. Re-derive if JUMP_V or GRAV move.
+export const ENEMY_HEIGHT_M = 1.90;
 export const ENEMY_H = Math.round(metersToWorld(ENEMY_HEIGHT_M) / CHAR_SCALE); // collider height
 export const ENEMY_DRAW_H = metersToWorld(ENEMY_HEIGHT_M); // drawn character height
 const ENEMY_W = 30;

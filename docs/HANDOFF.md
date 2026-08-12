@@ -184,9 +184,23 @@ three approach distances and reports how many land:
 
 Supporting changes, all from the same client note:
 
-- **Enemies 1.58 m → 1.80 m.** 89% of Will Hill's 2.02 m — a grown man who is
-  slightly shorter, not a teenager. The height was never the real constraint;
-  once the hit test was fixed it was free to be whatever reads right.
+- **Enemies 1.58 m → 1.80 m → 1.90 m.** 95% of Will Hill's 2.02 m. The height
+  was never the real constraint; once the hit test was fixed it was free to be
+  whatever reads right. Stomp windows re-measured at 1.90 and unchanged.
+
+  **MEASURE HEIGHTS OFF `entity.__box`, NOT OFF THE METRES.** The two sheets
+  carry different amounts of empty space in their cells and different `fit.h`,
+  so equal metre figures do NOT render as equal heights, and three separate
+  attempts to derive "how tall does he look" from the atlas all disagreed with
+  the screen. `spriteBox`/`drawSprite` now publish the rect they actually use
+  (DEV only) — read that.
+
+  The client asked for their heads to reach "row 36, the top line of Will
+  Hill's glasses". Measured back through the box, row 36 of his 251-row cell
+  is 151.8 units above his feet, and their walking head at 1.80 m was already
+  at 152.0 — the line he picked was where they already stood, so following it
+  literally would have changed nothing while the sentence beside it said "he
+  needs to be a little bit bigger". Intent won.
 - **`AIR_ACCEL_MUL` 0.55 → 0.85.** At full run a jump carries 450 units
   (5.36 m) horizontally, so the arc is fine — but run speed takes 21 ticks to
   reach, so a jump from a standstill or a walk goes nearly straight up AND
@@ -195,6 +209,14 @@ Supporting changes, all from the same client note:
 - **Patrol range 96 → 170.** At 96 an enemy reverses every 69 ticks, so he
   often turns while you are mid-flight — you are not aiming at a moving
   target, you are aiming at one that changes its mind.
+- **The champagne grow STUTTERS, like Mario.** A smooth 320 ms ease was a
+  perfectly good transition and the wrong reference: what makes the mushroom
+  read is that Mario does NOT ease — he snaps between the two sizes several
+  times, and the flicker is what the eye reads as "something happened to him"
+  rather than "the camera moved closer". Four hard 140 ms steps
+  (small/big/small/big) then settle; growth raised 0.22 → 0.30. The collapse
+  at the far end stays smooth, because running out is a warning you want to
+  feel coming rather than an event you want noticed.
 - **The champagne aura was sized off the COLLIDER.** Every measurement was a
   multiple of `p.h` (86) while Will Hill is drawn 170 tall, so the bright core
   landed at mid-thigh and read as "sparkly shit behind him". Now driven by the

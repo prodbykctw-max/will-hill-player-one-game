@@ -377,8 +377,16 @@ export function createRenderer(ctx, canvas) {
     const drawW = cellW * (drawH / cellH);
     const plant = atlas.anchor === 'low' ? (fit.bLow || fit.b) : fit.b;
     const feetY = entity.y + colliderH + PLANT_DEPTH;
-    return { drawW, drawH, dx: entity.x + entity.w / 2 - drawW / 2,
-             dy: feetY - drawH * plant };
+    const box = { drawW, drawH, dx: entity.x + entity.w / 2 - drawW / 2,
+                  dy: feetY - drawH * plant };
+    // DEV ONLY — publish the rect actually used, so a verification pass can
+    // read where a character IS rather than re-deriving it from the atlas and
+    // hoping the two agree. Three attempts to compute "how tall does he look"
+    // off the sheet disagreed with the screen, because the answer depends on
+    // the clip's own fit, its anchor, and PLANT_DEPTH all at once — which is
+    // exactly the sum this function already does.
+    if (import.meta.env.DEV) entity.__box = box;
+    return box;
   }
 
   function drawSprite(image, atlas, entity, colliderH, charScaleH, flipX, alpha, stage) {
@@ -411,6 +419,12 @@ export function createRenderer(ctx, canvas) {
     const feetY = entity.y + colliderH + (PLANT_DEPTH - anchorSink);
     const dx = entity.x + entity.w / 2 - drawW / 2;
     const dy = feetY - drawH * plant;
+    // DEV ONLY — publish the rect actually used. Three separate attempts to
+    // compute "how tall does this character look" off the atlas disagreed with
+    // the screen, because the answer depends on the clip's own fit, the
+    // anchor, anchorSink and PLANT_DEPTH all at once — which is exactly the
+    // sum performed here. Reading it back beats re-deriving it.
+    if (import.meta.env.DEV) entity.__box = { dx, dy, drawW, drawH, feetY };
 
     // Frames flow across the sheet as a grid rather than one row per clip, so
     // each animation can be its own length. `start` is the linear index the
@@ -438,19 +452,36 @@ export function createRenderer(ctx, canvas) {
   // going Super Saiyan, and the thing that sells that transformation is not
   // the glow — it is that the character gets BIGGER. Exported so the draw
   // call can scale him by the same number the aura is sized against.
-  const POWER_GROWTH = 0.22;   // +22% height at full power
+  const POWER_GROWTH = 0.30;   // +30% height at full power
 
-  // Eased so he SWELLS into it over the first third of a second and settles
-  // back as it runs out, rather than popping between two sizes on pickup and
-  // expiry. The window is CHAMPAGNE_SECONDS long — 9s, not the 30 these ramps
-  // were first cut against — so both ends are shorter: a 500ms swell and a
-  // 1200ms collapse ate 19% of the new duration, which is most of the time
-  // he is supposed to look powered.
+  // ── THE GROW, AND WHY IT STUTTERS ────────────────────────────────────
+  //
+  // "I would like for them to kind of see the detail of him growing, almost
+  // like Mario." A smooth 320ms ease is a perfectly good transition and it is
+  // the wrong reference: what makes Mario's mushroom read is that he does NOT
+  // ease. He snaps between the two sizes several times in a fifth of a second
+  // each, and the flicker is what your eye reads as "something happened to
+  // him" rather than "the camera moved a bit closer".
+  //
+  // So the first 560ms is four hard steps — small, big, small, big — and only
+  // then does he settle. Hard, not eased: an interpolated stutter is a wobble,
+  // and a wobble reads as a bug.
+  //
+  // The collapse at the far end stays smooth. Growing is an event you want
+  // noticed; running out is a warning you want to feel coming, and the aura's
+  // own FADE_MS is already doing that job beside it.
+  const GROW_STEPS = [0, 1, 0, 1];   // small / big / small / big
+  const GROW_STEP_MS = 140;          // 4 x 140 = 560ms of pop
+  const GROW_MS = GROW_STEPS.length * GROW_STEP_MS;
+
   function powerScale(msLeft, totalMs = CHAMPAGNE_SECONDS * 1000) {
     if (msLeft <= 0) return 1;
-    const rampIn = Math.min(1, (totalMs - msLeft) / 320);
+    const since = totalMs - msLeft;
     const rampOut = Math.min(1, msLeft / 700);
-    return 1 + POWER_GROWTH * Math.min(rampIn, rampOut);
+    if (since < GROW_MS && rampOut >= 1) {
+      return 1 + POWER_GROWTH * GROW_STEPS[Math.floor(since / GROW_STEP_MS)];
+    }
+    return 1 + POWER_GROWTH * rampOut;
   }
 
   // CHAMPAGNE AURA — Super Saiyan.
