@@ -309,7 +309,7 @@ export const STAGES = [
       // so the arch reads, and Will Hill is the size of a man next to it
       // rather than the size of a bollard.
       meters: 8.6,
-      groundFrac: 0.80,
+      groundFrac: 0.78,
       sky: ['#4d8fd6', '#a8cdf0'],
       horizon: '#cfe2f4',
       glow: 'rgba(255,236,190,0.10)',

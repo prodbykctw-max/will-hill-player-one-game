@@ -62,6 +62,51 @@ REGIONS = {
         ('midbuild', 280, 560,  980, 1000),
         ('backdrop', 280,   0,  980,  585),   # buildings behind the arch
     ],
+    # ── DAYTIME FIVE POINTS ──────────────────────────────────────────────
+    # Read off tools/captures/sam/underground-day_proposals.png against a
+    # 100px grid laid over the plate. The day composition is NOT the night
+    # one — the arch sits higher, the columns are narrower and further apart,
+    # and there is real sky behind everything instead of black — so none of
+    # the night boxes below transfer and these are measured fresh.
+    'underground-day': [
+        # Small, specific things first: each is inside something bigger, and
+        # most-specific-first is what stops the parent swallowing it. The
+        # 6th element is a MAX AREA, which is what lifts lettering off the
+        # panel it is painted on — see the note in the matcher below.
+        ('letters',   300, 320,  870,  412, 5200),
+        ('loans',      20, 610,  180,  725),
+        ('checks',      0, 755,  170,  850),
+        ('coke',      715, 655,  895,  810),
+        ('waffle',    745, 880,  895,  965),
+        ('dirsign',   495, 670,  700,  825),
+        ('ped',       340, 692,  500,  800),
+        ('newsbox',   555, 965,  685, 1093),
+        ('columns',   195, 225,  275, 1093),
+        ('columns',   845, 225,  925, 1093),
+        # THE ARCH AS ONE CARD. It was split into dome + marquee and both
+        # boxes were too tight to CONTAIN their own masks — the wheel spans
+        # from the crown down past the bulb skirt — so at 70% containment
+        # every big arch piece failed both and fell through to `backdrop`,
+        # which put the hero of the plate on the far-distance card. The group
+        # map is what showed it: the whole arch came out one violet mass.
+        ('arch',      230,  80,  905,  555),
+        ('spire',     880, 110, 1000,  575),
+        ('clouds',    380,   0, 1122,  340),
+        ('trees',     950, 700, 1122, 1020),
+        ('trees',     745, 690,  910,  870),
+        # Sign posts and lamp standards — thin vertical street furniture that
+        # belongs in front of the buildings, not on them. Left unassigned on
+        # the first pass and clearly visible as magenta shafts on the map.
+        ('poles',     395, 780,  470, 1093),
+        ('poles',     640, 700,  700, 1093),
+        ('poles',     900, 690,  975, 1010),
+        ('towers',    540, 420,  905,  770),
+        ('towers',    995, 330, 1122,  770),
+        ('street',      0, 1005, 1122, 1093),
+        ('leftblock',   0,    0,  325, 1005),
+        ('midbuild',  300, 750,  990, 1010),
+        ('backdrop',  300,    0,  990,  570),
+    ],
     'l5p': [
         # ── Detail cards, lifted off the surfaces they are painted on ────
         # None of these will read as depth: an OPEN sign in a window has no
@@ -177,6 +222,45 @@ def main():
         print(f'  {name:11s} {len(idxs):4d} masks')
     if unassigned:
         print(f'  UNASSIGNED  {len(unassigned)}: {unassigned[:20]}')
+
+    # --map renders WHAT WAS ACTUALLY ASSIGNED, one colour per card, over a
+    # dimmed plate. A card list that looks sensible in the console can still
+    # be wrong on the plate — a box can catch the right NUMBER of masks and
+    # the wrong ones — and this is the check that would fail if it did.
+    # Unassigned masks are drawn hot magenta so gaps are impossible to miss.
+    if '--map' in sys.argv:
+        plate = Image.open(os.path.join(ROOT, 'src', 'assets', 'backgrounds',
+                                        f'{stage}.webp')).convert('RGB')
+        plate = plate.crop((0, 0, W, H)).point(lambda v: int(v * 0.35))
+        overlay = Image.new('RGB', (W, H), (0, 0, 0))
+        px = overlay.load()
+        palette = [(255, 96, 96), (96, 200, 255), (255, 210, 90), (140, 255, 140),
+                   (220, 140, 255), (255, 150, 60), (120, 255, 235), (255, 110, 190),
+                   (170, 200, 90), (90, 140, 255), (240, 240, 140), (200, 120, 90),
+                   (110, 255, 160), (255, 180, 130), (150, 150, 255), (200, 255, 60),
+                   (255, 80, 40), (60, 220, 120), (190, 90, 220), (240, 200, 200)]
+        for ci, name in enumerate(order):
+            col = palette[ci % len(palette)]
+            for i in groups.get(name, []):
+                ys, xs = np.nonzero(M[i])
+                for y, x in zip(ys, xs):
+                    px[x, y] = col
+        for i in unassigned:
+            ys, xs = np.nonzero(M[i])
+            for y, x in zip(ys, xs):
+                px[x, y] = (255, 0, 255)
+        out = Image.blend(plate, overlay, 0.62)
+        d = ImageDraw.Draw(out)
+        for ci, name in enumerate(order):
+            d.rectangle([6, 6 + ci * 14, 18, 16 + ci * 14],
+                        fill=palette[ci % len(palette)])
+            d.text((22, 5 + ci * 14), f'{name} ({len(groups.get(name, []))})',
+                   fill=(255, 255, 255))
+        d.rectangle([6, 6 + len(order) * 14, 18, 16 + len(order) * 14], fill=(255, 0, 255))
+        d.text((22, 5 + len(order) * 14), f'UNASSIGNED ({len(unassigned)})', fill=(255, 255, 255))
+        mp = os.path.join(SAM, f'{stage}_groupmap.png')
+        out.save(mp)
+        print(f'  -> {mp}')
 
     if '--write' in sys.argv:
         os.makedirs(OUT, exist_ok=True)

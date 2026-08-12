@@ -37,8 +37,11 @@ CKPT = '/root/sam/sam_vit_b.pth'
 # groundFrac per stage — must match src/world/stages.js, since the cards are
 # cut from the same crop the renderer draws.
 GROUND_FRAC = {'eav': 0.88, 'underground': 0.78, 'l5p': 0.80, 'edgewood': 0.82,
-               # Daytime Five Points — same scene, same crop, same ground line.
-               'underground-day': 0.78}
+               # DAYTIME PLATES. Same scenes, so the same ground fractions —
+               # except Five Points, whose day composition sits the arch
+               # higher and shows more plaza (see stages.js).
+               'underground-day': 0.78, 'eav-day': 0.88,
+               'edgewood-day': 0.82, 'l5p-day': 0.80}
 
 
 def load_plate(stage):
