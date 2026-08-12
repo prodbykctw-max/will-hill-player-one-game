@@ -97,16 +97,26 @@ export const OPTIONS_PROMPT = { x: 600, y: 926, w: 336, h: 62 };
 // clipped score. 1.06 shows x 43..1493: the whole score line, both signs'
 // words, and only the outer edge of the right-hand sign's panel.
 //
-// BIAS -0.55 lifts the card toward the top of the frame. That is not
-// cosmetic: it is what turns the dead letterbox underneath into somewhere the
-// OPTIONS zone can live.
+// BIAS STAYS 0 — THE CARD IS CENTRED. It was lifted to -0.55 to hand the space
+// underneath to the OPTIONS zone, and that was solving a problem the split
+// below had already solved: with the boundary at painting row 920, a centred
+// card still leaves roughly 345px of screen under the line, which is eight
+// times a thumb. The lift bought nothing and cost the composition, and the
+// client's note was that it should "stay center and stretched in the
+// up-and-down directions so it appears larger" — i.e. bigger about its own
+// middle, not shoved upward.
+//
+// Bigger here means the ZOOM, uniformly. Not a vertical stretch: "without
+// warping it, you ain't gotta do that shit you did with stretching the pixels
+// earlier" — a non-uniform scale on a dithered pixel painting is the same
+// mistake as the letterbox filler that got thrown out.
 //
 // And the controls are no longer two small boxes at all — see SPLIT_Y. The
 // screen is cut in two: everything above the line starts the game, everything
 // below opens the panel. Both targets are enormous and there is exactly one
 // boundary to miss instead of two adjacent edges.
 export const TITLE_ZOOM = 1.06;
-export const TITLE_BIAS = -0.55;
+export const TITLE_BIAS = 0;
 // In the painting's own rows: below PRESS START (ends 913), above OPTIONS
 // (starts ~926). Everything at or under this — including all the black below
 // the card — is the OPTIONS half.
