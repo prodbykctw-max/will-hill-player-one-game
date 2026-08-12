@@ -68,10 +68,24 @@ const SLOTS = [
 // The getaway is the POINT of it: they are robbing him, which is the same
 // thing a contact hit does while he is on his feet. He loses the money, not
 // his life.
-export const GATHER_TICKS = 24;
-export const STOMP_TICKS = 44;   // ~2 stomps at the clip's cadence
-export const FLEE_TICKS = 30;
-export const TOTAL_TICKS = GATHER_TICKS + STOMP_TICKS + FLEE_TICKS;
+// FOUR BEATS, and the third one is new.
+//
+// This ran 196 ticks originally, was cut to 98 because 3.3s is a cutscene,
+// and the client then reported the 98 as "too fast" AND that the enemies
+// "dont have money bags". Those two are the same bug. `carrying` only turned
+// on once they were already fleeing, which was the last 30 ticks of the beat
+// — half a second, spent running off the side of the screen, over a body,
+// under a fade. The bag was drawn. Nobody could see it.
+//
+// So there is now a SNATCH beat: the stomping stops, they straighten up with
+// the money in hand and hold it for a moment where you can actually read it,
+// and THEN they run. The bag is on screen for 68 ticks instead of 30, and a
+// third of that they are standing still.
+export const GATHER_TICKS = 30;
+export const STOMP_TICKS = 72;   // ~4 stomps at the clip's cadence
+export const SNATCH_TICKS = 22;  // they stand up holding your money
+export const FLEE_TICKS = 46;
+export const TOTAL_TICKS = GATHER_TICKS + STOMP_TICKS + SNATCH_TICKS + FLEE_TICKS;
 
 const FLEE_RATE = 4.4;    // faster than their patrol — they are leaving
 const DUST_EVERY = 14;    // ticks between puffs per stomper, ~one per stomp
@@ -139,11 +153,23 @@ export function beginStompOut(player, enemies) {
 // screen should change.
 export function stepStompOut(t, player, enemies, dust) {
   const bodyX = player.x + player.w / 2;
-  const fleeing = t >= GATHER_TICKS + STOMP_TICKS;
+  const snatching = t >= GATHER_TICKS + STOMP_TICKS;
+  const fleeing = t >= GATHER_TICKS + STOMP_TICKS + SNATCH_TICKS;
 
   for (const e of enemies) {
     if (!e.stompSlot) continue;
     const target = bodyX + e.stompSlot.dx - e.w / 2;
+
+    if (snatching && !fleeing) {
+      // THE SNATCH. Standing over him, holding the money, not yet moving.
+      // This beat exists purely so the bag is legible — see the note on the
+      // tick counts above.
+      e.x = target;
+      e.vx = 0;
+      e.anim = 'idle';
+      e.carrying = true;
+      continue;
+    }
 
     if (fleeing) {
       // GETAWAY. Out the way they came, carrying the money.

@@ -17,6 +17,23 @@
 //     fractions of its length by createLevel in world/generator.js.
 //   - `stageEnd` (finish-line column) ends the stage directly — no boss
 //     arena, per the "reach a finish line" decision.
+// STAGE THREE FELT HARDEST, AND HERE IS WHY — the ordering was not the fault.
+// The recipe ramp was already correct in array order (gap 0.072 < 0.090 <
+// 0.108 < 0.126) and l5p already carried the all-three-variant roster. Two
+// other things made the Underground the hardest stage in play:
+//
+//   1. LENGTH DID NOT RAMP. The Underground was 300 columns while the FINALE
+//      was 280 — the third stage was the longest in the game. Lengths now
+//      ramp 240 / 260 / 280 / 300 with the rest of the curve.
+//   2. A GENERATOR BUG turned every feature into extra holes (see the notes
+//      in world/generator.js), and because holes leaked per FEATURE, the
+//      longest stage collected the most of them. Measured before the fix:
+//      38 pit spans on the Underground against 32 on the finale, of which
+//      twenty were accidental.
+//
+// Difficulty is separately down 10% across enemy, pothole and gap rates at
+// the client's request, and platform width with them.
+//
 // ORDER MATTERS AND IT CHANGED. Criminal Records (l5p) is the FINALE, not the
 // Underground — Will Hill is travelling to his show, and the show is at
 // Criminal Records, where people really have performed. On the MARTA map the
@@ -83,6 +100,12 @@ import l5pPoster from '../assets/backgrounds/l5p-poster.webp';
 import l5pKerb from '../assets/backgrounds/l5p-kerb.webp';
 import l5pPole from '../assets/backgrounds/l5p-pole.webp';
 import bgUnderground from '../assets/backgrounds/underground-base.webp';
+// DAYTIME Five Points. Client-supplied, same 1122x1402 frame as the night
+// plate but a different composition — the arch sits higher and the columns
+// are narrower — so the night plate's fifteen multiplane cards do NOT line up
+// with it and are not used while this is the base. Its own cut is in
+// progress; see assets/refs/underground-day.webp and tools/cut_planes.py.
+import bgUndergroundDay from '../assets/backgrounds/underground-day.webp';
 import ugClouds from '../assets/backgrounds/underground-clouds.webp';
 import ugSpire from '../assets/backgrounds/underground-spire.webp';
 import ugTowers from '../assets/backgrounds/underground-towers.webp';
@@ -210,7 +233,7 @@ export const STAGES = [
     },
     enemyVariants: ['a'],
     stageEnd: 240, // finish-line column (T=32px/col -> ~7680px)
-    recipe: { gap: 0.08, plat: 0.20, haz: 0.34, gapMax: 2, vert: 0.25, enemy: 0.30, bag: 0.34 },
+    recipe: { gap: 0.072, plat: 0.20, haz: 0.306, gapMax: 2, vert: 0.25, enemy: 0.27, bag: 0.34 },
   },
   {
     id: 'edgewood',
@@ -265,20 +288,32 @@ export const STAGES = [
     },
     enemyVariants: ['b'],
     stageEnd: 260,
-    recipe: { gap: 0.10, plat: 0.22, haz: 0.38, gapMax: 3, vert: 0.30, enemy: 0.36, bag: 0.34 },
+    recipe: { gap: 0.090, plat: 0.22, haz: 0.342, gapMax: 3, vert: 0.30, enemy: 0.324, bag: 0.34 },
   },
   {
     id: 'underground',
     name: 'The Underground (5 Points)',
     bgRef: '"UNDERGROUND" transit-style entrance arch — Midtown/Westside + East Point/Airport signage, Coca-Cola sign, Waffle House',
     bg: {
-      img: bgUnderground,
-      meters: 18.0, // the arch is ~9m; towers run well above it
-      groundFrac: 0.78,
-      sky: ['#080818', '#06091e'],
-      horizon: '#191a30',
-      glow: 'rgba(220,60,60,0.10)',
-      rain: 0.55, // partly sheltered under the arch
+      img: bgUndergroundDay,
+      // SCALE, AND IT WAS BADLY WRONG. `meters` is how much real-world height
+      // the plate's visible band spans, and at 18.0 this plate drew 976px tall
+      // — against the 559px of screen that exists above the ground line. Four
+      // hundred and seventeen pixels of it, INCLUDING THE ENTIRE UNDERGROUND
+      // ARCH, sat above the top of the frame. All you could see was one giant
+      // teal column and half a LOANS sign, which is exactly what the client
+      // reported. The other three plates fill 68-87% of that space; this one
+      // was at 175%.
+      //
+      // 8.6 puts it at 466px, an 83% fill, between EAV's 78% and L5P's 87% —
+      // so the arch reads, and Will Hill is the size of a man next to it
+      // rather than the size of a bollard.
+      meters: 8.6,
+      groundFrac: 0.80,
+      sky: ['#4d8fd6', '#a8cdf0'],
+      horizon: '#cfe2f4',
+      glow: 'rgba(255,236,190,0.10)',
+      rain: 0.0, // clear blue sky in the daytime plate
       windBands: [{ top: 0.02, pivot: 0.26, amp: 2, freq: 1.1, xRanges: [[0.60, 0.70]] }],
       // ── The multiplane set, far -> near ──────────────────────────────
       // Built in real perspective, so this plate has more genuine depth than
@@ -290,35 +325,26 @@ export const STAGES = [
       // other dark buildings with nothing to separate them, so cutting them
       // gave back rectangles, and rectangles read as hard cuts. They are the
       // matrix; the cards are what stands in front of it.
-      cards: [
-        { key: 'clouds', img: ugClouds, depth: 0.03, span: [0.640, 0.844] },
-        { key: 'spire', img: ugSpire, depth: 0.08, span: [0.814, 0.881] },
-        { key: 'towers', img: ugTowers, depth: 0.12, span: [0.863, 1.000] },
-        { key: 'backdrop', img: ugBackdrop, depth: 0.16, span: [0.270, 0.820] },
-        { key: 'leftblock', img: ugLeftblock, depth: 0.26, span: [0.000, 0.251] },
-        { key: 'midbuild', img: ugMidbuild, depth: 0.34, span: [0.265, 0.777] },
-        { key: 'dome', img: ugDome, depth: 0.44, span: [0.296, 0.750] },
-        { key: 'marquee', img: ugMarquee, depth: 0.50, span: [0.138, 0.894] },
-        { key: 'loans', img: ugLoans, depth: 0.56, span: [0.000, 0.133] },
-        { key: 'coke', img: ugCoke, depth: 0.60, span: [0.663, 0.773] },
-        { key: 'waffle', img: ugWaffle, depth: 0.62, span: [0.703, 0.786] },
-        { key: 'dirsign', img: ugDirsign, depth: 0.70, span: [0.452, 0.598] },
-        { key: 'ped', img: ugPed, depth: 0.74, span: [0.328, 0.429] },
-        { key: 'street', img: ugStreet, depth: 0.82, span: [0.003, 0.996] , rate: 0.30 },
-        { key: 'columns', img: ugColumns, depth: 0.94, span: [0.161, 0.880] },
-      ],
+      // NO CARDS WHILE THE DAY PLATE IS THE BASE. The fifteen below were cut
+      // from the NIGHT plate, and the two compositions do not register — the
+      // day arch sits higher and its columns are narrower — so they would
+      // float night-lit fragments over a daylit street. The parallax comes
+      // back as soon as the day plate's own SAM cut lands; the night set is
+      // kept in the git history, not deleted from it.
+      cards: [],
       // The arch marquee bulbs, the Coca-Cola disc and the Waffle House
       // frontage — the three things genuinely emitting in this plate.
       // `layer` bolts each glow to its card so it travels with the thing that
       // emits it instead of sliding off it.
+      // Daylight. The marquee bulbs still read, faintly, but a Coca-Cola disc
+      // and a Waffle House sign do not glow at midday and painting them as if
+      // they did is what makes a day scene look like a night scene with the
+      // brightness turned up. Those two are gone; the marquee is halved.
       lights: [
-        { x: 0.50, y: 0.30, r: 0.26, rgb: '255,226,160', a: 0.24, flicker: 0.030, layer: 'marquee' },
-        { x: 0.72, y: 0.50, r: 0.24, rgb: '230,60,60',   a: 0.20, layer: 'coke' },
-        { x: 0.76, y: 0.62, r: 0.22, rgb: '255,196,90',  a: 0.18, flicker: 0.014, layer: 'waffle' },
-        { x: 0.06, y: 0.24, r: 0.28, rgb: '255,196,120', a: 0.12 },
+        { x: 0.50, y: 0.30, r: 0.22, rgb: '255,236,190', a: 0.10, flicker: 0.030 },
       ],
     },
-    light: { pool: 'rgba(255,170,90,0.22)', shaft: 'rgba(255,170,90,0.05)', bloom: 'rgba(240,90,70,0.14)', key: '255,200,140', bounce: '150,90,60', shadowRgb: '12,10,22' },
+    light: { pool: 'rgba(255,244,214,0.10)', shaft: 'rgba(255,246,220,0.04)', bloom: 'rgba(255,240,200,0.07)', key: '255,248,226', bounce: '150,170,200', shadowRgb: '30,36,52' },
     under: {
       // Five Points sits on top of the MARTA tunnel — the neighbourhood's
       // literal underground, and the stage's namesake. Deepest section of
@@ -330,8 +356,8 @@ export const STAGES = [
       kinds: ['conduit', 'water', 'sewer', 'tunnel', 'rats', 'train', 'footings'],
     },
     enemyVariants: ['c'],
-    stageEnd: 300,
-    recipe: { gap: 0.12, plat: 0.24, haz: 0.42, gapMax: 3, vert: 0.35, enemy: 0.42, bag: 0.34 },
+    stageEnd: 280,
+    recipe: { gap: 0.108, plat: 0.24, haz: 0.378, gapMax: 3, vert: 0.35, enemy: 0.378, bag: 0.34 },
   },
   {
     id: 'l5p',
@@ -380,7 +406,7 @@ export const STAGES = [
       kinds: ['roots', 'conduit', 'water', 'sewer', 'rats', 'footings'],
     },
     enemyVariants: ['a', 'b', 'c'],
-    stageEnd: 280,
-    recipe: { gap: 0.14, plat: 0.26, haz: 0.46, gapMax: 4, vert: 0.40, enemy: 0.48, bag: 0.34 },
+    stageEnd: 300,
+    recipe: { gap: 0.126, plat: 0.26, haz: 0.414, gapMax: 4, vert: 0.40, enemy: 0.432, bag: 0.34 },
   },
 ];

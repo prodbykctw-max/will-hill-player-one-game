@@ -19,9 +19,22 @@ const MIN_ENEMY_SPACING_COLS = 8;
 // roll on nearly every column, which produced a jumble of small disconnected
 // slabs — the ground has to read as an actual road with things ON it, not as
 // scattered floating chunks. These enforce breathing room between features.
-const MIN_FEATURE_GAP_COLS = 7;
+// 7 -> 9, and this is what actually delivers the 10% difficulty cut.
+//
+// Cutting the recipe rates by 10% was not enough on its own, because the
+// generator-skip fix changed the sampling underneath them: the hazard branch
+// used to advance genC by 2 and now advances by 1, so nearly twice as many
+// columns get a feature roll. Measured on EAV, rates-only came out at 27
+// hazard features against the old 23 — a 17% INCREASE while the config said
+// -10%. Spacing them 9 columns apart instead of 7 removes 22% of the
+// opportunities and lands the realised count where it was asked to be.
+const MIN_FEATURE_GAP_COLS = 9;
+// Platform width, down 10% with the rest of the difficulty pass: w was
+// 5 + [0..4] (mean 7.0), now 5 + [0..3] (mean 6.5). A narrower stoop is a
+// tighter landing. Note these no longer punch holes in the street — see the
+// plat branch below for the bug that used to make every one of them a pit.
 const PLATFORM_MIN_W = 5;
-const PLATFORM_EXTRA_W = 5;
+const PLATFORM_EXTRA_W = 4;
 
 // Sine-hash pseudo-random in [0,1) — same trick as Jandé's rnd01(seed):
 // deterministic per (column, stage) so the same stage always generates the
@@ -92,7 +105,11 @@ export function genAhead(level, untilCol) {
       pit(level.map, c, w, FLOOR_R, LH - 1);
       groundCol(level.map, c + w, FLOOR_R, LH - 1);
       level.lastFeatureCol = c + w;
-      level.genC = c + w + 3;
+      // c+w+1 ONWARDS, not c+w+3. Skipping ahead left two columns that the
+      // loop never visited and therefore never grounded — so every designed
+      // gap was followed by a one-column landing strip and then a second,
+      // undesigned two-column hole. See the note at the head of this file.
+      level.genC = c + w + 1;
       continue;
     }
 
@@ -101,7 +118,13 @@ export function genAhead(level, untilCol) {
       // ledge). Deliberately long: short floating chunks look like debris.
       const w = PLATFORM_MIN_W + Math.floor(rnd01(c * 2.3 + level.seed) * PLATFORM_EXTRA_W);
       const heightRows = 2 + Math.floor(rnd01(c * 4.7 + level.seed) * recipe.vert * 10);
-      groundCol(level.map, c, FLOOR_R, LH - 1);
+      // GROUND THE WHOLE SPAN, not just the first column. This grounded c and
+      // then jumped genC to c+w, so columns c+1..c+w-1 were never visited:
+      // the raised slab was drawn with NO STREET UNDERNEATH IT. A stoop you
+      // were meant to hop onto for a money bag was a 4-to-8 column death pit
+      // with a platform floating over it, and that single line was the source
+      // of eight of EAV's twenty-one holes.
+      for (let k = 0; k < w; k++) groundCol(level.map, c + k, FLOOR_R, LH - 1);
       plat(level.map, c, FLOOR_R - heightRows, w);
       if (rnd01(c * 5.3 + level.seed) < recipe.bag) {
         level.bags.push(createMoneyBag(c * T + w * T * 0.5 - 12, (FLOOR_R - heightRows) * T - 26));
@@ -138,7 +161,11 @@ export function genAhead(level, untilCol) {
         level.obstacles.push({ x: c * T, y: FLOOR_R * T + 1, w: pw, h: 30 });
       }
       level.lastFeatureCol = c;
-      level.genC = c + 2;
+      // c+1, not c+2 — the skipped column was never grounded, which put a
+      // one-column hole immediately beside every pothole and every enemy.
+      // Eleven of EAV's twenty-one holes were this line. Nothing needs the
+      // skip: MIN_FEATURE_GAP_COLS already keeps features apart.
+      level.genC = c + 1;
       continue;
     }
 
