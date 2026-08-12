@@ -453,8 +453,14 @@ Fixed two ways, because neither alone is enough:
   right edges. The ceiling is measured, not chosen: the 1UP / HI SCORE row
   runs x 52..1475 of 1536, capping zoom at 1.07. **1.16 was tried first** and
   the screenshot showed exactly what the arithmetic predicts — "ELCOME TO" and
-  a clipped score. `TITLE_BIAS` -0.55 lifts the card so the freed space below
-  belongs to the OPTIONS half rather than being wasted letterbox.
+  a clipped score. `TITLE_BIAS` stays **0** — the card is CENTRED. It was
+  briefly lifted to -0.55 to hand the space below to the OPTIONS half, which
+  was solving a problem the split had already solved: centred, there is still
+  ~345px under the boundary, eight times a thumb. Client's note — it should
+  "stay center and stretched in the up-and-down directions so it appears
+  larger", i.e. bigger about its own middle, and bigger means the UNIFORM
+  zoom, never a vertical stretch. A non-uniform scale on a dithered pixel
+  painting is the same mistake as the letterbox filler that got thrown out.
 
 OPTIONS also pulses now, on the opposite beat to PRESS START and in a cooler
 colour, so it reads as a second thing you can press rather than a caption.
