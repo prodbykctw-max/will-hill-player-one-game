@@ -35,6 +35,11 @@ export function createAudio() {
   const buffers = {};
   let loading = false;
   let alt = 0;
+  let probe = null;
+  let probeBuf = null;
+  // The ambience the game has ASKED for, held until there is a context that
+  // is actually running to put it on. See ambience() / startPending().
+  let pendingAmb = null;
 
   // ── OUTDOOR AMBIENCE ────────────────────────────────────────────────────
   //
@@ -102,9 +107,22 @@ export function createAudio() {
 
     src.start(); air.start(); rainSrc.start();
 
-    // Fade in over three seconds. An ambience that snaps on announces itself.
-    out.gain.setValueAtTime(0.0001, c.currentTime);
-    out.gain.exponentialRampToValueAtTime(0.06, c.currentTime + 3);
+    // FADE IN OVER 0.8s, LINEARLY. It was an exponential ramp over three
+    // seconds, on the reasoning that an ambience which snaps on announces
+    // itself — true, but three seconds of exponential from 0.0001 is not a
+    // fade, it is silence followed by a fade. Measured against the 0.06
+    // target: 0.6% of level at 150ms, 1.6% at 600ms, still only 11% at 1.5s.
+    //
+    // That is most of what the client was hearing. You start the stage, run
+    // two seconds in silence, pick up a bag — which fires at full level
+    // instantly — and the bed has crept up under it, so it reads as the coin
+    // having switched the sound on.
+    //
+    // Linear, because an exponential ramp in AMPLITUDE always crowds its
+    // travel into the last moments; linear reaches half level at 400ms, which
+    // is present immediately without slamming.
+    out.gain.setValueAtTime(0, c.currentTime);
+    out.gain.linearRampToValueAtTime(0.06, c.currentTime + 0.8);
 
     amb = { out, bedGain, rainGain, buf, nextPass: c.currentTime + 4, passes: [] };
     ambientRain(c, rain);
@@ -382,13 +400,58 @@ export function createAudio() {
     },
   };
 
+  // Build the ambience the game has asked for, but ONLY once there is a
+  // context that is genuinely running.
+  //
+  // WHY IT WAITS. The graph used to be built the moment the game asked for it,
+  // which is at boot, on the title screen, before the player has touched
+  // anything. A context created and wired up before any user gesture is the
+  // classic iOS trap: Safari will hand you a context and let you build the
+  // whole graph on it, and produce nothing, until something is played from
+  // inside a real gesture. Every later effect — a coin, a punch — creates its
+  // nodes after the gesture and so wakes the context, at which point the
+  // ambience that had been sitting there silent becomes audible too. Which is
+  // exactly the reported symptom: no sound until you pick up a bag.
+  function startPending() {
+    if (pendingAmb === null || muted) return;
+    if (!ctx || ctx.state !== 'running') return;
+    const rain = pendingAmb;
+    pendingAmb = null;
+    if (!amb) ambientStart(ctx, rain);
+    else ambientRain(ctx, rain);
+  }
+
+  // A single sample of silence, played from inside the gesture. This, not
+  // resume(), is what actually convinces iOS the context is real.
+  function silentPing(c) {
+    try {
+      const s = c.createBufferSource();
+      s.buffer = c.createBuffer(1, 1, c.sampleRate);
+      s.connect(c.destination);
+      s.start(0);
+    } catch (_e) { /* older engines; resume alone will have to do */ }
+  }
+
   return {
-    // Call from the first real user gesture, or nothing will ever be heard.
+    // Call from EVERY user gesture until it takes, not just the first — a
+    // resume() can be refused, and a listener registered `once` gives the
+    // context no second chance. Cheap after it has worked: ensure() returns
+    // the existing context and loadSamples() no-ops.
     unlock() {
       const c = ensure();
       if (!c) return;
-      if (c.state === 'suspended') c.resume().catch(() => {});
+      silentPing(c);
+      if (c.state === 'suspended') {
+        c.resume().then(startPending).catch(() => {});
+      } else {
+        startPending();
+      }
       loadSamples(c);
+    },
+    // Has the context actually woken up? main.js uses this to know when to
+    // stop listening for gestures.
+    ready() {
+      return !!ctx && ctx.state === 'running';
     },
     setMuted(v) {
       muted = !!v;
@@ -397,19 +460,25 @@ export function createAudio() {
 
     // Call once play starts, and again whenever the stage changes so the rain
     // layer follows the weather in the plate.
+    //
+    // This RECORDS the request rather than acting on it. It deliberately does
+    // not call ensure(): creating the AudioContext is itself the thing that
+    // must wait for a gesture, and the first caller is the title screen at
+    // boot. startPending() picks it up the moment there is a running context,
+    // which is the same gesture that starts the run — so the bed comes up
+    // with the stage rather than a bag or two later.
     ambience(rain) {
-      if (muted) return;
-      const c = ensure();
-      if (!c) return;
-      if (c.state === 'suspended') c.resume().catch(() => {});
-      if (!amb) ambientStart(c, rain);
-      else ambientRain(c, rain);
+      pendingAmb = rain || 0;
+      startPending();
     },
 
-    // Once a frame. Schedules the next passing car when one is due; costs
-    // nothing on the frames in between.
+    // Once a frame, on EVERY screen. Schedules the next passing car when one
+    // is due, and is also the heartbeat that gets a pending ambience going if
+    // the context woke up a moment after the gesture rather than during it.
     ambienceTick() {
-      if (muted || !ctx || !amb) return;
+      if (muted) return;
+      if (pendingAmb !== null) startPending();
+      if (!ctx || !amb) return;
       ambientTick(ctx);
     },
     play(name) {
@@ -421,5 +490,41 @@ export function createAudio() {
       if (fn) fn(c, c.currentTime);
     },
     stop() {},
+
+    // ── IS ANYTHING ACTUALLY COMING OUT? ────────────────────────────────
+    //
+    // Not decoration. "The sound does not start until you pick up a bag" is a
+    // report that cannot be checked by reading the code — the graph looked
+    // correct the whole time it was silent — and it cannot be checked by
+    // listening either, in a headless browser. So the master bus is tapped
+    // and the RMS of the last frame of samples is readable, which turns
+    // "is there sound" into a number.
+    //
+    // The analyser is built on first use, so a player who never calls this
+    // never pays for it.
+    level() {
+      if (!ctx || !master) return 0;
+      if (!probe) {
+        probe = ctx.createAnalyser();
+        probe.fftSize = 256;
+        probeBuf = new Float32Array(probe.fftSize);
+        master.connect(probe);   // a tap, not a link in the chain
+      }
+      probe.getFloatTimeDomainData(probeBuf);
+      let sum = 0;
+      for (let i = 0; i < probeBuf.length; i++) sum += probeBuf[i] * probeBuf[i];
+      return Math.sqrt(sum / probeBuf.length);
+    },
+
+    status() {
+      return {
+        ctx: ctx ? ctx.state : 'none',
+        time: ctx ? +ctx.currentTime.toFixed(2) : 0,
+        amb: !!amb,
+        ambGain: amb ? +amb.out.gain.value.toFixed(5) : 0,
+        pending: pendingAmb,
+        muted,
+      };
+    },
   };
 }

@@ -41,11 +41,26 @@ const still = createStillScene(ctx, canvas);
 const title = createTitle(ctx, canvas, still);
 const input = createInput();
 const audio = createAudio();
-// Browsers keep an AudioContext suspended until a real gesture, so the first
-// key or touch is what actually starts the audio thread. `once` per event so
-// this costs nothing after the first interaction.
-for (const ev of ['keydown', 'pointerdown', 'touchstart']) {
-  window.addEventListener(ev, () => audio.unlock(), { once: true, passive: true });
+// Browsers keep an AudioContext suspended until a real gesture, so a key or
+// touch is what actually starts the audio thread.
+//
+// EVERY GESTURE UNTIL IT TAKES, not just the first. These were `once`, which
+// gives the context exactly one chance — and a resume() can be refused, or
+// land on a page that has not been interacted with the way the browser wanted.
+// One refused attempt and the game is silent for the rest of the session.
+// They detach themselves as soon as audio.ready() reports a running context,
+// so the steady state is still no listeners.
+{
+  const unlock = () => {
+    audio.unlock();
+    if (!audio.ready()) return;
+    for (const ev of ['keydown', 'pointerdown', 'touchstart']) {
+      window.removeEventListener(ev, unlock);
+    }
+  };
+  for (const ev of ['keydown', 'pointerdown', 'touchstart']) {
+    window.addEventListener(ev, unlock, { passive: true });
+  }
 }
 const camera = createCamera();
 
@@ -84,7 +99,7 @@ const state = {
 // the camera lerps toward him in both axes, so a few px of difference in
 // where he came to rest shifts the whole frame and swamps whatever was
 // actually being compared.
-if (import.meta.env.DEV) { window.__game = state; window.__camera = camera; }
+if (import.meta.env.DEV) { window.__game = state; window.__camera = camera; window.__audio = audio; }
 
 let images = null; // { player, enemy, eav, edgewood, l5p, underground }
 
@@ -274,6 +289,11 @@ function syncPads() {
 function update() {
   state.tick++;
   syncPads();
+  // ON EVERY SCREEN, not just during play. This is the heartbeat that starts
+  // the ambience once the audio context has actually woken up — it used to sit
+  // below the between-screen early-returns, so a context that came up a beat
+  // after the gesture had nothing to notice it until the next stage began.
+  audio.ambienceTick();
   if (state.screen === 'loading') return;
 
   if (state.screen === 'title') {
@@ -300,8 +320,6 @@ function update() {
     if (state.screenT > 20 && confirmPressed()) advanceFromScreen();
     return;
   }
-
-  audio.ambienceTick();
 
   // ── screen === 'playing' ──
   const level = state.level;
