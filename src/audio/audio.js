@@ -36,6 +36,119 @@ export function createAudio() {
   let loading = false;
   let alt = 0;
 
+  // ── OUTDOOR AMBIENCE ────────────────────────────────────────────────────
+  //
+  // A bed, not a track. Every stage is an Atlanta street at street level, and
+  // silence between sound effects is what makes a game read as a diagram of a
+  // place rather than a place. Deliberately SUBTLE: the whole thing sits about
+  // 25dB under the effects, and if you notice it as "a sound" it is too loud.
+  //
+  // Procedural for the same reason the effects are — a looping field
+  // recording would be a few hundred kB and would audibly loop, whereas three
+  // filtered noise sources and a slow random car never repeat.
+  //
+  //   BED     brown-ish noise through a low-pass at 320Hz — the distance
+  //           rumble of a city, traffic on other streets, HVAC, the sound a
+  //           quiet outdoor space actually has.
+  //   AIR     a whisper of high-passed noise for open air, panned wide.
+  //   PASSES  one car every 7-16s: band-passed noise swelling and dying,
+  //           panned across, so the bed has events in it and never settles
+  //           into a drone the ear can lock onto.
+  //   RAIN    keyed off the STAGE. Three of the four plates are rain-slicked
+  //           night streets and one is a clear afternoon, so this reads
+  //           stage.bg.rain rather than raining everywhere.
+  let amb = null;
+
+  function ambientStart(c, rain) {
+    if (amb) return;
+    const out = c.createGain();
+    out.gain.value = 0.0;
+    out.connect(master);
+
+    // Long noise buffer, looped — a 1s loop is short enough to hear repeat.
+    const len = c.sampleRate * 8;
+    const buf = c.createBuffer(2, len, c.sampleRate);
+    for (let ch = 0; ch < 2; ch++) {
+      const d = buf.getChannelData(ch);
+      let last = 0;
+      for (let i = 0; i < len; i++) {
+        // Brown noise: integrate white and bleed, which is what gives it the
+        // low tilt a distant city has. White noise alone hisses.
+        last = (last + 0.02 * (Math.random() * 2 - 1)) / 1.02;
+        d[i] = last * 3.2;
+      }
+    }
+
+    const src = c.createBufferSource();
+    src.buffer = buf; src.loop = true;
+    const lp = c.createBiquadFilter();
+    lp.type = 'lowpass'; lp.frequency.value = 320; lp.Q.value = 0.4;
+    const bedGain = c.createGain(); bedGain.gain.value = 0.55;
+    src.connect(lp).connect(bedGain).connect(out);
+
+    const air = c.createBufferSource();
+    air.buffer = buf; air.loop = true;
+    const hp = c.createBiquadFilter();
+    hp.type = 'highpass'; hp.frequency.value = 2200;
+    const airGain = c.createGain(); airGain.gain.value = 0.05;
+    air.connect(hp).connect(airGain).connect(out);
+
+    const rainSrc = c.createBufferSource();
+    rainSrc.buffer = buf; rainSrc.loop = true;
+    const rainBp = c.createBiquadFilter();
+    rainBp.type = 'bandpass'; rainBp.frequency.value = 3400; rainBp.Q.value = 0.6;
+    const rainGain = c.createGain(); rainGain.gain.value = 0;
+    rainSrc.connect(rainBp).connect(rainGain).connect(out);
+
+    src.start(); air.start(); rainSrc.start();
+
+    // Fade in over three seconds. An ambience that snaps on announces itself.
+    out.gain.setValueAtTime(0.0001, c.currentTime);
+    out.gain.exponentialRampToValueAtTime(0.06, c.currentTime + 3);
+
+    amb = { out, bedGain, rainGain, buf, nextPass: c.currentTime + 4, passes: [] };
+    ambientRain(c, rain);
+  }
+
+  function ambientRain(c, rain) {
+    if (!amb) return;
+    const g = Math.max(0, Math.min(1, rain || 0)) * 0.16;
+    amb.rainGain.gain.setTargetAtTime(g, c.currentTime, 1.2);
+  }
+
+  // One car going past, somewhere. Called from the frame tick; schedules
+  // itself forward so there is no timer to leak.
+  function ambientTick(c) {
+    if (!amb || c.currentTime < amb.nextPass) return;
+    const t = c.currentTime;
+    const dur = 2.2 + Math.random() * 2.4;
+
+    const s = c.createBufferSource();
+    s.buffer = amb.buf; s.loop = true;
+    const bp = c.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.Q.value = 0.8;
+    // Doppler-ish: the passing car's band sweeps down as it goes by.
+    bp.frequency.setValueAtTime(900 + Math.random() * 500, t);
+    bp.frequency.exponentialRampToValueAtTime(280, t + dur);
+    const g = c.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.05 + Math.random() * 0.05, t + dur * 0.45);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    const pan = c.createStereoPanner ? c.createStereoPanner() : null;
+    if (pan) {
+      const dir = Math.random() < 0.5 ? -1 : 1;
+      pan.pan.setValueAtTime(-dir, t);
+      pan.pan.linearRampToValueAtTime(dir, t + dur);
+      s.connect(bp).connect(g).connect(pan).connect(amb.out);
+    } else {
+      s.connect(bp).connect(g).connect(amb.out);
+    }
+    s.start(t);
+    s.stop(t + dur + 0.1);
+    amb.nextPass = t + dur + 7 + Math.random() * 9;
+  }
+
   function ensure() {
     if (ctx) return ctx;
     const AC = typeof window !== 'undefined' && (window.AudioContext || window.webkitAudioContext);
@@ -279,6 +392,25 @@ export function createAudio() {
     },
     setMuted(v) {
       muted = !!v;
+      if (amb && ctx) amb.out.gain.setTargetAtTime(muted ? 0 : 0.06, ctx.currentTime, 0.2);
+    },
+
+    // Call once play starts, and again whenever the stage changes so the rain
+    // layer follows the weather in the plate.
+    ambience(rain) {
+      if (muted) return;
+      const c = ensure();
+      if (!c) return;
+      if (c.state === 'suspended') c.resume().catch(() => {});
+      if (!amb) ambientStart(c, rain);
+      else ambientRain(c, rain);
+    },
+
+    // Once a frame. Schedules the next passing car when one is due; costs
+    // nothing on the frames in between.
+    ambienceTick() {
+      if (muted || !ctx || !amb) return;
+      ambientTick(ctx);
     },
     play(name) {
       if (muted) return;

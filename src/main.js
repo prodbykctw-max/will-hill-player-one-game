@@ -22,6 +22,7 @@ import { createBackdrop } from './render/backdrop.js';
 import { createUndercroft } from './render/undercroft.js';
 import { createHud } from './render/hud.js';
 import { createMartaMap } from './render/martamap.js';
+import { createEnding, statsFrom } from './render/ending.js';
 import martaMapArt from './assets/backgrounds/marta-map.webp';
 import { loadImages } from './render/images.js';
 import { createRunLog, lbSubmit } from './net/leaderboard.js';
@@ -33,6 +34,7 @@ const backdrop = createBackdrop(ctx, canvas);
 const undercroft = createUndercroft(ctx, canvas);
 const hud = createHud(ctx, canvas);
 const martaMap = createMartaMap(ctx, canvas);
+const ending = createEnding(ctx, canvas);
 const input = createInput();
 const audio = createAudio();
 // Browsers keep an AudioContext suspended until a real gesture, so the first
@@ -94,6 +96,9 @@ function startStage(i) {
   camera.y = 0;
   state.screen = 'playing';
   state.screenT = 0;
+  // The ambience follows the stage: three of these plates are rain-slicked
+  // night streets and the Underground is a clear afternoon.
+  audio.ambience(stage.bg.rain || 0);
 }
 
 // ONE CONTINUE PER RUN. Restart from the top of the stage you went down on,
@@ -108,6 +113,10 @@ function startRun() {
   state.score = 0;
   state.hearts = 3;
   state.continues = CONTINUES_PER_RUN;
+  // Distance is banked per stage. The HUD's readout is the CURRENT stage's
+  // and resets with it, so the ending board needs its own running total or
+  // it would report only the last stage he walked.
+  state.distanceM = 0;
   state.runLog = createRunLog();
   state.runLog.start();
   startStage(0);
@@ -190,6 +199,7 @@ function update() {
   if (state.screen === 'stageClear') {
     state.screenT++;
     if (state.screenT > 20 && confirmPressed()) {
+      state.distanceM += Math.max(0, (state.player.x - 3 * T) / T);
       if (state.stageIndex + 1 < STAGES.length) {
         state.rideFrom = STAGES[state.stageIndex].id;
         state.rideTo = state.stageIndex + 1;
@@ -198,7 +208,8 @@ function update() {
       } else {
         state.screen = 'complete';
         state.screenT = 0;
-        lbSubmit(state.runLog.finish());
+        state.finalLog = state.runLog.finish();
+        lbSubmit(state.finalLog);
       }
     }
     return;
@@ -222,6 +233,8 @@ function update() {
     }
     return;
   }
+
+  audio.ambienceTick();
 
   // ── screen === 'playing' ──
   const level = state.level;
@@ -563,6 +576,15 @@ function draw() {
 
   backdrop.drawVignette();
 
+  // The ending board is a whole screen of its own. Drawing the run HUD over
+  // it left a health bar, a pause button and the stage name across the top of
+  // the results.
+  if (state.screen === 'complete') {
+    ending.draw(statsFrom(state.finalLog, state.score, state.distanceM || 0),
+      state.screenT);
+    return;
+  }
+
   const champLeft = Math.max(0, player.invulnerableUntil - Date.now());
   hud.draw({
     score: state.score,
@@ -602,13 +624,6 @@ function draw() {
       [`$${state.score.toLocaleString()}`, 18],
       ['no continues left', 13, 'rgba(255,140,120,0.85)'],
       ['press JUMP to start a new run', 13, 'rgba(255,255,255,0.7)'],
-    ]);
-  } else if (state.screen === 'complete') {
-    drawOverlayText([
-      ['SHOWTIME', 30],
-      ['Will Hill made it to the stage.', 15, '#e8d9a0'],
-      [`Final score: $${state.score.toLocaleString()}`, 16],
-      ['press JUMP to play again', 13, 'rgba(255,255,255,0.7)'],
     ]);
   }
 }

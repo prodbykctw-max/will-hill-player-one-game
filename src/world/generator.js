@@ -44,6 +44,39 @@ function rnd01(seed) {
   return x - Math.floor(x);
 }
 
+// HOW HIGH A BAG HANGS, and why it is not always the same height.
+//
+// A pothole is 112-168px wide — three to five columns — but the generator
+// only books it against the single column it started on, and genC then moves
+// on one column at a time. So the flat runs immediately after a pothole are
+// STILL OVER IT, and a bag placed there at the usual ankle height sat inside
+// the hole: money you could not tell was reachable, over the one thing you
+// are supposed to be jumping.
+//
+// Anything over a hole hangs at jump height instead. 96 world units above the
+// street, against a jump that rises JUMP_V^2/(2*GRAV) = 158 — high enough to
+// read as airborne and to have to be jumped for, with enough headroom that it
+// is never a trick shot.
+const BAG_REST_Y = (FLOOR_R - 1) * T - 20;   // resting on the pavement
+const BAG_AIR_LIFT = 96;                     // when it is over a hole
+
+function overHole(level, x) {
+  const w = 20;   // a bag's own width, near enough
+  for (const o of level.obstacles) {
+    if (x + w > o.x && x < o.x + o.w) return true;
+  }
+  const c0 = Math.floor(x / T);
+  const c1 = Math.floor((x + w) / T);
+  for (let c = c0; c <= c1; c++) {
+    if (!level.map.solid[c + ',' + FLOOR_R]) return true;
+  }
+  return false;
+}
+
+function bagY(level, x) {
+  return overHole(level, x) ? BAG_REST_Y - BAG_AIR_LIFT : BAG_REST_Y;
+}
+
 export function createLevel(stage, stageIndex = 0) {
   return {
     stage,
@@ -172,7 +205,7 @@ export function genAhead(level, untilCol) {
     // FLAT run — plain ground, sprinkled bags/champagne/rare enemy.
     groundCol(level.map, c, FLOOR_R, LH - 1);
     if (rnd01(c * 7.9 + level.seed) < recipe.bag) {
-      level.bags.push(createMoneyBag(c * T + 8, (FLOOR_R - 1) * T - 20));
+      level.bags.push(createMoneyBag(c * T + 8, bagY(level, c * T + 8)));
     }
     // EXACTLY TWO BOTTLES PER STAGE, and they are PLACED, not rolled for.
     //
