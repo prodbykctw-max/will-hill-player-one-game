@@ -132,6 +132,38 @@ REGIONS = {
         ('kerb',         0,  282,  770,  363),  # pavement and kerb
     ],
 
+    # ── DAYTIME EAST ATLANTA VILLAGE ─────────────────────────────────────
+    #
+    # EAV NIGHT NEVER WENT THROUGH THIS FILE — it is hand-cut in cut_planes.py
+    # with colour rules that are explicitly night-only ("strictly blue-dominant
+    # AND dark", "shadow is warm or neutral here"), none of which survive a
+    # blue sky. So there is no night region list to transform.
+    #
+    # There is something better, though: the night CARDS. Each one is already a
+    # cut RGBA that has survived a recompose check, so its alpha bounding box
+    # is a region box validated by use. Those boxes carried across by the
+    # measured transform day = 0.9850*night + (-10.3, -11.8) are what these
+    # are — not coordinates read off a proposal sheet by eye.
+    #
+    # Ordered SMALLEST FIRST, which is what most-specific-first actually means.
+    # Getting that backwards on edgewood-day cost the whole skyline card: the
+    # clouds box contains the skyline's, so putting clouds first swallowed all
+    # thirty of its masks.
+    'eav-day': [
+        ('cars',         1182,  304,  1500,  356),
+        ('shrub_right',  1110,  377,  1224,  447),
+        ('mcdonalds',    1376,  113,  1500,  259),
+        ('skyline',      1175,  139,  1502,  320),
+        ('pole',         1240,    0,  1370,  490),
+        ('swifty',        196,    4,   637,  130),
+        ('citgo',         121,   76,   830,  356),
+        # Clouds after the buildings they sit behind, for the reason above.
+        ('clouds',        636,    0,  1502,  118),
+        ('verge',           0,  444,  1285,  507),
+        ('tree',            0,    0,   457,  447),
+        ('fence',         324,   75,  1183,  447),
+    ],
+
     'edgewood-day': [
         ('neon_ourbar',   71,  199,  145,  295),
         ('neon_dis',     635,  199,  709,  295),

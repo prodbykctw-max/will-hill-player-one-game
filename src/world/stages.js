@@ -60,9 +60,62 @@
 // treats a stage with no `cards` as the old single-plate backdrop, which is
 // shallow rather than broken. Underground is the exception and has its full
 // nineteen-card day set. Cutting the other three is the outstanding work.
-import bgEavDay from '../assets/backgrounds/eav-day.webp';
-import bgEdgewoodDay from '../assets/backgrounds/edgewood-day.webp';
-import bgL5pDay from '../assets/backgrounds/l5p-day.webp';
+// THE INPAINTED BASE, not the whole plate. Every card is drawn OVER
+// this, so if it were the untouched painting each item would appear
+// twice the moment the parallax moved it.
+import bgEavDay from '../assets/backgrounds/eav-day-base.webp';
+// THE INPAINTED BASE, not the whole plate. Every card is drawn OVER
+// this, so if it were the untouched painting each item would appear
+// twice the moment the parallax moved it.
+import bgEdgewoodDay from '../assets/backgrounds/edgewood-day-base.webp';
+// THE INPAINTED BASE, not the whole plate. Every card is drawn OVER
+// this, so if it were the untouched painting each item would appear
+// twice the moment the parallax moved it.
+import bgL5pDay from '../assets/backgrounds/l5p-day-base.webp';
+
+// ── DAY MULTIPLANE CARDS ─────────────────────────────────────────────────
+import eavDayClouds from '../assets/backgrounds/eav-day-clouds.webp';
+import eavDaySkyline from '../assets/backgrounds/eav-day-skyline.webp';
+import eavDayMcdonalds from '../assets/backgrounds/eav-day-mcdonalds.webp';
+import eavDayCars from '../assets/backgrounds/eav-day-cars.webp';
+import eavDaySwifty from '../assets/backgrounds/eav-day-swifty.webp';
+import eavDayCitgo from '../assets/backgrounds/eav-day-citgo.webp';
+import eavDayFence from '../assets/backgrounds/eav-day-fence.webp';
+import eavDayVerge from '../assets/backgrounds/eav-day-verge.webp';
+import eavDayTree from '../assets/backgrounds/eav-day-tree.webp';
+import eavDayPole from '../assets/backgrounds/eav-day-pole.webp';
+import edgewoodDayClouds from '../assets/backgrounds/edgewood-day-clouds.webp';
+import edgewoodDaySkyline from '../assets/backgrounds/edgewood-day-skyline.webp';
+import edgewoodDayParapet from '../assets/backgrounds/edgewood-day-parapet.webp';
+import edgewoodDayFacade from '../assets/backgrounds/edgewood-day-facade.webp';
+import edgewoodDayBayLeft from '../assets/backgrounds/edgewood-day-bay_left.webp';
+import edgewoodDayBayMid1 from '../assets/backgrounds/edgewood-day-bay_mid1.webp';
+import edgewoodDayBayMid2 from '../assets/backgrounds/edgewood-day-bay_mid2.webp';
+import edgewoodDayBayRight from '../assets/backgrounds/edgewood-day-bay_right.webp';
+import edgewoodDaySignBlm from '../assets/backgrounds/edgewood-day-sign_blm.webp';
+import edgewoodDaySignSoul from '../assets/backgrounds/edgewood-day-sign_soul.webp';
+import edgewoodDayNeonOpen from '../assets/backgrounds/edgewood-day-neon_open.webp';
+import edgewoodDayNeonOurbar from '../assets/backgrounds/edgewood-day-neon_ourbar.webp';
+import edgewoodDayNeonDis from '../assets/backgrounds/edgewood-day-neon_dis.webp';
+import edgewoodDayLamps from '../assets/backgrounds/edgewood-day-lamps.webp';
+import edgewoodDayPavement from '../assets/backgrounds/edgewood-day-pavement.webp';
+import l5pDayClouds from '../assets/backgrounds/l5p-day-clouds.webp';
+import l5pDayFarbuild from '../assets/backgrounds/l5p-day-farbuild.webp';
+import l5pDaySign from '../assets/backgrounds/l5p-day-sign.webp';
+import l5pDayLetters from '../assets/backgrounds/l5p-day-letters.webp';
+import l5pDayRightpillar from '../assets/backgrounds/l5p-day-rightpillar.webp';
+import l5pDayNewused from '../assets/backgrounds/l5p-day-newused.webp';
+import l5pDayNewusedsign from '../assets/backgrounds/l5p-day-newusedsign.webp';
+import l5pDayBrick from '../assets/backgrounds/l5p-day-brick.webp';
+import l5pDayBuysell from '../assets/backgrounds/l5p-day-buysell.webp';
+import l5pDayBayleft from '../assets/backgrounds/l5p-day-bayleft.webp';
+import l5pDayOpenneon from '../assets/backgrounds/l5p-day-openneon.webp';
+import l5pDayBaymid from '../assets/backgrounds/l5p-day-baymid.webp';
+import l5pDayAwning from '../assets/backgrounds/l5p-day-awning.webp';
+import l5pDayBayright from '../assets/backgrounds/l5p-day-bayright.webp';
+import l5pDayPoster from '../assets/backgrounds/l5p-day-poster.webp';
+import l5pDayKerb from '../assets/backgrounds/l5p-day-kerb.webp';
+import l5pDayPole from '../assets/backgrounds/l5p-day-pole.webp';
 
 import bgEav from '../assets/backgrounds/eav-base.webp';
 import eavClouds from '../assets/backgrounds/eav-clouds.webp';
@@ -300,6 +353,35 @@ const STAGE_DEFS = [
         // No practicals. Neon and streetlights do not read at midday, and
         // painting them as if they did is what makes a day scene look like a
         // night scene with the brightness turned up.
+        // ── THE DAY MULTIPLANE SET ──────────────────────────────────
+        // Same card names, same depths, same sway constants as the night
+        // cut, because the client's requirement is that the two match
+        // exactly apart from the weather. Only `span` and the sway
+        // xRanges are recomputed, from each DAY card's own alpha bbox and
+        // the measured night->day transform, since the two exports are a
+        // percent or two different in size.
+        cards: [
+          { key: 'clouds', img: eavDayClouds, depth: 0.02, span: [0.114, 1.000] },
+          { key: 'skyline', img: eavDaySkyline, depth: 0.07, span: [0.752, 1.000] },
+          { key: 'mcdonalds', img: eavDayMcdonalds, depth: 0.16, span: [0.906, 0.977] },
+          { key: 'cars', img: eavDayCars, depth: 0.21, span: [0.773, 1.000] },
+          { key: 'swifty', img: eavDaySwifty, depth: 0.25, span: [0.114, 0.422] },
+          { key: 'citgo', img: eavDayCitgo, depth: 0.41, span: [0.097, 0.523] },
+          { key: 'fence', img: eavDayFence, depth: 0.67, span: [0.288, 0.775] },
+          { key: 'verge', img: eavDayVerge, depth: 0.75, span: [0.091, 0.854] , rate: 0.30 },
+          {
+          key: 'tree', img: eavDayTree, depth: 0.81, span: [0.000, 0.293],
+          sway: [
+            // CANOPY. Pivot at the bottom of the leaf mass — the trunk is
+            // below it and stays dead still.
+            { top: 0.02, pivot: 0.44, amp: 5, freq: 0.9, xRanges: [[0.000, 0.097]] },
+            // Low shrubs along the fence: shorter lever, so less travel at a
+            // quicker frequency.
+            { top: 0.52, pivot: 0.92, amp: 2.5, freq: 1.7, xRanges: [[0.077, 0.290]] },
+          ],
+          },
+          { key: 'pole', img: eavDayPole, depth: 1.00, span: [0.810, 0.911] },
+        ],
         lights: [],
       },
       light: { pool: 'rgba(255,244,214,0.10)', shaft: 'rgba(255,246,220,0.04)', bloom: 'rgba(255,240,200,0.07)', key: '255,248,226', bounce: '150,170,200', shadowRgb: '30,36,52' },
@@ -401,6 +483,33 @@ const STAGE_DEFS = [
         // No practicals. Neon and streetlights do not read at midday, and
         // painting them as if they did is what makes a day scene look like a
         // night scene with the brightness turned up.
+        // ── THE DAY MULTIPLANE SET ──────────────────────────────────
+        // Same card names, same depths, same sway constants as the night
+        // cut, because the client's requirement is that the two match
+        // exactly apart from the weather. Only `span` and the sway
+        // xRanges are recomputed, from each DAY card's own alpha bbox and
+        // the measured night->day transform, since the two exports are a
+        // percent or two different in size.
+        cards: [
+          // The one card with NO night counterpart: the night plate's sky is a
+          // black band with nothing in it to lift. Farthest thing in the
+          // picture, so it gets the smallest depth and barely moves.
+          { key: 'clouds', img: edgewoodDayClouds, depth: 0.02, span: [0.046, 1.000] },
+          { key: 'skyline', img: edgewoodDaySkyline, depth: 0.05, span: [0.096, 1.000] },
+          { key: 'parapet', img: edgewoodDayParapet, depth: 0.20, span: [0.049, 0.102] },
+          { key: 'facade', img: edgewoodDayFacade, depth: 0.34, span: [0.000, 1.000] },
+          { key: 'bay_left', img: edgewoodDayBayLeft, depth: 0.44, span: [0.055, 0.230] },
+          { key: 'bay_mid1', img: edgewoodDayBayMid1, depth: 0.46, span: [0.371, 0.516] },
+          { key: 'bay_mid2', img: edgewoodDayBayMid2, depth: 0.48, span: [0.529, 0.678] },
+          { key: 'bay_right', img: edgewoodDayBayRight, depth: 0.44, span: [0.785, 0.946] },
+          { key: 'sign_blm', img: edgewoodDaySignBlm, depth: 0.47, span: [0.391, 0.488] },
+          { key: 'sign_soul', img: edgewoodDaySignSoul, depth: 0.49, span: [0.559, 0.634] },
+          { key: 'neon_open', img: edgewoodDayNeonOpen, depth: 0.49, span: [0.596, 0.654] },
+          { key: 'neon_ourbar', img: edgewoodDayNeonOurbar, depth: 0.45, span: [0.084, 0.198] },
+          { key: 'neon_dis', img: edgewoodDayNeonDis, depth: 0.45, span: [0.827, 0.900] },
+          { key: 'lamps', img: edgewoodDayLamps, depth: 0.62, span: [0.021, 0.961] },
+          { key: 'pavement', img: edgewoodDayPavement, depth: 0.84, span: [0.000, 1.000], rate: 0.30 },
+        ],
         lights: [],
       },
       light: { pool: 'rgba(255,244,214,0.10)', shaft: 'rgba(255,246,220,0.04)', bloom: 'rgba(255,240,200,0.07)', key: '255,248,226', bounce: '150,170,200', shadowRgb: '30,36,52' },
@@ -622,6 +731,35 @@ const STAGE_DEFS = [
         // No practicals. Neon and streetlights do not read at midday, and
         // painting them as if they did is what makes a day scene look like a
         // night scene with the brightness turned up.
+        // ── THE DAY MULTIPLANE SET ──────────────────────────────────
+        // Same card names, same depths, same sway constants as the night
+        // cut, because the client's requirement is that the two match
+        // exactly apart from the weather. Only `span` and the sway
+        // xRanges are recomputed, from each DAY card's own alpha bbox and
+        // the measured night->day transform, since the two exports are a
+        // percent or two different in size.
+        cards: [
+          // The one card with NO night counterpart: the night plate's sky is a
+          // black band with nothing in it to lift. Farthest thing in the
+          // picture, so it gets the smallest depth and barely moves.
+          { key: 'clouds', img: l5pDayClouds, depth: 0.02, span: [0.000, 1.000] },
+          { key: 'farbuild', img: l5pDayFarbuild, depth: 0.06, span: [0.000, 0.165] },
+          { key: 'sign', img: l5pDaySign, depth: 0.22, span: [0.455, 0.940] },
+          { key: 'letters', img: l5pDayLetters, depth: 0.23, span: [0.507, 0.899] },
+          { key: 'rightpillar', img: l5pDayRightpillar, depth: 0.30, span: [0.937, 1.000] },
+          { key: 'newused', img: l5pDayNewused, depth: 0.40, span: [0.140, 0.310] },
+          { key: 'newusedsign', img: l5pDayNewusedsign, depth: 0.41, span: [0.140, 0.291] },
+          { key: 'brick', img: l5pDayBrick, depth: 0.48, span: [0.177, 0.470] },
+          { key: 'buysell', img: l5pDayBuysell, depth: 0.49, span: [0.331, 0.408] },
+          { key: 'bayleft', img: l5pDayBayleft, depth: 0.56, span: [0.450, 0.605] },
+          { key: 'openneon', img: l5pDayOpenneon, depth: 0.57, span: [0.473, 0.542] },
+          { key: 'baymid', img: l5pDayBaymid, depth: 0.60, span: [0.603, 0.729] },
+          { key: 'awning', img: l5pDayAwning, depth: 0.63, span: [0.775, 0.899] },
+          { key: 'bayright', img: l5pDayBayright, depth: 0.64, span: [0.767, 0.940] },
+          { key: 'poster', img: l5pDayPoster, depth: 0.65, span: [0.800, 0.907] },
+          { key: 'kerb', img: l5pDayKerb, depth: 0.82, span: [0.000, 0.952] , rate: 0.30 },
+          { key: 'pole', img: l5pDayPole, depth: 0.96, span: [0.055, 0.165] },
+        ],
         lights: [],
       },
       light: { pool: 'rgba(255,244,214,0.10)', shaft: 'rgba(255,246,220,0.04)', bloom: 'rgba(255,240,200,0.07)', key: '255,248,226', bounce: '150,170,200', shadowRgb: '30,36,52' },

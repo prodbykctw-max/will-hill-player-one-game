@@ -835,46 +835,9 @@ it does decide how hard the identity check needs to be.
 
 ## Still open
 
-- **Daytime multiplane for EAV, Edgewood and L5P.** The biggest outstanding
-  item, and it is now part-done — **read this before starting, the groundwork
-  is on disk.** The client's word is uniformity: identical treatment on all
-  eight plates, "the same cut and trim and layering and movement and sway…
-  at least minus the weather".
-
-  | step | edgewood-day | l5p-day | eav-day |
-  |---|---|---|---|
-  | SAM pass | done | done | done |
-  | `groundFrac` / `meters` | **fixed** | **fixed** | **fixed** |
-  | region boxes | **done + verified** | **done + verified** | not started |
-  | groups json | **written** | **written** | — |
-  | union masks emitted | **done** | **done** | — |
-  | plane list in `cut_planes.py` | TODO | TODO | TODO |
-  | cut + `--debug` map | TODO | TODO | TODO |
-  | cards wired in `stages.js` | TODO | TODO | TODO |
-  | recompose check + in-game | TODO | TODO | TODO |
-
-  **The region boxes were TRANSFORMED, not re-authored.** Each corner's day
-  and night paintings are the same composition at 0.98–0.99 scale (measured —
-  see the landmark section above), so the night plate's hand-authored boxes
-  carry straight over: `edgewood day = 0.9900*night + (1.5, 35.2)`,
-  `l5p day = 0.9800*night + (13.9, 9.3)`. That is better than re-reading
-  fourteen boxes off a proposal sheet, because the night boxes are KNOWN GOOD
-  — a bad day assignment can then only come from the transform or from SAM
-  proposing differently, and both show on `--map`. Both maps were looked at:
-  every card landed on the right object.
-
-  **Sky and clouds have no night box to transform** — the night plates are a
-  black band there — so `clouds` is read off the day art directly and sits
-  FIRST in the region list, because most-specific-first is what stops the
-  skyline swallowing it. The client asked for clouds moving in the daytime;
-  that card is what will carry it.
-
-  **EAV day is the odd one out and needs a from-scratch pass.** EAV night was
-  never grouped through `sam_group.py` — it is hand-cut in `cut_planes.py`
-  with colour rules that are explicitly night-only ("strictly blue-dominant
-  AND dark", "shadow is warm or neutral here"). None of that survives a blue
-  sky, so eav-day needs its own region list read off
-  `tools/captures/sam/eav-day_proposals.png`.
+- **Daytime multiplane — DONE for all four stages.** Every day plate is now
+  cut and wired: eav-day 10 cards, edgewood-day 15, l5p-day 17, plus
+  underground-day's existing 19. See "Day and night" above.
 - **End-credits sequence.** The ending SCREEN is built (his painting, real
   stats, swaying crowd). The credits that share the frame with it are not, and
   are blocked on files that have only ever been in chat: the RARƎ AGENCY logo
@@ -910,6 +873,8 @@ session of re-doing finished work.
 - **The MARTA map is built** — `src/render/martamap.js`, on the client's own
   rail map, with station coordinates measured by ring centroid and the train
   following the polyline by arc length.
+- **All four day plates are cut into multiplane cards**, with the same card
+  names, depths and sway constants as their night twins.
 - **The enemy walk clip is cut and timed.** One stride of 8 frames at 11.1
   ticks; measured in the running game at **1.47 m per stride against the
   player's 1.48**, down from 3.8 strides/sec. See the stomp section.

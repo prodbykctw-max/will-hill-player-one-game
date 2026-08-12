@@ -901,6 +901,30 @@ PLANES = {
     # that is correct: it has no silhouette to cut against and nothing behind
     # it to reveal. Coverage here is 64.8% against L5P's 92.9% for that
     # reason alone, not because anything was missed.
+    # ── DAYTIME EAST ATLANTA VILLAGE ─────────────────────────────────────
+    # SAM masks (tools/sam_masks/eav-day/), grouped from the NIGHT CARDS' own
+    # alpha bounding boxes carried across by the measured 0.985 transform —
+    # see the note in sam_group.py. Same card names as the night cut so the
+    # depths and sway in world/stages.js transfer one-for-one, which is the
+    # client's requirement: identical apart from the weather.
+    #
+    # `clouds` is the only card with no night counterpart worth speaking of.
+    'eav-day': [
+        {'name': 'clouds',      'mask': 'clouds',      'min_px': 120, 'feather': 0.8},
+        {'name': 'skyline',     'mask': 'skyline',     'min_px': 120, 'feather': 0.7},
+        {'name': 'mcdonalds',   'mask': 'mcdonalds',   'min_px':  80, 'feather': 0.7},
+        {'name': 'swifty',      'mask': 'swifty',      'min_px': 100, 'feather': 0.7},
+        {'name': 'citgo',       'mask': 'citgo',       'min_px': 120, 'feather': 0.7},
+        {'name': 'fence',       'mask': 'fence',       'min_px': 150, 'feather': 0.7},
+        {'name': 'pole',        'mask': 'pole',        'min_px':  60, 'feather': 0.6},
+        {'name': 'cars',        'mask': 'cars',        'min_px':  60, 'feather': 0.7},
+        # The tree and the verge are the two that SWAY. `holes: False` on the
+        # canopy: you see sky through the leaves and filling it comes back a
+        # solid blob, the same trap the arch hit.
+        {'name': 'tree',        'mask': 'tree',        'min_px': 120, 'feather': 0.9,
+         'holes': False},
+        {'name': 'verge',       'mask': 'verge',       'min_px': 150, 'feather': 1.2},
+    ],
     # ── DAYTIME EDGEWOOD ─────────────────────────────────────────────────
     # Every item is a frozen SAM mask (tools/sam_masks/edgewood-day/), grouped
     # by tools/sam_group.py from the NIGHT plate's boxes carried across by the
