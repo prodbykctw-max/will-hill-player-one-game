@@ -182,6 +182,14 @@ three approach distances and reports how many land:
 | 150 units | 5/18 (166 ms) | 9/18 (**332 ms**) |
 | 210 units | 6/18 (199 ms) | 14/18 (**465 ms**) |
 
+⚠️ **READ THAT HARNESS AS A BAND, NOT A NUMBER.** Those are single readings.
+Run it repeatedly on an unchanged tree and it returns 2-4 / 7-9 / 9-13 —
+headless frame-timing jitter moves the 210-unit case by four hits. A single
+low run has twice now looked like a regression and been noise both times. If
+a change here appears to have cost hits, **re-run it three times and compare
+bands**, and if that is not conclusive, `git stash` and get a baseline from
+the same session.
+
 Supporting changes, all from the same client note:
 
 - **Enemies 1.58 → 1.80 → 1.90 → 2.01 m**, and the last step is aligned to a
@@ -224,6 +232,32 @@ Supporting changes, all from the same client note:
 - **Patrol range 96 → 170.** At 96 an enemy reverses every 69 ticks, so he
   often turns while you are mid-flight — you are not aiming at a moving
   target, you are aiming at one that changes its mind.
+- **The enemy walk was skating, and is now cut to one stride.** Same bug class
+  as the player's walk. The 16-frame clip holds TWO FULL STRIDES; at the
+  default 4 ticks/frame that is a stride every 32 ticks, which at 1.4 px/tick
+  covers **44.8 units — half a metre**. A two-metre man does not take
+  half-metre strides, so the legs ran at nearly four steps a second while the
+  body drifted past at walking pace. Now 8 frames at 11.1 ticks: measured in
+  the running game at **1.47 m per stride against the player's 1.48**, which
+  is the point — they are the same height, so matching STRIDE LENGTH rather
+  than cadence is what stops the feet sliding.
+
+  ⚠️ **AUTOCORRELATION SAYS THE PERIOD IS 4. IT IS 8.** Half a stride of a
+  side-view walk is the same pose with the legs swapped, and that survives the
+  24×24 downsampling `measure_cycle.py` does, so the tool reports the HALF
+  period. Two independent checks say 8: lag-8 similarity is 0.96–0.99 against
+  lag-4's 0.73–0.80, and the **foot spread** — purely geometric, no feature
+  vectors — peaks four times across sixteen frames, i.e. four steps, two
+  strides. Expect this trap on any side-view locomotion clip.
+
+  The 8-frame window starts at offset 4 (5 for variant b), not 0: the loop
+  seam scores **0.999** there against as low as 0.63 at the worst offset, and
+  0 is the worst offset for variant b.
+
+  While in there: `defeat` now carries an explicit `ticks: 3`. `DEFEAT_TICKS`
+  has always been `frameCount * 3` but `advanceAnim` was defaulting the clip
+  to 4, so the enemy despawned on frame 12 of 16 and the last quarter of its
+  own defeat never played.
 - **The champagne grow STUTTERS, like Mario.** A smooth 320 ms ease was a
   perfectly good transition and the wrong reference: what makes the mushroom
   read is that Mario does NOT ease — he snaps between the two sizes several
@@ -331,6 +365,18 @@ timer; that is what made it flail.
 - **Pothole vs enemy is carried by the motion**, since there is no dedicated
   hit clip: a pothole pitches you forward and locks steering 26 ticks; an
   enemy knocks you backward with no lock.
+- **The pickups are sized by RATIO, not by realism.** A real champagne bottle
+  is 0.32m, which on this street is a 27-unit green speck, so it was already
+  exaggerated to 0.66m — and that was still wrong in a way only the ratio
+  shows: it drew **17.8 x 55.5 against a money bag's 50.3 x 52.1**, so the
+  only pickup that changes what you can do covered **0.38x the screen area**
+  of the commonest one. A bottle's silhouette is narrow (54:168 in the source
+  art) and height alone cannot compensate. Now 1.0m — 27 x 84, **0.87x the
+  bag's area and half Will Hill's drawn height** — so it wins on the one axis
+  a narrow object can. The aspect ratio is untouched; widening it would be
+  stretching the art. `champagneTopFor()` places it, because `y` is the TOP
+  edge and the generator's old hardcoded offset grew the bottle down into the
+  pavement.
 
 ---
 
@@ -413,12 +459,56 @@ look like a night scene with the brightness turned up.
 **Not finished:** only Underground's day plate is cut into multiplane cards
 (19). EAV, Edgewood and L5P day are FLAT — the renderer treats a stage with no
 `cards` as the old single-plate backdrop, which is shallow, not broken. The
-client's instruction is uniformity: the same cut on every plate, day and
-night. `groundFrac` for the three flat ones was derived by aligning each day
-plate's row-wise edge profile against its night twin, since the exports are
-not the same height; EAV and Edgewood match their night framing closely,
-**L5P day currently draws a little larger than L5P night** and should be
-settled against its card extents when it is cut.
+client's instruction is uniformity: the same cut on every plate, day and night.
+
+### Day framing — measured off landmarks, and it was badly wrong
+
+The client, on stage one: *"the daytime image zoomed in too much… you can't
+even see the damn bottom of the tree, the fence."* He was right, and the
+numbers are not close:
+
+| stage | groundFrac | meters | rendered vs night |
+|---|---|---|---|
+| eav | 0.766 → **0.882** | 8.0 → 7.81 | **+19.7% → +1.5%** |
+| edgewood | 0.816 → 0.821 | 7.0 → **7.70** | −7.7% → +1.0% |
+| l5p | 0.677 → **0.730** | 9.0 → 9.25 | +7.0% → +2.0% |
+| underground | held at 0.78 | held at 8.6 | +0.0% |
+
+`groundFrac` is a CROP. Set it above the painting's own ground line and the
+bottom of the picture is thrown away before it is ever drawn — eav-day was
+cutting through the middle of the fence and losing the footings, the grass
+verge and the base of the tree; l5p-day was cutting through the shop windows
+and losing the RECORDS·TAPES·CDS board and the kerb. That is the whole of the
+client's complaint, and it is separate from the `meters` error that made what
+survived 20% too big.
+
+⚠️ **THE OLD NUMBERS CAME FROM 1-D EDGE PROFILES. DO NOT GO BACK TO THAT.**
+Aligning the two plates' row-wise edge-energy profiles cannot separate scale
+from offset: one number per row discards which feature a peak belongs to, so
+the search has a large family of near-equal answers. Re-run honestly, with the
+sky excluded and both parameters solved together, it returns groundFrac
+**1.595** for eav — row 866 of a 543-row file.
+
+**`tools/check_day_framing.py` uses one NAMED LANDMARK per stage**, matched in
+2-D by normalised cross-correlation over a scale sweep — the WELCOME TO EAST
+ATLANTA oval, the OUR BAR ATL window, the CRIMINAL RECORDS fascia, the
+marquee arch. NCC is invariant to brightness, which is the entire difficulty
+of comparing a night painting to a day one. It writes a proof image of the
+match; look at it. The matches land at scales of **0.98–0.99**, meaning the
+two paintings of each corner are drawn at all but the same source scale —
+which is why the corrected eav-day `groundFrac` sits within 0.002 of the night
+plate's 0.88 rather than 0.11 away from it.
+
+**Underground is held deliberately.** Its match scores 0.315 against the
+others' 0.50–0.57 because day and night there are genuinely different
+compositions, it already renders within 1.5% of night, and it is the one day
+plate already cut into cards — nineteen of them, at 0.78. Moving its crop line
+invalidates that cut for a correction smaller than the measurement's own error
+bar. The tool prints `HELD` rather than a fix for it.
+
+**Keep `tools/sam_segment.py`'s `GROUND_FRAC` in step with `stages.js`** — the
+day cuts are taken at those fractions, so a mismatch cuts cards that do not
+line up with the plate they belong to.
 
 ---
 
@@ -766,12 +856,13 @@ it does decide how hard the identity check needs to be.
   nothing happens the fallback is inert rather than broken — the sound still
   plays and nothing else changes. See "Button feedback" for why it cannot be
   tested from here.
-- **The enemy walk clip holds ~4 strides in 16 frames** (autocorrelation
-  conf 0.67, confirmed by eye) — 3.8 strides/sec at 4 ticks/frame, the same
-  bug class the player's walk had. Found and reported, deliberately NOT
-  changed: it touches `tools/compose_enemy_sheet.py` and `DEFEAT_TICKS`
-  depends on the same rate, so it wants its own pass with the stomp harness
-  re-run afterwards.
+- **The enemy STOMP clip holds ~2.3 cycles in 16 frames** (period 7 on
+  variants a and b, 8 on c). Left alone, and for a reason the walk did not
+  have: the enemy is STATIONARY while stomping, so there is no ground speed
+  for the cadence to disagree with, and at 4 ticks/frame it reads as roughly
+  two stomps a second over a ~1.6s beat, which is a beating rather than a
+  defect. It is on the list because `measure_cycle.py` will keep reporting it,
+  not because anything looks wrong.
 
 ### Corrected — these were listed as open and are DONE
 
@@ -784,6 +875,9 @@ session of re-doing finished work.
 - **The MARTA map is built** — `src/render/martamap.js`, on the client's own
   rail map, with station coordinates measured by ring centroid and the train
   following the polyline by arc length.
+- **The enemy walk clip is cut and timed.** One stride of 8 frames at 11.1
+  ticks; measured in the running game at **1.47 m per stride against the
+  player's 1.48**, down from 3.8 strides/sec. See the stomp section.
 
 ## Settled — do not "fix" these
 

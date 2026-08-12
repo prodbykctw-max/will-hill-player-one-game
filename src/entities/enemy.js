@@ -31,9 +31,38 @@ export const ENEMY_SPRITES = {
 };
 const atlas = atlasA; // shared timing metadata — all variants have identical frame counts
 
+// ── PATROL SPEED AND THE WALK CLIP HAVE TO AGREE ─────────────────────────
+//
+// They did not, and it is the same bug the player's walk had — see the top of
+// docs/HANDOFF.md, "the one finding that caused three separate bugs". A
+// generated 16-frame walk does not hold one cycle; this one holds TWO FULL
+// STRIDES. Played end to end at the default 4 ticks a frame that is a stride
+// every 32 ticks, and at 1.4 px/tick a stride covers 44.8 units — HALF A
+// METRE. A two-metre man does not take half-metre strides, so his feet
+// skated: the legs ran at nearly four steps a second while the body drifted
+// past at walking pace.
+//
+// The atlas now takes one stride of 8 frames at 11.1 ticks, which is 88.8
+// ticks and 124.4 units — 1.48m, the SAME STRIDE LENGTH the player's walk
+// resolves to (1.9 px/tick over 17 frames at 3.85). They are the same height,
+// so they should cover the same ground per step, and matching the length
+// rather than the cadence is what stops the feet sliding at either speed.
+//
+// ⚠️ THE PERIOD IS 8, NOT THE 4 AUTOCORRELATION FIRST REPORTS. Half a stride
+// of a side-view walk is the same pose with the legs swapped, which survives
+// the downsampling tools/measure_cycle.py does and reads as a full cycle.
+// Two independent checks say 8: lag-8 similarity is 0.96-0.99 against lag-4's
+// 0.73-0.80, and the FOOT SPREAD — purely geometric, no feature vectors —
+// peaks four times across the sixteen frames, i.e. four steps, two strides.
+// The 8-frame window is taken from offset 4 (5 for variant b) because the
+// loop seam there scores 0.999 while offset 0 scores as low as 0.63.
 const PATROL_SPEED = 1.4; // px/tick — slower than the player's 6.4 run speed
 const STOMP_BOUNCE_VY = -10.5; // matches Jandé's post-stomp pogo bounce
-const DEFEAT_TICKS = atlas.animations.defeat.frameCount * 3; // ~3 ticks/frame, one full play-through
+// 3, and the atlas now SAYS 3. It always claimed "~3 ticks/frame, one full
+// play-through" and advanceAnim was defaulting the clip to 4, so the enemy
+// despawned on frame 12 of 16 and the last quarter of its own defeat never
+// played. The clip carries an explicit `ticks` now so the two cannot disagree.
+const DEFEAT_TICKS = atlas.animations.defeat.frameCount * 3;
 
 // These are people, so they're sized in real-world terms like everything
 // else (src/world/scale.js) — shorter than Will Hill's 2.02m so he reads as

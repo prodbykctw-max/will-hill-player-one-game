@@ -24,9 +24,11 @@
       }
     },
     "walk": {
-      "row": 1,
-      "frameCount": 16,
+      "start": 20,
+      "frameCount": 8,
       "loop": true,
+      "ticks": 11.1,
+      "note": "ONE STRIDE of 8, taken from offset 4 of the 16-frame row. The sheet holds two strides; the seam at this offset scores 0.999 against 0.63 at the worst offset, so it is chosen, not 0. See the comment in entities/enemy.js.",
       "fit": {
         "h": 0.98,
         "b": 0.984,
@@ -37,6 +39,7 @@
       "row": 2,
       "frameCount": 16,
       "loop": false,
+      "ticks": 3,
       "fit": {
         "h": 0.308,
         "b": 0.678,
