@@ -427,7 +427,19 @@ const STAGE_DEFS = [
       kinds: ['roots', 'conduit', 'water', 'sewer', 'manhole', 'rats', 'footings'],
     },
     enemyVariants: ['a'],
-    stageEnd: 240, // finish-line column (T=32px/col -> ~7680px)
+    // ── LENGTH ────────────────────────────────────────────────────────
+    // +50% on the whole ramp (240/260/280/300 -> 360/390/420/450) at the
+    // client's request: "I may want to extend each stage length by 50% just
+    // to make each stage a little longer. This is supposed to be a 72 hour
+    // contest and the stages are pretty short."
+    //
+    // The ramp's SHAPE is preserved — each stage is still 30 columns longer
+    // than the one before, so the difficulty curve and the MARTA route are
+    // unchanged. Everything downstream is a fraction of stageEnd and scales
+    // with it: the two champagne bottles sit at 0.34 and 0.68, and every
+    // hazard, bag and enemy is a per-column roll, so density is identical and
+    // only the duration grows.
+    stageEnd: 360, // finish-line column (T=32px/col -> 11520px, ~137m)
     recipe: { gap: 0.072, plat: 0.20, haz: 0.306, gapMax: 2, vert: 0.25, enemy: 0.27, bag: 0.34 },
   },
   {
@@ -569,7 +581,7 @@ const STAGE_DEFS = [
       kinds: ['conduit', 'water', 'sewer', 'manhole', 'rats', 'footings'],
     },
     enemyVariants: ['b'],
-    stageEnd: 260,
+    stageEnd: 390,
     recipe: { gap: 0.090, plat: 0.22, haz: 0.342, gapMax: 3, vert: 0.30, enemy: 0.324, bag: 0.34 },
   },
   {
@@ -710,7 +722,7 @@ const STAGE_DEFS = [
       kinds: ['conduit', 'water', 'sewer', 'tunnel', 'rats', 'train', 'footings'],
     },
     enemyVariants: ['c'],
-    stageEnd: 280,
+    stageEnd: 420,
     recipe: { gap: 0.108, plat: 0.24, haz: 0.378, gapMax: 3, vert: 0.35, enemy: 0.378, bag: 0.34 },
   },
   {
@@ -864,7 +876,7 @@ const STAGE_DEFS = [
       kinds: ['roots', 'conduit', 'water', 'sewer', 'rats', 'footings'],
     },
     enemyVariants: ['a', 'b', 'c'],
-    stageEnd: 300,
+    stageEnd: 450,
     recipe: { gap: 0.126, plat: 0.26, haz: 0.414, gapMax: 4, vert: 0.40, enemy: 0.432, bag: 0.34 },
   },
 ];
