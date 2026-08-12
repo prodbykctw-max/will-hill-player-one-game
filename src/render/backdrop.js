@@ -345,7 +345,13 @@ export function createBackdrop(ctx, canvas) {
 
   // Where a practical sits horizontally, given the card it is bolted to — so
   // the glow travels with the thing that emits it rather than sliding off it.
-  function lightParallax(stage, camera, light) {
+  // `tick` is threaded in rather than closed over: a card can now DRIFT, and a
+  // practical bolted to a drifting card has to drift with it or the glow
+  // detaches from the thing emitting it. Taking it as a parameter is also what
+  // makes this correct at all — the first version reached for a `tick` that is
+  // not in this function's scope, which the smoke test caught as a thrown
+  // "tick is not defined" on the first frame of play.
+  function lightParallax(stage, camera, light, tick) {
     const card = (stage.bg.cards || []).find((c) => c.key === light.layer);
     return cardParallax(camera.x * camera.zoom, card ? card.depth : 0, card, tick);
   }
@@ -429,7 +435,7 @@ export function createBackdrop(ctx, canvas) {
       const a = (stutter ? 0.06 : 0.16 + b * 0.20) * (L.relight || 1);
       const ly = plate.by + plate.drawH * L.y;
       const r = L.r * plate.drawH * 0.55;
-      const par = lightParallax(stage, camera, L);
+      const par = lightParallax(stage, camera, L, tick);
       for (let rep = -1; rep <= Math.ceil(canvas.width / period) + 1; rep++) {
         const lx = rep * period + L.x * plate.drawW - pmod(par, period);
         if (lx < -r || lx > canvas.width + r) continue;
@@ -473,7 +479,7 @@ export function createBackdrop(ctx, canvas) {
       const r = L.r * plate.drawH;
       // Repeat on the plate's period, but at the RATE of the card this light
       // is bolted to, so it stays glued to the thing that emits it.
-      const par = lightParallax(stage, camera, L);
+      const par = lightParallax(stage, camera, L, tick);
       for (let rep = -1; rep <= Math.ceil(canvas.width / period) + 1; rep++) {
         const lx = rep * period + L.x * plate.drawW - pmod(par, period);
         if (lx < -r || lx > canvas.width + r) continue;
