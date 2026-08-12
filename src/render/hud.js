@@ -7,6 +7,28 @@
 
 const PAD = 10;
 
+// THE NOTCH / DYNAMIC ISLAND.
+//
+// The canvas covers the whole display (viewport-fit=cover in index.html,
+// which is what a game wants) so its top rows sit BEHIND the cutout, and the
+// HUD was laying its portrait, bars and pause button out from y=0 — under the
+// black. Canvas cannot read env(safe-area-inset-*) and there is no JS API for
+// it, so #safe in index.html resolves the insets in CSS and this measures
+// that element. Re-read every frame rather than cached: the insets change on
+// rotation, and a cached top inset is a HUD that jumps under the island the
+// first time the phone is turned.
+function safeInsets() {
+  const el = typeof document !== 'undefined' && document.getElementById('safe');
+  if (!el) return { top: 0, right: 0, bottom: 0, left: 0 };
+  const cs = getComputedStyle(el);
+  return {
+    top: parseFloat(cs.paddingTop) || 0,
+    right: parseFloat(cs.paddingRight) || 0,
+    bottom: parseFloat(cs.paddingBottom) || 0,
+    left: parseFloat(cs.paddingLeft) || 0,
+  };
+}
+
 export function createHud(ctx, canvas) {
   // The pause control's on-screen rect, refreshed every frame in draw(). It
   // has to be published rather than recomputed by the caller, or the button
@@ -90,22 +112,29 @@ export function createHud(ctx, canvas) {
       champagneFrac, portraitImg, portraitAtlas,
     } = state;
 
+    // Inset the whole cluster past the cutout and the rounded corners. The
+    // canvas is in CSS pixels and so are the insets, so these add directly.
+    const safe = safeInsets();
+    const TOP = PAD + safe.top;
+    const LEFT = PAD + safe.left;
+    const RIGHT = PAD + safe.right;
+
     const box = Math.min(54, Math.max(38, canvas.width * 0.11));
-    const barX = PAD + box + 8;
-    const barW = Math.min(canvas.width - barX - PAD - box - 10, canvas.width * 0.52);
+    const barX = LEFT + box + 8;
+    const barW = Math.min(canvas.width - barX - RIGHT - box - 10, canvas.width * 0.52);
 
     ctx.save();
     ctx.textBaseline = 'alphabetic';
 
     // panel behind the whole cluster
     ctx.fillStyle = 'rgba(8,6,14,0.55)';
-    ctx.fillRect(PAD - 4, PAD - 4, box + barW + 18, box + 8);
+    ctx.fillRect(LEFT - 4, TOP - 4, box + barW + 18, box + 8);
 
-    drawPortrait(portraitImg, portraitAtlas, PAD, PAD, box);
+    drawPortrait(portraitImg, portraitAtlas, LEFT, TOP, box);
 
     // hearts — segmented, warm->cool across the bar like the reference
     const barH = Math.max(8, box * 0.26);
-    drawSegBar(barX, PAD + 2, barW, barH, maxHearts, hearts, (t) => {
+    drawSegBar(barX, TOP + 2, barW, barH, maxHearts, hearts, (t) => {
       const r = Math.round(224 - t * 90);
       const g = Math.round(60 + t * 150);
       return `rgb(${r},${g},70)`;
@@ -114,21 +143,21 @@ export function createHud(ctx, canvas) {
     // champagne / invulnerability timer — second bar, blue like the reference
     const seg2 = 10;
     const filled2 = Math.round(champagneFrac * seg2);
-    drawSegBar(barX, PAD + barH + 6, barW, barH * 0.7, seg2, filled2, () => 'rgb(70,180,235)');
+    drawSegBar(barX, TOP + barH + 6, barW, barH * 0.7, seg2, filled2, () => 'rgb(70,180,235)');
 
     // score + distance under the bars
     ctx.font = `700 ${Math.round(box * 0.34)}px sans-serif`;
     ctx.fillStyle = '#ffd66e';
     ctx.textAlign = 'left';
-    ctx.fillText(`$${score.toLocaleString()}`, barX, PAD + box - 1);
+    ctx.fillText(`$${score.toLocaleString()}`, barX, TOP + box - 1);
 
     ctx.font = `600 ${Math.round(box * 0.23)}px sans-serif`;
     ctx.fillStyle = 'rgba(255,255,255,0.65)';
     ctx.textAlign = 'right';
-    ctx.fillText(`${Math.round(distanceM)}m`, barX + barW, PAD + box - 1);
+    ctx.fillText(`${Math.round(distanceM)}m`, barX + barW, TOP + box - 1);
 
-    pauseRect.x = canvas.width - PAD - box;
-    pauseRect.y = PAD;
+    pauseRect.x = canvas.width - RIGHT - box;
+    pauseRect.y = TOP;
     pauseRect.w = box;
     pauseRect.h = box;
     drawPauseGlyph(pauseRect.x, pauseRect.y, box);
@@ -137,7 +166,7 @@ export function createHud(ctx, canvas) {
     ctx.font = `700 ${Math.round(box * 0.22)}px sans-serif`;
     ctx.fillStyle = 'rgba(232,217,160,0.9)';
     ctx.textAlign = 'right';
-    ctx.fillText(stageName.toUpperCase(), canvas.width - PAD, PAD + box + 14);
+    ctx.fillText(stageName.toUpperCase(), canvas.width - RIGHT, TOP + box + 14);
 
     ctx.restore();
   }

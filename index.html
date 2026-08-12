@@ -116,6 +116,21 @@
 <body>
   <canvas id="game"></canvas>
 
+  <!-- SAFE-AREA PROBE. The canvas is full-bleed under viewport-fit=cover, so
+       on a notched or Dynamic Island iPhone the top of the frame is behind
+       the cutout — and the HUD was drawing its portrait, bars and pause
+       button up there, under the black. Canvas has no access to env(), and
+       there is no JS API for the insets, so the only way to read them is to
+       let CSS resolve them onto an element and measure it. Kept 1px and
+       invisible; its padding IS the measurement. -->
+  <div id="safe" aria-hidden="true" style="
+    position: fixed; top: 0; left: 0; width: 1px; height: 1px;
+    pointer-events: none; visibility: hidden;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    padding-left: env(safe-area-inset-left, 0px);"></div>
+
   <div id="touch" aria-hidden="true">
     <div class="pad" id="tL" data-act="left">◀</div>
     <div class="pad" id="tR" data-act="right">▶</div>
