@@ -84,7 +84,7 @@ Eight plates now, not four — every stage has a night and a day version. See
 | stage | night cards | day cards | notes |
 |---|---|---|---|
 | EAV | 12 | 10 | night hand-cut; the day regions came from the night CARDS' own alpha boxes |
-| Edgewood | 14 | 15 | richest signage of the four; day gains a `clouds` card |
+| Edgewood | 14 | 16 | richest signage of the four; day gains `clouds` and `trees` |
 | Underground | 15 | 19 | most depth; day and night are DIFFERENT compositions, so the night cards do not fit the day plate and it got its own pass |
 | L5P | 16 | 17 | day gains a `clouds` card |
 
