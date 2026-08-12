@@ -96,12 +96,48 @@
          control still looked late, which is most of what "stiff" is. Lighting
          up on the same frame as the touch is the entire point of the
          highlight. Coming back down can take its time. */
-      transition: background 90ms linear, border-color 90ms linear, transform 90ms linear;
+      /* ── THEY LOOK LIKE BUTTONS NOW ─────────────────────────────────
+         Client: "make them look more like you're pressing them instead of
+         just flatscreen — raise them and make them actual buttons."
+         A flat translucent square gives the eye nothing to read as depth, so
+         a press could only be shown by a colour change, which is exactly the
+         thing that felt late.
+         Three cheap cues, all of them free (no filters, no extra layers):
+         a top-lit gradient so the face reads as domed, an inset white
+         highlight along the top edge and an inset dark line along the
+         bottom, and a drop shadow underneath that the button sits on.
+         Pressing collapses all three at once — the shadow shrinks, the
+         highlight and the shade swap ends, and it translates down 2px, which
+         is what "pressed" looks like on a real key. */
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.13) 0%,
+                                rgba(255,255,255,0.03) 42%,
+                                rgba(0,0,0,0.16) 100%),
+        rgba(18,14,28,0.52);
+      box-shadow:
+        inset 0 1.5px 0 rgba(255,255,255,0.34),
+        inset 0 -2px 0 rgba(0,0,0,0.42),
+        0 4px 0 rgba(0,0,0,0.34),
+        0 6px 10px rgba(0,0,0,0.34);
+      text-shadow: 0 1px 0 rgba(0,0,0,0.55);
+      transition: background 90ms linear, border-color 90ms linear,
+                  transform 90ms linear, box-shadow 90ms linear;
     }
+    /* PRESS IS INSTANT, RELEASE FADES — the highlight has to land on the same
+       frame as the touch or the control reads as late, which is most of what
+       "stiff" was. Coming back up can take its time. */
     #touch .pad.on {
-      background: rgba(255,214,110,0.30);
-      border-color: rgba(255,214,110,0.75);
-      transform: scale(0.96);
+      background:
+        linear-gradient(180deg, rgba(0,0,0,0.20) 0%,
+                                rgba(255,214,110,0.20) 60%,
+                                rgba(255,214,110,0.34) 100%),
+        rgba(255,214,110,0.22);
+      border-color: rgba(255,214,110,0.85);
+      transform: translateY(2px) scale(0.97);
+      box-shadow:
+        inset 0 2px 3px rgba(0,0,0,0.45),
+        inset 0 -1px 0 rgba(255,255,255,0.16),
+        0 1px 0 rgba(0,0,0,0.30);
       transition: none;
     }
 
@@ -110,21 +146,25 @@
        src/core/input.js hit-tests them with 26px of slop, so the seam
        between ◀ and ▶ belongs to whichever is nearer instead of being a
        dead strip your thumb can rest in and stop the character. */
-    #tL, #tR { bottom: calc(18px + env(safe-area-inset-bottom, 0px)); width: 82px; height: 82px; }
+    /* SIZED DOWN ~15%: 82 -> 70, 96 -> 82, 74 -> 64. The 4px seam between the
+       movement pads is kept and input.js still hit-tests them with 26px of
+       slop, so the REACHABLE area barely changes even though the drawn button
+       is smaller — which is the point of shrinking them. */
+    #tL, #tR { bottom: calc(18px + env(safe-area-inset-bottom, 0px)); width: 70px; height: 70px; }
     #tL { left: calc(16px + env(safe-area-inset-left, 0px)); }
-    #tR { left: calc(102px + env(safe-area-inset-left, 0px)); }
+    #tR { left: calc(90px + env(safe-area-inset-left, 0px)); }
 
     #tJump, #tDash { right: calc(16px + env(safe-area-inset-right, 0px)); }
     #tJump {
       bottom: calc(18px + env(safe-area-inset-bottom, 0px));
-      width: 96px; height: 96px; border-radius: 50%;
+      width: 82px; height: 82px; border-radius: 50%;
       border-color: rgba(120,220,255,0.45);
       background: rgba(30,60,90,0.42);
     }
     #tJump.on { background: rgba(120,220,255,0.32); border-color: rgba(120,220,255,0.85); }
     #tDash {
-      bottom: calc(126px + env(safe-area-inset-bottom, 0px));
-      width: 74px; height: 74px; border-radius: 50%;
+      bottom: calc(114px + env(safe-area-inset-bottom, 0px));
+      width: 64px; height: 64px; border-radius: 50%;
       font-size: 13px;
     }
 

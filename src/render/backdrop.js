@@ -70,8 +70,21 @@ const MAX_SEPARATION = 90; // px at zoom 1
 // should. Anything with an identifiable feature in it keeps the tight default.
 const STRIP_MAX_SEPARATION = 400; // px at zoom 1
 
-function cardParallax(camX, depth, card) {
-  const common = camX * PLATE_PARALLAX;
+// WEATHER MOVES ON ITS OWN. Parallax is a function of where the CAMERA is, so
+// a cloud card only ever slides while the player runs — stand still and the
+// sky is a photograph. The client, on the day stages: "the sky is up there and
+// the clouds are moving too… every daytime stage where you can see the sky and
+// clouds, we need clouds moving."
+//
+// `drift` is source pixels per tick added on top of the parallax, and because
+// the plate is already mirror-tiled and wrapped by `pmod` at the draw site, a
+// card can drift forever without a seam — the same property the title screen's
+// travelling clouds rely on. Kept SLOW: these read as weather at a distance,
+// not as a screensaver, and a cloud that visibly races the buildings breaks
+// the depth the rest of the multiplane set is buying.
+function cardParallax(camX, depth, card, tick) {
+  const drift = card && card.drift ? card.drift * (tick || 0) : 0;
+  const common = camX * PLATE_PARALLAX + drift;
   if (card && card.rate !== undefined) {
     const diff = camX * (card.rate - PLATE_PARALLAX);
     const cap = card.maxSep === undefined ? STRIP_MAX_SEPARATION : card.maxSep;
@@ -317,7 +330,7 @@ export function createBackdrop(ctx, canvas) {
       const img = images[card.key];
       if (!img) continue;
       const srcH = Math.max(1, Math.round(img.height * stage.bg.groundFrac));
-      const par = cardParallax(camera.x * camera.zoom, card.depth, card);
+      const par = cardParallax(camera.x * camera.zoom, card.depth, card, tick);
       const off = pmod(par, period);
       const [sx0, sx1] = card.span || [0, 1];
       for (let rep = -1; rep <= reps; rep++) {
@@ -334,7 +347,7 @@ export function createBackdrop(ctx, canvas) {
   // the glow travels with the thing that emits it rather than sliding off it.
   function lightParallax(stage, camera, light) {
     const card = (stage.bg.cards || []).find((c) => c.key === light.layer);
-    return cardParallax(camera.x * camera.zoom, card ? card.depth : 0, card);
+    return cardParallax(camera.x * camera.zoom, card ? card.depth : 0, card, tick);
   }
 
   // Gust curve — two sines beaten together with a squared envelope, so the

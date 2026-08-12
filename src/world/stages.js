@@ -343,8 +343,23 @@ const STAGE_DEFS = [
         // tree, while rendering what was left 19.7% too big.
         meters: 7.81,
         groundFrac: 0.882,
-        sky: ['#4390ef', '#9dbbe6'],
-        horizon: '#c8d8ec',
+        // ── THE SKY IS SAMPLED OFF THE PLATE, NOT PICKED ─────────────
+        // The gradient is only ever visible ABOVE the plate's top edge, so
+        // the colour it reaches THERE is the only one that matters — and it
+        // was reaching a pale #9dbbe6 while the painting's own sky is a
+        // saturated #438fef, which puts a visible band across the top of the
+        // frame. Client: "pallet absorb the sky from the image to make that
+        // blue backdrop match the blue exactly so it blends better."
+        //
+        // So the lower stop AND the horizon are the plate's own top rows,
+        // medianed across the full width so a cloud or a spire cannot drag
+        // the sample. Only the zenith is derived rather than measured — the
+        // painting has no sky above itself to copy — and it is the same
+        // colour taken down 28% red / 14% green with blue held, which is how
+        // a real sky deepens overhead. Wherever the plate's top edge lands on
+        // whatever screen, the gradient meets it within a few levels.
+        sky: ['#307bef', '#438fef'],
+        horizon: '#438fef',
         glow: 'rgba(255,244,214,0.09)',
         // No rain in the daytime set. The client's day plates are clear-sky
         // and dry; keeping the night stage's rain over them would be weather
@@ -361,7 +376,7 @@ const STAGE_DEFS = [
         // the measured night->day transform, since the two exports are a
         // percent or two different in size.
         cards: [
-          { key: 'clouds', img: eavDayClouds, depth: 0.02, span: [0.114, 1.000] },
+          { key: 'clouds', img: eavDayClouds, depth: 0.02, drift: -0.035, span: [0.114, 1.000] },
           { key: 'skyline', img: eavDaySkyline, depth: 0.07, span: [0.752, 1.000] },
           { key: 'mcdonalds', img: eavDayMcdonalds, depth: 0.16, span: [0.906, 0.977] },
           { key: 'cars', img: eavDayCars, depth: 0.21, span: [0.773, 1.000] },
@@ -473,8 +488,23 @@ const STAGE_DEFS = [
         // day than by night.
         meters: 7.70,
         groundFrac: 0.821,
-        sky: ['#3e8bf1', '#8fb8ea'],
-        horizon: '#c2d6ee',
+        // ── THE SKY IS SAMPLED OFF THE PLATE, NOT PICKED ─────────────
+        // The gradient is only ever visible ABOVE the plate's top edge, so
+        // the colour it reaches THERE is the only one that matters — and it
+        // was reaching a pale #9dbbe6 while the painting's own sky is a
+        // saturated #438fef, which puts a visible band across the top of the
+        // frame. Client: "pallet absorb the sky from the image to make that
+        // blue backdrop match the blue exactly so it blends better."
+        //
+        // So the lower stop AND the horizon are the plate's own top rows,
+        // medianed across the full width so a cloud or a spire cannot drag
+        // the sample. Only the zenith is derived rather than measured — the
+        // painting has no sky above itself to copy — and it is the same
+        // colour taken down 28% red / 14% green with blue held, which is how
+        // a real sky deepens overhead. Wherever the plate's top edge lands on
+        // whatever screen, the gradient meets it within a few levels.
+        sky: ['#2c78f2', '#3d8bf2'],
+        horizon: '#3d8bf2',
         glow: 'rgba(255,244,214,0.09)',
         // No rain in the daytime set. The client's day plates are clear-sky
         // and dry; keeping the night stage's rain over them would be weather
@@ -494,7 +524,7 @@ const STAGE_DEFS = [
           // The one card with NO night counterpart: the night plate's sky is a
           // black band with nothing in it to lift. Farthest thing in the
           // picture, so it gets the smallest depth and barely moves.
-          { key: 'clouds', img: edgewoodDayClouds, depth: 0.02, span: [0.046, 1.000] },
+          { key: 'clouds', img: edgewoodDayClouds, depth: 0.02, drift: -0.035, span: [0.046, 1.000] },
           { key: 'skyline', img: edgewoodDaySkyline, depth: 0.05, span: [0.096, 1.000] },
           { key: 'parapet', img: edgewoodDayParapet, depth: 0.20, span: [0.049, 0.102] },
           { key: 'facade', img: edgewoodDayFacade, depth: 0.34, span: [0.000, 1.000] },
@@ -598,8 +628,23 @@ const STAGE_DEFS = [
         img: bgUndergroundDayBase,
         meters: 8.6,
         groundFrac: 0.78,
-        sky: ['#4d8fd6', '#a8cdf0'],
-        horizon: '#cfe2f4',
+        // ── THE SKY IS SAMPLED OFF THE PLATE, NOT PICKED ─────────────
+        // The gradient is only ever visible ABOVE the plate's top edge, so
+        // the colour it reaches THERE is the only one that matters — and it
+        // was reaching a pale #9dbbe6 while the painting's own sky is a
+        // saturated #438fef, which puts a visible band across the top of the
+        // frame. Client: "pallet absorb the sky from the image to make that
+        // blue backdrop match the blue exactly so it blends better."
+        //
+        // So the lower stop AND the horizon are the plate's own top rows,
+        // medianed across the full width so a cloud or a spire cannot drag
+        // the sample. Only the zenith is derived rather than measured — the
+        // painting has no sky above itself to copy — and it is the same
+        // colour taken down 28% red / 14% green with blue held, which is how
+        // a real sky deepens overhead. Wherever the plate's top edge lands on
+        // whatever screen, the gradient meets it within a few levels.
+        sky: ['#2176f9', '#2e89f9'],
+        horizon: '#2e89f9',
         glow: 'rgba(255,236,190,0.10)',
         rain: 0.0,
         windBands: [{ top: 0.02, pivot: 0.26, amp: 2, freq: 1.1, xRanges: [[0.60, 0.70]] }],
@@ -608,7 +653,7 @@ const STAGE_DEFS = [
         // higher and its columns are narrower — so the night cards never
         // registered against this plate.
         cards: [
-          { key: 'clouds', img: ugdClouds, depth: 0.03, span: [0.359, 0.999] },
+          { key: 'clouds', img: ugdClouds, depth: 0.03, drift: -0.035, span: [0.359, 0.999] },
           { key: 'spire', img: ugdSpire, depth: 0.08, span: [0.758, 0.888] },
           { key: 'towers', img: ugdTowers, depth: 0.12, span: [0.480, 0.999] },
           { key: 'backdrop', img: ugdBackdrop, depth: 0.16, span: [0.299, 0.348] },
@@ -721,8 +766,23 @@ const STAGE_DEFS = [
         // board, the bottom of every display window and the kerb.
         meters: 9.25,
         groundFrac: 0.730,
-        sky: ['#3885ee', '#7fa9e2'],
-        horizon: '#bed2ea',
+        // ── THE SKY IS SAMPLED OFF THE PLATE, NOT PICKED ─────────────
+        // The gradient is only ever visible ABOVE the plate's top edge, so
+        // the colour it reaches THERE is the only one that matters — and it
+        // was reaching a pale #9dbbe6 while the painting's own sky is a
+        // saturated #438fef, which puts a visible band across the top of the
+        // frame. Client: "pallet absorb the sky from the image to make that
+        // blue backdrop match the blue exactly so it blends better."
+        //
+        // So the lower stop AND the horizon are the plate's own top rows,
+        // medianed across the full width so a cloud or a spire cannot drag
+        // the sample. Only the zenith is derived rather than measured — the
+        // painting has no sky above itself to copy — and it is the same
+        // colour taken down 28% red / 14% green with blue held, which is how
+        // a real sky deepens overhead. Wherever the plate's top edge lands on
+        // whatever screen, the gradient meets it within a few levels.
+        sky: ['#2872ee', '#3885ee'],
+        horizon: '#3885ee',
         glow: 'rgba(255,244,214,0.09)',
         // No rain in the daytime set. The client's day plates are clear-sky
         // and dry; keeping the night stage's rain over them would be weather
@@ -742,7 +802,7 @@ const STAGE_DEFS = [
           // The one card with NO night counterpart: the night plate's sky is a
           // black band with nothing in it to lift. Farthest thing in the
           // picture, so it gets the smallest depth and barely moves.
-          { key: 'clouds', img: l5pDayClouds, depth: 0.02, span: [0.000, 1.000] },
+          { key: 'clouds', img: l5pDayClouds, depth: 0.02, drift: -0.035, span: [0.000, 1.000] },
           { key: 'farbuild', img: l5pDayFarbuild, depth: 0.06, span: [0.000, 0.165] },
           { key: 'sign', img: l5pDaySign, depth: 0.22, span: [0.455, 0.940] },
           { key: 'letters', img: l5pDayLetters, depth: 0.23, span: [0.507, 0.899] },

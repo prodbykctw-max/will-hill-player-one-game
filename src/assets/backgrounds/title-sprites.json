@@ -1,36 +1,68 @@
 {
   "clouds": [
     {
-      "file": "title-clouds0.webp",
-      "x": 13,
-      "y": 28,
-      "w": 316,
-      "h": 119,
-      "px": 16663
-    },
-    {
       "file": "title-clouds1.webp",
-      "x": 1222,
-      "y": 28,
-      "w": 309,
-      "h": 117,
-      "px": 15512
+      "x": 1169,
+      "y": 29,
+      "w": 363,
+      "h": 161,
+      "px": 15534
     },
     {
-      "file": "title-clouds3.webp",
-      "x": 1410,
-      "y": 168,
-      "w": 121,
-      "h": 49,
-      "px": 2529
+      "file": "title-clouds0.webp",
+      "x": 87,
+      "y": 28,
+      "w": 218,
+      "h": 189,
+      "px": 12356
+    },
+    {
+      "file": "title-clouds7.webp",
+      "x": 0,
+      "y": 177,
+      "w": 210,
+      "h": 106,
+      "px": 7042
     },
     {
       "file": "title-clouds2.webp",
       "x": 8,
-      "y": 119,
-      "w": 98,
-      "h": 38,
-      "px": 1660
+      "y": 54,
+      "w": 118,
+      "h": 64,
+      "px": 2255
+    },
+    {
+      "file": "title-clouds5.webp",
+      "x": 1442,
+      "y": 161,
+      "w": 90,
+      "h": 44,
+      "px": 1538
+    },
+    {
+      "file": "title-clouds3.webp",
+      "x": 3,
+      "y": 120,
+      "w": 119,
+      "h": 45,
+      "px": 1486
+    },
+    {
+      "file": "title-clouds6.webp",
+      "x": 1365,
+      "y": 181,
+      "w": 85,
+      "h": 32,
+      "px": 218
+    },
+    {
+      "file": "title-clouds4.webp",
+      "x": 299,
+      "y": 120,
+      "w": 41,
+      "h": 41,
+      "px": 192
     }
   ],
   "options": [

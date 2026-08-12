@@ -75,7 +75,7 @@ MOVERS = {
 # of the same clump at x 94..321 — and animating those as separate clouds
 # would tear one cloud into two sliding halves.
 SPRITES = {'title': ['clouds', 'options']}
-MIN_SPRITE_PX = 400
+MIN_SPRITE_PX = 150   # was 400, which dropped the small distant clouds
 
 # Sprite groups emitted as ONE crop instead of one per connected component.
 #
@@ -154,6 +154,67 @@ def retexture(rgb, base, mask, name):
     return np.clip(out, 0, 255).astype(np.uint8)
 
 
+# ── CLOUDS ARE KEYED, NOT TAKEN FROM SAM ─────────────────────────────────
+#
+# SAM's `clouds` group found six blobs, four of them over the sprite floor,
+# and the client's note was that nearly every cloud in the sky should move —
+# "why only some clouds in the sky be moving". The rest were inside the single
+# 438,000-pixel `sky` mask and had never been lifted at all.
+#
+# A cloud is the one thing in this sky that is LIGHTER than the sky around it,
+# so a local-contrast key finds all of them and cannot be fooled by the logo or
+# the signs. Three constraints, each of which was added because the version
+# without it was wrong:
+#
+#   ROW-MEDIAN BACKGROUND, sky pixels only. A box blur as the background
+#   estimate gets dragged down by the dark skyline, so the bright HAZE around
+#   the towers reads as lifted and the key claims a pink smear across the
+#   middle of the frame. Comparing each pixel to its own row's sky level fixes
+#   that, and the night sky's gradient is vertical so a row is the right unit.
+#
+#   A CEILING AT ROW 280. Below that is skyline, not weather.
+#
+#   THE LETTERING IS EXCLUDED, dilated by 9px. WILL HILL: PLAYER ONE has a
+#   bright outline sitting in the sky, and it is not a cloud.
+#
+# WHAT IT ACTUALLY FINDS, and this is worth knowing before promising more:
+# EIGHT clouds, not dozens. The size distribution falls off a cliff — 15391,
+# 14824, 7051, 1707, 1431, then nothing above 38px. The two big banks were
+# tested for thin bridges by eroding up to 9x9 and they do not come apart:
+# they are solid masses, and splitting a solid cloud in half would tear it.
+# Eight is the number the painting has.
+CLOUD_LIFT = 9        # levels above the row's own sky median
+CLOUD_FLOOR_ROW = 280 # below this is skyline
+CLOUD_SPLIT = 7       # erosion that separates touching puffs, in px
+
+
+def keyed_clouds(rgb, scene):
+    """Every cloud in the sky, by local contrast. See the note above."""
+    sky = load_mask(scene, 'sky', rgb.shape[1], rgb.shape[0])
+    block = np.zeros(sky.shape, bool)
+    for nm in ('letters', 'star'):
+        p = os.path.join(SAM, scene, f'{nm}.png')
+        if os.path.exists(p):
+            block |= load_mask(scene, nm, rgb.shape[1], rgb.shape[0])
+    block = ndi.binary_dilation(block, np.ones((9, 9), bool))
+
+    lum = rgb.astype(np.float32).mean(2)
+    rowbg = np.array([np.median(lum[y][sky[y]]) if sky[y].sum() > 20 else 0.0
+                      for y in range(lum.shape[0])], dtype=np.float32)
+    m = sky & ((lum - rowbg[:, None]) > CLOUD_LIFT) & ~block
+    m[CLOUD_FLOOR_ROW:] = False
+    m = ndi.binary_fill_holes(ndi.binary_opening(m, np.ones((2, 2), bool)))
+
+    # Separate puffs that touch, by eroding to seeds and growing each seed
+    # back over the mask. Straight labelling merges a whole bank into one.
+    seeds, n = ndi.label(ndi.binary_erosion(m, np.ones((CLOUD_SPLIT,) * 2, bool)))
+    if n:
+        idx = ndi.distance_transform_edt(seeds == 0, return_distances=False,
+                                         return_indices=True)
+        return np.where(m, seeds[tuple(idx)], 0), n
+    return ndi.label(m)
+
+
 def load_mask(scene, name, w, h):
     p = os.path.join(SAM, scene, f'{name}.png')
     m = np.array(Image.open(p).convert('1'), bool)
@@ -174,8 +235,14 @@ def main():
 
     claimed = np.zeros((h, w), bool)
     cards = {}
+    labels = {}
     for name in names:
-        m = load_mask(scene, name, w, h)
+        if name == 'clouds' and scene == 'title':
+            lab, _ = keyed_clouds(rgb, scene)
+            labels[name] = lab
+            m = lab > 0
+        else:
+            m = load_mask(scene, name, w, h)
         # Close pinholes so a face does not come out with gaps where SAM put a
         # boundary between a cheek and a pair of glasses.
         m = ndi.binary_fill_holes(ndi.binary_closing(m, np.ones((3, 3), bool)))
@@ -219,6 +286,12 @@ def main():
             if name in WHOLE:
                 lab, n = np.where(m, 1, 0), 1
                 sizes = [int(m.sum())]
+            elif name in labels:
+                # Already split into puffs by keyed_clouds; plain labelling
+                # here would merge a whole bank back into one sprite.
+                lab = labels[name]
+                n = int(lab.max())
+                sizes = ndi.sum(m, lab, range(1, n + 1))
             else:
                 lab, n = ndi.label(m)
                 sizes = ndi.sum(m, lab, range(1, n + 1))

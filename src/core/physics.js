@@ -40,6 +40,16 @@ export const RUN_SPEED = 6.4;       // target once he has committed
 export const RUN_HOLD_TICKS = 11;   // ~0.18s of walking before he winds up
 export const RUN_RAMP_TICKS = 10;   // ~0.17s spent winding up to full speed
 export const RUN_ANIM_AT = 4.6;     // |vx| at which the run clip takes over
+// ONE TAP IS ONE STEP. A press shorter than this still gets this many ticks of
+// walk target, so a tap always travels a definite, repeatable distance instead
+// of whatever the thumb happened to hold for. Without it the shortest taps
+// produce a jitter — you press, he twitches, and it reads as the button not
+// working. 14 ticks is ~0.23s, about 25 world units at WALK_SPEED: a visible
+// single step, and short enough that you are never locked out of stopping.
+//
+// It sits BELOW RUN_HOLD_TICKS (11 + 10 to full speed) on purpose, so nothing
+// about the hold-to-run wind-up changes: tap for a step, hold to run.
+export const STEP_TICKS = 14;
 export const ACCEL = 0.5; // lerp rate toward target velocity while holding a direction
 export const DECEL = 0.62; // lerp rate toward zero when releasing
 

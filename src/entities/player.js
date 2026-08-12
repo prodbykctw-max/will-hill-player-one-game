@@ -22,7 +22,7 @@
 // clip Will Hill's spritesheet actually has — same role as Jandé's dash:
 // speed burst + i-frames). No strike/attack branch — no combat.
 
-import { GRAV, TERMINAL_VY, PW, PH, WALK_SPEED, RUN_SPEED, RUN_HOLD_TICKS, RUN_RAMP_TICKS, RUN_ANIM_AT, ACCEL, DECEL, AIR_ACCEL_MUL, AIR_DRAG_MUL, JUMP_V, DOUBLE_JUMP_V, JUMP_CUT_VY, COYOTE_TICKS, JUMP_BUFFER_TICKS, DASH_VX, DASH_TICKS, DASH_IFRAMES, DASH_COOLDOWN } from '../core/physics.js';
+import { GRAV, TERMINAL_VY, PW, PH, WALK_SPEED, RUN_SPEED, RUN_HOLD_TICKS, RUN_RAMP_TICKS, RUN_ANIM_AT, STEP_TICKS, ACCEL, DECEL, AIR_ACCEL_MUL, AIR_DRAG_MUL, JUMP_V, DOUBLE_JUMP_V, JUMP_CUT_VY, COYOTE_TICKS, JUMP_BUFFER_TICKS, DASH_VX, DASH_TICKS, DASH_IFRAMES, DASH_COOLDOWN } from '../core/physics.js';
 import { collideH, collideV, FLOOR_R, T } from '../world/tilemap.js';
 import spriteSheetUrl from '../assets/sprites/will-hill.webp';
 import atlas from '../assets/sprites/will-hill.atlas.json';
@@ -56,7 +56,9 @@ export function createPlayer(x, y) {
     dashVx: 0,
     dashCd: 0,
 
-    holdDir: 0, // direction currently held, for the walk -> run wind-up
+    holdDir: 0,
+    stepDir: 0,
+    stepT: 0, // direction currently held, for the walk -> run wind-up
     holdT: 0,   // ticks it has been held
     stumble: 0, // ticks left of a pothole trip — steering is disabled
     inv: 0, // i-frame ticks remaining (dash / just-got-hit)
@@ -162,7 +164,20 @@ export function stepPlayer(p, input, map) {
 
   // Horizontal movement. No steering mid-stumble — you are going wherever the
   // trip sent you until you recover.
-  const dir = p.stumble > 0 ? 0 : input.right() ? 1 : input.left() ? -1 : 0;
+  let dir = p.stumble > 0 ? 0 : input.right() ? 1 : input.left() ? -1 : 0;
+
+  // ONE TAP, ONE STEP. A press commits STEP_TICKS of movement whether or not
+  // the thumb is still down, so the shortest tap is a step rather than a
+  // twitch. Held presses are unaffected — `dir` is already set — and a tap the
+  // OTHER way cancels the leftover immediately, so you can never be carried
+  // into a pothole by a step you already changed your mind about.
+  if (dir !== 0 && dir !== p.stepDir) { p.stepDir = dir; p.stepT = STEP_TICKS; }
+  if (p.stepT > 0) {
+    p.stepT--;
+    if (dir === 0 && p.onGround) dir = p.stepDir;
+  }
+  if (dir === 0 && p.stepT <= 0) p.stepDir = 0;
+
   if (dir !== 0 && dir === p.holdDir) p.holdT++;
   else { p.holdDir = dir; p.holdT = 0; }
 
