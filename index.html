@@ -63,13 +63,17 @@
        touch device is detected, so desktop keeps a clean frame. Laid out
        against the safe-area inset because a portrait phone's home
        indicator sits exactly where a jump button wants to be. */
+    /* CONTROLS ARE OPT-IN, AND HIDDEN UNTIL THE GAME SAYS OTHERWISE.
+       This was the other way round — shown on any touch device and switched
+       OFF per screen — and it flashed the four pads over the title card for
+       the moment between input.js detecting touch and the first update()
+       tick, because until the loop has run once nothing has told them to
+       hide. Requiring BOTH classes means there is no window in which they can
+       appear by default: the pads exist only while `playing` is set, which
+       main.js does from the game state, and never during the boot, the title,
+       the MARTA ride between stages, or the results board. */
     #touch { display: none; }
-    body.touch #touch { display: block; }
-    /* Off on any screen that is not the run. The title card and the results
-       board are full-bleed art you tap anywhere to dismiss, and four control
-       pads sitting over them are clutter advertising controls that do
-       nothing. main.js sets this from the game state. */
-    body.nopads #touch { display: none; }
+    body.touch.playing #touch { display: block; }
 
     #touch .pad {
       position: fixed; z-index: 10;

@@ -276,19 +276,28 @@ function advanceFromScreen() {
   showTitle();
 }
 
-// The pads belong to the run. Every other screen is either full-bleed art you
-// tap anywhere to dismiss, or the pause menu, which has its own buttons.
+// THE PADS BELONG TO THE RUN AND NOTHING ELSE.
+//
+// Not the boot, not the title card, not the MARTA ride between stages, not
+// the results board — and not the pause menu either, which is not a playable
+// stage and has its own buttons. The client's words: "we only wanna see the
+// controls on our live stage that is playable at that time."
+//
+// This sets a POSITIVE class. It used to clear a negative one, which meant
+// the pads were visible by default and had to be told to hide — and until the
+// loop's first tick nothing had told them, so they flashed over the title card
+// on every launch. There is now no state in which they appear unless the game
+// has explicitly said the stage is live.
 let padsShown = null;
 function syncPads() {
-  const want = !(state.screen === 'playing' || state.screen === 'paused');
+  const want = state.screen === 'playing';
   if (want === padsShown) return;
   padsShown = want;
-  document.body.classList.toggle('nopads', want);
+  document.body.classList.toggle('playing', want);
 }
 
 function update() {
   state.tick++;
-  syncPads();
   // ON EVERY SCREEN, not just during play. This is the heartbeat that starts
   // the ambience once the audio context has actually woken up — it used to sit
   // below the between-screen early-returns, so a context that came up a beat
@@ -590,6 +599,15 @@ function drawOverlayText(lines) {
 }
 
 function draw() {
+  // FIRST, AND IN draw() RATHER THAN update(). The screen can change part way
+  // through update() — the playing branch is what sets `stageClear` — so a
+  // sync at the top of update() is reading a state that is one tick stale, and
+  // the frame gets painted with the pads still up over the stage-clear card.
+  // Measured: exactly three such frames in a four-stage run, one per
+  // transition. draw() is the last thing to run before the browser's paint,
+  // and a class set inside a rAF callback lands in that same paint, so this
+  // costs nothing and there is no frame in between.
+  syncPads();
   if (state.screen === 'loading' || !images) {
     ctx.fillStyle = '#0a0810';
     ctx.fillRect(0, 0, canvas.width, canvas.height);

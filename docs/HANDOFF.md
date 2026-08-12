@@ -6,7 +6,7 @@ Repo: https://github.com/prodbykctw-max/will-hill-player-one-game
 Read `docs/GDD.md` for design and `CLAUDE.md` for architecture first. This
 file covers what a fresh session needs that isn't obvious from the code.
 
-**Every number in this file was verified against the code on 2026-08-11.**
+**Every number in this file was verified against the code on 2026-08-12.**
 It has been wrong before — a stale line here sent a session off regenerating
 enemy sprites that were already fine, and cost the client time correcting it.
 If you change a behaviour, change the line here in the same commit. A doc that
@@ -76,14 +76,21 @@ distance. If you import any new clip, measure its period first —
 
 ---
 
-## Background depth: multiplane cards — ALL FOUR STAGES CUT
+## Background depth: multiplane cards
 
-| stage | cards | recompose | notes |
+Eight plates now, not four — every stage has a night and a day version. See
+"Day and night" below for how one is chosen.
+
+| stage | night cards | day cards | notes |
 |---|---|---|---|
-| EAV | 12 | 0.070% | hand-cut; SAM added only the clouds |
-| Edgewood | 14 | 0.079% | richest signage of the four |
-| L5P | 16 | 0.083% | least headroom left |
-| Underground | 15 | 0.027% | most depth, most headroom |
+| EAV | 12 | **flat** | hand-cut; SAM added only the clouds |
+| Edgewood | 14 | **flat** | richest signage of the four |
+| Underground | 15 | 19 | most depth; day and night are DIFFERENT compositions, so the night cards do not fit the day plate and it got its own pass |
+| L5P | 16 | **flat** | least headroom left |
+
+The three **flat** day plates render as single-plate backdrops. That is the
+outstanding work, and the client has asked for the same treatment on every
+plate.
 
 `tools/sam_segment.py` finds the items, `tools/sam_group.py` folds them into
 cards, `tools/cut_planes.py` cuts, `src/render/backdrop.js` draws,
@@ -210,31 +217,168 @@ Kenney's own `impactPunch_*` files were tried and rejected — measured at
 84–94% low-frequency energy, they are thuds and read as a kick drum. Full
 reasoning in `src/assets/audio/CREDITS.md`.
 
-The AudioContext is suspended until a real gesture; `main.js` unlocks it on
-the first keydown/pointerdown.
+### Unlocking it, and the bug that hid inside that
+
+The AudioContext is suspended until a real gesture. Getting that right took
+three things, and skipping any one of them brings back "the sound doesn't
+start until you pick up a money bag":
+
+1. **Do not create the context before the gesture.** `audio.ambience()` only
+   RECORDS what the game wants; `startPending()` builds the bed once there is
+   a running context. Building the graph on a pre-gesture context is the iOS
+   trap — Safari lets you wire the whole thing up and produces nothing until
+   something is played from inside a gesture, at which point everything
+   already sitting there becomes audible at once.
+2. **Play a sample of silence inside the gesture.** `resume()` alone is not
+   enough on iOS.
+3. **Listen on every gesture, not the first.** The listeners were `once`; one
+   refused `resume()` and the game is silent for the session. They detach
+   themselves when `audio.ready()` goes true.
+
+The fade-in is **linear over 0.8s**. It was exponential over 3s, which is not
+a fade, it is silence followed by a fade: measured at 0.6% of target level at
+150ms and still only 11% at 1.5s.
+
+`audio.level()` returns the RMS of the master bus and `audio.status()` reports
+context state and ambience gain. They exist because this class of bug cannot
+be found by reading the code — the graph was correct the whole time it was
+silent — and cannot be heard in a headless browser.
+
+---
+
+## Day and night
+
+The stage table in `src/world/stages.js` is written **night-first**: `bg` and
+`light` are the night dressing, and each entry carries a `day: { bg, light }`
+twin. `STAGES` is the RESOLVED list — `resolveStages()` folds the chosen half
+up to the top level, so the renderer, the image manifest and the ambience all
+keep saying `stage.bg` and never learn which one they got.
+
+**What picks it:** `new Date().getHours()` — the device's own local hour,
+already through whatever time zone the phone is set to. No permission prompt,
+no network, no geolocation dialog in front of a game nobody has started yet.
+Night is 19:00–07:00.
+
+**Its limit, stated honestly:** a fixed clock boundary is not sunset. Atlanta
+is dark near 17:30 in December and near 20:50 in June, so an early-summer
+evening hands you night streets while it is still light out. Doing better
+needs latitude and day-of-year, which needs location.
+
+`?tod=day` and `?tod=night` force it. That is not debug scaffolding to strip
+— it is how both halves get checked without changing a phone's clock.
+
+**Day plates carry no rain and no practicals.** Neon and streetlights do not
+read at midday, and painting them as if they did is what makes a day scene
+look like a night scene with the brightness turned up.
+
+**Not finished:** only Underground's day plate is cut into multiplane cards
+(19). EAV, Edgewood and L5P day are FLAT — the renderer treats a stage with no
+`cards` as the old single-plate backdrop, which is shallow, not broken. The
+client's instruction is uniformity: the same cut on every plate, day and
+night. `groundFrac` for the three flat ones was derived by aligning each day
+plate's row-wise edge profile against its night twin, since the exports are
+not the same height; EAV and Edgewood match their night framing closely,
+**L5P day currently draws a little larger than L5P night** and should be
+settled against its card extents when it is cut.
+
+---
+
+## Title and ending screens
+
+Both are the client's own paintings shown WHOLE, with the moving parts cut off
+them by the SAM pass and drawn back on top. `tools/cut_still.py` does the
+cutting — deliberately NOT `cut_planes.py`, because a still scene does not
+scroll and only needs the movers lifted; most masks are left unassigned on
+purpose.
+
+The base IS inpainted under the movers. A card is drawn over the base, so
+without that the base's own copy peeks out as a ghost the moment it moves.
+
+| screen | moves | how |
+|---|---|---|
+| title | clouds | each its own sprite, crossing and wrapping, 50–95s per crossing |
+| title | signs | shear about the foot of their posts |
+| title | Will Hill | shear about his shoes, ⅓ the signs' amplitude |
+| ending | crowd | three depth bands, each about its own floor, bigger toward camera |
+| ending | Will Hill | his own slower beat, not swept along with the crowd |
+| both | PRESS START | additive glow, not a blink |
+
+**Clouds travel behind the skyline.** That needs the plate split into what is
+behind them and what is in front, so `sam_group.py` keeps the sky as a layer
+for still scenes (its entry needs an EMPTY box — a real one makes it a
+catch-all that swallows every mask in the picture). The buildings never move:
+measured 0.0% pixel change either side of the hero across 1400 ticks.
+
+**Amplitudes are fractions of the painting's drawn width**, not pixels — these
+contain-fit a 1536px painting into anything from a 390px phone upward.
+
+**The letterbox is flat black.** Two attempts at filling it with the painting
+itself (a blurred cover-fit copy, then the plate's own edge rows stretched
+out) were rejected on sight: stretching six rows of a DITHERED pixel painting
+carries the dither, and dither stretched vertically is stripes.
+
+---
+
+## Nothing bleeds between screens
+
+The client's standard: "only the pages that are meant to be seen should be
+seen." Two rules hold it up.
+
+**Every full-screen state clears the frame first** — title, ride, results and
+the loading screen all fill the canvas before drawing.
+
+**The touch pads are opt-in.** `#touch` needs BOTH `body.touch` and
+`body.playing`, and `syncPads()` sets `playing` from `state.screen`. It used
+to be the other way round — shown on any touch device, switched off per screen
+— which flashed the pads over the title card for the gap between input.js
+detecting touch and the loop's first tick. And `syncPads()` runs at the top of
+**`draw()`**, not `update()`: the screen can change part way through update()
+(the playing branch is what sets `stageClear`), so syncing there reads a state
+one tick stale.
+
+Audited with `scratchpad/bleed.mjs`, which samples the pad's computed style
+and the game's screen on every frame: **0 frames with pads on a non-playing
+screen** across ~820 frames, day and night. Note the sampler must run AFTER
+the game's own rAF callback — a watcher registered first reads the DOM from
+before the game drew and reports a one-frame lag that is the harness's.
 
 ---
 
 ## Still open
 
-- **No roll/hit/death clips** for Will Hill; those keys borrow other rows.
-  `hit` is now visible (a pothole trip plays it), so it matters more than it
-  did.
-- **End-credits sequence.** Now designed: the game ENDS AT CRIMINAL RECORDS
-  with Will Hill performing to a crowd — full screen first, then the credits
-  slide in and share the frame, the way 90s comedies ran outtakes beside the
-  cast list. Still needs, and none of it is in the repo: the RARE AGENCY logo
-  file (seen in chat, spelling confirmed), prodbyKCTW's logo, a performing
-  clip, crowd art, and a small stage/riser.
-- **Between-stage MARTA map.** The client sent the real rail map and the stage
-  order is a real journey on it: East Lake, Edgewood-Candler Park, Five Points
-  (transfer), Inman Park-Reynoldstown. Two stages are named stations. Not
-  built; the map image is not in the repo either.
-- **Four Will Hill tracks**, one per stage, planned. Will need streaming per
-  stage rather than up-front loading, and a duck on the music when the punch
-  fires.
-- **Leaderboard Worker is written but not deployed** — the KV namespace does
-  not exist. Deliberately a manual step.
+- **Daytime multiplane for EAV, Edgewood and L5P.** The biggest outstanding
+  item. Day plates and SAM passes are on disk; they need grouping, cutting and
+  wiring, same pipeline as every other plate. The client's word is uniformity:
+  identical treatment on all eight plates, the only difference being day and
+  night. See "Day and night" above for what is wired now.
+- **End-credits sequence.** The ending SCREEN is built (his painting, real
+  stats, swaying crowd). The credits that share the frame with it are not, and
+  are blocked on files that have only ever been in chat: the RARƎ AGENCY logo
+  and prodbyKCTW's logo.
+- **Four Will Hill tracks**, one per stage. There is no music at all yet —
+  four SFX plus the procedural street bed. Will need streaming per stage
+  rather than up-front loading, and a duck on the music when the punch fires.
+- **Leaderboard Worker is written but not deployed** — `LB_URL` is empty and
+  the KV namespace does not exist. Deliberately a manual step, but the contest
+  cannot run without it, so it is the item most likely to bite on a deadline.
+  Registration flow (name public, phone/email private, one entry per person)
+  is still being designed.
+- **OPTIONS on the title screen does nothing.** It is painted into the
+  client's artwork and a tap anywhere starts the game, so it currently reads
+  as a broken button. Either wire it to something real or accept it as set
+  dressing — the client has flagged it as redundant.
+
+### Corrected — these were listed as open and are DONE
+
+Left here because a stale "still open" list already cost this project a
+session of re-doing finished work.
+
+- **Roll/hit/death clips exist.** The player atlas carries all twelve: death,
+  fall, hit, idle, jog, jumpLand, jumpStart, knockback, knockdown, roll, run,
+  walk.
+- **The MARTA map is built** — `src/render/martamap.js`, on the client's own
+  rail map, with station coordinates measured by ring centroid and the train
+  following the polyline by arc length.
 
 ## Settled — do not "fix" these
 

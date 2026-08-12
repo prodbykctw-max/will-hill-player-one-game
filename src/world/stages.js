@@ -55,6 +55,15 @@
 // EAV is cut into a multiplane set by tools/cut_planes.py: a base plate with
 // every item lifted off it, plus one card per item. See that script for how
 // the cutting works and src/render/backdrop.js for how the cards are driven.
+// ── DAY PLATES ───────────────────────────────────────────────────────────
+// Not cut into multiplane cards yet, so these are flat: the renderer already
+// treats a stage with no `cards` as the old single-plate backdrop, which is
+// shallow rather than broken. Underground is the exception and has its full
+// nineteen-card day set. Cutting the other three is the outstanding work.
+import bgEavDay from '../assets/backgrounds/eav-day.webp';
+import bgEdgewoodDay from '../assets/backgrounds/edgewood-day.webp';
+import bgL5pDay from '../assets/backgrounds/l5p-day.webp';
+
 import bgEav from '../assets/backgrounds/eav-base.webp';
 import eavClouds from '../assets/backgrounds/eav-clouds.webp';
 import eavSkyline from '../assets/backgrounds/eav-skyline.webp';
@@ -165,7 +174,11 @@ import ugdColumns from '../assets/backgrounds/underground-day-columns.webp';
 // the character in the browser — that's the only place the comparison is
 // real.
 
-export const STAGES = [
+// The stage table itself is written NIGHT-FIRST — `bg`/`light` are the night
+// dressing, and each entry carries a `day` twin. `STAGES` at the bottom of
+// this file is the resolved list for whichever it currently is where the
+// player is standing.
+const STAGE_DEFS = [
   {
     id: 'eav',
     name: 'East Atlanta Village',
@@ -243,6 +256,39 @@ export const STAGES = [
       ],
     },
     light: { pool: 'rgba(255,186,96,0.20)', shaft: 'rgba(255,186,96,0.045)', bloom: 'rgba(255,180,90,0.13)', key: '255,206,150', bounce: '150,120,70', shadowRgb: '20,14,30' },
+    // ── DAYTIME TWIN ────────────────────────────────────────────────
+    // Same street, same signage, same composition — the client's day plates
+    // are the night scene relit, not a different picture. FLAT FOR NOW: the
+    // multiplane cut has not been run on this plate yet, and the renderer
+    // treats a stage with no `cards` as the old single-plate backdrop. That
+    // is shallow, not broken, and it is the outstanding work. Underground's
+    // day plate IS cut, nineteen cards, and is what the other three are
+    // being brought up to.
+    //
+    // `groundFrac` derived by aligning the day plate's row-wise edge-energy
+    // profile against its night twin's, since the exports are not the same
+    // height. Sky and horizon are MEDIANS SAMPLED OFF THE PLATE, not picked
+    // by eye — a sky gradient that disagrees with the image it sits behind
+    // shows as a band along the top of the frame.
+    day: {
+      bg: {
+        img: bgEavDay,
+        meters: 8.0,
+        groundFrac: 0.766,
+        sky: ['#4390ef', '#9dbbe6'],
+        horizon: '#c8d8ec',
+        glow: 'rgba(255,244,214,0.09)',
+        // No rain in the daytime set. The client's day plates are clear-sky
+        // and dry; keeping the night stage's rain over them would be weather
+        // falling out of a blue sky.
+        rain: 0.0,
+        // No practicals. Neon and streetlights do not read at midday, and
+        // painting them as if they did is what makes a day scene look like a
+        // night scene with the brightness turned up.
+        lights: [],
+      },
+      light: { pool: 'rgba(255,244,214,0.10)', shaft: 'rgba(255,246,220,0.04)', bloom: 'rgba(255,240,200,0.07)', key: '255,248,226', bounce: '150,170,200', shadowRgb: '30,36,52' },
+    },
     under: {
       // Asphalt -> aggregate base -> fill -> Georgia red clay -> bedrock.
       asphalt: '#2e2c2b', base: '#4a453d', fill: '#5c4433', mid: '#6b3a24', bottom: '#2c1c15',
@@ -299,6 +345,39 @@ export const STAGES = [
       ],
     },
     light: { pool: 'rgba(255,120,190,0.20)', shaft: 'rgba(255,120,190,0.045)', bloom: 'rgba(255,110,180,0.14)', key: '255,190,220', bounce: '140,60,110', shadowRgb: '18,10,26' },
+    // ── DAYTIME TWIN ────────────────────────────────────────────────
+    // Same street, same signage, same composition — the client's day plates
+    // are the night scene relit, not a different picture. FLAT FOR NOW: the
+    // multiplane cut has not been run on this plate yet, and the renderer
+    // treats a stage with no `cards` as the old single-plate backdrop. That
+    // is shallow, not broken, and it is the outstanding work. Underground's
+    // day plate IS cut, nineteen cards, and is what the other three are
+    // being brought up to.
+    //
+    // `groundFrac` derived by aligning the day plate's row-wise edge-energy
+    // profile against its night twin's, since the exports are not the same
+    // height. Sky and horizon are MEDIANS SAMPLED OFF THE PLATE, not picked
+    // by eye — a sky gradient that disagrees with the image it sits behind
+    // shows as a band along the top of the frame.
+    day: {
+      bg: {
+        img: bgEdgewoodDay,
+        meters: 7.0,
+        groundFrac: 0.816,
+        sky: ['#3e8bf1', '#8fb8ea'],
+        horizon: '#c2d6ee',
+        glow: 'rgba(255,244,214,0.09)',
+        // No rain in the daytime set. The client's day plates are clear-sky
+        // and dry; keeping the night stage's rain over them would be weather
+        // falling out of a blue sky.
+        rain: 0.0,
+        // No practicals. Neon and streetlights do not read at midday, and
+        // painting them as if they did is what makes a day scene look like a
+        // night scene with the brightness turned up.
+        lights: [],
+      },
+      light: { pool: 'rgba(255,244,214,0.10)', shaft: 'rgba(255,246,220,0.04)', bloom: 'rgba(255,240,200,0.07)', key: '255,248,226', bounce: '150,170,200', shadowRgb: '30,36,52' },
+    },
     under: {
       asphalt: '#2b2a2c', base: '#463f3c', fill: '#54382f', mid: '#5d3a2c', bottom: '#241610',
       brick: '#8a4038', metal: '#7d7f84', metalDark: '#3d3f43', concrete: '#565149',
@@ -316,7 +395,7 @@ export const STAGES = [
     name: 'The Underground (5 Points)',
     bgRef: '"UNDERGROUND" transit-style entrance arch — Midtown/Westside + East Point/Airport signage, Coca-Cola sign, Waffle House',
     bg: {
-      img: bgUndergroundDayBase,
+      img: bgUnderground,
       // SCALE, AND IT WAS BADLY WRONG. `meters` is how much real-world height
       // the plate's visible band spans, and at 18.0 this plate drew 976px tall
       // — against the 559px of screen that exists above the ground line. Four
@@ -328,13 +407,14 @@ export const STAGES = [
       //
       // 8.6 puts it at 466px, an 83% fill, between EAV's 78% and L5P's 87% —
       // so the arch reads, and Will Hill is the size of a man next to it
-      // rather than the size of a bollard.
+      // rather than the size of a bollard. The day and night plates are the
+      // same 1122x1402, so the fix applies to both.
       meters: 8.6,
       groundFrac: 0.78,
-      sky: ['#4d8fd6', '#a8cdf0'],
-      horizon: '#cfe2f4',
-      glow: 'rgba(255,236,190,0.10)',
-      rain: 0.0, // clear blue sky in the daytime plate
+      sky: ['#080818', '#06091e'],
+      horizon: '#191a30',
+      glow: 'rgba(220,60,60,0.10)',
+      rain: 0.55, // partly sheltered under the arch
       windBands: [{ top: 0.02, pivot: 0.26, amp: 2, freq: 1.1, xRanges: [[0.60, 0.70]] }],
       // ── The multiplane set, far -> near ──────────────────────────────
       // Built in real perspective, so this plate has more genuine depth than
@@ -346,50 +426,82 @@ export const STAGES = [
       // other dark buildings with nothing to separate them, so cutting them
       // gave back rectangles, and rectangles read as hard cuts. They are the
       // matrix; the cards are what stands in front of it.
-      // THE DAY SET — nineteen cards, far to near, cut from the day plate's
-      // own SAM pass. The night plate's fifteen are in the git history; they
-      // never registered with this composition (the day arch sits higher and
-      // its columns are narrower), which is why they were dropped rather
-      // than reused.
-      //
-      // Spans are the cutter's own reported x-extents over the 1122px plate,
-      // not estimates. `letters` sits two hundredths in front of `arch` so
-      // the UNDERGROUND lettering can be lit on its own without ever visibly
-      // sliding against the drum it is painted on.
+      // THE NIGHT SET — fifteen cards. Spans are the cutter's own reported
+      // x-extents over the 1122px plate, not estimates.
       cards: [
-        { key: 'clouds', img: ugdClouds, depth: 0.03, span: [0.359, 0.999] },
-        { key: 'spire', img: ugdSpire, depth: 0.08, span: [0.758, 0.888] },
-        { key: 'towers', img: ugdTowers, depth: 0.12, span: [0.480, 0.999] },
-        { key: 'backdrop', img: ugdBackdrop, depth: 0.16, span: [0.299, 0.348] },
-        { key: 'leftblock', img: ugdLeftblock, depth: 0.26, span: [0.000, 0.302] },
-        { key: 'midbuild', img: ugdMidbuild, depth: 0.34, span: [0.272, 0.884] },
-        { key: 'arch', img: ugdArch, depth: 0.46, span: [0.183, 0.888] },
-        { key: 'letters', img: ugdLetters, depth: 0.48, span: [0.281, 0.775] },
-        { key: 'trees', img: ugdTrees, depth: 0.52, span: [0.689, 0.999] },
-        { key: 'loans', img: ugdLoans, depth: 0.56, span: [0.034, 0.146] },
-        { key: 'checks', img: ugdChecks, depth: 0.58, span: [0.000, 0.143] },
-        { key: 'coke', img: ugdCoke, depth: 0.60, span: [0.657, 0.773] },
-        { key: 'waffle', img: ugdWaffle, depth: 0.62, span: [0.681, 0.880] },
-        { key: 'dirsign', img: ugdDirsign, depth: 0.70, span: [0.448, 0.616] },
-        { key: 'ped', img: ugdPed, depth: 0.74, span: [0.320, 0.434] },
-        { key: 'newsbox', img: ugdNewsbox, depth: 0.78, span: [0.501, 0.597] },
-        { key: 'poles', img: ugdPoles, depth: 0.80, span: [0.356, 0.875] },
-        { key: 'street', img: ugdStreet, depth: 0.86, span: [0.000, 0.999] , rate: 0.30 },
-        { key: 'columns', img: ugdColumns, depth: 0.94, span: [0.155, 0.837] },
+        { key: 'clouds', img: ugClouds, depth: 0.03, span: [0.640, 0.844] },
+        { key: 'spire', img: ugSpire, depth: 0.08, span: [0.814, 0.881] },
+        { key: 'towers', img: ugTowers, depth: 0.12, span: [0.863, 1.000] },
+        { key: 'backdrop', img: ugBackdrop, depth: 0.16, span: [0.270, 0.820] },
+        { key: 'leftblock', img: ugLeftblock, depth: 0.26, span: [0.000, 0.251] },
+        { key: 'midbuild', img: ugMidbuild, depth: 0.34, span: [0.265, 0.777] },
+        { key: 'dome', img: ugDome, depth: 0.44, span: [0.296, 0.750] },
+        { key: 'marquee', img: ugMarquee, depth: 0.50, span: [0.138, 0.894] },
+        { key: 'loans', img: ugLoans, depth: 0.56, span: [0.000, 0.133] },
+        { key: 'coke', img: ugCoke, depth: 0.60, span: [0.663, 0.773] },
+        { key: 'waffle', img: ugWaffle, depth: 0.62, span: [0.703, 0.786] },
+        { key: 'dirsign', img: ugDirsign, depth: 0.70, span: [0.452, 0.598] },
+        { key: 'ped', img: ugPed, depth: 0.74, span: [0.328, 0.429] },
+        { key: 'street', img: ugStreet, depth: 0.82, span: [0.003, 0.996] },
+        { key: 'columns', img: ugColumns, depth: 0.94, span: [0.161, 0.880] },
       ],
       // The arch marquee bulbs, the Coca-Cola disc and the Waffle House
       // frontage — the three things genuinely emitting in this plate.
       // `layer` bolts each glow to its card so it travels with the thing that
       // emits it instead of sliding off it.
-      // Daylight. The marquee bulbs still read, faintly, but a Coca-Cola disc
-      // and a Waffle House sign do not glow at midday and painting them as if
-      // they did is what makes a day scene look like a night scene with the
-      // brightness turned up. Those two are gone; the marquee is halved.
       lights: [
-        { x: 0.50, y: 0.55, r: 0.20, rgb: '255,236,190', a: 0.12, flicker: 0.030, layer: 'letters' },
+        { x: 0.50, y: 0.30, r: 0.26, rgb: '255,226,160', a: 0.24, flicker: 0.030, layer: 'marquee' },
+        { x: 0.72, y: 0.50, r: 0.24, rgb: '230,60,60', a: 0.20, layer: 'coke' },
+        { x: 0.76, y: 0.62, r: 0.22, rgb: '255,196,90', a: 0.18, flicker: 0.014, layer: 'waffle' },
+        { x: 0.06, y: 0.24, r: 0.28, rgb: '255,196,120', a: 0.12 },
       ],
     },
-    light: { pool: 'rgba(255,244,214,0.10)', shaft: 'rgba(255,246,220,0.04)', bloom: 'rgba(255,240,200,0.07)', key: '255,248,226', bounce: '150,170,200', shadowRgb: '30,36,52' },
+    light: { pool: 'rgba(255,170,90,0.22)', shaft: 'rgba(255,170,90,0.05)', bloom: 'rgba(240,90,70,0.14)', key: '255,200,140', bounce: '150,90,60', shadowRgb: '12,10,22' },
+    day: {
+      bg: {
+        img: bgUndergroundDayBase,
+        meters: 8.6,
+        groundFrac: 0.78,
+        sky: ['#4d8fd6', '#a8cdf0'],
+        horizon: '#cfe2f4',
+        glow: 'rgba(255,236,190,0.10)',
+        rain: 0.0,
+        windBands: [{ top: 0.02, pivot: 0.26, amp: 2, freq: 1.1, xRanges: [[0.60, 0.70]] }],
+        // NINETEEN cards, cut from the day plate's OWN SAM pass rather than
+        // reusing the night set. The compositions differ — the day arch sits
+        // higher and its columns are narrower — so the night cards never
+        // registered against this plate.
+        cards: [
+          { key: 'clouds', img: ugdClouds, depth: 0.03, span: [0.359, 0.999] },
+          { key: 'spire', img: ugdSpire, depth: 0.08, span: [0.758, 0.888] },
+          { key: 'towers', img: ugdTowers, depth: 0.12, span: [0.480, 0.999] },
+          { key: 'backdrop', img: ugdBackdrop, depth: 0.16, span: [0.299, 0.348] },
+          { key: 'leftblock', img: ugdLeftblock, depth: 0.26, span: [0.000, 0.302] },
+          { key: 'midbuild', img: ugdMidbuild, depth: 0.34, span: [0.272, 0.884] },
+          { key: 'arch', img: ugdArch, depth: 0.46, span: [0.183, 0.888] },
+          { key: 'letters', img: ugdLetters, depth: 0.48, span: [0.281, 0.775] },
+          { key: 'trees', img: ugdTrees, depth: 0.52, span: [0.689, 0.999] },
+          { key: 'loans', img: ugdLoans, depth: 0.56, span: [0.034, 0.146] },
+          { key: 'checks', img: ugdChecks, depth: 0.58, span: [0.000, 0.143] },
+          { key: 'coke', img: ugdCoke, depth: 0.60, span: [0.657, 0.773] },
+          { key: 'waffle', img: ugdWaffle, depth: 0.62, span: [0.681, 0.880] },
+          { key: 'dirsign', img: ugdDirsign, depth: 0.70, span: [0.448, 0.616] },
+          { key: 'ped', img: ugdPed, depth: 0.74, span: [0.320, 0.434] },
+          { key: 'newsbox', img: ugdNewsbox, depth: 0.78, span: [0.501, 0.597] },
+          { key: 'poles', img: ugdPoles, depth: 0.80, span: [0.356, 0.875] },
+          { key: 'street', img: ugdStreet, depth: 0.86, span: [0.000, 0.999], rate: 0.30 },
+          { key: 'columns', img: ugdColumns, depth: 0.94, span: [0.155, 0.837] },
+        ],
+        // Daylight. The marquee bulbs still read, faintly, but a Coca-Cola
+        // disc and a Waffle House sign do not glow at midday, and painting
+        // them as if they did is what makes a day scene look like a night
+        // scene with the brightness turned up.
+        lights: [
+          { x: 0.50, y: 0.55, r: 0.20, rgb: '255,236,190', a: 0.12, flicker: 0.030, layer: 'letters' },
+        ],
+      },
+      light: { pool: 'rgba(255,244,214,0.10)', shaft: 'rgba(255,246,220,0.04)', bloom: 'rgba(255,240,200,0.07)', key: '255,248,226', bounce: '150,170,200', shadowRgb: '30,36,52' },
+    },
     under: {
       // Five Points sits on top of the MARTA tunnel — the neighbourhood's
       // literal underground, and the stage's namesake. Deepest section of
@@ -443,6 +555,39 @@ export const STAGES = [
       ],
     },
     light: { pool: 'rgba(180,215,255,0.19)', shaft: 'rgba(180,215,255,0.04)', bloom: 'rgba(150,200,255,0.12)', key: '210,230,255', bounce: '70,100,140', shadowRgb: '14,14,28' },
+    // ── DAYTIME TWIN ────────────────────────────────────────────────
+    // Same street, same signage, same composition — the client's day plates
+    // are the night scene relit, not a different picture. FLAT FOR NOW: the
+    // multiplane cut has not been run on this plate yet, and the renderer
+    // treats a stage with no `cards` as the old single-plate backdrop. That
+    // is shallow, not broken, and it is the outstanding work. Underground's
+    // day plate IS cut, nineteen cards, and is what the other three are
+    // being brought up to.
+    //
+    // `groundFrac` derived by aligning the day plate's row-wise edge-energy
+    // profile against its night twin's, since the exports are not the same
+    // height. Sky and horizon are MEDIANS SAMPLED OFF THE PLATE, not picked
+    // by eye — a sky gradient that disagrees with the image it sits behind
+    // shows as a band along the top of the frame.
+    day: {
+      bg: {
+        img: bgL5pDay,
+        meters: 9.0,
+        groundFrac: 0.677,
+        sky: ['#3885ee', '#7fa9e2'],
+        horizon: '#bed2ea',
+        glow: 'rgba(255,244,214,0.09)',
+        // No rain in the daytime set. The client's day plates are clear-sky
+        // and dry; keeping the night stage's rain over them would be weather
+        // falling out of a blue sky.
+        rain: 0.0,
+        // No practicals. Neon and streetlights do not read at midday, and
+        // painting them as if they did is what makes a day scene look like a
+        // night scene with the brightness turned up.
+        lights: [],
+      },
+      light: { pool: 'rgba(255,244,214,0.10)', shaft: 'rgba(255,246,220,0.04)', bloom: 'rgba(255,240,200,0.07)', key: '255,248,226', bounce: '150,170,200', shadowRgb: '30,36,52' },
+    },
     under: {
       asphalt: '#2c2b2c', base: '#454039', fill: '#523c2f', mid: '#5a4030', bottom: '#201814',
       brick: '#7d4a35', metal: '#787e85', metalDark: '#383c41', concrete: '#54514b',
@@ -455,3 +600,59 @@ export const STAGES = [
     recipe: { gap: 0.126, plat: 0.26, haz: 0.414, gapMax: 4, vert: 0.40, enemy: 0.432, bag: 0.34 },
   },
 ];
+
+// ── DAY OR NIGHT, WHEREVER THE PLAYER IS ─────────────────────────────────
+//
+// The client's rule: these are real Atlanta streets, so the stage should
+// match the time of day the player is actually in. Night where they are means
+// night streets; day means the daytime plates, and no rain.
+//
+// WHAT IT READS, AND WHY THAT AND NOT SOMETHING BETTER. `new Date()` gives the
+// device's own local hour — already converted through whatever time zone the
+// phone is set to, with no permission prompt, no network call, and no
+// geolocation dialog in front of a game the player has not started yet. That
+// is the whole component. There is nothing else a web page can read that is
+// closer to "is it dark outside" without asking for the player's location,
+// and a contest build that opens with a location request will lose people at
+// the door.
+//
+// ITS LIMIT, STATED HONESTLY: a fixed clock boundary is not sunset. Atlanta
+// gets dark near 17:30 in December and near 20:50 in June, so an evening in
+// early summer will hand you night streets while it is still light out. Fixing
+// that properly needs latitude and the day of the year, which needs location.
+// 19:00-07:00 is the compromise: it is right for most of the day, every day of
+// the year, for free.
+const NIGHT_FROM = 19;   // 7pm
+const NIGHT_UNTIL = 7;   // 7am
+
+export function isNightNow(d = new Date()) {
+  const h = d.getHours();
+  return h >= NIGHT_FROM || h < NIGHT_UNTIL;
+}
+
+// `?tod=day` / `?tod=night` forces it. This is not debug scaffolding to strip
+// later — it is how the client checks both halves of his own game without
+// changing the clock on his phone, and how a bug report can say which one it
+// was looking at.
+export function timeOfDay() {
+  if (typeof location !== 'undefined') {
+    const m = /[?&]tod=(day|night)/.exec(location.search);
+    if (m) return m[1];
+  }
+  return isNightNow() ? 'night' : 'day';
+}
+
+// Fold the chosen half up to the top level so every reader — the renderer,
+// the image manifest, the ambience — keeps saying `stage.bg` and `stage.light`
+// and never has to know which it got. A stage with no `day` block stays on its
+// night dressing rather than breaking.
+export function resolveStages(tod = timeOfDay()) {
+  return STAGE_DEFS.map((s) => {
+    const { day, ...rest } = s;
+    if (tod !== 'day' || !day) return { ...rest, tod: 'night' };
+    return { ...rest, tod: 'day', bg: day.bg, light: day.light || rest.light };
+  });
+}
+
+export const TIME_OF_DAY = timeOfDay();
+export const STAGES = resolveStages(TIME_OF_DAY);
