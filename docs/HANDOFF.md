@@ -152,6 +152,60 @@ own later.
 
 ---
 
+## The stomp — the only attack in the game
+
+**It had a THREE TICK window. Fifty milliseconds.** Traced against the live
+physics, not estimated. That is not a skill check, it is a coin toss, and it
+is why landing on someone felt like luck.
+
+The cause was structural, not a bad constant. The stomp was a SUB-CASE of the
+body-overlap test, so the feet had to already be inside the enemy's box
+(`feet > enemy.y + 6`) while also being above its middle (`< enemy.y + h*0.55`).
+Those two leave a 31-unit band, and a falling body crosses 31 units in three
+ticks. Every knob inside that shape buys single ticks.
+
+**The stomp now has its own box, tested BEFORE contact damage:**
+
+| constant | value | why |
+|---|---|---|
+| `STOMP_REACH` | 95 | above the head. Covers a full-hold jump's apex (81 above a 77-unit enemy); at 46 there was a hole in the middle of the timing sweep exactly at the apex — the most natural timing was the one that failed |
+| `STOMP_DEPTH` | 0.62 | how far into him the feet may go |
+| `STOMP_SIDE` | 6 | horizontal slop per side |
+| `STOMP_MAX_RISE` | −5.5 | **not** "must be falling". A jump timed slightly late arrives still rising, and a rising player with his feet over someone's shoulders was being read as walking into him |
+
+Measured with `scratchpad/hitrate.mjs`, which sweeps every jump timing at
+three approach distances and reports how many land:
+
+| approach | before | after |
+|---|---|---|
+| 90 units | **0/18 — impossible** | 4/18 (133 ms of leeway) |
+| 150 units | 5/18 (166 ms) | 9/18 (**332 ms**) |
+| 210 units | 6/18 (199 ms) | 14/18 (**465 ms**) |
+
+Supporting changes, all from the same client note:
+
+- **Enemies 1.58 m → 1.80 m.** 89% of Will Hill's 2.02 m — a grown man who is
+  slightly shorter, not a teenager. The height was never the real constraint;
+  once the hit test was fixed it was free to be whatever reads right.
+- **`AIR_ACCEL_MUL` 0.55 → 0.85.** At full run a jump carries 450 units
+  (5.36 m) horizontally, so the arc is fine — but run speed takes 21 ticks to
+  reach, so a jump from a standstill or a walk goes nearly straight up AND
+  COULD NOT BE CORRECTED. Aiming a jump is half the skill; at 0.55 that half
+  barely worked.
+- **Patrol range 96 → 170.** At 96 an enemy reverses every 69 ticks, so he
+  often turns while you are mid-flight — you are not aiming at a moving
+  target, you are aiming at one that changes its mind.
+- **The champagne aura was sized off the COLLIDER.** Every measurement was a
+  multiple of `p.h` (86) while Will Hill is drawn 170 tall, so the bright core
+  landed at mid-thigh and read as "sparkly shit behind him". Now driven by the
+  drawn height and centred on the chest, rising past the crown.
+
+`window.__forceInput = { right: true, jump: true }` (DEV only) holds a button
+frame-exactly. A three-tick window cannot be measured by hand — human tap
+jitter is larger than the thing being measured.
+
+---
+
 ## Player feel — current numbers
 
 Animation timing is per-clip, in the atlas (`ticks` per frame). Fractional

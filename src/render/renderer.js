@@ -467,21 +467,31 @@ export function createRenderer(ctx, canvas) {
   // warning without spending an eighth of the effect dimming.
   const FADE_MS = 1100;
 
-  function drawPowerAura(p, tick, msLeft) {
+  function drawPowerAura(p, tick, msLeft, drawH) {
     const fade = Math.min(1, msLeft / FADE_MS);
     const cx = p.x + p.w / 2;
     const feet = p.y + p.h;
     const pulse = 0.88 + 0.12 * Math.sin(tick * 0.19);
+    // OFF THE DRAWN BODY, NOT THE COLLIDER. This was the whole bug behind
+    // "it looks like he just added some sparkly shit behind him": every
+    // measurement here was a multiple of p.h, the 86-unit COLLISION box,
+    // while Will Hill is DRAWN 170 units tall. So the bright centre of the
+    // column landed at feet-78 — mid-thigh on the figure you can actually
+    // see — and the glow read as something happening down behind his legs
+    // rather than something he is standing inside.
+    const H = drawH || p.h * 1.97;
 
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
 
     // THE COLUMN. Taller than it is wide and biased upward — an aura that is
     // as wide as it is tall reads as a lamp, and the vertical bias is the
-    // whole silhouette of a power-up.
-    const colH = p.h * 2.15 * pulse;
+    // whole silhouette of a power-up. Centred at chest height and running
+    // well past the crown, which is what the client asked for: "high enough
+    // to be a little above his head".
+    const colH = H * 1.62 * pulse;
     const colW = p.w * 3.4;
-    const ccy = feet - colH * 0.42;
+    const ccy = feet - H * 0.66;
     const g = ctx.createRadialGradient(cx, ccy, colW * 0.06, cx, ccy, colH * 0.62);
     g.addColorStop(0, `rgba(255,254,240,${(0.95 * fade).toFixed(3)})`);
     g.addColorStop(0.18, `rgba(255,240,180,${(0.72 * fade).toFixed(3)})`);
@@ -556,19 +566,22 @@ export function createRenderer(ctx, canvas) {
   // behind the sprite, and a glow that is entirely behind a character reads
   // as a light he is standing in front of, not one he is giving off. This is
   // the wrap: a hot sheath on the body itself and sparks crossing in front.
-  function drawPowerAuraFront(p, tick, msLeft) {
+  function drawPowerAuraFront(p, tick, msLeft, drawH) {
     const fade = Math.min(1, msLeft / FADE_MS);
     const cx = p.x + p.w / 2;
     const feet = p.y + p.h;
+    const H = drawH || p.h * 1.97;
+    // Centred on the drawn torso for the same reason as the column above.
+    const sy = feet - H * 0.55;
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
 
-    const sheath = ctx.createRadialGradient(cx, p.y + p.h * 0.45, 0, cx, p.y + p.h * 0.45, p.h * 0.62);
+    const sheath = ctx.createRadialGradient(cx, sy, 0, cx, sy, H * 0.5);
     sheath.addColorStop(0, `rgba(255,250,215,${(0.26 * fade).toFixed(3)})`);
     sheath.addColorStop(0.55, `rgba(255,224,130,${(0.12 * fade).toFixed(3)})`);
     sheath.addColorStop(1, 'rgba(255,200,90,0)');
     ctx.fillStyle = sheath;
-    ctx.fillRect(cx - p.h * 0.62, p.y - p.h * 0.2, p.h * 1.24, p.h * 1.3);
+    ctx.fillRect(cx - H * 0.5, sy - H * 0.5, H, H);
 
     for (let i = 0; i < 6; i++) {
       const life = ((tick * (2.1 + (i % 3) * 0.8) + i * 61) % 100) / 100;
@@ -587,7 +600,9 @@ export function createRenderer(ctx, canvas) {
   function drawPlayer(p, image, atlas, stage, tick = 0) {
     lighting.drawCastShadow(p, p.h, 17);
     const msLeft = p.invulnerableUntil - Date.now();
-    if (msLeft > 0) drawPowerAura(p, tick, msLeft);
+    // The aura is sized and placed off his DRAWN height, not his collider.
+    // Same growth factor the sprite gets, so the two stay locked together.
+    if (msLeft > 0) drawPowerAura(p, tick, msLeft, CHAR_DRAW_H * powerScale(msLeft));
     if (p.inv > 0 && Math.floor(p.inv / 4) % 2 === 0) return; // i-frame flicker
     // HE GROWS. Only the DRAWN height scales — the collider stays exactly as
     // it was, so the power-up changes how he reads and never how he fits
@@ -596,7 +611,7 @@ export function createRenderer(ctx, canvas) {
     // him into it.
     drawSprite(image, atlas, p, p.h, CHAR_DRAW_H * powerScale(msLeft),
       p.faceL, null, stage);
-    if (msLeft > 0) drawPowerAuraFront(p, tick, msLeft);
+    if (msLeft > 0) drawPowerAuraFront(p, tick, msLeft, CHAR_DRAW_H * powerScale(msLeft));
   }
 
   function drawEnemy(e, image, atlas, stage) {

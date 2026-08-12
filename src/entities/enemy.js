@@ -40,17 +40,30 @@ const DEFEAT_TICKS = atlas.animations.defeat.frameCount * 3; // ~3 ticks/frame, 
 // the bigger presence, but unmistakably human-scaled rather than the squat
 // 40x48 box the first pass used.
 //
-// DROPPED 1.94 -> 1.58 SO THEY ARE EASIER TO LAND ON, and the measurement
-// behind that is worse than "fiddly". A ground jump rises JUMP_V^2/(2*GRAV)
-// = 158 world units above its launch point. A 1.94m enemy stands 163 units
-// tall. From flat ground you could not get over one AT ALL — six units
-// short, every time — so every successful stomp was coming off a platform,
-// a double jump, or luck. The stomp is the only offence in the game and it
-// was mathematically unavailable on level street.
+// 1.94 -> 1.58 -> 1.80, and the round trip is worth understanding before
+// anyone moves it again.
 //
-// At 1.58m the head is at 133, leaving 25 units of slack to come down
-// through. Re-derive this if JUMP_V or GRAV ever move.
-export const ENEMY_HEIGHT_M = 1.58;
+// 1.94 WAS BROKEN. A ground jump rises JUMP_V^2/(2*GRAV) = 158 world units;
+// a 1.94m enemy stood 163 tall. From flat street you could not clear one at
+// all — six units short, every time — so every stomp came off a platform, a
+// double jump, or luck.
+//
+// 1.58 FIXED THAT AND OVERSHOT. It bought the clearance by making them look
+// like teenagers next to Will Hill's 2.02m, and the client's note was exactly
+// that: "the enemies are either too small or he is too tall".
+//
+// 1.80 IS THE ANSWER BECAUSE THE HEIGHT WAS NEVER THE REAL CONSTRAINT. What
+// made stomping hard was the shape of the hit test, not the size of the
+// target — see the STOMP BOX note below, where a three-tick window came from
+// the stomp being a sub-case of body overlap. With that fixed the height is
+// free to be whatever reads right, and 89% of his is a grown man who is
+// slightly shorter than him rather than a child.
+//
+// Clearance still checked, not assumed: the collider is 77 units, a tapped
+// jump measures 130 units of apex and a held one 158, so there is 53 units of
+// room over their heads on the SHORT version of the jump. Re-derive if JUMP_V
+// or GRAV move.
+export const ENEMY_HEIGHT_M = 1.80;
 export const ENEMY_H = Math.round(metersToWorld(ENEMY_HEIGHT_M) / CHAR_SCALE); // collider height
 export const ENEMY_DRAW_H = metersToWorld(ENEMY_HEIGHT_M); // drawn character height
 const ENEMY_W = 30;
@@ -116,25 +129,79 @@ export function updateEnemy(enemy, map) {
 // Returns 'stomp' | 'contact' | null. Mutates enemy.alive and player state
 // as a side effect (matches Jandé's inline resolution, not split into a
 // separate "detect then apply" pass).
+// ── THE STOMP BOX ────────────────────────────────────────────────────────
+//
+// THE STOMP IS THE ONLY OFFENCE IN THIS GAME and it had a THREE TICK window.
+// Measured, not estimated: traced against the live physics, a descending
+// player passed through the band where the old rule would fire in 3 ticks —
+// FIFTY MILLISECONDS. That is not a skill check, it is a coin toss, and it is
+// why landing on someone felt like luck.
+//
+// The cause was structural rather than a bad constant. The stomp was a
+// SUB-CASE of the body-overlap test, so before it could be considered the
+// player's feet had to already be inside the enemy's box (`feet > enemy.y+6`)
+// while also being above its middle (`feet < enemy.y + h*0.55`). Those two
+// together leave a 31-unit band, and a falling body crosses 31 units in three
+// ticks. Every knob you could turn inside that shape — the 0.55, the insets —
+// buys single ticks.
+//
+// So the stomp gets its OWN box, tested first, and it starts well above the
+// enemy's head. If you are coming down and you are over them, you meant to
+// land on them. That is the whole rule.
+//
+// REACH is how far above the head still counts. Deliberately generous, and
+// deliberately not unlimited: it is roughly half a metre, so it forgives a
+// jump timed slightly early without vacuuming up anybody you are sailing over
+// with three metres to spare.
+// 95, and the number comes off the trace rather than taste. At 46 there was
+// a HOLE IN THE MIDDLE of the timing sweep: jump at the right moment and you
+// arrived at the apex, where the feet sit 53 units above a 77-unit enemy's
+// head — past the reach — so the most natural timing of all was the one that
+// did not connect, and the player got a heart taken off for it. 95 covers the
+// apex of a full-hold jump (81 above the head) with margin, and still lets a
+// DOUBLE jump sail over without killing anyone, which is the one case where
+// passing over is the actual intent.
+const STOMP_REACH = 95;   // world units above the enemy's head
+const STOMP_DEPTH = 0.62; // how far down into the enemy the feet may go
+const STOMP_SIDE = 6;     // horizontal slop, per side, beyond the two boxes
+// NOT "must be falling". The old rule needed vy > 3, which is six ticks past
+// the apex — so the top of the arc, the part of a jump a player actually aims
+// with, did not count. Worse, a jump timed slightly LATE arrives at the enemy
+// still rising, and a rising player with his feet over someone's shoulders was
+// being read as walking into them and taking a heart for it.
+//
+// The rule is now: airborne, over him, feet above his waist. If you got your
+// feet up there, you meant it. The only thing still excluded is rocketing
+// upward THROUGH him from below, which is a genuinely different move and
+// should still hurt.
+const STOMP_MAX_RISE = -5.5;
+
 export function resolveEnemyCollision(enemy, player, now) {
   if (!enemy.alive) return null;
 
-  const overlap =
-    player.x < enemy.x + enemy.w - 4 &&
-    player.x + player.w > enemy.x + 4 &&
-    player.y < enemy.y + enemy.h - 6 &&
-    player.y + player.h > enemy.y + 6;
-  if (!overlap) return null;
+  const feet = player.y + player.h;
+  const overHim =
+    player.x < enemy.x + enemy.w + STOMP_SIDE &&
+    player.x + player.w > enemy.x - STOMP_SIDE;
 
-  // Stomp: falling onto the enemy from above (Jandé: `p.vy>3 && p.y+PH<fo.y+28`,
-  // generalized here to the enemy's own height rather than a hardcoded offset).
-  const stomping = player.vy > 3 && player.y + player.h < enemy.y + enemy.h * 0.55;
-  if (stomping) {
+  if (overHim && !player.onGround && player.vy > STOMP_MAX_RISE
+      && feet > enemy.y - STOMP_REACH
+      && feet < enemy.y + enemy.h * STOMP_DEPTH) {
     enemy.alive = false;
     player.vy = STOMP_BOUNCE_VY;
     player.airJumps = 1;
     return 'stomp';
   }
+
+  // Only now, and on the tight box, does touching one cost you. Checked
+  // second so a descent that was ALMOST a clean stomp reads as a stomp rather
+  // than as walking into him — the forgiving case has to win the tie.
+  const overlap =
+    player.x < enemy.x + enemy.w - 4 &&
+    player.x + player.w > enemy.x + 4 &&
+    player.y < enemy.y + enemy.h - 6 &&
+    feet > enemy.y + 6;
+  if (!overlap) return null;
 
   const hit = damagePlayer(player, now, enemy.x);
   return hit ? 'contact' : null;

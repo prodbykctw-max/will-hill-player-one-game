@@ -52,7 +52,20 @@ export const DECEL = 0.62; // lerp rate toward zero when releasing
 //
 // So the ground feel is untouched and only the airborne rates are scaled:
 // you keep steering authority, but almost none of the braking.
-export const AIR_ACCEL_MUL = 0.55; // steering authority while airborne
+// 0.55 -> 0.85. The client's note was that the jump reads as going "straight
+// up in the air and not kind of like at an angle", and the trace says he is
+// half right in a way that matters: at full run speed a jump carries 450
+// world units (5.36m) horizontally, which is a big arc — but you only reach
+// run speed after 21 ticks of holding a direction, so a jump taken from a
+// standstill or a walk goes nearly straight up and CANNOT BE CORRECTED once
+// you are in the air.
+//
+// That second half is the real complaint. Landing on someone is a two-part
+// judgement — when to jump and where to aim — and at 0.55 the second part
+// barely worked, so a jump that left the ground slightly wrong stayed wrong.
+// 0.85 gives enough authority to steer INTO an enemy mid-flight, which is
+// what "aiming" a jump means in a platformer.
+export const AIR_ACCEL_MUL = 0.85; // steering authority while airborne
 export const AIR_DRAG_MUL = 0.06;  // speed shed per tick with no input
 
 export const JUMP_V = -12.8; // ground jump impulse

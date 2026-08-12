@@ -57,6 +57,21 @@ function rnd01(seed) {
 // street, against a jump that rises JUMP_V^2/(2*GRAV) = 158 — high enough to
 // read as airborne and to have to be jumped for, with enough headroom that it
 // is never a trick shot.
+// HOW FAR AN ENEMY WALKS BEFORE TURNING. 96 -> 170.
+//
+// The client's note was that "the enemies are on a tight patrol", and a tight
+// patrol is harder to attack for a reason that is not obvious: at 96 units an
+// enemy reverses every 69 ticks, so by the time you have committed to a jump
+// he has often already turned and is walking back under you. You are not
+// aiming at a moving target, you are aiming at a target that changes its mind
+// mid-flight. 170 units is about 12 seconds of walking each way, long enough
+// that his direction holds for the whole of your approach and the jump becomes
+// a judgement you can actually make.
+//
+// Still bounded, and still ledge-aware, so he never strolls out over a pit —
+// see updateEnemy in entities/enemy.js for why that matters as a signal.
+const PATROL_RANGE = 170;
+
 const BAG_REST_Y = (FLOOR_R - 1) * T - 20;   // resting on the pavement
 const BAG_AIR_LIFT = 96;                     // when it is over a hole
 
@@ -171,7 +186,7 @@ export function genAhead(level, untilCol) {
       // POTHOLE or an enemy — ground continues straight through either way.
       groundCol(level.map, c, FLOOR_R, LH - 1);
       if (rnd01(c * 6.1 + level.seed) < recipe.enemy && c - level.lastEnemyCol > MIN_ENEMY_SPACING_COLS) {
-        level.enemies.push(createEnemy(c * T, FLOOR_R * T - ENEMY_H, 96, pickVariant(level, c)));
+        level.enemies.push(createEnemy(c * T, FLOOR_R * T - ENEMY_H, PATROL_RANGE, pickVariant(level, c)));
         level.lastEnemyCol = c;
       } else {
         // Sunk into the street surface, not perched on top of it. Wide and
@@ -226,7 +241,7 @@ export function genAhead(level, untilCol) {
       level.champagnes.push(createChampagneBottle(c * T + 8, (FLOOR_R - 1) * T - 26));
     }
     if (rnd01(c * 11.1 + level.seed) < recipe.enemy * 0.6 && c - level.lastEnemyCol > MIN_ENEMY_SPACING_COLS) {
-      level.enemies.push(createEnemy(c * T, FLOOR_R * T - ENEMY_H, 96, pickVariant(level, c)));
+      level.enemies.push(createEnemy(c * T, FLOOR_R * T - ENEMY_H, PATROL_RANGE, pickVariant(level, c)));
       level.lastEnemyCol = c;
     }
     level.genC = c + 1;

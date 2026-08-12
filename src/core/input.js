@@ -201,11 +201,23 @@ export function createInput() {
     return keys.has(code);
   }
 
+  // DEV ONLY — a way to hold a button for an exact number of ticks.
+  //
+  // The stomp is the whole offence of this game and its timing window turned
+  // out to be three ticks wide, which is not something you can measure by
+  // playing: a human tap has tens of milliseconds of jitter in it, so the
+  // thing being measured is swamped by the thing doing the measuring. Setting
+  // `window.__forceInput = { right: true, jump: true }` drives the same
+  // functions the game reads, frame-exactly. Vite folds this out of the build.
+  const forced = (k) => import.meta.env.DEV
+    && typeof window !== 'undefined' && window.__forceInput
+    && !!window.__forceInput[k];
+
   return {
     isDown,
-    left: () => isDown('ArrowLeft') || isDown('KeyA') || touch.left,
-    right: () => isDown('ArrowRight') || isDown('KeyD') || touch.right,
-    jump: () => isDown('Space') || isDown('ArrowUp') || isDown('KeyW') || touch.jump,
-    dash: () => isDown('ShiftLeft') || isDown('ShiftRight') || isDown('KeyX') || touch.dash,
+    left: () => forced('left') || isDown('ArrowLeft') || isDown('KeyA') || touch.left,
+    right: () => forced('right') || isDown('ArrowRight') || isDown('KeyD') || touch.right,
+    jump: () => forced('jump') || isDown('Space') || isDown('ArrowUp') || isDown('KeyW') || touch.jump,
+    dash: () => forced('dash') || isDown('ShiftLeft') || isDown('ShiftRight') || isDown('KeyX') || touch.dash,
   };
 }
