@@ -1,7 +1,15 @@
 // THE ENDING SCREEN — the results board after Will Hill makes the show.
 //
-// Modelled on the mockup the client supplied (assets/refs/ending-mockup.webp):
-// a titled panel, a short line of flavour, a column of stats, and a rank.
+// IT IS THE CLIENT'S PAINTING, SHOWN WHOLE. Not a crop of it behind a panel
+// of my own — the image carries its own title, its own flavour lines and its
+// own PRESS START button, and all of that is used. Only two things are
+// changed on it: the word ENDING becomes SHOWTIME, and the five placeholder
+// stat rows become the run's real ones.
+//
+// THE LETTERING IS REPAINTED, NOT COVERED. "Mimic its style exactly" — so the
+// four inks below were sampled straight out of the mockup's own ENDING
+// lettering by brightness band, and SHOWTIME is drawn with the same
+// highlight, face, shade and outline at the same size and baseline.
 //
 // THE STATS ARE THE RUN'S OWN NUMBERS. Every one is derived from the replay
 // log the leaderboard already keeps (net/leaderboard.js) — the same event
@@ -68,81 +76,80 @@ function clock(ms) {
 }
 
 export function createEnding(ctx, canvas) {
-  // `t` is ticks since the screen opened, so the board can build itself in
-  // rather than appearing all at once. `art` is the client's own concert
-  // painting, cropped out of assets/refs/ending-mockup.webp.
-  //
-  // THE MOCKUP IS LANDSCAPE AND THE GAME IS PORTRAIT. In the reference the
-  // stats sit in a panel down the right-hand side, on dark venue wall — and
-  // on a 430px phone that entire panel is off the side of the screen. So the
-  // painting is used as the hero at the top, cropped to the performance and
-  // the crowd, and the panel is rebuilt beneath it in the same gold-on-dark
-  // it uses. Same design, turned ninety degrees to fit the device it ships
-  // on, rather than the whole thing shrunk until nothing is readable.
-  function draw(stats, t, art) {
-    const w = canvas.width;
-    const h = canvas.height;
+  // ── THE MOCKUP'S OWN GEOMETRY, in its 1536x1024 pixels ──────────────────
+  // Measured off the image, not estimated: the stat rows were found by
+  // scanning the panel column for bands of gold ink, which came back at
+  // y 355-373, 392-409, 428-446, 465-482 and 501-519 — a 36px pitch — with
+  // RANK at 546-567. The wall behind them samples near-black, rgb(3,7,7) to
+  // rgb(9,11,10), which is what the overwrite paints with.
+  const SRC_W = 1536, SRC_H = 1024;
+  // Generous, because the first pass at y 52 h 100 left the bottom of the
+  // old ENDING glyphs showing through as a dashed gold line under SHOWTIME.
+  // Measured against the ink: the lettering runs y 40..178.
+  const TITLE = { x: 1022, y: 38, w: 420, h: 142 };
+  const PANEL = { x: 1030, y: 336, w: 448, h: 250 };
+  const ROW0 = 368, ROW_PITCH = 30;
+  const LABEL_X = 1052, VALUE_X = 1452;
+
+  const INK_HI = '#f5cd77';
+  const INK_FACE = '#d9a752';
+  const INK_SHADE = '#ac7831';
+  const INK_LINE = '#080805';
+  const WALL = '#07090a';
+
+  // Draw a string in the mockup's title ink: black outline, shaded body, lit
+  // top edge. Four passes, same order a pixel artist would lay them down.
+  function titleInk(text, cx, baseline, px) {
+    ctx.textAlign = 'center';
+    ctx.font = `900 ${px}px system-ui, sans-serif`;
+    const o = Math.max(2, Math.round(px * 0.075));
+    ctx.fillStyle = INK_LINE;
+    for (let dx = -o; dx <= o; dx++) {
+      for (let dy = -o; dy <= o; dy++) {
+        if (dx * dx + dy * dy > o * o) continue;
+        ctx.fillText(text, cx + dx, baseline + dy);
+      }
+    }
+    ctx.fillStyle = INK_SHADE;
+    ctx.fillText(text, cx, baseline);
+    ctx.fillStyle = INK_FACE;
+    ctx.fillText(text, cx, baseline - Math.round(px * 0.035));
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(cx - px * 4, baseline - px * 1.05, px * 8, px * 0.42);
+    ctx.clip();
+    ctx.fillStyle = INK_HI;
+    ctx.fillText(text, cx, baseline - Math.round(px * 0.05));
+    ctx.restore();
+  }
+
+  // `t` is ticks since the screen opened. `art` is the full painting; `box`
+  // is where stillscene put it, so everything drawn here lands on the image's
+  // own coordinates whatever size the phone is.
+  function draw(stats, t, box) {
+    if (!box) return;
+    const S = box.dw / SRC_W;                 // painting px -> screen px
+    const X = (v) => box.dx + v * S;
+    const Y = (v) => box.dy + v * S;
+    const P = (v) => v * S;
 
     ctx.save();
-    ctx.fillStyle = INK;
-    ctx.fillRect(0, 0, w, h);
 
-    // The concert, filling the top. Anchored to the BOTTOM of the crop so the
-    // crowd and the performer's feet stay in frame when it has to be cut.
-    let artH = 0;
-    if (art && art.width) {
-      artH = Math.round(Math.min(h * 0.46, w * (art.height / art.width)));
-      const s = Math.max(w / art.width, artH / art.height);
-      const dw = art.width * s; const dh = art.height * s;
-      ctx.save();
-      ctx.beginPath(); ctx.rect(0, 0, w, artH); ctx.clip();
-      ctx.imageSmoothingEnabled = false;
-      ctx.drawImage(art, (w - dw) / 2, artH - dh, dw, dh);
-      // Fade its foot into the panel below so the join is not a hard seam.
-      const fade = ctx.createLinearGradient(0, artH - 70, 0, artH);
-      fade.addColorStop(0, 'rgba(10,8,14,0)');
-      fade.addColorStop(1, 'rgba(10,8,14,0.95)');
-      ctx.fillStyle = fade;
-      ctx.fillRect(0, artH - 70, w, 70);
-      ctx.restore();
+    // ── SHOWTIME, over ENDING, in ENDING's own ink.
+    ctx.fillStyle = WALL;
+    ctx.fillRect(X(TITLE.x) - 2, Y(TITLE.y) - 2, P(TITLE.w) + 4, P(TITLE.h) + 4);
+    let px = Math.round(P(86));
+    ctx.font = `900 ${px}px system-ui, sans-serif`;
+    while (ctx.measureText('SHOWTIME').width > P(TITLE.w) * 0.98 && px > 8) {
+      px -= 1;
+      ctx.font = `900 ${px}px system-ui, sans-serif`;
     }
+    titleInk('SHOWTIME', X(TITLE.x + TITLE.w / 2), Y(TITLE.y + TITLE.h * 0.86), px);
 
-    const pad = Math.round(Math.min(w * 0.09, 42));
-    let y = artH ? artH + 18 : Math.round(h * 0.17);
+    // ── THE REAL ROWS, over the placeholder ones.
+    ctx.fillStyle = WALL;
+    ctx.fillRect(X(PANEL.x), Y(PANEL.y), P(PANEL.w), P(PANEL.h));
 
-    ctx.textAlign = 'center';
-    // Title, fitted rather than fixed — same reason the stage title on the
-    // MARTA screen is fitted: a hardcoded size that fits a 430px phone runs
-    // off a 375px one.
-    let size = 34;
-    ctx.font = `700 ${size}px system-ui, sans-serif`;
-    while (ctx.measureText('SHOWTIME').width > w - pad * 2 && size > 20) {
-      size -= 1;
-      ctx.font = `700 ${size}px system-ui, sans-serif`;
-    }
-    ctx.fillStyle = HOT;
-    ctx.fillText('SHOWTIME', w / 2, y);
-    y += Math.round(size * 0.78);
-
-    // FLAVOUR, and it is about THIS game. He has spent four stages crossing
-    // Atlanta on MARTA to make a show at Criminal Records; that is the story
-    // the last screen should close.
-    ctx.font = '600 13px system-ui, sans-serif';
-    ctx.fillStyle = PALE;
-    for (const line of ['HE MADE IT TO THE SHOW.',
-                        'CRIMINAL RECORDS, LITTLE 5 POINTS.']) {
-      ctx.fillText(line, w / 2, y);
-      y += 18;
-    }
-    y += 8;
-
-    ctx.strokeStyle = 'rgba(255,196,107,0.35)';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(pad, y); ctx.lineTo(w - pad, y); ctx.stroke();
-    y += 26;
-
-    // The rows, revealed one per 6 ticks so the board counts itself up.
     const rows = [
       ['MONEY BAGS', String(stats.bags)],
       ['ENEMIES STOMPED', String(stats.stomps)],
@@ -151,52 +158,48 @@ export function createEnding(ctx, canvas) {
       ['BAGS ROBBED', String(stats.robbed)],
       ['DISTANCE', `${stats.distanceM}m`],
       ['TIME', clock(stats.ms)],
-      ['CONTINUES', String(stats.continues)],
     ];
-    const shown = Math.min(rows.length, Math.floor(t / 6));
-    ctx.font = '600 14px system-ui, sans-serif';
+    // Counted in a row at a time, so the board tallies itself up rather than
+    // arriving finished.
+    const shown = Math.min(rows.length, Math.floor(t / 7));
+    const rpx = Math.max(7, Math.round(P(25)));
+    ctx.font = `700 ${rpx}px system-ui, sans-serif`;
     for (let i = 0; i < shown; i++) {
+      const ry = Y(ROW0 + i * ROW_PITCH);
       ctx.textAlign = 'left';
-      ctx.fillStyle = DIM;
-      ctx.fillText(rows[i][0], pad, y);
+      ctx.fillStyle = INK_FACE;
+      ctx.fillText(rows[i][0], X(LABEL_X), ry);
       ctx.textAlign = 'right';
-      ctx.fillStyle = PALE;
-      ctx.fillText(rows[i][1], w - pad, y);
-      y += 20;
+      ctx.fillStyle = '#f4ead6';
+      ctx.fillText(rows[i][1], X(VALUE_X), ry);
     }
-    y += (rows.length - shown) * 20 + 8;
 
-    // SCORE, then RANK, after the rows have all landed.
-    if (t > rows.length * 6) {
+    if (t > rows.length * 7) {
+      const ry = Y(ROW0 + rows.length * ROW_PITCH + 6);
       ctx.textAlign = 'left';
-      ctx.fillStyle = DIM;
-      ctx.font = '700 16px system-ui, sans-serif';
-      ctx.fillText('SCORE', pad, y);
+      ctx.fillStyle = INK_FACE;
+      ctx.fillText('SCORE', X(LABEL_X), ry);
       ctx.textAlign = 'right';
-      ctx.fillStyle = HOT;
-      ctx.font = '700 22px system-ui, sans-serif';
-      ctx.fillText(`$${stats.score.toLocaleString()}`, w - pad, y);
-      y += 34;
+      ctx.fillStyle = INK_HI;
+      ctx.fillText(`$${stats.score.toLocaleString()}`, X(VALUE_X), ry);
     }
-    if (t > rows.length * 6 + 14) {
+    if (t > rows.length * 7 + 12) {
       const r = rankFor(stats.score, stats);
+      const ry = Y(ROW0 + (rows.length + 1) * ROW_PITCH + 16);
       ctx.textAlign = 'left';
-      ctx.fillStyle = DIM;
-      ctx.font = '700 16px system-ui, sans-serif';
-      ctx.fillText('RANK', pad, y);
+      ctx.fillStyle = INK_FACE;
+      ctx.font = `700 ${rpx}px system-ui, sans-serif`;
+      ctx.fillText('RANK', X(LABEL_X), ry);
+      // A pop as it lands — the rank is the number people screenshot.
+      const pop = Math.max(0, 1 - (t - rows.length * 7 - 12) / 12);
       ctx.textAlign = 'right';
-      // A little pop on the rank as it lands, because it is the one number
-      // anyone screenshots.
-      const pop = Math.max(0, 1 - (t - rows.length * 6 - 14) / 12);
       ctx.fillStyle = r.colour;
-      ctx.font = `700 ${Math.round(38 + pop * 16)}px system-ui, sans-serif`;
-      ctx.fillText(r.letter, w - pad, y + 6);
+      ctx.font = `900 ${Math.round(rpx * (1.7 + pop * 0.7))}px system-ui, sans-serif`;
+      ctx.fillText(r.letter, X(VALUE_X), ry + P(8));
     }
 
-    ctx.textAlign = 'center';
-    ctx.fillStyle = 'rgba(255,255,255,0.55)';
-    ctx.font = '600 12px system-ui, sans-serif';
-    ctx.fillText('press JUMP to play again', w / 2, h - 34);
+    // NO PROMPT DRAWN. The painting has PRESS START TO CONTINUE on it
+    // already, bottom right, and the client asked for that one to be used.
     ctx.restore();
   }
 

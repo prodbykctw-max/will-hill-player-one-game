@@ -23,9 +23,10 @@ import { createUndercroft } from './render/undercroft.js';
 import { createHud } from './render/hud.js';
 import { createMartaMap } from './render/martamap.js';
 import { createEnding, statsFrom } from './render/ending.js';
+import { createStillScene } from './render/stillscene.js';
 import martaMapArt from './assets/backgrounds/marta-map.webp';
 // The client's concert painting, cropped out of the ending mockup.
-import endingArt from './assets/backgrounds/ending-art.webp';
+import endingArt from './assets/backgrounds/ending.webp';
 import { loadImages } from './render/images.js';
 import { createRunLog, lbSubmit } from './net/leaderboard.js';
 
@@ -37,6 +38,7 @@ const undercroft = createUndercroft(ctx, canvas);
 const hud = createHud(ctx, canvas);
 const martaMap = createMartaMap(ctx, canvas);
 const ending = createEnding(ctx, canvas);
+const still = createStillScene(ctx, canvas);
 const input = createInput();
 const audio = createAudio();
 // Browsers keep an AudioContext suspended until a real gesture, so the first
@@ -54,6 +56,11 @@ function resize() {
 }
 window.addEventListener('resize', resize);
 resize();
+
+// Swaying pieces of the ending painting. Empty until its SAM cut lands —
+// the scene renders as the flat painting until then, which is correct rather
+// than broken. See render/stillscene.js.
+const ENDING_CARDS = [];
 
 const RIDE_TICKS = 150; // ~2.5s on the train between neighbourhoods
 const GEN_LOOKAHEAD_COLS = 24; // stream this many columns beyond the camera's right edge
@@ -582,8 +589,12 @@ function draw() {
   // it left a health bar, a pause button and the stage name across the top of
   // the results.
   if (state.screen === 'complete') {
+    // The painting first, with its swaying cards, then the run's numbers
+    // drawn onto the panel the painting already has. `box` is where the
+    // painting landed, so everything lands on its own coordinates.
+    const box = still.draw(images.endingart, ENDING_CARDS, state.tick);
     ending.draw(statsFrom(state.finalLog, state.score, state.distanceM || 0),
-      state.screenT, images.endingart);
+      state.screenT, box);
     return;
   }
 
