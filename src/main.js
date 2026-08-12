@@ -556,7 +556,7 @@ function draw() {
     if (state.dust && state.dust.length) renderer.drawDust(state.dust);
     // The getaway: each one running off with a bag of your money.
     for (const e of state.stompers || []) {
-      if (e.carrying) renderer.drawCarriedBag(e, images.bag, state.tick);
+      if (e.carrying) renderer.drawCarriedBag(e, images.bag, ENEMY_SPRITES[e.variant].atlas, state.tick);
     }
     renderer.lighting.drawBloom(camera, stage);
   });

@@ -242,6 +242,25 @@ export function createRenderer(ctx, canvas) {
   // renderer draws and the frame count the animator ticks against can never
   // come from different animations.
 
+  // WHERE A SPRITE LANDS ON SCREEN, as one function.
+  //
+  // Split out of drawSprite because anything drawn ON a character — a bag in
+  // a hand, and whatever comes after it — has to be placed against the DRAWN
+  // figure, not against the collider. Those are very different boxes: an
+  // enemy's collider is 30x67 while its sprite draws about 120x137, so a bag
+  // positioned off `e.w`/`e.h` lands low and too near the centre line. That
+  // is exactly why the carried money bags sat down by their legs.
+  function spriteBox(atlas, entity, colliderH, charScaleH) {
+    const [cellW, cellH] = atlas.frameSize;
+    const fit = atlas.fitRef || { h: 1, b: 1 };
+    const drawH = charScaleH / fit.h;
+    const drawW = cellW * (drawH / cellH);
+    const plant = atlas.anchor === 'low' ? (fit.bLow || fit.b) : fit.b;
+    const feetY = entity.y + colliderH + PLANT_DEPTH;
+    return { drawW, drawH, dx: entity.x + entity.w / 2 - drawW / 2,
+             dy: feetY - drawH * plant };
+  }
+
   function drawSprite(image, atlas, entity, colliderH, charScaleH, flipX, alpha, stage) {
     const anim = resolveClip(atlas, entity.anim);
     if (!anim || !image) return;
@@ -538,15 +557,37 @@ export function createRenderer(ctx, canvas) {
   // The getaway — a bag of your money in the fleeing enemy's hand. The bag is
   // the prop the game already uses for pickups, drawn small and bobbing with
   // the walk so it reads as carried rather than stuck to them.
-  function drawCarriedBag(e, img, tick = 0) {
-    if (!img) return;
-    const h = e.charDrawH * 0.26;
+  // IN THE HAND, not by the ankles.
+  //
+  // HAND_Y and HAND_X are measured off the enemy walk sprite, not guessed: the
+  // figure occupies y 6..247 of a 252px cell, and scanning that silhouette
+  // band by band puts the widest point below the shoulders — the wrist — at
+  // 0.55 of the figure's height, reaching 52px out from centre in a 222px
+  // cell. Everything here hangs off those two numbers and off spriteBox, so
+  // the bag tracks the drawn figure at any scale.
+  // 0.46, not the 0.552 the first scan suggested. The band scan reported its
+  // widest point below the shoulders at 0.50-0.60, but that band is the hip;
+  // the FIST is the 0.38-0.48 band, which measures nearly as wide (half-width
+  // 54px against 55) because these sprites stand with their hands up in a
+  // guard. Hanging the bag off the hip put it at his thigh, which is most of
+  // the way back to the problem being fixed.
+  const HAND_Y = 0.46;    // down the drawn cell, at the fist
+  const HAND_X = 0.225;   // out from the cell's centre line
+  function drawCarriedBag(e, img, atlas, tick = 0) {
+    if (!img || !atlas) return;
+    const box = spriteBox(atlas, e, e.h, e.charDrawH);
+    const h = e.charDrawH * 0.24;
     const w = h * (162 / 168);
     const side = e.vx < 0 ? -1 : 1;
-    const bob = Math.sin((tick + e.x) * 0.28) * 1.6;
-    ctx.drawImage(img,
-      e.x + e.w / 2 + side * (e.w * 0.42) - w / 2,
-      e.y + e.h * 0.46 + bob, w, h);
+    // Swings a little as he runs, from the wrist rather than bobbing in place.
+    const swing = Math.sin((tick + e.x) * 0.22) * 2.2;
+    const handX = box.dx + box.drawW * (0.5 + side * HAND_X) + swing;
+    const handY = box.dy + box.drawH * HAND_Y;
+    // The grip: a couple of pixels of neck above the bag so it reads as held
+    // rather than stuck to him.
+    ctx.fillStyle = 'rgba(60,44,26,0.9)';
+    ctx.fillRect(handX - 1.5, handY - 3, 3, 5);
+    ctx.drawImage(img, handX - w / 2, handY + swing * 0.2, w, h);
   }
 
   // ── PIT MOUTHS ───────────────────────────────────────────────────────
