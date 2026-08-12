@@ -61,9 +61,24 @@ export function createLighting(ctx) {
     return Math.max(0, 1 - d / (LAMP_SPACING * 0.62));
   }
 
+  // ── NO STREETLAMPS AT MIDDAY ─────────────────────────────────────────
+  //
+  // The pools, the shafts and the bloom are all one lamp being simulated, and
+  // a lamp on a sunlit pavement is the single thing that most makes a day
+  // scene read as "night with the brightness turned up" — which is the exact
+  // note that got the day plates' practicals removed in the first place. The
+  // client, again: "no spotlights are needed on any day screens."
+  //
+  // Gated on `stage.tod` rather than on four nulled-out colours in the stage
+  // table, because it is ONE rule and four values are four chances to drift.
+  // `light.key`, `light.bounce` and `light.shadowRgb` are NOT gated: the sun
+  // is still a key with a direction and things still cast shadows at noon.
+  const lampsLit = (stage) => stage.tod !== 'day';
+
   // Pools on the street surface. Call inside the camera transform, before
   // entities are drawn.
   function drawGroundPools(camera, stage) {
+    if (!lampsLit(stage)) return;
     const groundWorldY = FLOOR_R * T;
     const x0 = camera.x - LAMP_SPACING;
     const x1 = camera.x + camera.vw + LAMP_SPACING;
@@ -181,6 +196,7 @@ export function createLighting(ctx) {
   // Additive bloom over the scene — call AFTER entities, still in world
   // space. Keeps neon/lamps feeling hot without washing out gameplay.
   function drawBloom(camera, stage) {
+    if (!lampsLit(stage)) return;
     const groundWorldY = FLOOR_R * T;
     const x1 = camera.x + camera.vw + LAMP_SPACING;
     const first = Math.floor((camera.x - LAMP_SPACING) / LAMP_SPACING) * LAMP_SPACING;

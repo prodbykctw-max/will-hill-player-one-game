@@ -133,12 +133,6 @@ REGIONS = {
     ],
 
     'edgewood-day': [
-        # Sky and clouds exist only in the day plates — the night versions are
-        # a black band — so these two have no night box to transform and are
-        # read off the day art. Clouds FIRST: most-specific-first is what stops
-        # the skyline claiming them, and the client's note is that they have to
-        # move in the daytime as well.
-        ('clouds',         0,    0,  762,  100),
         ('neon_ourbar',   71,  199,  145,  295),
         ('neon_dis',     635,  199,  709,  295),
         ('neon_open',    452,  174,  501,  205),
@@ -146,6 +140,15 @@ REGIONS = {
         ('sign_soul',    412,  255,  489,  289),
         ('lamps',          2,  116,  758,  182),
         ('skyline',        2,   35,  758,   99),
+        # ⚠️ CLOUDS AFTER SKYLINE, and the ordering is the whole point.
+        # Sky and clouds exist only in the day plates — the night versions are
+        # a black band — so this has no night box to transform and is read off
+        # the day art. Putting it FIRST looked right ("most specific first")
+        # and was exactly backwards: its box CONTAINS the skyline's, so it is
+        # the LESS specific of the two, and it swallowed all thirty skyline
+        # masks. edgewood-day cut with no skyline card at all until the
+        # missing-file crash caught it. Specific means SMALLER, not newer.
+        ('clouds',         0,    0,  762,  100),
         ('parapet',        2,   97,  758,  134),
         ('bay_left',      31,  154,  195,  337),
         ('bay_mid1',     269,  152,  398,  344),

@@ -901,6 +901,56 @@ PLANES = {
     # that is correct: it has no silhouette to cut against and nothing behind
     # it to reveal. Coverage here is 64.8% against L5P's 92.9% for that
     # reason alone, not because anything was missed.
+    # ── DAYTIME EDGEWOOD ─────────────────────────────────────────────────
+    # Every item is a frozen SAM mask (tools/sam_masks/edgewood-day/), grouped
+    # by tools/sam_group.py from the NIGHT plate's boxes carried across by the
+    # measured 0.99 transform, and checked against its --map render before any
+    # of it was wired. Same names, same order, same min_px and feather as the
+    # night cut — the client's requirement is that the two match exactly apart
+    # from the weather, and identical parameters is the cheapest way to be
+    # sure of that. Far -> near; each card's DEPTH is set in world/stages.js.
+    #
+    # `clouds` is the one card with no night counterpart: the night plate's sky
+    # is a black band and has nothing in it to lift.
+    'edgewood-day': [
+        {'name': 'clouds',       'mask': 'clouds',       'min_px':  120, 'feather': 0.8},
+        {'name': 'skyline',      'mask': 'skyline',      'min_px':  120, 'feather': 0.7},
+        {'name': 'parapet',      'mask': 'parapet',      'min_px':  120, 'feather': 0.7},
+        {'name': 'facade',       'mask': 'facade',       'min_px':  120, 'feather': 0.7},
+        {'name': 'bay_left',     'mask': 'bay_left',     'min_px':  120, 'feather': 0.7},
+        {'name': 'bay_mid1',     'mask': 'bay_mid1',     'min_px':  120, 'feather': 0.7},
+        {'name': 'bay_mid2',     'mask': 'bay_mid2',     'min_px':  120, 'feather': 0.7},
+        {'name': 'bay_right',    'mask': 'bay_right',    'min_px':  120, 'feather': 0.7},
+        {'name': 'sign_blm',     'mask': 'sign_blm',     'min_px':   40, 'feather': 0.7},
+        {'name': 'sign_soul',    'mask': 'sign_soul',    'min_px':   40, 'feather': 0.7},
+        {'name': 'neon_open',    'mask': 'neon_open',    'min_px':   40, 'feather': 0.7},
+        {'name': 'neon_ourbar',  'mask': 'neon_ourbar',  'min_px':   40, 'feather': 0.7},
+        {'name': 'neon_dis',     'mask': 'neon_dis',     'min_px':   40, 'feather': 0.7},
+        {'name': 'lamps',        'mask': 'lamps',        'min_px':   30, 'feather': 0.7},
+        {'name': 'pavement',     'mask': 'pavement',     'min_px':  150, 'feather': 2.4},
+    ],
+    # ── DAYTIME LITTLE FIVE POINTS ───────────────────────────────────────
+    # Same story: night boxes carried across by the measured 0.98 transform,
+    # --map checked, parameters identical to the night cut.
+    'l5p-day': [
+        {'name': 'clouds',       'mask': 'clouds',       'min_px':  120, 'feather': 0.8},
+        {'name': 'farbuild',     'mask': 'farbuild',     'min_px':  100, 'feather': 0.7},
+        {'name': 'sign',         'mask': 'sign',         'min_px':   60, 'feather': 0.7},
+        {'name': 'rightpillar',  'mask': 'rightpillar',  'min_px':  100, 'feather': 0.7},
+        {'name': 'newused',      'mask': 'newused',      'min_px':  100, 'feather': 0.7},
+        {'name': 'brick',        'mask': 'brick',        'min_px':  100, 'feather': 0.7},
+        {'name': 'bayleft',      'mask': 'bayleft',      'min_px':   80, 'feather': 0.7},
+        {'name': 'baymid',       'mask': 'baymid',       'min_px':   80, 'feather': 0.7},
+        {'name': 'bayright',     'mask': 'bayright',     'min_px':   80, 'feather': 0.7},
+        {'name': 'letters',      'mask': 'letters',      'min_px':   40, 'feather': 0.7},
+        {'name': 'newusedsign',  'mask': 'newusedsign',  'min_px':   40, 'feather': 0.7},
+        {'name': 'buysell',      'mask': 'buysell',      'min_px':   40, 'feather': 0.7},
+        {'name': 'awning',       'mask': 'awning',       'min_px':   30, 'feather': 0.7},
+        {'name': 'openneon',     'mask': 'openneon',     'min_px':   30, 'feather': 0.7},
+        {'name': 'poster',       'mask': 'poster',       'min_px':   40, 'feather': 0.7},
+        {'name': 'pole',         'mask': 'pole',         'min_px':   60, 'feather': 0.7},
+        {'name': 'kerb',         'mask': 'kerb',         'min_px':  150, 'feather': 2.4},
+    ],
     'edgewood': [
         {
             'name': 'skyline',

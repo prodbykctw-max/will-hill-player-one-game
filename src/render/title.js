@@ -44,22 +44,48 @@ const cloudUrls = import.meta.glob('../assets/backgrounds/title-clouds*.webp',
   { eager: true, query: '?url', import: 'default' });
 const urlFor = (file) => cloudUrls[`../assets/backgrounds/${file}`];
 
-// HOW FAST EACH CLOUD CROSSES. Source px per tick, so a full crossing is
-// (1536 + w) / speed ticks — at 60Hz these work out at roughly 50 to 95
-// seconds end to end. Slow enough to be weather rather than a screensaver,
-// quick enough that you can see it happening while you read the logo.
+// HOW FAST EACH CLOUD CROSSES, AND WHY IT IS DERIVED RATHER THAN LISTED.
 //
-// Ordered biggest-first by the cutter, and the bigger clouds are the nearer
-// ones, so they get the higher speeds. That is the same parallax rule the
-// stage backdrops use, doing the same job: it stops the sky reading as one
-// flat sheet sliding past.
-const CLOUD_SPEEDS = [0.62, 0.54, 0.34, 0.28];
+// Source px per tick, so a full crossing is (1536 + w) / speed ticks. The
+// nearest cloud stays at 0.62 — roughly 50 seconds end to end, weather rather
+// than a screensaver — and everything behind it is scaled DOWN from there.
+//
+// A cloud's apparent SIZE is its distance. These are all the same kind of
+// object, so the small ones are not small clouds, they are far ones, and the
+// further one is the slower it should cross. That was a hand-tuned list of
+// four numbers, which is fine until the cutter finds five clouds and the
+// fifth silently gets a default — so it is computed from each sprite's own
+// pixel count instead. sqrt(area) is the linear size; the 1.3 exponent is
+// what makes the back of the sky move MUCH slower rather than merely slower,
+// which is the client's note:
+//
+//     cloud   px      rel size   speed
+//     0     16663      1.00      0.62
+//     1     15512      0.95      0.59
+//     2      2529      0.29      0.18
+//     3      1660      0.22      0.14
+//
+// Same rule the stage backdrops use for depth, doing the same job: it stops
+// the sky reading as one flat sheet sliding past.
+const NEAR_SPEED = 0.62;
+const DEPTH_EXP = 1.3;
+const FLOOR_SPEED = 0.05;   // nothing is so far away that it stops entirely
 
-export const CLOUD_SPRITES = (spriteManifest.clouds || []).map((s, i) => ({
+function cloudSpeeds(list) {
+  const size = list.map((s) => Math.sqrt(s.px || (s.w * s.h)));
+  const near = Math.max(...size, 1);
+  return size.map((v) => Math.max(FLOOR_SPEED,
+    NEAR_SPEED * Math.pow(v / near, DEPTH_EXP)));
+}
+
+const CLOUD_LIST = spriteManifest.clouds || [];
+const CLOUD_SPEEDS = cloudSpeeds(CLOUD_LIST);
+
+export const CLOUD_SPRITES = CLOUD_LIST.map((s, i) => ({
   key: `title_cloud${i}`,
   url: urlFor(s.file),
   x: s.x, y: s.y, w: s.w, h: s.h,
-  speed: CLOUD_SPEEDS[i] ?? 0.3,
+  speed: CLOUD_SPEEDS[i],
 }));
 
 // Loaded through the same manifest as everything else; see main.js.
