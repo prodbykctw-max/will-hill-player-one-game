@@ -69,8 +69,17 @@ function clock(ms) {
 
 export function createEnding(ctx, canvas) {
   // `t` is ticks since the screen opened, so the board can build itself in
-  // rather than appearing all at once.
-  function draw(stats, t) {
+  // rather than appearing all at once. `art` is the client's own concert
+  // painting, cropped out of assets/refs/ending-mockup.webp.
+  //
+  // THE MOCKUP IS LANDSCAPE AND THE GAME IS PORTRAIT. In the reference the
+  // stats sit in a panel down the right-hand side, on dark venue wall — and
+  // on a 430px phone that entire panel is off the side of the screen. So the
+  // painting is used as the hero at the top, cropped to the performance and
+  // the crowd, and the panel is rebuilt beneath it in the same gold-on-dark
+  // it uses. Same design, turned ninety degrees to fit the device it ships
+  // on, rather than the whole thing shrunk until nothing is readable.
+  function draw(stats, t, art) {
     const w = canvas.width;
     const h = canvas.height;
 
@@ -78,16 +87,36 @@ export function createEnding(ctx, canvas) {
     ctx.fillStyle = INK;
     ctx.fillRect(0, 0, w, h);
 
+    // The concert, filling the top. Anchored to the BOTTOM of the crop so the
+    // crowd and the performer's feet stay in frame when it has to be cut.
+    let artH = 0;
+    if (art && art.width) {
+      artH = Math.round(Math.min(h * 0.46, w * (art.height / art.width)));
+      const s = Math.max(w / art.width, artH / art.height);
+      const dw = art.width * s; const dh = art.height * s;
+      ctx.save();
+      ctx.beginPath(); ctx.rect(0, 0, w, artH); ctx.clip();
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(art, (w - dw) / 2, artH - dh, dw, dh);
+      // Fade its foot into the panel below so the join is not a hard seam.
+      const fade = ctx.createLinearGradient(0, artH - 70, 0, artH);
+      fade.addColorStop(0, 'rgba(10,8,14,0)');
+      fade.addColorStop(1, 'rgba(10,8,14,0.95)');
+      ctx.fillStyle = fade;
+      ctx.fillRect(0, artH - 70, w, 70);
+      ctx.restore();
+    }
+
     const pad = Math.round(Math.min(w * 0.09, 42));
-    let y = Math.round(h * 0.17);
+    let y = artH ? artH + 18 : Math.round(h * 0.17);
 
     ctx.textAlign = 'center';
     // Title, fitted rather than fixed — same reason the stage title on the
     // MARTA screen is fitted: a hardcoded size that fits a 430px phone runs
     // off a 375px one.
-    let size = 40;
+    let size = 34;
     ctx.font = `700 ${size}px system-ui, sans-serif`;
-    while (ctx.measureText('SHOWTIME').width > w - pad * 2 && size > 22) {
+    while (ctx.measureText('SHOWTIME').width > w - pad * 2 && size > 20) {
       size -= 1;
       ctx.font = `700 ${size}px system-ui, sans-serif`;
     }
@@ -98,15 +127,14 @@ export function createEnding(ctx, canvas) {
     // FLAVOUR, and it is about THIS game. He has spent four stages crossing
     // Atlanta on MARTA to make a show at Criminal Records; that is the story
     // the last screen should close.
-    ctx.font = '600 14px system-ui, sans-serif';
+    ctx.font = '600 13px system-ui, sans-serif';
     ctx.fillStyle = PALE;
     for (const line of ['HE MADE IT TO THE SHOW.',
-                        'CRIMINAL RECORDS, LITTLE 5 POINTS.',
-                        'THE CROWD IS ALREADY IN.']) {
+                        'CRIMINAL RECORDS, LITTLE 5 POINTS.']) {
       ctx.fillText(line, w / 2, y);
-      y += 20;
+      y += 18;
     }
-    y += 14;
+    y += 8;
 
     ctx.strokeStyle = 'rgba(255,196,107,0.35)';
     ctx.lineWidth = 2;
@@ -134,9 +162,9 @@ export function createEnding(ctx, canvas) {
       ctx.textAlign = 'right';
       ctx.fillStyle = PALE;
       ctx.fillText(rows[i][1], w - pad, y);
-      y += 23;
+      y += 20;
     }
-    y += (rows.length - shown) * 23 + 10;
+    y += (rows.length - shown) * 20 + 8;
 
     // SCORE, then RANK, after the rows have all landed.
     if (t > rows.length * 6) {
@@ -148,7 +176,7 @@ export function createEnding(ctx, canvas) {
       ctx.fillStyle = HOT;
       ctx.font = '700 22px system-ui, sans-serif';
       ctx.fillText(`$${stats.score.toLocaleString()}`, w - pad, y);
-      y += 40;
+      y += 34;
     }
     if (t > rows.length * 6 + 14) {
       const r = rankFor(stats.score, stats);

@@ -24,6 +24,8 @@ import { createHud } from './render/hud.js';
 import { createMartaMap } from './render/martamap.js';
 import { createEnding, statsFrom } from './render/ending.js';
 import martaMapArt from './assets/backgrounds/marta-map.webp';
+// The client's concert painting, cropped out of the ending mockup.
+import endingArt from './assets/backgrounds/ending-art.webp';
 import { loadImages } from './render/images.js';
 import { createRunLog, lbSubmit } from './net/leaderboard.js';
 
@@ -581,7 +583,7 @@ function draw() {
   // the results.
   if (state.screen === 'complete') {
     ending.draw(statsFrom(state.finalLog, state.score, state.distanceM || 0),
-      state.screenT);
+      state.screenT, images.endingart);
     return;
   }
 
@@ -636,6 +638,7 @@ const imageManifest = {
   champagne: PROP_SPRITES.champagne,
   // The client's stylized MARTA rail map, for the between-stage screen.
   martamap: martaMapArt,
+  endingart: endingArt,
 };
 for (const [v, sp] of Object.entries(ENEMY_SPRITES)) imageManifest['enemy_' + v] = sp.url;
 for (const s of STAGES) {
