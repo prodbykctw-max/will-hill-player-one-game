@@ -67,9 +67,18 @@ const DEFEAT_TICKS = atlas.animations.defeat.frameCount * 3; // ~3 ticks/frame, 
 // following it literally would have changed nothing, while the sentence next
 // to it was "he needs to be a little bit bigger".
 //
-// 1.90m puts the head 8.6 units past that line, which is a visible step up
-// and still leaves him clearly shorter than Will Hill's 168.4 — 95% of him,
-// a bigger man rather than the same man.
+// THEN THE TARGET MOVED FROM THEIR HEAD TO THEIR EYE LINE, and that is a
+// bigger change than it sounds. A balaclava and a hood carry a lot of bulk
+// ABOVE the eyes: their eye top sits 10.8% down from their crown while Will
+// Hill's row 36 is 9.8% down from his. Aligning the two therefore needs them
+// slightly TALLER than him overall, not shorter — the hood pokes above his
+// cap even though they are looking at each other level.
+//
+// Solved against the renderer's own box at 2.01m: eye line within half a unit
+// of row 36. Their collider lands on 86, the same as the player's.
+//
+// This is also where the client started — "can you make the enemies Will
+// Hill's height" — before walking it back mid-sentence. It came back round.
 //
 // MEASURE, DO NOT SCALE FROM THE METRES. The two sheets carry different
 // amounts of empty space in their cells and different `fit.h`, so equal metre
@@ -78,9 +87,13 @@ const DEFEAT_TICKS = atlas.animations.defeat.frameCount * 3; // ~3 ticks/frame, 
 // attempts to derive this off the atlas disagreed with the screen before that
 // hook existed.
 //
-// Clearance still checked, not assumed: the collider is 81 units against a
-// 130-unit tapped apex and 158 held. Re-derive if JUMP_V or GRAV move.
-export const ENEMY_HEIGHT_M = 1.90;
+// CLEARANCE IS THE THING THAT BREAKS AT THIS SIZE, so it is measured rather
+// than assumed. An 86-unit collider against a 130-unit tapped apex leaves 44
+// units of room over their heads; a held jump gets 158. This is the height
+// that killed the game once before — at 1.94m the collider was 163 against a
+// 158 apex and stomping was mathematically impossible — so if JUMP_V, GRAV or
+// either sheet ever move, re-run scratchpad/hitrate.mjs before believing it.
+export const ENEMY_HEIGHT_M = 2.01;
 export const ENEMY_H = Math.round(metersToWorld(ENEMY_HEIGHT_M) / CHAR_SCALE); // collider height
 export const ENEMY_DRAW_H = metersToWorld(ENEMY_HEIGHT_M); // drawn character height
 const ENEMY_W = 30;

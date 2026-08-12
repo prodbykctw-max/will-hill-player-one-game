@@ -184,9 +184,24 @@ three approach distances and reports how many land:
 
 Supporting changes, all from the same client note:
 
-- **Enemies 1.58 m → 1.80 m → 1.90 m.** 95% of Will Hill's 2.02 m. The height
-  was never the real constraint; once the hit test was fixed it was free to be
-  whatever reads right. Stomp windows re-measured at 1.90 and unchanged.
+- **Enemies 1.58 → 1.80 → 1.90 → 2.01 m**, and the last step is aligned to a
+  landmark: **their EYE LINE sits on row 36 of Will Hill's cell**, the top
+  line of his glasses. Measured to within 0.3 units.
+
+  That needs them slightly TALLER than him overall, which is not obvious: a
+  balaclava and a hood carry bulk ABOVE the eyes, so their eye top is 10.8%
+  down from their crown while his row 36 is 9.8% down from his. Eye-to-eye
+  therefore puts their hood above his cap. Their collider lands on 86 — the
+  same as the player's.
+
+  **This is the height that broke the game once.** At 1.94 m the collider was
+  163 against a 158-unit apex and stomping was mathematically impossible. It
+  is safe now only because the stomp box was fixed first; re-run
+  `scratchpad/hitrate.mjs` before believing any change here. Verified at 2.01:
+  windows unchanged at 133 / 332 / 465 ms.
+
+  The height was never the real constraint; once the hit test was fixed it was
+  free to be whatever reads right.
 
   **MEASURE HEIGHTS OFF `entity.__box`, NOT OFF THE METRES.** The two sheets
   carry different amounts of empty space in their cells and different `fit.h`,
