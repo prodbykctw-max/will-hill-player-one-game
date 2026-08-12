@@ -64,6 +64,28 @@ const HOT = '#ffc46b';
 const PALE = '#fff6e2';
 
 export function createMartaMap(ctx, canvas) {
+
+  // Largest size at or below `max` that fits `str` into `width`, stopping at
+  // `min`. If even `min` does not fit, the string is split at the last space
+  // that does and returned as two lines at `min`.
+  function shrinkToFit(str, width, max, min) {
+    for (let size = max; size >= min; size--) {
+      ctx.font = `700 ${size}px system-ui, sans-serif`;
+      if (ctx.measureText(str).width <= width) return [{ text: str, size }];
+    }
+    ctx.font = `700 ${min}px system-ui, sans-serif`;
+    const words = str.split(' ');
+    let head = words[0];
+    for (let i = 1; i < words.length; i++) {
+      if (ctx.measureText(`${head} ${words[i]}`).width > width) {
+        return [{ text: head, size: min },
+                { text: words.slice(i).join(' '), size: min }];
+      }
+      head += ` ${words[i]}`;
+    }
+    return [{ text: str, size: min }];
+  }
+
   function stationFor(stageId) {
     for (const k of ARM) if (STATIONS[k].stage === stageId) return k;
     return 'fivepoints';
@@ -214,12 +236,31 @@ export function createMartaMap(ctx, canvas) {
     ctx.fillStyle = 'rgba(255,246,226,0.66)';
     ctx.font = '600 12px system-ui, sans-serif';
     ctx.fillText('NOW ARRIVING', w / 2, Math.round(h * 0.062));
+
+    // THE STAGE NAME IS FIT TO THE SCREEN, NOT SET AT A FIXED SIZE.
+    //
+    // At a hardcoded 26px, "THE UNDERGROUND (5 POINTS)" measures 465px and
+    // ran 90px off the edge of a 375px phone and 35px off a 430. Measured,
+    // not guessed — and "EAST ATLANTA VILLAGE" was close behind it, so
+    // trimming that one name would have left the bug in place for the next.
+    //
+    // shrinkToFit walks the size down until the string fits the usable width,
+    // with a floor so it can never become unreadable; below that floor the
+    // name breaks onto two lines instead of shrinking further.
+    const usable = w - 28;
+    const nameY = Math.round(h * 0.062) + 30;
+    const lines = shrinkToFit(stageName.toUpperCase(), usable, 26, 17);
     ctx.fillStyle = HOT;
-    ctx.font = '700 26px system-ui, sans-serif';
-    ctx.fillText(stageName.toUpperCase(), w / 2, Math.round(h * 0.062) + 30);
+    lines.forEach((ln, i) => {
+      ctx.font = `700 ${ln.size}px system-ui, sans-serif`;
+      ctx.fillText(ln.text, w / 2, nameY + i * (ln.size + 3));
+    });
+
     ctx.fillStyle = 'rgba(255,246,226,0.55)';
     ctx.font = '600 12px system-ui, sans-serif';
-    ctx.fillText(`${STATIONS[aKey].label}  →  ${dest.label}`, w / 2, Math.round(h * 0.062) + 52);
+    const last = lines[lines.length - 1];
+    ctx.fillText(`${STATIONS[aKey].label}  →  ${dest.label}`, w / 2,
+      nameY + (lines.length - 1) * (last.size + 3) + 22);
 
     ctx.restore();
   }
