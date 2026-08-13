@@ -1222,6 +1222,14 @@ it does decide how hard the identity check needs to be.
 - **The repeat seam — see "The repeat seam" above.** The night half is done and
   measured; three day joins remain above their plate's own noise floor, and the
   reason a pixel operation cannot close them is written up there.
+- **CREDITS — the client's own wording, captured verbatim so it is not lost.**
+  Music by prodbyKCTW. Sound effects by prodbyKCTW. Game design credit to
+  Chemo: she picked the images — went online and found the reference for the
+  other stages, and after they were selected together she ran them through
+  ChatGPT to stylise them, so she designed the backgrounds, the character and
+  the ninja enemies. He picked the map and directed the styling; everything
+  else is his, from scratch, his own decisions. Put this on the credits screen
+  when the two logo files land.
 - **End-credits sequence.** The ending SCREEN is built (his painting, real
   stats, swaying crowd). The credits that share the frame with it are not, and
   are blocked on files that have only ever been in chat: the RARƎ AGENCY logo
