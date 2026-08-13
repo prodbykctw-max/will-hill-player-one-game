@@ -60,17 +60,41 @@ COMPRESSION = 0.5
 # nothing, but a cue that short would wrap audibly if the ride is ever
 # lengthened. Title and pause are open-ended, so they get the longest loop the
 # track can give without running past its own end.
+# +20s on every loop, at the client's call: "the music time is slightly off on
+# the loop... just extend them both, all the loops 20 seconds longer. I'll work
+# on cutting them properly later." Longer loops mean the wrap comes round less
+# often, which is the cheapest way to make a not-quite-right loop point matter
+# less while he decides where he actually wants the cuts.
+EXTEND = 20.0
 TARGET = {
-    'title': 60.0,
-    'stage_01': 60.0, 'stage_02': 65.0, 'stage_03': 70.0, 'stage_04': 75.0,
-    'map_01_02': 24.0, 'map_02_03': 24.0, 'map_03_04': 24.0,
-    'ui_pause': 45.0,
+    'title': 60.0 + EXTEND,
+    'stage_01': 60.0 + EXTEND, 'stage_02': 65.0 + EXTEND,
+    'stage_03': 70.0 + EXTEND, 'stage_04': 75.0 + EXTEND,
+    'map_01_02': 24.0 + EXTEND, 'map_02_03': 24.0 + EXTEND, 'map_03_04': 24.0 + EXTEND,
+    'ui_pause': 45.0 + EXTEND,
     'credits': None,       # plays once; take everything from the hook onward
 }
 
-SEARCH = 0.25      # look this far either side of the target, as a fraction
+# THE SEARCH ONLY LOOKS LONGER, NEVER SHORTER. It used to run +/-25% around the
+# target, which meant "make the loops 20s longer" could come back with a cut
+# SHORTER than before if the correlation happened to peak there — asked for 80s
+# on the title and got 68.1s, the same length as the run before. A one-sided
+# range makes the target a floor and still leaves room to find a good join.
+SEARCH_UP = 0.45   # how much longer than the target the search may go
 MATCH_WIN = 1.5    # seconds of audio compared across the splice
 XFADE = 0.015      # equal-power crossfade over the join
+
+# ── LEVELLING ────────────────────────────────────────────────────────────
+# The client: "we need levelling across all of the tracks... there's clearly a
+# difference." He is right and it is large — the sources run -10.4 to -19.5
+# dBFS RMS, a 9dB spread, so one cue arrives twice as loud as the next.
+#
+# Matched on LUFS (ITU-R BS.1770-4), not RMS. RMS counts a sub-bass rumble and
+# a snare as equally loud; K-weighting is the standard's answer to that, and it
+# is what every streaming service levels to. pyloudnorm is not installed here,
+# so the filters and the gating below are the spec implemented directly.
+TARGET_LUFS = -16.0    # a normal bed level; these sit under SFX at gain 0.5
+PEAK_CEILING = -1.0    # dBFS. A quiet track is raised only as far as this.
 
 
 def ncc(a, b):
@@ -96,8 +120,8 @@ def best_length(mono, sr, target):
     picked 9.5s, scored it 1.000, and 9.5 is 8.0 + the 1.5s window.
     """
     win = int(MATCH_WIN * sr)
-    lo = int(target * (1 - SEARCH) * sr)
-    hi = int(min(target * (1 + SEARCH) * sr, len(mono) - win))
+    lo = int(target * sr)
+    hi = int(min(target * (1 + SEARCH_UP) * sr, len(mono) - win))
     if hi <= lo:
         return len(mono), 0.0, []
     step = max(1, int(0.002 * sr))       # 2ms resolution is finer than the ear
@@ -147,6 +171,75 @@ def crossfade_wrap(y, n, sr):
     return clip
 
 
+def k_weight(x, sr):
+    """ITU-R BS.1770-4 K-weighting: a high shelf then a high-pass.
+
+    The published coefficients are defined at 48kHz, so anything else is
+    resampled for the MEASUREMENT only — the audio that gets written is never
+    touched by this.
+    """
+    from scipy.signal import lfilter, resample_poly
+    if sr != 48000:
+        from math import gcd
+        g = gcd(int(sr), 48000)
+        x = resample_poly(x, 48000 // g, int(sr) // g, axis=0)
+    b1 = [1.53512485958697, -2.69169618940638, 1.19839281085285]
+    a1 = [1.0, -1.69065929318241, 0.73248077421585]
+    b2 = [1.0, -2.0, 1.0]
+    a2 = [1.0, -1.99004745483398, 0.99007225036621]
+    return lfilter(b2, a2, lfilter(b1, a1, x, axis=0), axis=0)
+
+
+def lufs(y, sr):
+    """Integrated loudness, BS.1770-4, with both gates.
+
+    400ms blocks at 75% overlap; an absolute gate at -70 LUFS throws away
+    silence, then a relative gate 10 LU below the ungated mean throws away the
+    quiet passages, so an intro does not drag the number down.
+    """
+    x = y if y.ndim > 1 else y[:, None]
+    k = k_weight(x, sr)
+    fs = 48000
+    block, hop = int(0.4 * fs), int(0.1 * fs)
+    if k.shape[0] < block:
+        return -70.0
+    n = 1 + (k.shape[0] - block) // hop
+    # Channel weights are 1.0 for L and R; this game has no surround.
+    ms = np.empty(n)
+    for i in range(n):
+        seg = k[i * hop:i * hop + block]
+        ms[i] = (seg ** 2).mean(axis=0).sum()
+    with np.errstate(divide='ignore'):
+        l = -0.691 + 10 * np.log10(np.maximum(ms, 1e-20))
+    keep = l > -70.0
+    if not keep.any():
+        return -70.0
+    gamma = -0.691 + 10 * np.log10(ms[keep].mean()) - 10.0
+    keep &= l > gamma
+    if not keep.any():
+        return -70.0
+    return float(-0.691 + 10 * np.log10(ms[keep].mean()))
+
+
+def level_to(y, sr, target_lufs=TARGET_LUFS, ceiling_db=PEAK_CEILING):
+    """Bring a clip to the target loudness, never letting it clip.
+
+    Raising a quiet track to match a loud one can only go as far as its own
+    headroom: pushing the quietest source here up to the loudest would put its
+    peak 7dB past full scale. So the gain is clamped by the peak ceiling and
+    the ACHIEVED loudness is reported rather than assumed — a file that could
+    not make the target lands quieter, and says so, instead of arriving
+    silently distorted.
+    """
+    cur = lufs(y, sr)
+    want = 10 ** ((target_lufs - cur) / 20.0)
+    peak = float(np.abs(y).max())
+    room = (10 ** (ceiling_db / 20.0)) / max(peak, 1e-9)
+    gain = min(want, room)
+    out = y * gain
+    return out, cur, lufs(out, sr), 20 * np.log10(max(gain, 1e-9)), gain < want * 0.999
+
+
 def cut(src, hook, target, dest, dry_run=False):
     import librosa
     import soundfile as sf
@@ -168,10 +261,17 @@ def cut(src, hook, target, dest, dry_run=False):
         clip = crossfade_wrap(rest, n, sr)      # takes the FULL rest, not the clip
         after = splice_score(clip, sr)
 
+    # Levelled AFTER the cut, so the number describes the audio that ships:
+    # measuring the whole track would be dragged around by an intro nobody
+    # hears, and the loop point is chosen on the untouched signal.
+    clip, was, now, gain_db, capped = level_to(clip, sr)
+
     info = {
         'src': src.name, 'hook': hook, 'secs': round(len(clip) / sr, 2),
         'match': None if score is None else round(score, 3),
         'join_before': round(before[2], 1), 'join_after': round(after[2], 1),
+        'lufs_before': round(was, 1), 'lufs_after': round(now, 1),
+        'gain_db': round(gain_db, 1), 'capped': capped,
     }
     if not dry_run:
         dest.parent.mkdir(parents=True, exist_ok=True)
@@ -245,8 +345,8 @@ def main():
     src_dir = Path(args.tracks or sheet['tracks_dir'])
     dry = not args.write
 
-    print(f'{"slot":12s} {"file":26s} {"hook":>7s} {"cut":>7s} {"match":>6s} '
-          f'{"join":>12s} {"size":>9s}')
+    print(f'{"slot":12s} {"file":24s} {"cut":>6s} {"match":>6s} {"join":>11s} '
+          f'{"LUFS":>15s} {"gain":>7s} {"size":>8s}')
     done = {}
     total = 0
     for slot, e in sheet['cues'].items():
@@ -264,9 +364,10 @@ def main():
         size = f'{info["bytes"] / 1024 / 1024:.2f}MB' if 'bytes' in info else '-'
         total += info.get('bytes', 0)
         m = '-' if info['match'] is None else f'{info["match"]:.2f}'
-        print(f'{slot:12s} {key + ".mp3":26s} {info["hook"]:7.1f} {info["secs"]:7.1f} '
-              f'{m:>6s} {info["join_before"]:5.0f}x ->{info["join_after"]:4.0f}x '
-              f'{size:>9s}')
+        print(f'{slot:12s} {key + ".mp3":24s} {info["secs"]:6.1f} '
+              f'{m:>6s} {info["join_before"]:4.0f}x ->{info["join_after"]:3.0f}x '
+              f'{info["lufs_before"]:7.1f} ->{info["lufs_after"]:6.1f} '
+              f'{info["gain_db"]:+6.1f}{"!" if info["capped"] else " "} {size:>8s}')
     if total:
         print(f'\ntotal shipped audio: {total / 1024 / 1024:.2f} MB')
 
