@@ -537,6 +537,38 @@ export function createAudio() {
   }
 
   return {
+    // ── TRY TO START WITHOUT A GESTURE, BECAUSE SOMETIMES IT IS ALLOWED ──
+    //
+    // The client wants the icon tap to be the trigger: "as soon as I touch
+    // that bitch I need things to move smoothly." That tap happens in the OS
+    // launcher, before this page exists, and no browser hands it to us as a
+    // user gesture — so on iOS the first touch inside the game is still the
+    // earliest sound can start, and main.js spends it on the music.
+    //
+    // BUT CHROME MAKES AN EXCEPTION FOR AN INSTALLED PWA. A site added to the
+    // home screen is allowed to autoplay with sound. This code was throwing
+    // that away: `resume()` was only ever called from a gesture handler, so on
+    // the one platform that would have let the music through with no touch at
+    // all, we were the thing keeping it silent.
+    //
+    // So: ask at boot, and keep asking for a few seconds. A refusal is the
+    // normal case and costs nothing — the promise rejects, `pendingAmb` stays
+    // pending, and the gesture path below still works exactly as it did.
+    tryAutostart(attempts = 8, everyMs = 400) {
+      let left = attempts;
+      const attempt = () => {
+        const c = ensure();
+        if (!c) return;
+        if (c.state === 'running') { startPending(); loadSamples(c); return; }
+        c.resume().then(() => {
+          startPending();
+          loadSamples(c);
+        }).catch(() => {});
+        if (--left > 0) setTimeout(attempt, everyMs);
+      };
+      attempt();
+    },
+
     // Call from EVERY user gesture until it takes, not just the first — a
     // resume() can be refused, and a listener registered `once` gives the
     // context no second chance. Cheap after it has worked: ensure() returns

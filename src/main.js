@@ -113,6 +113,11 @@ const panel = createPanel({
 // One refused attempt and the game is silent for the rest of the session.
 // They detach themselves as soon as audio.ready() reports a running context,
 // so the steady state is still no listeners.
+// Ask first, before anyone touches anything. Refused on iOS and in an ordinary
+// tab, which is fine and free; allowed for a PWA installed to the home screen
+// on Chrome, which is the case the client is actually describing. See
+// audio.tryAutostart.
+audio.tryAutostart();
 {
   const unlock = () => {
     audio.unlock();
