@@ -1428,3 +1428,86 @@ decoding a screenshot — `getImageData` on the top third gives a mean luma in
 one `evaluate`, and there is no `pngjs` in this tree. Day vs night on the
 shipped bundle reads **93.0 vs 30.1**, a 3.1× split; anything near 1× means the
 setting is not reaching the pixels.
+
+
+---
+
+## The second idle — Will Hill counts his money
+
+**Wired and tested; waiting only on the sheet.** Stand still for 200 ticks
+(3.3s) and `stepPlayer` switches `anim` to `idleFlex`; move, jump or take a hit
+and it drops on the same tick and the wait restarts from zero. Proven by
+`tools/harness/idleflex.mjs`, 8/8, against the real gate with a stand-in clip
+injected into the atlas before player.js reads it.
+
+**It is gated on the clip existing** (`HAS_FLEX`, read once at module load), so
+today's build behaves exactly as it always has. Without that gate `anim` would
+flip to a clip the sheet lacks — `resolveClip` would draw the right thing, but
+`advanceAnim` resets `animT` on every change of key, so the breathing idle
+would snap to frame 0 every few seconds forever. The harness watches 150 frames
+for exactly that and counts zero early resets.
+
+### To install it
+
+1. Generate the sheet (below).
+2. Compose it into `will-hill.webp` with `tools/compose_player_sheet.py`.
+3. Add an `idleFlex` entry to `will-hill.atlas.json` — same shape as `idle`:
+   `{ "start": <first frame>, "frameCount": N, "loop": true, "ticks": ~5, "fit": {...} }`.
+
+No code change. It starts working on the next load.
+
+### The animation, in the client's words
+
+> "When Will Hill is just standing idle I want him to start thumbing through his
+> money roll — counting money as one of the idle motions." … "He should be
+> thumbing through his money roll. If you need to look up images of rappers
+> thumbing through the check, as it's referred to, do that so you can get the
+> proper aesthetic. It's a stylized way of counting your money as a simple life
+> achievement in urban hip-hop culture."
+
+The motion, so whoever writes the prompt does not get a bank-teller counting
+notes flat on a desk: a **thick folded roll of bills held in one hand**, thumb
+riding the top edge and flicking the corners so they fan and snap back, wrist
+doing most of the work, the other hand loose at his side or tucked. **He is not
+looking at it** much — the flex is that he does not need to count carefully.
+Small nod or shoulder roll on the beat. Loops seamlessly, and the roll never
+leaves his hand.
+
+### The AutoSprite call, ready to fire
+
+```
+generate_spritesheet({
+  characterId: <the existing Will Hill character>,
+  animations: [{
+    kind: 'custom',
+    name: 'idleFlex',
+    loop: true,
+    prompt: 'standing still, holding a thick folded roll of cash in one hand, '
+          + 'thumb flicking down the edge of the bills so the corners fan and '
+          + 'snap back, wrist doing the work, other hand loose at his side, '
+          + 'casual and unhurried, barely glancing at the money, small nod on '
+          + 'the beat, feet planted, seamless loop',
+  }],
+  spritesheet: { frameCount: 32, frameSize: 256 },
+})
+```
+
+`frameCount: 32` and `frameSize: 256` match what the rest of this atlas was cut
+from (`sourceCellSize` 256x256, `idle` is 32 frames). Do **not** set
+`withSound` — it costs extra credits and this clip is silent.
+
+### ⚠️ AutoSprite is refusing calls in this environment
+
+Measured, not assumed — two different endpoints, same answer:
+
+```
+list_characters → Unauthorized: provide an MCP API key from https://www.autosprite.io/apikey.
+get_account     → Unauthorized: provide an MCP API key.
+```
+
+The server is REACHABLE — that is its own structured error coming back, not a
+timeout or a missing tool — so this is not a network problem and not a dead
+account. It is that no key is being presented on the connection. Generating a
+key at autosprite.io does not by itself attach it to anything; it has to be
+pasted into the AutoSprite connector's settings on the claude.ai side. Until
+then this session cannot generate the sheet.
