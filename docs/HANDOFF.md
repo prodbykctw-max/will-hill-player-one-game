@@ -558,6 +558,139 @@ line up with the plate they belong to.
 
 ---
 
+## The repeat seam
+
+`drawPlate` tiles each plate straight — not mirrored, because a flipped copy
+renders CITGO and WELCOME TO EAST ATLANTA as backwards text. So the plate's
+last column butts against its first. The client, walking EAV: *"it looks like
+there's a layering issue with repeating the image."*
+
+### It was two problems wearing one coat
+
+**The first was a defect.** `l5p-base` opened with a column at luma 252 and a
+second at 143, in front of a plate whose next column is 8.7 — a white line, on
+every single row, 94× that plate's own 95th-percentile column step. Not
+content: a resampling artifact left at the frame border by whatever produced
+the plate, repeated every plate width as a bright vertical line down the
+screen. `edgewood-base` had a milder version at its right border.
+
+`tools/fix_seam.py --repair` clamps them: the first good column is copied
+outward over the bad ones. **Not cropped** — every `span`, `xRanges` and
+`light.x` in `stages.js` is a fraction of plate width, so a two-column crop
+would slide every lamp glow off its lamp. Clamping keeps the coordinate system
+identical and only replaces pixels that were never real.
+
+| plate | join / median step | after |
+|---|---|---|
+| l5p-base | 250.7 / 165× | **8.3 / 5.5×** |
+| edgewood-base | 47.6 / 23× | **11.7 / 5.6×** |
+
+Everything outside the clamped columns is untouched to 50.2 dB / 48.3 dB PSNR
+— that residue is the WebP re-encode at the same q92 `cut_planes.py` uses, not
+the repair. Zero of the 118 cards had the defect; it is base-plate only.
+
+**The second is the content genuinely not joining up**, and it is much less of
+a problem than it sounds. See below.
+
+### Measure it ON SCREEN, not in the file
+
+The file-level score (last column vs first) says nothing about whether anyone
+sees it. `scratchpad/seamsweep.mjs` walks each stage end to end, scores every
+frame's column-step profile off the composited canvas — base, cards, lights and
+rain together — and compares the join against **that frame's own 99th
+percentile**. Under 1.0× means the join is no sharper an edge than the painted
+architecture it sits among.
+
+Two things that measurement immediately settled:
+
+- **At real-world scale the plate is wider than the phone.** drawW runs
+  478–1354px against a 430px canvas at a ~0.06 parallax rate, so a full period
+  takes 500–600m of walking. **EAV's join never once reaches the screen** in a
+  360-column stage, day or night. l5p's arrives at 440m of 450.
+- The first version of the harness parked the camera at a computed boundary and
+  reported numbers for three stages where the boundary is not reachable. The
+  second read `level.stageEnd` — which does not exist; it is
+  `level.stage.stageEnd` — silently fell back to 11000px for every stage, and
+  covered 76% of l5p. Both produced confident tables that were wrong. Check
+  coverage before quoting a sweep.
+
+Where it stands, full-length sweep, worst join in the stage:
+
+| stage | join on screen | worst join step | vs that frame's p99 |
+|---|---|---|---|
+| eav night / day | never | — | — |
+| edgewood night | 42/87 frames | 11.2 | **0.86×** |
+| underground night | 82/94 | 9.5 | **0.72×** |
+| l5p night | 21/100 | 6.1 | **0.45×** |
+| l5p day | 20/100 | 22.3 | 1.01× |
+| underground day | 82/94 | 33.1 | 1.23× |
+| edgewood day | 41/87 | 39.9 | 2.05× |
+
+**Every night join is now under its own noise floor.** Three day joins are not.
+
+### Why the three day joins are not a pixel problem
+
+Look at what actually meets at each one (`scratchpad/seam_<plate>.png` dumps
+the two ends side by side):
+
+- **l5p-day** ends on a dark building and starts on a bright street — sky
+  (79,143,219) against (21,43,70).
+- **underground-day** ends in soft distance haze and starts on a hard-edged
+  lit tower.
+- **edgewood-day** is brick against brick with foliage growing over the join,
+  and is the one a min-error cut would genuinely fix.
+
+A min-error boundary cut (Efros–Freeman quilting) is the right tool for the
+third and useless for the first two: it chooses, per row, which of the two
+overlapping ends to take, and if they agree nowhere it just relocates the
+edge. A cross-fade wide enough to reconcile a building with a street would
+ghost the building over the street. **And either one costs width** — the
+overlap columns are consumed — which means rewriting every fraction in that
+stage's `stages.js` block. Six percent of the painting and ~60 hand-checked
+numbers, to take one plate's join from 2.05× to ~1.0× at a spot where foliage
+already covers it. Not taken. If it is ever wanted, edgewood-day is the only
+plate where it pays.
+
+The cheap alternative if these ever need to go: draw a soft dark vertical
+gradient at the join, the way `drawRecession` already shades the ground line —
+a building ending and another beginning has a shadowed gap in real life, and
+spreading the step over ~20px lowers the per-column score as well as reading
+better. It is a visible art change to every stage, so it is the client's call,
+not a silent fix.
+
+### Re-measuring
+
+The two browser harnesses are COMMITTED, in `tools/harness/`, unlike every
+other harness this project has written — because the table above makes numeric
+claims and a claim nobody can re-run is not a measurement. Playwright is not a
+dependency of this repo (the game ships no test runner), so the import is
+resolved through `$PLAYWRIGHT`; point it at whatever the machine has.
+
+```bash
+python3 tools/fix_seam.py --selftest       # 4 checks, no artwork involved
+python3 tools/fix_seam.py --measure        # file-level scores + corrupt columns
+
+npx vite --port 5199 --strictPort &        # the harnesses need the DEV build
+export PLAYWRIGHT=/opt/node22/lib/node_modules/playwright/index.js
+export CHROMIUM=/opt/pw-browsers/chromium
+node tools/harness/seamsweep.mjs night after   # on-screen, full stage
+node tools/harness/joinshot.mjs  day   after   # crop of the worst join frame
+```
+
+`fix_seam.py` reads its file list out of `stages.js` imports, never a glob:
+`eav-day.webp` and `eav.webp` are uncut originals kept for reference and both
+match `eav-*`, so a glob hands them to the cutter as if they were cards.
+
+Two DEV hooks exist for this and are folded out of the build
+(`grep __plate dist/assets/*.js` returns nothing): `window.__plate` is where
+the plate actually landed and how wide a repeat is, and `window.__startStage`
+is the real function — a harness that assigns `state.stageIndex` without
+rebuilding the level leaves `state.level` on the previous stage and the next
+frame throws, which has already happened once to a harness that then quietly
+measured a frozen loop.
+
+---
+
 ## Title and ending screens
 
 Both are the client's own paintings shown WHOLE, with the moving parts cut off
@@ -884,28 +1017,9 @@ it does decide how hard the identity check needs to be.
 - **Daytime multiplane — DONE for all four stages.** Every day plate is now
   cut and wired: eav-day 10 cards, edgewood-day 15, l5p-day 17, plus
   underground-day's existing 19. See "Day and night" above.
-- **The plate's REPEAT SEAM is visible, and now it is measured.** The backdrop
-  repeats straight (not mirrored — mirroring renders CITGO backwards), so the
-  seam is the plate's right edge butting its own left edge. How bad that is
-  varies enormously by stage, which is why it shows on some and not others.
-  Mean per-pixel difference between the two edge columns, 0-255:
-
-  | plate | mismatch | |
-  |---|---|---|
-  | eav-base | **8.6** | effectively seamless — this is why EAV night looks fine |
-  | edgewood-day-base | 31.6 | |
-  | eav-day-base | 63.2 | |
-  | l5p-day-base | 74.3 | |
-  | **l5p-base** | **250.7** | dark street meeting a lit pillar — the worst by far |
-
-  Individual CARDS have their own seams and some are worse than the base:
-  edgewood-day-facade 40.1, edgewood-skyline 66.0, l5p-day-clouds 143.1.
-
-  NOT FIXED. The obvious move is to cross-fade a strip across the wrap so the
-  plate tiles, applied identically to the base and every card. Two cautions
-  for whoever does it: the blend has to be applied to the CARDS TOO or they
-  will seam against a base that no longer does, and the strip has to be narrow
-  enough not to ghost real signage into the opposite edge. Start with l5p.
+- **The repeat seam — see "The repeat seam" below.** The night half is done and
+  measured; three day joins remain above their plate's own noise floor, and the
+  reason a pixel operation cannot close them is written up there.
 - **End-credits sequence.** The ending SCREEN is built (his painting, real
   stats, swaying crowd). The credits that share the frame with it are not, and
   are blocked on files that have only ever been in chat: the RARƎ AGENCY logo

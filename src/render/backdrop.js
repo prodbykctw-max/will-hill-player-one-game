@@ -604,6 +604,13 @@ export function createBackdrop(ctx, canvas) {
       // back in slices without re-deriving the tiling maths.
       bctx.clearRect(0, 0, buf.width, buf.height);
       const plate = drawPlate(bctx, images.base, stage, camera, groundY);
+      // DEV ONLY — where the plate actually landed and how wide a repeat is.
+      // The tiling seam sits at a multiple of `drawW` from `par`, and a
+      // harness looking for it has no business re-deriving that from
+      // bg.meters and groundFrac: it would then be grading its own copy of
+      // this file's arithmetic rather than this file. Same reason __title is
+      // exposed. Vite folds this out of the build.
+      if (import.meta.env.DEV && plate) window.__plate = { ...plate, par: _par, groundY };
       drawCards(bctx, images, stage, camera, tick, plate);
       // Cards carry their own sway, so the plate-wide wind pass is only for
       // stages that have not been cut into a multiplane set yet.

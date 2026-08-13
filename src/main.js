@@ -169,6 +169,13 @@ if (import.meta.env.DEV) {
   // screen where it put things rather than re-deriving it and grading its own
   // arithmetic. That mistake has already cost this project a day.
   window.__title = title;
+  // THE REAL FUNCTION, not `state.stageIndex = n`. A harness that assigns the
+  // index without rebuilding the level leaves `state.level` pointing at the
+  // previous stage and the next frame throws on `reading 'id'` — which has
+  // already happened once, to a harness that was then quietly measuring a
+  // frozen loop. Anything that wants stage four gets the same door the game
+  // uses.
+  window.__startStage = startStage;
 }
 
 let images = null; // { player, enemy, eav, edgewood, l5p, underground }
