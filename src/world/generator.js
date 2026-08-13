@@ -12,6 +12,7 @@
 import { T, FLOOR_R, LH, groundCol, plat, pit, createTilemap } from './tilemap.js';
 import { createEnemy, ENEMY_H } from '../entities/enemy.js';
 import { createMoneyBag, createChampagneBottle, champagneTopFor } from '../entities/collectibles.js';
+import { isRelay } from '../core/relay.js';
 
 const RUNWAY_COLS = 26; // safe flat start, same length as Jandé's buildRunner()
 const MIN_ENEMY_SPACING_COLS = 8;
@@ -201,9 +202,21 @@ export function genAhead(level, untilCol) {
     if (featureOk && roll < recipe.gap + recipe.plat + recipe.haz) {
       // POTHOLE or an enemy — ground continues straight through either way.
       groundCol(level.map, c, FLOOR_R, LH - 1);
-      if (rnd01(c * 6.1 + level.seed) < recipe.enemy && c - level.lastEnemyCol > MIN_ENEMY_SPACING_COLS) {
-        level.enemies.push(createEnemy(c * T, FLOOR_R * T - ENEMY_H, PATROL_RANGE, pickVariant(level, c)));
+      // CHAMPAGNE RELAY LEAVES THE COLUMN EMPTY, IT DOES NOT FALL THROUGH.
+      //
+      // This branch is enemy-OR-pothole, so gating only the push would turn
+      // every enemy spot into a hole in the road — he asked for the game as
+      // is minus the enemies, and that would have handed him a stage with
+      // more gaps than players get. Decide first, then act on the decision:
+      // the column stays flat and empty, and `lastEnemyCol` still advances so
+      // the spacing rule plays out exactly as it does in the real build.
+      const wantsEnemy = rnd01(c * 6.1 + level.seed) < recipe.enemy
+        && c - level.lastEnemyCol > MIN_ENEMY_SPACING_COLS;
+      if (wantsEnemy) {
         level.lastEnemyCol = c;
+        if (!isRelay()) {
+          level.enemies.push(createEnemy(c * T, FLOOR_R * T - ENEMY_H, PATROL_RANGE, pickVariant(level, c)));
+        }
       } else {
         // Sunk into the street surface, not perched on top of it. Wide and
         // shallow so it reads as a hole in the road at a glance.
@@ -257,7 +270,7 @@ export function genAhead(level, untilCol) {
       level.champagnes.push(createChampagneBottle(
         c * T + 8, champagneTopFor(FLOOR_R * T)));
     }
-    if (rnd01(c * 11.1 + level.seed) < recipe.enemy * 0.6 && c - level.lastEnemyCol > MIN_ENEMY_SPACING_COLS) {
+    if (!isRelay() && rnd01(c * 11.1 + level.seed) < recipe.enemy * 0.6 && c - level.lastEnemyCol > MIN_ENEMY_SPACING_COLS) {
       level.enemies.push(createEnemy(c * T, FLOOR_R * T - ENEMY_H, PATROL_RANGE, pickVariant(level, c)));
       level.lastEnemyCol = c;
     }

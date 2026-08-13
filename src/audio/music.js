@@ -117,26 +117,48 @@ export function createMusic(getContext, getMaster) {
     // A media element that fails to load must not take the game with it.
     el.addEventListener('error', () => { nodes.delete(slot); });
 
-    const ctx = getContext();
-    let gain = null;
-    let src = null;
-    if (ctx && getMaster()) {
-      try {
-        src = ctx.createMediaElementSource(el);
-        gain = ctx.createGain();
-        gain.gain.value = 0;
-        src.connect(gain).connect(getMaster());
-      } catch (_e) {
-        // Some engines refuse a second source for the same element, and
-        // Safari has historically refused it before a gesture. Element volume
-        // is the fallback; it loses ducking and nothing else.
-        gain = null;
-      }
-    }
-    if (!gain) el.volume = 0;
-    const node = { el, gain, cue };
+    const node = { el, gain: null, cue };
     nodes.set(slot, node);
+    graph(node);              // only if the context can actually deliver it
+    if (!node.gain) el.volume = 0;
     return node;
+  }
+
+  // ── DO NOT TAKE THE ELEMENT OUT OF THE SPEAKERS UNTIL THE GRAPH WORKS ──
+  //
+  // This is the bug behind "the home screen music doesn't play unless I hit
+  // OPTIONS first", and it was ours, not Safari's.
+  //
+  // `createMediaElementSource` PERMANENTLY redirects an element's audio into
+  // the WebAudio graph. build() used to call it whenever a context object
+  // existed — including a SUSPENDED one. A suspended graph outputs nothing, so
+  // the cue played into a void, and el.volume could not rescue it because the
+  // element's output no longer went to the speakers at all. Nothing was heard
+  // until enough gestures accumulated to resume the context, and OPTIONS is
+  // several gestures. Measured on a cold load: element unpaused, currentTime
+  // climbing, ctx suspended, silence.
+  //
+  // So while the context is asleep the element just plays, normally, through
+  // its own volume — which is allowed anywhere plain <audio> autoplay is
+  // allowed. It is adopted into the graph the moment the context is genuinely
+  // running, which is what tick() checks.
+  function graph(node) {
+    if (node.gain) return;
+    const ctx = getContext();
+    if (!ctx || ctx.state !== 'running' || !getMaster()) return;
+    try {
+      const src = ctx.createMediaElementSource(node.el);
+      const gain = ctx.createGain();
+      // Hand over at the level it is already playing at, or the swap is an
+      // audible jump in the middle of a track.
+      gain.gain.value = node.el.volume;
+      src.connect(gain).connect(getMaster());
+      node.el.volume = 1;     // the gain node owns the level from here
+      node.gain = gain;
+    } catch (_e) {
+      // Some engines refuse a second source for one element. Element volume
+      // stays in charge; that loses ducking and nothing else.
+    }
   }
 
   function levelOf(node) {
@@ -215,6 +237,13 @@ export function createMusic(getContext, getMaster) {
     // a context exists and produces nothing until something plays inside a
     // real user interaction.
     tick(dtMs = 16.6) {
+      // Adopt anything still playing outside the graph, now that the context
+      // may have woken up. See graph() — this is the second half of the fix.
+      if (getContext() && getContext().state === 'running') {
+        for (const n of nodes.values()) {
+          if (!n.gain) { graph(n); if (n.gain) ramp(n, levelOf(n), 0.2); }
+        }
+      }
       if (ducking > 0) {
         ducking -= dtMs;
         if (ducking <= 0 && current) ramp(current, levelOf(current), 0.35);

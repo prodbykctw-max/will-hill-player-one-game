@@ -31,6 +31,7 @@ import { createRunLog, lbSubmit, bankLocalRun, isRegistered } from './net/leader
 import { createPanel, soundEnabled } from './ui/panel.js';
 import { createHaptics } from './core/haptics.js';
 import { STAGE_SLOTS, MAP_SLOTS, MANIFEST } from './audio/music.js';
+import { isRelay, setRelay } from './core/relay.js';
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
@@ -321,9 +322,20 @@ canvas.addEventListener('pointerdown', (e) => {
     // OPTIONS. So the whole lower part of the display, including the black
     // below the card, opens the panel, and everything above it starts the
     // game. Two enormous targets, one boundary.
+    // CHAMPAGNE RELAY first: it lives inside the lower half, so testing the
+    // catch-all before it would mean the panel swallowed every press of it.
+    if (title.hitRelay(state.titleBox, x, y)) {
+      setRelay(true);
+      commit();
+      startRun();
+      return;
+    }
     if (title.hitOptions(state.titleBox, y)) { press(); panel.open('board'); return; }
     // The run starting is the biggest commitment on the screen, so it gets the
-    // triad rather than the click.
+    // triad rather than the click. And it clears CHAMPAGNE RELAY: without
+    // this, one walkthrough run would leave every later run in relay too,
+    // with no way back except a reload.
+    setRelay(false);
     commit();
     startRun();
     return;
@@ -566,7 +578,30 @@ function update() {
   genAhead(level, camera.visibleRight() / T + GEN_LOOKAHEAD_COLS);
   stepPlayer(player, input, level.map);
 
-  if (player.y > FALL_DEATH_Y) { player.dead = true; player.deathCause = 'fall'; }
+  // ── CHAMPAGNE RELAY ──────────────────────────────────────────────────
+  // The walkthrough build. Three changes and no others — see core/relay.js.
+  // The aura is topped up every tick rather than granted once, so it cannot
+  // run out mid-stage however long he spends looking at a fence.
+  if (isRelay()) {
+    grantInvulnerability(player, now, CHAMPAGNE_SECONDS);
+    // Remember the last ground he actually stood on. Catching a fall by
+    // snapping him back to standing height at his CURRENT x would drop him
+    // straight back down the same hole; putting him where he took off from
+    // sets him on the lip of it, which is what "not subject to the platform
+    // gaps" has to mean if he is going to keep walking.
+    if (player.onGround) { state.safeX = player.x; state.safeY = player.y; }
+  }
+  if (player.y > FALL_DEATH_Y) {
+    if (isRelay() && state.safeX !== undefined) {
+      player.x = state.safeX;
+      player.y = state.safeY;
+      player.vx = 0;
+      player.vy = 0;
+    } else {
+      player.dead = true;
+      player.deathCause = 'fall';
+    }
+  }
 
   // enemies: patrol/defeat-timer update, then collision resolution
   for (let i = level.enemies.length - 1; i >= 0; i--) {

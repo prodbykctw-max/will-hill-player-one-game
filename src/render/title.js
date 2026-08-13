@@ -243,6 +243,7 @@ export function createTitle(ctx, canvas, still) {
       TITLE_ZOOM, TITLE_BIAS);
     still.pulsePrompt(box, PROMPT, SRC_W, SRC_H, tick);
     drawOptions(images.title_options, box, tick);
+    drawRelay(box, images.champagne, tick);
     return box;
   }
 
@@ -311,6 +312,81 @@ export function createTitle(ctx, canvas, still) {
     still.pulseRect(r.x, r.y, r.w, r.h, tick + 57, '150,210,255');
   }
 
+  // ── CHAMPAGNE RELAY ──────────────────────────────────────────────────
+  //
+  // The walkthrough build, offered as a choice on the card rather than hidden
+  // behind a URL. The client: "when we go to start game it should be like a
+  // champagne relay button at the bottom with a champagne bottle in it from
+  // the game, for me to choose that version."
+  //
+  // It sits UNDER the OPTIONS word and gets its own hit rect, tested before
+  // the lower-half catch-all — otherwise the whole bottom of the screen
+  // belongs to the panel and this could never be pressed. Drawn small and
+  // quiet on purpose: it is a door for him, not a third headline competing
+  // with his painting.
+  const RELAY_LABEL = 'CHAMPAGNE RELAY';
+
+  function relayRect(box) {
+    const o = optionsRect(box);
+    if (!o) return null;
+    const h = Math.max(26, Math.min(44, o.h * 0.62));
+    const pad = h * 0.42;
+    ctx.save();
+    ctx.font = `700 ${Math.round(h * 0.40)}px system-ui, sans-serif`;
+    const tw = ctx.measureText(RELAY_LABEL).width;
+    ctx.restore();
+    const w = Math.min(canvas.width - 24, tw + h * 0.80 + pad * 2);
+    const y = Math.min(canvas.height - h - 8, o.y + o.h + Math.max(8, h * 0.34));
+    return { x: (canvas.width - w) / 2, y, w, h, pad };
+  }
+
+  function drawRelay(box, champImg, tick) {
+    const r = relayRect(box);
+    if (!r) return;
+    const rad = r.h / 2;
+    // A slow breath, out of phase with both the prompt and OPTIONS, so three
+    // pressable things on one card never pulse together and read as one.
+    const glow = 0.5 + 0.5 * Math.sin(tick / 46 + 2.1);
+    ctx.save();
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(r.x, r.y, r.w, r.h, rad);
+    else ctx.rect(r.x, r.y, r.w, r.h);
+    ctx.fillStyle = 'rgba(12,8,20,0.72)';
+    ctx.fill();
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = `rgba(255,214,110,${0.42 + 0.30 * glow})`;
+    ctx.stroke();
+
+    const ih = r.h * 0.66;
+    const ix = r.x + r.pad * 0.7;
+    if (champImg && champImg.width) {
+      const iw = ih * (champImg.width / champImg.height);
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(champImg, ix, r.y + (r.h - ih) / 2, iw, ih);
+      ctx.textAlign = 'left';
+      ctx.fillStyle = '#ffd66e';
+      ctx.font = `700 ${Math.round(r.h * 0.40)}px system-ui, sans-serif`;
+      ctx.textBaseline = 'middle';
+      ctx.fillText(RELAY_LABEL, ix + iw + r.pad * 0.5, r.y + r.h / 2 + 1);
+    } else {
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#ffd66e';
+      ctx.font = `700 ${Math.round(r.h * 0.40)}px system-ui, sans-serif`;
+      ctx.textBaseline = 'middle';
+      ctx.fillText(RELAY_LABEL, r.x + r.w / 2, r.y + r.h / 2 + 1);
+    }
+    ctx.restore();
+  }
+
+  function hitRelay(box, x, y) {
+    const r = relayRect(box);
+    if (!r) return false;
+    // A finger-sized margin: the pill is deliberately small and a near miss
+    // would otherwise open the panel instead, which is a confusing wrong door.
+    const m = 10;
+    return x >= r.x - m && x <= r.x + r.w + m && y >= r.y - m && y <= r.y + r.h + m;
+  }
+
   // Which half of the screen was tapped. Above the line starts the game,
   // at or below it opens the panel — and "below" runs all the way to the
   // bottom of the display, not just to the bottom of the painting, so the
@@ -319,5 +395,5 @@ export function createTitle(ctx, canvas, still) {
     if (!box) return false;
     return y >= box.dy + (SPLIT_Y / SRC_H) * box.dh;
   }
-  return { draw, hitOptions, optionsRect };
+  return { draw, hitOptions, optionsRect, hitRelay, relayRect };
 }
