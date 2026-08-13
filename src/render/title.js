@@ -26,7 +26,22 @@
 // and divided by the 1536x1024 plate. That way they stay correct at any
 // screen size, and they stay correct if the plate is ever re-exported larger.
 
-import titleBase from '../assets/backgrounds/title-base.webp';
+// ── THE PORTRAIT CARD ────────────────────────────────────────────────────
+// The client's second title painting, and it replaces the landscape one for a
+// reason arithmetic settles: it is 853x1844, an aspect of 0.4626, against a
+// 430x932 phone at 0.4614. Six thousandths apart. It fills the screen edge to
+// edge with no letterbox at all, where the 3:2 landscape plate left a third of
+// a tall phone black and needed a zoom, a bias and a split line to cope.
+//
+// It also carries its own PRESS START and OPTIONS, painted where he wanted
+// them, so neither has to be lifted or redrawn.
+//
+// ⚠️ NO CARDS YET. The landscape plate was cut into clouds, skyline, two signs
+// and the hero, which is what the assembly intro and the sway animate. This
+// painting has not been through that pass, so titleCards() is empty and the
+// intro is a straight reveal until it has. Cutting it is the next job — SAM
+// and its checkpoint are both present (tools/sam_segment.py, /root/sam).
+import titleBase from '../assets/backgrounds/title-portrait.webp';
 import titleFront from '../assets/backgrounds/title-front.webp';
 import titleSignL from '../assets/backgrounds/title-signL.webp';
 import titleSignR from '../assets/backgrounds/title-signR.webp';
@@ -34,8 +49,8 @@ import titleHero from '../assets/backgrounds/title-hero.webp';
 import titleOptions from '../assets/backgrounds/title-options0.webp';
 import spriteManifest from '../assets/backgrounds/title-sprites.json';
 
-export const SRC_W = 1536;
-export const SRC_H = 1024;
+export const SRC_W = 853;
+export const SRC_H = 1844;
 
 // The cloud sprites are cut by connected component, so how MANY there are is
 // decided by the art, not by this file — globbing them keeps a re-cut that
@@ -104,7 +119,7 @@ export const TITLE_IMAGES = {
 // PRESS START, in the painting's pixels. The mask came back x 504..964,
 // y 869..913; padded out to take in the two ◀ ▶ arrows either side, which SAM
 // grouped separately and which should light up with the words.
-const PROMPT = { x: 488, y: 858, w: 548, h: 62 };
+const PROMPT = { x: 195, y: 1518, w: 462, h: 54 };
 
 // ── OPTIONS: HIS WORD, LIFTED OFF THE PLATE ──────────────────────────────
 //
@@ -172,7 +187,7 @@ const OPT = (spriteManifest.options || [])[0] || null;
 // screen is cut in two: everything above the line starts the game, everything
 // below opens the panel. Both targets are enormous and there is exactly one
 // boundary to miss instead of two adjacent edges.
-export const TITLE_ZOOM = 1.07;
+export const TITLE_ZOOM = 1;
 export const TITLE_BIAS = 0;
 // In the painting's own rows: below PRESS START, which ends on row 907. Row
 // 950 used to be the top of OPTIONS; the word has since been lifted out and
@@ -184,57 +199,9 @@ export const SPLIT_Y = 920;
 // `key` indexes the loaded image set. Bands are in 0..1 of the painting.
 // ORDER IS PAINT ORDER: clouds first, then the layer that must cover them,
 // then the things standing in front of everything.
-export function titleCards(images) {
-  return [
-    {
-      srcW: SRC_W,
-      srcH: SRC_H,
-      sprites: CLOUD_SPRITES.map((s) => ({ ...s, img: images[s.key] })),
-    },
-    // The skyline and the logo, over the clouds. Nothing animates it — it is
-    // here purely to be in front. Everything below y 340 in the painting is
-    // omitted from this layer because no cloud ever reaches down there and
-    // the base already has it.
-    { img: images.title_front },
-    // ── THE TWO ROADSIDE SIGNS ────────────────────────────────────────
-    //
-    // ⚠️ THESE CARDS ONCE CARRIED THE SKYLINE WITH THEM, and it is the failure
-    // mode to watch for on every SAM group: a card sways whatever is IN it, so
-    // one wrongly-assigned mask puts a building on a pole. The client caught
-    // it — "the sign on the left, the building is moving behind it… the one
-    // closest to the left, touching the sign on the right, is still moving" —
-    // and he was exactly right about which buildings. signL had swallowed the
-    // tall spire (mask #52), the whole streetlamp and two clouds; signR had
-    // taken the block against its left edge (#109), which is the one he named.
-    //
-    // Both groups are now derived by CONTAINMENT in the sign's own footprint
-    // rather than by hand-picked mask lists — 70% inside the panel-and-posts
-    // box, the same rule sam_group.py uses on the stage plates. That dropped
-    // 14 masks from signL and 1 from signR, and it is a rule rather than a
-    // patch, so a re-cut cannot quietly re-admit them.
-    //
-    // `top` is each sign's REAL top edge now, not a guess above it. The shear
-    // ramps linearly from `pivot` to `top`, so a band starting 170 rows above
-    // the object gave the object only part of the amplitude.
-    {
-      img: images.title_signL,
-      // Mask x 1..387, y 468..707 — panel at 0.457, posts planted at 0.691.
-      sway: [{ top: 0.457, pivot: 0.692, ampFrac: 0.0045, freq: 1.0,
-        xRanges: [[0.0, 0.256]] }],
-    },
-    {
-      img: images.title_signR,
-      // Mask x 1213..1534, y 462..775.
-      sway: [{ top: 0.451, pivot: 0.757, ampFrac: 0.0045, freq: 1.25,
-        xRanges: [[0.786, 1.0]] }],
-    },
-    {
-      img: images.title_hero,
-      // Mask x 649..919, y 345..844 — pivot on the soles.
-      sway: [{ top: 0.336, pivot: 0.824, ampFrac: 0.0016, freq: 0.75,
-        xRanges: [[0.418, 0.602]] }],
-    },
-  ];
+export function titleCards() {
+  // Empty until the portrait plate is cut. See the note on the import.
+  return [];
 }
 
 export function createTitle(ctx, canvas, still) {
@@ -313,8 +280,14 @@ export function createTitle(ctx, canvas, still) {
   // shows the piece twice — caught in the very first capture of this sequence,
   // where the base came up at tick 46 while the title was still falling and the
   // frame held two PLAYER ONEs. Starts one tick after the slowest t1 above.
-  const BASE_IN = [78, 104];
-  const INTRO_END = 104;
+  // DERIVED, not fixed. With cards, the backdrop must not start before the
+  // last one lands or its twin shows through — that cost two PLAYER ONEs once
+  // already. With none, there is nothing to double against, so it simply
+  // reveals. Recomputing it here means restoring the cards restores the guard.
+  const LAST_LAND = titleCards().length
+    ? Math.max(...INTRO.slice(0, titleCards().length).map((c) => c.t1)) : 0;
+  const BASE_IN = LAST_LAND ? [LAST_LAND, LAST_LAND + 26] : [6, 74];
+  const INTRO_END = LAST_LAND ? LAST_LAND + 26 : 74;
   const ease = (u) => 1 - (1 - u) * (1 - u) * (1 - u);
   const at = (t, t0, t1) => ease(Math.max(0, Math.min(1, (t - t0) / (t1 - t0))));
 
@@ -455,33 +428,33 @@ export function createTitle(ctx, canvas, still) {
   const CAP_BAND = 0.34;
   const START_BOTTOM = 907;   // last painted row of PRESS START, colour-keyed
 
+  // ── OPTIONS, WHERE HE PAINTED IT ─────────────────────────────────────
+  //
+  // On the landscape plate this word had to be CUT OUT and moved: it rendered
+  // 54x9 px on a phone and sat thirteen screen pixels under PRESS START, which
+  // is no target at all. The portrait plate fixes that in the art — the two
+  // are 48 source pixels apart, which is 24 on a 430 phone, and the word comes
+  // out 84x14. So nothing is lifted, nothing is redrawn, and this is only a
+  // hit box: his lettering, in his position, left alone.
+  //
+  // Measured off the plate, not guessed: pale-neutral key over rows
+  // 1600-1780, x 342-508, y 1609-1635.
+  const OPTIONS_BOX = { x: 342, y: 1609, w: 167, h: 27 };
+
   function optionsRect(box) {
-    if (!box || !OPT) return null;
-    const floor = Math.max(box.dy + (SPLIT_Y / SRC_H) * box.dh,
-      box.dy + (START_BOTTOM / SRC_H) * box.dh);
-    const band = Math.max(1, canvas.height - floor);
-    const s = Math.min(canvas.width * CAP_W / OPT.w, box.s * CAP_SCALE,
-      CAP_BAND * band / OPT.h);
-    const w = OPT.w * s;
-    const h = OPT.h * s;
-    // A quarter of the band as breathing room, capped at 80 so that on a tall
-    // phone the word stays tied to the card instead of drifting off down the
-    // screen on its own.
-    const gap = Math.min(80, Math.max(10, band * 0.24));
-    const y = Math.min(canvas.height - h - 10, floor + gap);
-    return { x: (canvas.width - w) / 2, y, w, h };
+    if (!box) return null;
+    const S = box.dw / SRC_W;
+    return { x: box.dx + OPTIONS_BOX.x * S, y: box.dy + OPTIONS_BOX.y * S,
+             w: OPTIONS_BOX.w * S, h: OPTIONS_BOX.h * S };
   }
 
-  function drawOptions(img, box, tick) {
+  function drawOptions(_img, box, tick) {
     const r = optionsRect(box);
-    if (!r || !img || !img.width) return;
-    ctx.save();
-    ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(img, r.x, r.y, r.w, r.h);
-    ctx.restore();
-    // It breathes on the opposite beat to PRESS START and cooler, so it reads
-    // as a second thing you can press rather than as a caption under the
-    // first. Same additive glow over his lettering — nothing is drawn on top.
+    if (!r) return;
+    // NOTHING IS BLITTED. The word is in the painting. All this adds is the
+    // breath that marks it as pressable — opposite beat to PRESS START and
+    // cooler, so it reads as a second thing you can press rather than as a
+    // caption under the first. Additive glow over his lettering, as ever.
     still.pulseRect(r.x, r.y, r.w, r.h, tick + 57, '150,210,255');
   }
 
@@ -509,7 +482,12 @@ export function createTitle(ctx, canvas, still) {
     const tw = ctx.measureText(RELAY_LABEL).width;
     ctx.restore();
     const w = Math.min(canvas.width - 24, tw + h * 0.80 + pad * 2);
-    const y = Math.min(canvas.height - h - 8, o.y + o.h + Math.max(8, h * 0.34));
+    // Into the empty road below the word. The portrait plate leaves 209 source
+    // rows of bare wet street under OPTIONS — 105px on a 430 phone — so the
+    // pill sits on painted ground instead of in a letterbox that no longer
+    // exists, and still clears the word by a comfortable margin.
+    const gap = Math.max(14, h * 0.55);
+    const y = Math.min(canvas.height - h - 10, o.y + o.h + gap);
     return { x: (canvas.width - w) / 2, y, w, h, pad };
   }
 
