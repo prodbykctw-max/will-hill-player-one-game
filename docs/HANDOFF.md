@@ -1017,7 +1017,7 @@ it does decide how hard the identity check needs to be.
 - **Daytime multiplane — DONE for all four stages.** Every day plate is now
   cut and wired: eav-day 10 cards, edgewood-day 15, l5p-day 17, plus
   underground-day's existing 19. See "Day and night" above.
-- **The repeat seam — see "The repeat seam" below.** The night half is done and
+- **The repeat seam — see "The repeat seam" above.** The night half is done and
   measured; three day joins remain above their plate's own noise floor, and the
   reason a pixel operation cannot close them is written up there.
 - **End-credits sequence.** The ending SCREEN is built (his painting, real
