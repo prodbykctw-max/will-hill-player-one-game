@@ -4,16 +4,48 @@
   "___": "of a creative decision, so edit it rather than editing the mp3s.",
   "tracks_dir": "/tmp/claude-0/-home-user-will-hill-player-one-game/cbc3ff9f-7391-51ef-9349-17836bad5bc5/scratchpad/tracks",
   "cues": {
-    "title":     { "track": "knowledge_x_polo",   "hook": 18.5 },
-    "stage_01":  { "track": "mar_10_26",          "hook": 56.6 },
-    "map_01_02": { "track": "knowledge_bjordan",  "hook": 40.5 },
-    "stage_02":  { "track": "salvador_knowledge", "hook": 16.1 },
-    "map_02_03": { "track": "project_6",          "hook": 57.5 },
-    "stage_03":  { "track": "project_9",          "hook": 117.5 },
-    "map_03_04": { "track": "2gether",            "hook": 9.8 },
-    "stage_04":  { "track": "lonliness_2",        "hook": 26.8 },
-    "ui_pause":  { "track": "doggzzz",            "hook": 40.0 },
-    "credits":   { "track": "project_9",          "hook": 117.5 }
+    "title": {
+      "track": "knowledge_x_polo",
+      "hook": 18.5
+    },
+    "stage_01": {
+      "track": "mar_10_26",
+      "hook": 56.6
+    },
+    "map_01_02": {
+      "track": "knowledge_bjordan",
+      "hook": 40.5
+    },
+    "stage_02": {
+      "track": "salvador_knowledge",
+      "hook": 16.1
+    },
+    "map_02_03": {
+      "track": "project_6",
+      "hook": 57.5
+    },
+    "stage_03": {
+      "track": "strange_girl",
+      "hook": 61.4
+    },
+    "map_03_04": {
+      "track": "2gether",
+      "hook": 9.8
+    },
+    "stage_04": {
+      "track": "lonliness_2",
+      "hook": 26.8
+    },
+    "ui_pause": {
+      "track": "doggzzz",
+      "hook": 40.0
+    },
+    "credits": {
+      "track": "project_9",
+      "hook": 117.5
+    }
   },
-  "unused": ["strange_girl", "remembering_the_journey"]
+  "unused": [
+    "remembering_the_journey"
+  ]
 }

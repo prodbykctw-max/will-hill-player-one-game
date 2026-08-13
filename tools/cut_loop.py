@@ -231,6 +231,10 @@ def main():
     ap.add_argument('--tracks', required=False)
     ap.add_argument('--plan', action='store_true')
     ap.add_argument('--write', action='store_true')
+    # Re-cutting one slot rather than all ten. Every write is another lossy
+    # encode, so a slot whose pairing did not change should not be touched.
+    ap.add_argument('--only', action='append',
+                    help='limit to these slots; repeatable')
     ap.add_argument('--selftest', action='store_true')
     args = ap.parse_args()
 
@@ -246,6 +250,8 @@ def main():
     done = {}
     total = 0
     for slot, e in sheet['cues'].items():
+        if args.only and slot not in args.only:
+            continue
         key = e['track']
         dest = OUT / f'{slot}.mp3'
         if key in done and TARGET.get(slot) == done[key]['target']:

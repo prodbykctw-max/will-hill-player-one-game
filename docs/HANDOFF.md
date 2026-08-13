@@ -572,11 +572,23 @@ than the mp3s. Two tracks went unused (`strange_girl`, `remembering_the_journey`
 | `map_01_02` | Knowledge B.Jordan 002 | 2.5s | 29.1s |
 | `stage_02` | salvador / Knowledge | 43s | 57.1s |
 | `map_02_03` | Project 6 | 2.5s | 28.0s |
-| `stage_03` | Project 9 | 47s | 39.7s |
+| `stage_03` | strange girl | 47s | 76.8s |
 | `map_03_04` | 2GetHer | 2.5s | 23.9s |
 | `stage_04` | lonliness 2 | 50s | 66.2s |
 | `ui_pause` | doggzzz | while paused | 39.2s |
 | `credits` | Project 9 | once, no loop | 41.4s |
+
+Project 9 was on `stage_03` and `credits` both, which meant the ending replayed
+the beat the player had just run a stage to — and because its hook sits at
+1:57.5 of a 2:38 track, there are only 40.5s after it, so the two cuts were the
+same forty seconds rather than different sections. The client moved strange
+girl onto stage three, which leaves Project 9 to the credits alone.
+
+⚠️ **`credits` is 41s and does not loop** — the only cue without that
+protection. If the credits roll ever runs longer, the tail plays in silence.
+strange girl was the candidate that fixed it (2:28 usable after its hook, the
+most of any of the eleven) and it went to stage three instead, so this is still
+open.
 
 ### The files start at the hook, and that is not cosmetic
 
