@@ -303,6 +303,12 @@ export function savedTimeOfDay() {
   }
 }
 
+// The title card's MUSIC box writes through here, so the checkbox and the
+// OPTIONS toggle are the same setting and cannot drift apart.
+export function setSoundEnabled(on) {
+  try { localStorage.setItem('wh_sound', on ? 'on' : 'off'); } catch (_e) {}
+}
+
 export function soundEnabled() {
   try {
     return localStorage.getItem('wh_sound') !== 'off';

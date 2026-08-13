@@ -34,16 +34,13 @@ const newPage = async () => {
 const atTitle = (p) => p.waitForFunction(() => window.__game && window.__game.screen === 'title',
   null, { timeout: 25000 });
 
-// THE GAME OPENS ON A BLACK CARD. Nothing on the title exists until it is
-// tapped — `titleBox` is not even set, so relayRect() returns null and a
-// harness that reaches for a button first dies on `reading 'x'`. One tap in
-// open space opens the door and starts the assembly; wait for that to land
-// before touching anything, or the button is still fading in under the finger.
+// THERE IS NO LONGER A DOOR TO KNOCK ON. The black TAP ANYWHERE card is gone
+// at the client's call, and with it the swallowed first tap — so a harness that
+// still taps once "to enter" now STARTS A RUN with that tap. All this has to do
+// is wait for the card to finish revealing itself, or a button is still fading
+// in under the finger.
 const enter = async (p) => {
   await atTitle(p);
-  await p.waitForTimeout(400);
-  await p.touchscreen.tap(215, 466);
-  await p.waitForFunction(() => window.__game.introTapped, null, { timeout: 10000 });
   await p.waitForTimeout(2600);
 };
 
@@ -169,31 +166,30 @@ const normal = await ps.evaluate(() => ({ screen: window.__game.screen,
 check('a normal START after the switch is still a normal run',
   normal.screen === 'playing' && normal.enemies > 0, JSON.stringify(normal));
 
-// ── The front door ───────────────────────────────────────────────────────
-console.log('\n=== THE BLACK CARD ===');
+// ── No front door ────────────────────────────────────────────────────────
+console.log('\n=== THE CARD OPENS STRAIGHT AWAY ===');
 const pd = await newPage();
 await pd.goto('http://localhost:5199/?tod=night', { waitUntil: 'networkidle' });
-await atTitle(pd); await pd.waitForTimeout(1200);
-const shut = await pd.evaluate(() => ({ tapped: window.__game.introTapped,
-  box: !!window.__game.titleBox }));
-check('opens shut, with no title drawn behind it', !shut.tapped && !shut.box,
-  JSON.stringify(shut));
-await pd.touchscreen.tap(215, 466);
-await pd.waitForFunction(() => window.__game.introTapped, null, { timeout: 10000 });
-await pd.waitForTimeout(300);
-const opened = await pd.evaluate(() => ({ cue: window.__audio.music.status().playing,
-  audible: !window.__audio.music.status().el?.paused, screen: window.__game.screen }));
-check('one tap in open space starts the theme', opened.cue === 'title' && opened.audible,
-  JSON.stringify(opened));
-await pd.waitForTimeout(2600);
-const settled = await pd.evaluate(() => ({ screen: window.__game.screen,
+await enter(pd);
+const up = await pd.evaluate(() => ({ screen: window.__game.screen,
+  box: !!window.__game.titleBox,
   relay: !!window.__title.relayRect(window.__game.titleBox),
-  opts: !!window.__title.optionsRect(window.__game.titleBox) }));
-check('it settles into the menu, both controls present',
-  settled.screen === 'title' && settled.relay && settled.opts, JSON.stringify(settled));
-await pd.touchscreen.tap(215, 240); await pd.waitForTimeout(1600);
-const ran = await pd.evaluate(() => ({ screen: window.__game.screen }));
-check('then open space is START', ran.screen === 'playing', JSON.stringify(ran));
+  opts: !!window.__title.optionsRect(window.__game.titleBox),
+  music: !!window.__title.musicRect(window.__game.titleBox) }));
+check('no black card — the title is up with all three controls',
+  up.screen === 'title' && up.box && up.relay && up.opts && up.music, JSON.stringify(up));
+// The MUSIC box must not be reachable by a stray press of START, and vice
+// versa: three controls in a 90px stack is where a fat hit rect would show.
+const sep = await pd.evaluate(() => {
+  const t = window.__title, b2 = window.__game.titleBox;
+  const o = t.optionsRect(b2), r = t.relayRect(b2), m = t.musicRect(b2);
+  return { optToRelay: Math.round(r.y - (o.y + o.h)),
+           relayToMusic: Math.round(m.y - (r.y + r.h)) };
+});
+check('the three controls do not overlap',
+  sep.optToRelay > 0 && sep.relayToMusic > 0, JSON.stringify(sep));
+await pd.touchscreen.tap(215, 240); await pd.waitForTimeout(1700);
+check('open space is START', await pd.evaluate(() => window.__game.screen) === 'playing');
 
 console.log('');
 console.log(checks.every(([, p]) => p)

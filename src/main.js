@@ -28,7 +28,7 @@ import { createTitle, TITLE_IMAGES, SRC_W as STILL_W, SRC_H as STILL_H } from '.
 import martaMapArt from './assets/backgrounds/marta-map.webp';
 import { loadImages } from './render/images.js';
 import { createRunLog, lbSubmit, bankLocalRun, isRegistered } from './net/leaderboard.js';
-import { createPanel, soundEnabled } from './ui/panel.js';
+import { createPanel, soundEnabled, setSoundEnabled } from './ui/panel.js';
 import { createHaptics } from './core/haptics.js';
 import { STAGE_SLOTS, MAP_SLOTS, MANIFEST } from './audio/music.js';
 import { isRelay, setRelay } from './core/relay.js';
@@ -307,44 +307,40 @@ canvas.addEventListener('pointerdown', (e) => {
   if (state.screen === 'title') {
     if (state.screenT <= TITLE_ARM_TICKS) return;
     e.preventDefault();
-    // ── THE FIRST TAP OPENS THE GAME. IT DOES NOT START THE RUN. ─────────
+    // ── UNLOCK ON ANY INPUT, BUT SWALLOW NOTHING ─────────────────────────
     //
-    // Until it happens the screen is black and says TAP ANYWHERE, and this is
-    // what that card is waiting for. One gesture buys all three things:
+    // A browser will not release sound before a gesture inside the page, and
+    // tapping a home-screen icon is a gesture on the OS, not on us. So every
+    // input here tries the unlock — but it no longer EATS one to do it.
     //
-    //   the browser releases the audio    (it will not before a gesture, and
-    //                                      tapping a home-screen icon is a
-    //                                      gesture on the OS, not on the page)
-    //   the theme starts
-    //   the title card begins assembling itself
+    // It used to. There was a black TAP ANYWHERE card whose only job was to
+    // collect that gesture, and when the client cut the card the swallow stayed
+    // behind and quietly ate the first press of anything — including the first
+    // press of the MUSIC box, which is now the control that exists to turn the
+    // sound on. Caught by the harness: tap the box, and `wh_sound` was still
+    // 'off'; tap it again and it finally flipped.
     //
-    // Measured on a cold load before this existed: the title cue was genuinely
-    // PLAYING the whole time — element unpaused, currentTime climbing 0 ->
-    // 0.73 -> 1.53 — but the AudioContext was suspended, so it ran through a
-    // dead bus and made no sound. Then the first tap resumed the context AND
-    // started the run in the same gesture, so 220ms later the cue was stage_01
-    // and the title track had never once been audible.
+    // Unlocking without returning is free. The gesture is already in hand.
+    if (!audio.ready() && soundEnabled()) audio.unlock();
+
+    // ── THE MUSIC BOX ────────────────────────────────────────────────────
+    // Tested first of the three, because it is the smallest and the lowest and
+    // a near miss on it should not launch a walkthrough run.
     //
-    // IT LATCHES ON THE TAP, NOT ON `audio.ready()`. An earlier version gated
-    // this on the audio being asleep, which meant that on a browser handing out
-    // a running context — or for anyone who had turned the sound off — the door
-    // was not there at all and the first tap started a run from a black screen.
-    // The door is the door. Sound is the thing it happens to also unlock.
-    if (!state.introTapped) {
-      state.introTapped = true;
-      state.introAt = state.screenT;
-      if (!audio.ready() && soundEnabled()) audio.unlock();
+    // THIS TAP IS THE GESTURE. A browser will not release sound without one,
+    // and checking the box IS one — so unlock inside the handler, on the same
+    // touch that sets the preference, and the theme comes up under the finger.
+    // Nothing is swallowed and nothing is deferred; that is the whole point of
+    // the control replacing the black card that used to ask for a bare tap.
+    if (title.hitMusic(state.titleBox, x, y)) {
+      const on = !soundEnabled();
+      setSoundEnabled(on);
+      audio.setMuted(!on);
+      if (on && !audio.ready()) audio.unlock();
+      state.introTapped = true;   // the audio has had its input either way
       press();
       return;
     }
-    // THE SCREEN IS SPLIT, NOT DOTTED WITH BUTTONS. The two controls are
-    // painted 15 rows apart, which is 4.2 screen pixels on a phone — a gap
-    // nobody can aim inside, and the client kept getting START when he meant
-    // OPTIONS. So the whole lower part of the display, including the black
-    // below the card, opens the panel, and everything above it starts the
-    // game. Two enormous targets, one boundary.
-    // CHAMPAGNE RELAY first: it lives inside the lower half, so testing the
-    // catch-all before it would mean the panel swallowed every press of it.
     if (title.hitRelay(state.titleBox, x, y)) {
       setRelay(true);
       commit();
@@ -566,17 +562,8 @@ function update() {
   if (state.screen === 'title') {
     state.screenT++;
     if (state.screenT > TITLE_ARM_TICKS && confirmPressed()) {
-      // The same door the tap path opens — see the pointer handler. A desktop
-      // player pressing JUMP on a black screen has the identical problem, and
-      // `introTapped` is shared so exactly one input is ever spent on it,
-      // whichever way it arrives.
-      if (!state.introTapped) {
-        state.introTapped = true;
-        state.introAt = state.screenT;
-        if (!audio.ready() && soundEnabled()) audio.unlock();
-        press();
-        return;
-      }
+      // Same as the tap path: try the unlock, swallow nothing. See there.
+      if (!audio.ready() && soundEnabled()) audio.unlock();
       commit();
       startRun();
     }
@@ -959,13 +946,14 @@ function draw() {
     // Keep where the painting landed — the OPTIONS hit test converts through
     // it, so the button follows the art on any screen instead of living at a
     // guessed screen coordinate.
-    // BLACK CARD FIRST, then the reveal, then the menu. See title.drawTapPage
-    // and title.introFx. `titleBox` is deliberately left alone on the black
-    // card: the hit tests convert through it, and there is nothing on that
-    // screen to hit — every tap there goes through the front door above.
-    if (!state.introTapped) { title.drawTapPage(state.tick); return; }
+    // NO BLACK CARD. It is gone at the client's call — "we're removing the tap
+    // anywhere blank screen, we'll figure out another way to get the music to
+    // play from the home screen." So the card reveals itself the moment the
+    // game loads, and the first input is still spent on the audio, over his
+    // painting with PRESS START pulsing rather than over an empty screen.
     const introT = state.screenT - state.introAt;
-    state.titleBox = title.draw(images, state.tick, introT <= INTRO_TICKS, introT);
+    state.titleBox = title.draw(images, state.tick, introT <= INTRO_TICKS, introT,
+      soundEnabled());
     return;
   }
 

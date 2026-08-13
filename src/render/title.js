@@ -205,7 +205,7 @@ export function titleCards() {
 }
 
 export function createTitle(ctx, canvas, still) {
-  function draw(images, tick, splash, introT) {
+  function draw(images, tick, splash, introT, musicOn) {
     // THE INTRO PAGE. The card assembles itself out of an empty street and a
     // blank sky — see introFx — and that assembly IS the whole page. It has no
     // words of its own; his painting's own PRESS START is the prompt.
@@ -221,6 +221,7 @@ export function createTitle(ctx, canvas, still) {
       ctx.globalAlpha = a;
       drawOptions(images.title_options, box, tick);
       drawRelay(box, images.champagne, tick);
+      drawMusic(box, musicOn, tick);
       ctx.restore();
     }
     return box;
@@ -349,85 +350,6 @@ export function createTitle(ctx, canvas, still) {
     return at(introT, INTRO_END - 10, INTRO_END + 22);
   }
 
-  // ── THE BLACK CARD THE GAME OPENS ON ─────────────────────────────────────
-  //
-  // Client: "I'd rather it just be a black screen at the beginning that says
-  // tap anywhere, and that initiates the sliding in of all the components and
-  // layers, and then that becomes where I press start — by then the music
-  // should already be playing."
-  //
-  // WHY IT IS BETTER THAN WHAT IT REPLACES, which had the card assemble itself
-  // on load with the tap as a separate event afterwards: a browser will not
-  // release sound before a gesture, so SOMETHING has to ask for one. Asking
-  // first, on an empty screen, means the gesture buys the theme and the reveal
-  // at the same instant — the world builds WITH the music instead of in
-  // silence, and nothing has been spent before the player arrives.
-  //
-  // It is also the only honest thing to put on screen at that moment. The
-  // alternative is a finished title card sitting mute, which this project has
-  // now shipped twice and had reported as broken twice.
-  //
-  // Nothing else is drawn. No logo, no border, no sound hint — the whole page
-  // is one instruction, and the very next frame after it is obeyed is the
-  // reveal, which is where the game gets to introduce itself properly.
-  function drawTapPage(tick) {
-    const W = canvas.width;
-    const H = canvas.height;
-    const touch = typeof document !== 'undefined'
-      && document.body && document.body.classList.contains('touch');
-    const label = touch ? 'TAP ANYWHERE' : 'PRESS ANY KEY';
-    // A heartbeat, not a blink, and slower than anything on the menu — this is
-    // the one thing on screen and it has all the time in the world.
-    const glow = 0.5 + 0.5 * Math.sin(tick / 42);
-    ctx.save();
-    ctx.fillStyle = '#000';
-    ctx.fillRect(0, 0, W, H);
-    const size = Math.max(19, Math.min(42, W * 0.075));
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.font = `800 ${Math.round(size)}px system-ui, sans-serif`;
-    ctx.shadowColor = `rgba(255,198,86,${0.26 + 0.44 * glow})`;
-    ctx.shadowBlur = 30;
-    ctx.fillStyle = `rgba(255,238,202,${0.62 + 0.38 * glow})`;
-    ctx.fillText(label, W / 2, H * 0.5);
-    ctx.restore();
-  }
-
-  // ── WHERE THE LIFTED WORD LANDS, AND HOW BIG ─────────────────────────
-  //
-  // IT IS MEASURED FROM THE SPLIT LINE, NOT FROM THE BOTTOM OF THE CARD, and
-  // that is the whole correctness argument. Anchoring it below the card was
-  // the obvious way and it is right only while there IS black below the card.
-  // Widen the window to landscape and `fit`'s zoom makes the card TALLER than
-  // the display, so the card's bottom is off-screen, the placement clamps to
-  // the last row that fits, and the word lands straddling the boundary — at
-  // 1280x800 it came out with its top on 740.0 against a split at 741.1.
-  // Tapping the top edge of the OPTIONS control would have started the game.
-  //
-  // So the band the word lives in runs from `floor` — below BOTH the split
-  // line and the painted PRESS START, whichever is lower — to the bottom of
-  // the display. That band always exists, so the word is always reachable,
-  // always in its own tap zone, and never touching the other control.
-  //
-  // Three caps on the scale, smallest wins, because one number cannot be
-  // right on both a 430px phone and a desktop window:
-  //
-  //   40% OF THE DISPLAY WIDTH — a control you can read without leaning in.
-  //   3x THE CARD'S OWN SAMPLING RATE — the word is 189 source pixels and the
-  //     plate is dithered. Past 3x the dither becomes blocks, which is the
-  //     same artefact that got the stretched letterbox filler thrown out.
-  //   A THIRD OF THE BAND — where the band is small the word has to be small,
-  //     and it is better to be legible-and-small than clipped.
-  //
-  // On the target phone the first two land within 1.3% of each other (0.910
-  // against 0.898) so the pixel-grid cap is the one that bites, which is the
-  // right one to be bound by. Measured there: 84px between the word and the
-  // bottom of PRESS START, up from THIRTEEN.
-  const CAP_W = 0.40;
-  const CAP_SCALE = 3;
-  const CAP_BAND = 0.34;
-  const START_BOTTOM = 907;   // last painted row of PRESS START, colour-keyed
-
   // ── OPTIONS, WHERE HE PAINTED IT ─────────────────────────────────────
   //
   // On the landscape plate this word had to be CUT OUT and moved: it rendered
@@ -529,6 +451,84 @@ export function createTitle(ctx, canvas, still) {
     ctx.restore();
   }
 
+  // ── THE MUSIC BOX ────────────────────────────────────────────────────
+  //
+  // Client, after killing the black TAP ANYWHERE card: "on the home screen
+  // underneath it should be a question with a check box that says MUSIC, and
+  // once you check the box it cuts music on, and it automatically plays from
+  // there."
+  //
+  // It is a better answer than the card it replaces, and for a reason worth
+  // stating: a browser will not release sound without a gesture, so SOMETHING
+  // on this screen has to be touched first. A black page demanding a tap gives
+  // nothing back for it. A checkbox labelled MUSIC gives an honest control that
+  // says what it does, and CHECKING IT IS THE GESTURE — the same touch that
+  // sets the preference is the one the browser accepts, so the theme comes up
+  // under the finger.
+  //
+  // It reads and writes the SAME `wh_sound` setting the OPTIONS panel uses, so
+  // the two can never disagree.
+  const MUSIC_LABEL = 'MUSIC';
+
+  function musicRect(box) {
+    const r = relayRect(box);
+    if (!r) return null;
+    const h = Math.max(22, Math.min(38, r.h * 0.86));
+    ctx.save();
+    ctx.font = `700 ${Math.round(h * 0.44)}px system-ui, sans-serif`;
+    const tw = ctx.measureText(MUSIC_LABEL).width;
+    ctx.restore();
+    const boxSz = h * 0.62;
+    const w = boxSz + h * 0.42 + tw;
+    return { x: (canvas.width - w) / 2, y: Math.min(canvas.height - h - 8,
+      r.y + r.h + Math.max(12, h * 0.5)), w, h, boxSz };
+  }
+
+  function drawMusic(box, on, tick) {
+    const r = musicRect(box);
+    if (!r) return;
+    const glow = 0.5 + 0.5 * Math.sin(tick / 52 + 4.2);
+    const bx = r.x;
+    const by = r.y + (r.h - r.boxSz) / 2;
+    ctx.save();
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(bx, by, r.boxSz, r.boxSz, 4);
+    else ctx.rect(bx, by, r.boxSz, r.boxSz);
+    ctx.fillStyle = on ? 'rgba(255,214,110,0.92)' : 'rgba(10,8,16,0.68)';
+    ctx.fill();
+    ctx.lineWidth = 1.6;
+    // Unchecked, it breathes to ask for the tap. Checked, it sits still —
+    // nothing left to prompt.
+    ctx.strokeStyle = on ? 'rgba(255,236,190,0.95)'
+      : `rgba(226,214,236,${0.42 + 0.34 * glow})`;
+    ctx.stroke();
+    if (on) {
+      // A tick, drawn rather than typed, so it lands on the pixel grid.
+      ctx.beginPath();
+      ctx.strokeStyle = 'rgba(18,12,6,0.95)';
+      ctx.lineWidth = Math.max(2, r.boxSz * 0.16);
+      ctx.lineCap = 'round';
+      ctx.moveTo(bx + r.boxSz * 0.24, by + r.boxSz * 0.52);
+      ctx.lineTo(bx + r.boxSz * 0.44, by + r.boxSz * 0.72);
+      ctx.lineTo(bx + r.boxSz * 0.78, by + r.boxSz * 0.28);
+      ctx.stroke();
+    }
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.font = `700 ${Math.round(r.h * 0.44)}px system-ui, sans-serif`;
+    ctx.fillStyle = on ? 'rgba(255,236,190,0.95)'
+      : `rgba(226,214,236,${0.58 + 0.30 * glow})`;
+    ctx.fillText(MUSIC_LABEL, bx + r.boxSz + r.h * 0.42, r.y + r.h / 2 + 1);
+    ctx.restore();
+  }
+
+  function hitMusic(box, x, y) {
+    const r = musicRect(box);
+    if (!r) return false;
+    return x >= r.x - HIT_MARGIN && x <= r.x + r.w + HIT_MARGIN
+      && y >= r.y - HIT_MARGIN && y <= r.y + r.h + HIT_MARGIN;
+  }
+
   function hitRelay(box, x, y) {
     const r = relayRect(box);
     if (!r) return false;
@@ -573,5 +573,6 @@ export function createTitle(ctx, canvas, still) {
     return x >= r.x - HIT_MARGIN && x <= r.x + r.w + HIT_MARGIN
       && y >= r.y - HIT_MARGIN && y <= r.y + r.h + HIT_MARGIN;
   }
-  return { draw, drawTapPage, hitOptions, optionsRect, hitRelay, relayRect };
+  return { draw, hitOptions, optionsRect, hitRelay, relayRect,
+    hitMusic, musicRect, drawMusic };
 }
