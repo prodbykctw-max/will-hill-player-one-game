@@ -631,6 +631,40 @@ was touched, and both would have shipped silently:
 Fixed, the joins run 0–6× the track's own typical sample step (`credits` is
 24× and does not matter — it never loops). Match scores 0.80–0.99.
 
+### The first tap wakes the music; it does not start the run
+
+The client: *"as soon as I click the icon I wanna hear the home screen music,
+because that's what pops up immediately."*
+
+Measured on a cold load, and the failure is not what it looks like. The title
+cue is genuinely PLAYING the whole time somebody is looking at the card —
+element unpaused, `currentTime` climbing 0 -> 0.73 -> 1.53 — but the
+AudioContext is suspended, so it runs through a dead bus and makes no sound.
+Tapping a home-screen icon is a tap on the OS launcher, not inside the page, so
+no browser lets audio out on the strength of it. Then the first in-page tap
+resumed the context AND started the run in the same gesture: 220ms later the
+cue was `stage_01` and the title track had never once been audible.
+
+So the title screen now spends one input on the music. It clicks, it ticks
+under the thumb, the beat comes up on the card, and the next tap starts the
+game. Verified: `ctx` false -> true with `screen=title` held and `t` still
+climbing 1.98 -> 3.57, then the second tap fades `stage_01` in 0.227 -> 0.5.
+
+Three guards, and each exists for a reason:
+
+- **At most ONE input, ever** (`state.audioTapSpent`). A condition written on
+  `audio.ready()` alone would eat every tap if `resume()` were refused, and
+  leave the game unstartable.
+- **Not when the sound is off.** Nothing to wake, so spending a tap would just
+  be a dead first press. Checked: with `wh_sound=off` one tap still starts the
+  run.
+- **The keyboard path shares the same flag.** A desktop player pressing JUMP
+  had the identical problem. One input total, whichever way it arrives.
+
+It rarely costs anything in practice: any earlier interaction already unlocks
+the context, so a tap that lands before `TITLE_ARM_TICKS` — or anything at all
+touched first — means the start tap behaves as it always did.
+
 ### The cross-fade between cues is a different thing, and it works
 
 `FADE = 0.9s` in `music.js`. Measured on a real START press: `title 0.55` →

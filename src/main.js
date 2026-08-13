@@ -268,6 +268,34 @@ canvas.addEventListener('pointerdown', (e) => {
   if (state.screen === 'title') {
     if (state.screenT <= TITLE_ARM_TICKS) return;
     e.preventDefault();
+    // ── THE FIRST TAP WAKES THE MUSIC. IT DOES NOT START THE RUN. ────────
+    //
+    // The client: "as soon as I click the icon I wanna hear the home screen
+    // music, because that's what pops up immediately."
+    //
+    // Tapping a home-screen icon is a tap on the OS launcher, not inside the
+    // page, so no browser lets sound out on the strength of it. Measured on a
+    // cold load: the title cue is genuinely PLAYING the whole time — element
+    // unpaused, currentTime climbing 0 -> 0.73 -> 1.53 — but the AudioContext
+    // is suspended, so it runs through a dead bus and makes no sound. Then the
+    // first tap resumes the context AND starts the run in the same gesture, so
+    // 220ms later the cue is stage_01 and the title track was never once
+    // audible.
+    //
+    // So this tap is spent on the music. It clicks, it ticks under the thumb,
+    // and the beat comes up on the card the player is already looking at; the
+    // next tap starts the game.
+    //
+    // AT MOST ONE TAP IS EVER SWALLOWED. If resume() is refused — and it can
+    // be — a condition written purely on `audio.ready()` would eat every tap
+    // and leave the game unstartable. And there is no point spending a tap for
+    // somebody who has turned the sound off.
+    if (!state.audioTapSpent && !audio.ready() && soundEnabled()) {
+      state.audioTapSpent = true;
+      audio.unlock();
+      press();
+      return;
+    }
     // THE SCREEN IS SPLIT, NOT DOTTED WITH BUTTONS. The two controls are
     // painted 15 rows apart, which is 4.2 screen pixels on a phone — a gap
     // nobody can aim inside, and the client kept getting START when he meant
@@ -474,7 +502,21 @@ function update() {
 
   if (state.screen === 'title') {
     state.screenT++;
-    if (state.screenT > TITLE_ARM_TICKS && confirmPressed()) { commit(); startRun(); }
+    if (state.screenT > TITLE_ARM_TICKS && confirmPressed()) {
+      // The same one-shot the tap path spends — see the pointer handler. A
+      // desktop player pressing JUMP on the title has the identical problem:
+      // the keypress wakes the context and starts the run in one move, and the
+      // title track never sounds. `audioTapSpent` is shared, so exactly ONE
+      // input is ever spent on the music, whichever way it arrives.
+      if (!state.audioTapSpent && !audio.ready() && soundEnabled()) {
+        state.audioTapSpent = true;
+        audio.unlock();
+        press();
+        return;
+      }
+      commit();
+      startRun();
+    }
     return;
   }
   // Paused freezes the world but keeps drawing, so the menu sits over a
