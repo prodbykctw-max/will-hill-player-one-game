@@ -30,7 +30,7 @@ import { loadImages } from './render/images.js';
 import { createRunLog, lbSubmit, bankLocalRun, isRegistered } from './net/leaderboard.js';
 import { createPanel, soundEnabled } from './ui/panel.js';
 import { createHaptics } from './core/haptics.js';
-import { STAGE_SLOTS, MAP_SLOTS } from './audio/music.js';
+import { STAGE_SLOTS, MAP_SLOTS, MANIFEST } from './audio/music.js';
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
@@ -412,6 +412,21 @@ function syncPads() {
 // Slots are looked up in the tables from audio/music.js, never built by
 // concatenating a stage index into a string. A typo there is a silent missing
 // track, which is the hardest kind of audio bug to notice.
+// DAY AND NIGHT CAN HAVE DIFFERENT MUSIC, and adding it costs one manifest
+// line per cue rather than a change here. The client: "I definitely want
+// different music for day versus night of each stage."
+//
+// A stage cue prefers `<slot>_day` / `<slot>_night` when the manifest has one
+// and falls back to the shared `<slot>` when it does not — so today every
+// stage plays one track in both halves, and the day EAV gets its own the
+// moment `stage_01_day` exists. Nothing else has to know.
+function todSlot(base) {
+  if (!base) return null;
+  const tod = state.level && state.level.stage && state.level.stage.tod;
+  const specific = tod && `${base}_${tod}`;
+  return specific && MANIFEST[specific] && MANIFEST[specific].src ? specific : base;
+}
+
 function cueForScreen() {
   const st = state;
   switch (st.screen) {
@@ -419,7 +434,7 @@ function cueForScreen() {
     case 'loading':
       return 'title';
     case 'playing':
-      return STAGE_SLOTS[st.stageIndex] || null;
+      return todSlot(STAGE_SLOTS[st.stageIndex]);
     case 'riding':
       // Named for the pair it bridges, so the map cue is the one the cue
       // sheet says it is regardless of which stage the ride starts from.
@@ -431,8 +446,10 @@ function cueForScreen() {
       return 'credits';
     case 'stageClear':
       // Hold whatever the stage was playing — the card is a beat, not a
-      // scene, and cutting the track for two seconds reads as a glitch.
-      return STAGE_SLOTS[st.stageIndex] || null;
+      // scene, and cutting the track for two seconds reads as a glitch. Which
+      // means it has to resolve the same day/night slot `playing` did, or the
+      // card would cross-fade to the other half's track for one beat.
+      return todSlot(STAGE_SLOTS[st.stageIndex]);
     case 'gameOver':
       return null;
     default:

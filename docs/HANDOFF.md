@@ -558,6 +558,118 @@ line up with the plate they belong to.
 
 ---
 
+## The soundtrack
+
+Ten cues, all wired, all **prodbyKCTW's own instrumentals** — he sent eleven
+and paired them himself on a bench built for the job. His pairing is recorded
+in `tools/cue_sheet.json`; that file is a creative decision, so edit it rather
+than the mp3s. Two tracks went unused (`strange_girl`, `remembering_the_journey`).
+
+| slot | track | on screen | cut |
+|---|---|---|---|
+| `title` | Knowledge x POLO | until they press start | 68.1s |
+| `stage_01` | 3.10.26 (2) | 40s floor | 46.3s |
+| `map_01_02` | Knowledge B.Jordan 002 | 2.5s | 29.1s |
+| `stage_02` | salvador / Knowledge | 43s | 57.1s |
+| `map_02_03` | Project 6 | 2.5s | 28.0s |
+| `stage_03` | Project 9 | 47s | 39.7s |
+| `map_03_04` | 2GetHer | 2.5s | 23.9s |
+| `stage_04` | lonliness 2 | 50s | 66.2s |
+| `ui_pause` | doggzzz | while paused | 39.2s |
+| `credits` | Project 9 | once, no loop | 41.4s |
+
+### The files start at the hook, and that is not cosmetic
+
+`startAt` was supposed to open a cue on its hook and skip the intro. **It only
+half worked**, and the failure is worth remembering: a media element with
+`loop = true` wraps to ZERO, not to `startAt`. First pass opened on the hook;
+every pass after it played the intro the offset existed to avoid. Invisible on
+a stage, obvious on the title card, which loops for as long as anyone sits
+there.
+
+So `tools/cut_loop.py` cuts each file so the hook IS frame zero. Every
+`startAt` is now 0, the native loop is correct and gapless, and 30.4MB of
+source became **6.84MB shipped**.
+
+⚠️ **A looping cue must keep `startAt` 0.** The field remains for one-shot cues;
+on a looping slot a non-zero value is the bug above, not a feature.
+
+### Finding the loop point — and two bugs the selftest caught
+
+The length is found by **cross-correlation, not by tempo**. Snapping to a bar
+needs the bar length, and beat trackers lock to whatever pulse is loudest: this
+project's read 89 BPM on a track whose own filename says 135, which is exactly
+two-thirds of it. Instead the tool searches lengths around a target and scores
+each by how well the head matches what follows the cut.
+
+Both bugs were found by `--selftest` against synthetic audio, before any music
+was touched, and both would have shipped silently:
+
+1. **The comparison was backwards.** It scored the window *ending at* the cut
+   against the head. That is satisfied when the length is a whole period **plus
+   the comparison window** — off by the arbitrary width of the window every
+   time. On a signal with a known 4.0s period it confidently returned 9.5s and
+   scored it 1.000; 9.5 is 8.0 + the 1.5s window. The right comparison is
+   `head` against `mono[n:n+win]`, what genuinely followed.
+2. **The crossfade made the join worse.** It faded the head into the head, so
+   the clip ended on a sample 15ms deep into its own start and the wrap landed
+   on two samples that were never adjacent: measured **13× the typical step
+   before, 189× after**. The extra audio has to come from *after* the cut.
+
+Fixed, the joins run 0–6× the track's own typical sample step (`credits` is
+24× and does not matter — it never loops). Match scores 0.80–0.99.
+
+### The cross-fade between cues is a different thing, and it works
+
+`FADE = 0.9s` in `music.js`. Measured on a real START press: `title 0.55` →
+`title 0.00 | stage_01 0.26` → `0.35` → `0.45` → `stage_01 0.50` alone. The
+client asked for exactly this — *"I want it to kind of fade out once I hit
+start… I don't wanna hear the intro music no more."*
+
+Do not confuse it with the 15ms `XFADE` inside `cut_loop.py`: that one is
+inside a single file at its loop point and is inaudible as a fade.
+
+### Day and night music is one manifest line away
+
+`todSlot()` in main.js prefers `<slot>_day` / `<slot>_night` when the manifest
+has one with a `src`, and falls back to the shared `<slot>` when it does not.
+So adding `stage_01_day` is the entire change; nothing else learns about it.
+`stageClear` resolves through the same helper, or the clear card would
+cross-fade to the other half's track for one beat.
+
+### What a phone actually downloads
+
+Measured against the production build, not guessed:
+
+| | requests | bytes | audio fetched |
+|---|---|---|---|
+| boot to title | 93 | **6.70 MB** | `title` (1.07 MB) |
+| entering stage one | 1 | **0.67 MB** | `stage_01` |
+
+`preload='none'` means a cue downloads when its screen arrives and never
+before. **The music is not what makes the game heavy** — ~5.6MB of the boot
+payload is artwork, loaded eagerly by the image manifest, including all four
+stages' plates and cards plus the ending and the MARTA map. Doubling the cues
+for day/night adds **zero** to boot: a night player never fetches a day cue.
+
+### Verifying it
+
+`scratchpad/musiccheck.mjs` drives every screen and reads
+`audio.music.status()`. Two traps it hit first:
+
+- **The unlock gesture must not be a tap on the title card.** The lower half
+  opens OPTIONS and every later click lands on the panel. Press a key the game
+  does not bind.
+- **The cues are `new Audio()` and never appended to the document**, so
+  `querySelectorAll('audio')` finds nothing and a check written that way
+  reports silence on a game that is playing fine. `status()` now exposes the
+  element state and `srcs` for this reason. And you cannot check a slot by
+  calling `play()` — main.js re-states the current screen's cue every frame and
+  overrides it, which made all ten slots report whichever one the game was on.
+  Load the URLs from `status().srcs` on your own element.
+
+---
+
 ## The repeat seam
 
 `drawPlate` tiles each plate straight — not mirrored, because a flipped copy
@@ -1024,39 +1136,10 @@ it does decide how hard the identity check needs to be.
   stats, swaying crowd). The credits that share the frame with it are not, and
   are blocked on files that have only ever been in chat: the RARƎ AGENCY logo
   and prodbyKCTW's logo.
-- **The ten soundtrack cues — the SYSTEM IS BUILT, the FILES are not here.**
-  `src/audio/music.js` holds a manifest keyed by FUNCTION (`title`,
-  `stage_01`, `map_01_02`, `ui_pause`, `credits`…), every `src` currently
-  `null`, which is a supported state: the game runs silent-but-correct and
-  gains music the day the files land in `src/assets/music/` and the nulls
-  become paths. **Do not rename a slot to a song title.** Four of the ten are
-  explicitly volatile — BLOCK HOT is already circling `stage_02` — and the
-  client's instruction was that a swap should be a manifest edit, not a
-  refactor.
-
-  Cue sheet, in play order: title=En Vogue · stage_01=TAKE A RISK ·
-  map_01_02=Million Dollar Baby · stage_02=BENDING CORNERS (alt BLOCK HOT) ·
-  map_02_03=Don't Wanna Leave · stage_03=JAPANESE PANTS ·
-  map_03_04=Pretty Girls Love Me · stage_04=LOVE THE HUSTLE ·
-  ui_pause=Creepin' (Interlude) · credits=I'm The Man (the only one that does
-  not loop).
-
-  **`<audio>` elements, not `decodeAudioData`.** Decoded to buffers, JAPANESE
-  PANTS alone is ~90MB of RAM and ten cues would be most of a gigabyte on a
-  phone. Media elements stream; they are routed through
-  `createMediaElementSource` into the same master bus as everything else, so
-  one mute switch covers them and the punch can duck them.
-
-  ⚠️ **NOBODY WILL EVER HEAR THE END OF A STAGE CUE.** A stage is 30-37s flat
-  out against songs of 3-4 minutes. Each slot has a `startAt` in seconds for
-  exactly this — a cue can begin at its hook instead of its intro — and the
-  right value is different for every song.
-
-  Verified with a stand-in file injected into all ten slots (an all-null
-  manifest is silent whether the routing is right or wrong): title→title,
-  playing→stage_01, paused→ui_pause, stageClear→stage_01 (holds the stage
-  track; the card is a beat, not a scene), complete→credits, gameOver→silence,
-  riding→map_01_02. Punch ducks to 0.42 and recovers.
+- **The ten soundtrack cues are WIRED and playing** — prodbyKCTW's own
+  instrumentals, not the Will Hill tracks the original sheet named. See "The
+  soundtrack" below. The Will Hill songs can still land later: the slots are
+  keyed by function, so each swap is one manifest line.
 - **The Worker is still not deployed.** Everything client-side is built and
   works against the local fallback; `LB_URL` is empty and the KV namespace
   does not exist. Creating it and running `wrangler deploy` touches the live

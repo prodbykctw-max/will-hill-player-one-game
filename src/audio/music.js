@@ -7,10 +7,10 @@
 // the project tracks arrive, and BLOCK HOT is already circling STAGE_02 — so
 // nothing outside MANIFEST is allowed to know a title.
 //
-// ⚠️ NO FILES ARE WIRED YET. Every entry is `null`, which is a supported state
-// rather than a stub: `play()` on an empty slot stops whatever was playing and
-// returns, so the game runs silent-but-correct today and gains music the day
-// the mp3s land in src/assets/music/ and the nulls become paths.
+// WIRED, with prodbyKCTW's own instrumentals — his pairing, made off the cue
+// bench and recorded in tools/cue_sheet.json. `null` is still a supported
+// state for any slot: `play()` on an empty one stops whatever was playing and
+// returns, so a cue can be pulled without touching anything else.
 //
 // ── WHY <audio> AND NOT decodeAudioData ──────────────────────────────────
 //
@@ -26,36 +26,66 @@
 // tuned. The fallback path (no WebAudio) drives element.volume directly, so a
 // browser that refuses the graph still gets music, just without the ducking.
 //
-// ── WHAT A STAGE CUE ACTUALLY GETS HEARD ─────────────────────────────────
+// ── THE FILES ARE CUT, NOT WHOLE SONGS ───────────────────────────────────
 //
-// Worth knowing before anyone cuts a track to length: a stage is 30-37s flat
-// out and longer in real play, against songs of 3-4 minutes. NOBODY WILL EVER
-// HEAR THE END OF A STAGE CUE. `startAt` exists for exactly that — a cue can
-// begin at its hook instead of its intro — and it is per-slot because the
-// answer is different for every song.
+// A stage runs 40-50s flat out (measured off a 4.80 px/tick run against each
+// stage's real length) and longer in real play, against tracks of 1:34 to
+// 3:29. Nobody ever hears the end of a stage cue.
+//
+// `startAt` used to be the answer: open the cue at its hook and skip the
+// intro. It only half worked. A media element with `loop = true` wraps to
+// ZERO, not to startAt — so the first pass opened on the hook and every pass
+// after it played the intro the offset existed to avoid. Invisible on a stage,
+// obvious on the title card, which loops for as long as somebody sits there.
+//
+// So the files themselves now START at the hook. tools/cut_loop.py takes the
+// track, cuts from the hook, and picks the length whose end genuinely runs
+// back into its own start — searched by cross-correlation rather than snapped
+// to a bar, because a beat tracker read one of these at 89 BPM when its own
+// filename says 135. That makes every startAt below 0 and the native loop
+// correct and gapless.
+//
+// ⚠️ A LOOPING CUE MUST KEEP startAt 0. The field stays for one-shot cues and
+// for anyone wiring a full track in a hurry; on a looping slot a non-zero
+// value is the bug described above, not a feature.
+//
+// Sizes: 6.84MB for all ten, from 30.4MB of source. Cut, then VBR ~120kbps —
+// the masters are untouched and live in prodbyKCTW's own library.
+
+import mTitle from '../assets/music/title.mp3';
+import mStage01 from '../assets/music/stage_01.mp3';
+import mMap0102 from '../assets/music/map_01_02.mp3';
+import mStage02 from '../assets/music/stage_02.mp3';
+import mMap0203 from '../assets/music/map_02_03.mp3';
+import mStage03 from '../assets/music/stage_03.mp3';
+import mMap0304 from '../assets/music/map_03_04.mp3';
+import mStage04 from '../assets/music/stage_04.mp3';
+import mPause from '../assets/music/ui_pause.mp3';
+import mCredits from '../assets/music/credits.mp3';
 
 // ── THE MANIFEST ─────────────────────────────────────────────────────────
 // Slot -> file. Order is play order. `loop` false means it runs once and
-// stops; `startAt` is seconds into the file to begin, for cues whose opening
-// is longer than the screen it plays under.
+// stops. Every cue is already trimmed to its hook, so startAt is 0 throughout.
 //
 // The song names are here as COMMENTS ONLY, so this file can be read against
-// the cue sheet, and so that changing a song never means changing a key.
+// tools/cue_sheet.json, and so that changing a song never means changing a
+// key. All prodbyKCTW; the number after each is where the hook was found in
+// the full track, which is where that file now begins.
 export const MANIFEST = {
   // Loops longest of anything here — players sit on this screen.
-  title:     { src: null, loop: true,  gain: 0.55, startAt: 0 },  // En Vogue
+  title:     { src: mTitle,   loop: true,  gain: 0.55, startAt: 0 },  // Knowledge x POLO   @ 0:18.5
   // No map before this one — straight in from the title.
-  stage_01:  { src: null, loop: true,  gain: 0.50, startAt: 0 },  // TAKE A RISK
-  map_01_02: { src: null, loop: true,  gain: 0.50, startAt: 0 },  // Million Dollar Baby
-  stage_02:  { src: null, loop: true,  gain: 0.50, startAt: 0 },  // BENDING CORNERS (alt: BLOCK HOT)
-  map_02_03: { src: null, loop: true,  gain: 0.50, startAt: 0 },  // Don't Wanna Leave
-  stage_03:  { src: null, loop: true,  gain: 0.50, startAt: 0 },  // JAPANESE PANTS
-  map_03_04: { src: null, loop: true,  gain: 0.50, startAt: 0 },  // Pretty Girls Love Me
-  stage_04:  { src: null, loop: true,  gain: 0.50, startAt: 0 },  // LOVE THE HUSTLE
+  stage_01:  { src: mStage01, loop: true,  gain: 0.50, startAt: 0 },  // 3.10.26 (2)        @ 0:56.6
+  map_01_02: { src: mMap0102, loop: true,  gain: 0.50, startAt: 0 },  // Knowledge B.Jordan @ 0:40.5
+  stage_02:  { src: mStage02, loop: true,  gain: 0.50, startAt: 0 },  // salvador/Knowledge @ 0:16.1
+  map_02_03: { src: mMap0203, loop: true,  gain: 0.50, startAt: 0 },  // Project 6          @ 0:57.5
+  stage_03:  { src: mStage03, loop: true,  gain: 0.50, startAt: 0 },  // Project 9          @ 1:57.5
+  map_03_04: { src: mMap0304, loop: true,  gain: 0.50, startAt: 0 },  // 2GetHer            @ 0:09.8
+  stage_04:  { src: mStage04, loop: true,  gain: 0.50, startAt: 0 },  // lonliness 2        @ 0:26.8
   // An interlude, under a frozen screen — quieter, so it does not pull focus.
-  ui_pause:  { src: null, loop: true,  gain: 0.38, startAt: 0 },  // Creepin' (Interlude)
+  ui_pause:  { src: mPause,   loop: true,  gain: 0.38, startAt: 0 },  // doggzzz            @ 0:40.0
   // The ONLY cue that plays start to finish instead of looping.
-  credits:   { src: null, loop: false, gain: 0.60, startAt: 0 },  // I'm The Man
+  credits:   { src: mCredits, loop: false, gain: 0.60, startAt: 0 },  // Project 9          @ 1:57.5
 };
 
 // Which cue belongs to which stage index, so main.js never builds a slot name
@@ -203,14 +233,44 @@ export function createMusic(getContext, getMaster) {
     },
 
     // For the harness, and for anyone wondering why they cannot hear anything.
+    //
+    // The element fields are the ones that matter and the ones a harness
+    // cannot get any other way: these are `new Audio()` objects, never
+    // appended to the document, so querySelectorAll('audio') finds nothing and
+    // a check written that way reports silence on a game that is playing fine.
     status() {
+      const el = current && current.el;
       return {
         playing: current ? current.slot : null,
         wanted,
         wired: Object.entries(MANIFEST).filter(([, c]) => c.src).map(([k]) => k),
         missing: Object.entries(MANIFEST).filter(([, c]) => !c.src).map(([k]) => k),
+        // The resolved URLs. A harness cannot check a cue by calling play() —
+        // main.js re-states the cue for the current screen EVERY frame, so a
+        // manual play() is overridden before it can be read, and ten slots all
+        // report whichever one the game is actually on. Load these directly.
+        srcs: Object.fromEntries(Object.entries(MANIFEST).map(([k, c]) => [k, c.src])),
         muted,
         ducking: ducking > 0,
+        el: !el ? null : {
+          paused: el.paused,
+          t: +el.currentTime.toFixed(2),
+          dur: Number.isFinite(el.duration) ? +el.duration.toFixed(2) : null,
+          loop: el.loop,
+          ready: el.readyState,            // 4 = enough buffered to play through
+          err: el.error ? el.error.code : null,
+          // What is actually reaching the master bus, gain node or element.
+          level: current.gain ? +current.gain.gain.value.toFixed(3) : +el.volume.toFixed(3),
+        },
+        // Every cue that has been built, so a cross-fade can be watched: two
+        // are audible at once for FADE seconds when one cue hands to the next.
+        live: [...nodes.entries()]
+          .filter(([, n]) => !n.el.paused)
+          .map(([slot, n]) => ({
+            slot,
+            level: +(n.gain ? n.gain.gain.value : n.el.volume).toFixed(3),
+            t: +n.el.currentTime.toFixed(2),
+          })),
       };
     },
   };
