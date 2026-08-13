@@ -58,7 +58,13 @@ export function createStillScene(ctx, canvas) {
 
   // `cards`: [{ img, sway: [{ top, pivot, amp, freq, xRanges: [[a,b],...] }] }]
   // in the painting's own 0..1 coordinates.
-  function draw(base, cards, tick, zoom = 1, bias = 0) {
+  // `fx`, when given, is { base: {x,y,a}, cards: [{x,y,a}, ...] } indexed to
+  // `cards` — a per-layer translate and fade laid over the normal draw. It
+  // exists for the title's assembly intro (see title.js drawIntro): the whole
+  // point of a multiplane card set is that the layers are separable, so they
+  // can arrive separately too. Nothing else passes it, and with it absent this
+  // function behaves exactly as it always has.
+  function draw(base, cards, tick, zoom = 1, bias = 0, fx = null) {
     const w = canvas.width;
     const h = canvas.height;
     ctx.save();
@@ -79,12 +85,25 @@ export function createStillScene(ctx, canvas) {
     // He is right. Stretching six rows of a DITHERED pixel painting carries
     // the dither with it, and dither stretched vertically is a set of
     // stripes. Flat black has no artefacts to notice.
-    ctx.drawImage(base, box.dx, box.dy, box.dw, box.dh);
-
-    for (const card of cards || []) {
-      if (!card.sprites && (!card.img || !card.img.width)) continue;
-      drawCard(card, box, tick);
+    const bfx = fx && fx.base;
+    if (bfx) {
+      ctx.save();
+      ctx.globalAlpha = bfx.a;
+      ctx.translate(bfx.x, bfx.y);
     }
+    ctx.drawImage(base, box.dx, box.dy, box.dw, box.dh);
+    if (bfx) ctx.restore();
+
+    (cards || []).forEach((card, i) => {
+      if (!card.sprites && (!card.img || !card.img.width)) return;
+      const c = fx && fx.cards && fx.cards[i];
+      // Translate rather than offset `box`: drawCard derives its sway bands and
+      // its sprite wrap from the box, so moving the box would move the pivots
+      // and the wrap period with it and the layer would deform on the way in.
+      if (c) { ctx.save(); ctx.globalAlpha = c.a; ctx.translate(c.x, c.y); }
+      drawCard(card, box, tick);
+      if (c) ctx.restore();
+    });
     ctx.restore();
     return box;
   }

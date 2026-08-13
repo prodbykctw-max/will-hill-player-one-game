@@ -927,7 +927,16 @@ function draw() {
     // Keep where the painting landed — the OPTIONS hit test converts through
     // it, so the button follows the art on any screen instead of living at a
     // guessed screen coordinate.
-    state.titleBox = title.draw(images, state.tick);
+    // The intro page shows for exactly as long as the game is still owed the
+    // gesture that lets sound out — the SAME condition the tap handler and the
+    // keyboard path both test, so the page cannot outlive the tap it is asking
+    // for, or fail to appear when one is still needed. Sound off means nothing
+    // to unlock, so that player goes straight to the menu.
+    const owed = !state.audioTapSpent && !audio.ready() && soundEnabled();
+    // `screenT` is ticks on this screen, which is the intro's clock — it starts
+    // at zero the moment the title comes up and it is already what arms the
+    // tap, so the assembly and the input it is waiting for run off one counter.
+    state.titleBox = title.draw(images, state.tick, owed, state.screenT);
     return;
   }
 

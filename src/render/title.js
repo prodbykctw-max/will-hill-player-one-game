@@ -238,13 +238,165 @@ export function titleCards(images) {
 }
 
 export function createTitle(ctx, canvas, still) {
-  function draw(images, tick) {
+  function draw(images, tick, splash, introT) {
+    // THE INTRO PAGE. The card assembles itself, then asks for the one tap the
+    // browser needs — see introFx and drawSplash.
+    const fx = splash ? introFx(introT || 0) : null;
     const box = still.draw(images.title_base, titleCards(images), tick,
-      TITLE_ZOOM, TITLE_BIAS);
+      TITLE_ZOOM, TITLE_BIAS, fx);
+    if (splash) { drawSplash(box, tick, introT || 0); return box; }
     still.pulsePrompt(box, PROMPT, SRC_W, SRC_H, tick);
     drawOptions(images.title_options, box, tick);
     drawRelay(box, images.champagne, tick);
     return box;
+  }
+
+  // ── THE CARD BUILDING ITSELF ─────────────────────────────────────────────
+  //
+  // Client: "the intro page should be the main page, but with the layers
+  // sliding in from different sides — each layer of that sliding into place —
+  // and then of course you tap that and then you get to the press start page."
+  //
+  // The title screen is ALREADY a multiplane set: sky sprites, the skyline and
+  // logo, the two roadside signs, and Will Hill himself, each on its own card
+  // so they can sway independently. Separable layers can arrive separately, so
+  // this costs one translate per card and no new art.
+  //
+  // EACH LAYER COMES FROM WHERE IT BELONGS. Clouds drift in across the sky.
+  // The skyline drops. The signs come in off the kerb they stand on, one from
+  // each side. Will Hill rises from the bottom and lands LAST, because he is
+  // the thing the card is about and the eye should finish on him.
+  //
+  // Cubic ease-out, no bounce: things settle, they do not boing. Overlapping
+  // windows so it reads as one move rather than five, ~1.8s end to end.
+  //
+  // THE TAP IS LIVE THE WHOLE TIME. Nothing here gates input — main.js arms the
+  // title at 24 ticks as it always has — so this never stands between the
+  // player and the game. Tap during the assembly and you land on the menu with
+  // the theme playing, which is exactly the skip the client asked for.
+  //
+  // Indices are positions in titleCards(). A card added there without a line
+  // here simply arrives at rest, which is the safe failure.
+  const INTRO = [
+    { from: [-0.38, 0.00], t0: 4, t1: 48 },    // 0 clouds — across the sky
+    // 1 skyline and logo. ⚠️ THIS ONE MUST NOT TRAVEL. Unlike the signs and the
+    // hero, it is not cut OUT of the base — cut_still.py fills their holes, but
+    // this card is a duplicate of pixels the base still has, drawn again purely
+    // so it sits in FRONT of the clouds. Slide it and the painting shows two
+    // logos, the still one underneath and the moving one arriving. It rides the
+    // base's own fade instead.
+    { from: [0.00, 0.00], t0: 0, t1: 24 },
+    { from: [-0.46, 0.06], t0: 10, t1: 58 },   // 2 sign, left of frame
+    { from: [0.46, 0.06], t0: 16, t1: 64 },    // 3 sign, right of frame
+    { from: [0.00, 0.42], t0: 24, t1: 78 },    // 4 Will Hill — up, and last
+  ];
+  // 78 ticks, about 1.3s. IT USED TO BE 1.8s AND THAT WAS TOO LONG, for a
+  // reason only visible once it ran: cut_still.py fills the holes where the
+  // signs and the hero were lifted out, so until a card lands there is a soft
+  // grey ghost of it sitting in the base. Every extra frame of assembly is an
+  // extra frame of looking at those. Overlap the windows hard instead — the
+  // cards are moving over their own ghosts almost immediately.
+  const INTRO_END = 78;
+  const ease = (u) => 1 - (1 - u) * (1 - u) * (1 - u);
+  const at = (t, t0, t1) => ease(Math.max(0, Math.min(1, (t - t0) / (t1 - t0))));
+
+  function introFx(t) {
+    const W = canvas.width;
+    const H = canvas.height;
+    return {
+      // The plate behind everything just comes up out of black — sliding it
+      // too would leave a moving hard edge against the letterbox.
+      base: { x: 0, y: 0, a: at(t, 0, 30) },
+      cards: INTRO.map((c) => {
+        const u = at(t, c.t0, c.t1);
+        return { x: c.from[0] * W * (1 - u), y: c.from[1] * H * (1 - u), a: u };
+      }),
+    };
+  }
+
+  // ── THE INTRO PAGE ───────────────────────────────────────────────────────
+  //
+  // WHY A GAME NEEDS A PAGE WHOSE ONLY JOB IS TO BE TAPPED. No browser lets
+  // sound out before a gesture inside the page, and tapping a home-screen icon
+  // is a tap on the OS launcher, not on us. Chrome, Safari and Firefox all
+  // enforce it; there is no code that defeats it. So the theme cannot play on
+  // open, and the client is right that it should: "as soon as I touch that
+  // bitch I need things to move smoothly."
+  //
+  // The gesture was ALREADY being collected — main.js has spent the first title
+  // input on waking the audio for a while now. What was missing is that the
+  // screen looked identical before and after it, so a card sitting there in
+  // silence read as broken rather than as press start, and the client reported
+  // it as broken twice. This draws the difference.
+  //
+  // Client: "we need to design either an intro sequence that you can skip and
+  // that will trigger the main theme music, or a page that you would tap as
+  // like an intro page, and then the first page will be the main menu page."
+  // This is the second one, and it is the standard answer — every web game
+  // ships it. It also plays better than autoplay would: the theme lands on a
+  // deliberate press instead of dribbling in behind a loading screen.
+  //
+  // IT IS THE PAINTING, DIMMED, NOT A BLACK CARD. The first thing anyone sees
+  // should still be his art. The scrim only has to be deep enough that one word
+  // reads as the only thing to do.
+  //
+  // NO OTHER CONTROL IS DRAWN. START, OPTIONS and CHAMPAGNE RELAY all appear on
+  // the very next frame after the tap; showing them here would offer choices
+  // that the first tap is going to swallow anyway.
+  //
+  // The empty upper third is deliberate: it is where a RARƎ AGENCY / prodbyKCTW
+  // card goes when those logo files arrive, which is what turns this page into
+  // the skippable intro SEQUENCE the client also asked about.
+  function drawSplash(box, tick, introT) {
+    const W = canvas.width;
+    const H = canvas.height;
+    // Hold the prompt back until the card has finished building itself, then
+    // bring it up over half a second. Asking for a tap over a half-assembled
+    // painting would throw away the reveal the assembly exists to give.
+    const show = at(introT, INTRO_END - 12, INTRO_END + 20);
+    if (show <= 0.001) return;
+    const touch = typeof document !== 'undefined'
+      && document.body && document.body.classList.contains('touch');
+    const label = touch ? 'TAP TO START' : 'PRESS ANY KEY';
+    // Slow and wide — a heartbeat, not a blink. Same breathing language as the
+    // three controls it stands in for, on its own phase again.
+    const glow = 0.5 + 0.5 * Math.sin(tick / 38);
+
+    ctx.save();
+    ctx.globalAlpha = show;
+    ctx.fillStyle = 'rgba(6,5,12,0.52)';
+    ctx.fillRect(0, 0, W, H);
+
+    // Sized off the display, not the card: this page has to work on a 430px
+    // phone and a desktop window, and unlike OPTIONS it is not tied to a
+    // painted word whose pixel grid we have to respect.
+    const size = Math.max(20, Math.min(46, W * 0.082));
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = `800 ${Math.round(size)}px system-ui, sans-serif`;
+    // IN THE BLACK BELOW THE CARD, not over it. The painting has its own PRESS
+    // START lettering baked in around the middle of the frame, and dropping a
+    // second prompt on top of it gave two prompts fighting in one place. The
+    // letterbox band is empty, it is where OPTIONS and CHAMPAGNE RELAY live on
+    // the menu that follows, and putting it there means the eye learns the same
+    // spot for "the thing to press" on both pages.
+    const below = box ? box.dy + box.dh : H * 0.72;
+    const y = Math.min(H - size * 1.9, below + Math.max(size * 0.9,
+      (H - below) * 0.34));
+    ctx.shadowColor = `rgba(255,198,86,${0.30 + 0.45 * glow})`;
+    ctx.shadowBlur = 26;
+    ctx.fillStyle = `rgba(255,236,196,${0.78 + 0.22 * glow})`;
+    ctx.fillText(label, W / 2, y);
+    ctx.shadowBlur = 0;
+
+    // THE SECOND LINE EARNS ITS PLACE. The soundtrack is ten of the client's
+    // own instrumentals and it is the first thing this page exists to deliver,
+    // so it is worth one quiet sentence asking for the volume before the theme
+    // starts rather than after somebody has already missed it.
+    ctx.font = `600 ${Math.round(size * 0.40)}px system-ui, sans-serif`;
+    ctx.fillStyle = 'rgba(226,214,236,0.62)';
+    ctx.fillText('TURN YOUR SOUND UP', W / 2, y + size * 1.15);
+    ctx.restore();
   }
 
   // ── WHERE THE LIFTED WORD LANDS, AND HOW BIG ─────────────────────────
