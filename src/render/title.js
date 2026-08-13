@@ -239,15 +239,23 @@ export function titleCards(images) {
 
 export function createTitle(ctx, canvas, still) {
   function draw(images, tick, splash, introT) {
-    // THE INTRO PAGE. The card assembles itself, then asks for the one tap the
-    // browser needs — see introFx and drawSplash.
+    // THE INTRO PAGE. The card assembles itself out of an empty street and a
+    // blank sky — see introFx — and that assembly IS the whole page. It has no
+    // words of its own; his painting's own PRESS START is the prompt.
     const fx = splash ? introFx(introT || 0) : null;
     const box = still.draw(images.title_base, titleCards(images), tick,
       TITLE_ZOOM, TITLE_BIAS, fx);
-    if (splash) { drawSplash(box, tick, introT || 0); return box; }
     still.pulsePrompt(box, PROMPT, SRC_W, SRC_H, tick);
-    drawOptions(images.title_options, box, tick);
-    drawRelay(box, images.champagne, tick);
+    // The two controls that are NOT part of the painting come up with the last
+    // layer, so the page finishes as the menu instead of cutting to it.
+    const a = splash ? splashControlAlpha(introT || 0) : 1;
+    if (a > 0.002) {
+      ctx.save();
+      ctx.globalAlpha = a;
+      drawOptions(images.title_options, box, tick);
+      drawRelay(box, images.champagne, tick);
+      ctx.restore();
+    }
     return box;
   }
 
@@ -267,8 +275,24 @@ export function createTitle(ctx, canvas, still) {
   // each side. Will Hill rises from the bottom and lands LAST, because he is
   // the thing the card is about and the eye should finish on him.
   //
+  // ⚠️ THE BACKDROP ARRIVES LAST, AND THAT IS FORCED, NOT A CHOICE.
+  //
+  // The title base is the WHOLE painting — logo, signs, hero and all — because
+  // it is doubled rather than cut. That is the rule now everywhere in the game
+  // (see tools/cut_planes.py: "bruises everywhere"), and it is right: a hole
+  // only needs filling if the thing that came out of it is gone, and it never
+  // is. Every fill this project ever made was a grey patch somebody could see.
+  //
+  // But a doubled base cannot show a layer FLYING IN, because its twin is
+  // already sitting at the destination. Two logos, which is exactly what the
+  // first version of this did. So during the assembly the base is simply not
+  // there yet: the cut pieces cross an empty screen and the street, the sky and
+  // the skyline come up behind them as the last piece lands. Nothing is
+  // inpainted, nothing is hidden, and there is no bruise to see because there
+  // is no hole — there is just a backdrop that has not arrived.
+  //
   // Cubic ease-out, no bounce: things settle, they do not boing. Overlapping
-  // windows so it reads as one move rather than five, ~1.8s end to end.
+  // windows so it reads as one move rather than five.
   //
   // THE TAP IS LIVE THE WHOLE TIME. Nothing here gates input — main.js arms the
   // title at 24 ticks as it always has — so this never stands between the
@@ -278,25 +302,16 @@ export function createTitle(ctx, canvas, still) {
   // Indices are positions in titleCards(). A card added there without a line
   // here simply arrives at rest, which is the safe failure.
   const INTRO = [
-    { from: [-0.38, 0.00], t0: 4, t1: 48 },    // 0 clouds — across the sky
-    // 1 skyline and logo. ⚠️ THIS ONE MUST NOT TRAVEL. Unlike the signs and the
-    // hero, it is not cut OUT of the base — cut_still.py fills their holes, but
-    // this card is a duplicate of pixels the base still has, drawn again purely
-    // so it sits in FRONT of the clouds. Slide it and the painting shows two
-    // logos, the still one underneath and the moving one arriving. It rides the
-    // base's own fade instead.
-    { from: [0.00, 0.00], t0: 0, t1: 24 },
-    { from: [-0.46, 0.06], t0: 10, t1: 58 },   // 2 sign, left of frame
-    { from: [0.46, 0.06], t0: 16, t1: 64 },    // 3 sign, right of frame
-    { from: [0.00, 0.42], t0: 24, t1: 78 },    // 4 Will Hill — up, and last
+    { from: [-0.52, 0.00], t0: 2, t1: 54 },    // 0 clouds — across the sky
+    { from: [0.00, -0.34], t0: 26, t1: 84 },   // 1 the title itself, dropping
+    { from: [-0.46, 0.06], t0: 8, t1: 56 },    // 2 sign, left of frame
+    { from: [0.46, 0.06], t0: 14, t1: 62 },    // 3 sign, right of frame
+    { from: [0.00, 0.44], t0: 20, t1: 74 },    // 4 Will Hill — up off the street
   ];
-  // 78 ticks, about 1.3s. IT USED TO BE 1.8s AND THAT WAS TOO LONG, for a
-  // reason only visible once it ran: cut_still.py fills the holes where the
-  // signs and the hero were lifted out, so until a card lands there is a soft
-  // grey ghost of it sitting in the base. Every extra frame of assembly is an
-  // extra frame of looking at those. Overlap the windows hard instead — the
-  // cards are moving over their own ghosts almost immediately.
-  const INTRO_END = 78;
+  // The backdrop's own window. Late, and slower than anything else, so it
+  // reads as the world resolving rather than as a cut.
+  const BASE_IN = [46, 88];
+  const INTRO_END = 88;
   const ease = (u) => 1 - (1 - u) * (1 - u) * (1 - u);
   const at = (t, t0, t1) => ease(Math.max(0, Math.min(1, (t - t0) / (t1 - t0))));
 
@@ -306,7 +321,7 @@ export function createTitle(ctx, canvas, still) {
     return {
       // The plate behind everything just comes up out of black — sliding it
       // too would leave a moving hard edge against the letterbox.
-      base: { x: 0, y: 0, a: at(t, 0, 30) },
+      base: { x: 0, y: 0, a: at(t, BASE_IN[0], BASE_IN[1]) },
       cards: INTRO.map((c) => {
         const u = at(t, c.t0, c.t1);
         return { x: c.from[0] * W * (1 - u), y: c.from[1] * H * (1 - u), a: u };
@@ -331,72 +346,31 @@ export function createTitle(ctx, canvas, still) {
   //
   // Client: "we need to design either an intro sequence that you can skip and
   // that will trigger the main theme music, or a page that you would tap as
-  // like an intro page, and then the first page will be the main menu page."
-  // This is the second one, and it is the standard answer — every web game
-  // ships it. It also plays better than autoplay would: the theme lands on a
-  // deliberate press instead of dribbling in behind a loading screen.
+  // like an intro page." This is that page, and it is the standard answer —
+  // every web game ships one. It also plays better than autoplay would: the
+  // theme lands on a deliberate press instead of dribbling in behind a loader.
   //
-  // IT IS THE PAINTING, DIMMED, NOT A BLACK CARD. The first thing anyone sees
-  // should still be his art. The scrim only has to be deep enough that one word
-  // reads as the only thing to do.
+  // ⚠️ IT CARRIES NO WORDS OF ITS OWN, AND THAT IS THE POINT.
   //
-  // NO OTHER CONTROL IS DRAWN. START, OPTIONS and CHAMPAGNE RELAY all appear on
-  // the very next frame after the tap; showing them here would offer choices
-  // that the first tap is going to swallow anyway.
+  // The first version put a glowing TAP TO START and a TURN YOUR SOUND UP under
+  // the card. The client killed both, correctly: "that TAP TO START / turn
+  // sound on is redundant if you already got a PRESS START button." He does.
+  // It is painted into his own artwork, it throbs, and it says the same thing
+  // in his own lettering — which is the rule the whole of this file follows.
+  // Two prompts asking for one tap is one prompt too many.
   //
-  // The empty upper third is deliberate: it is where a RARƎ AGENCY / prodbyKCTW
-  // card goes when those logo files arrive, which is what turns this page into
-  // the skippable intro SEQUENCE the client also asked about.
-  function drawSplash(box, tick, introT) {
-    const W = canvas.width;
-    const H = canvas.height;
-    // Hold the prompt back until the card has finished building itself, then
-    // bring it up over half a second. Asking for a tap over a half-assembled
-    // painting would throw away the reveal the assembly exists to give.
-    const show = at(introT, INTRO_END - 12, INTRO_END + 20);
-    if (show <= 0.001) return;
-    const touch = typeof document !== 'undefined'
-      && document.body && document.body.classList.contains('touch');
-    const label = touch ? 'TAP TO START' : 'PRESS ANY KEY';
-    // Slow and wide — a heartbeat, not a blink. Same breathing language as the
-    // three controls it stands in for, on its own phase again.
-    const glow = 0.5 + 0.5 * Math.sin(tick / 38);
-
-    ctx.save();
-    ctx.globalAlpha = show;
-    ctx.fillStyle = 'rgba(6,5,12,0.52)';
-    ctx.fillRect(0, 0, W, H);
-
-    // Sized off the display, not the card: this page has to work on a 430px
-    // phone and a desktop window, and unlike OPTIONS it is not tied to a
-    // painted word whose pixel grid we have to respect.
-    const size = Math.max(20, Math.min(46, W * 0.082));
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.font = `800 ${Math.round(size)}px system-ui, sans-serif`;
-    // IN THE BLACK BELOW THE CARD, not over it. The painting has its own PRESS
-    // START lettering baked in around the middle of the frame, and dropping a
-    // second prompt on top of it gave two prompts fighting in one place. The
-    // letterbox band is empty, it is where OPTIONS and CHAMPAGNE RELAY live on
-    // the menu that follows, and putting it there means the eye learns the same
-    // spot for "the thing to press" on both pages.
-    const below = box ? box.dy + box.dh : H * 0.72;
-    const y = Math.min(H - size * 1.9, below + Math.max(size * 0.9,
-      (H - below) * 0.34));
-    ctx.shadowColor = `rgba(255,198,86,${0.30 + 0.45 * glow})`;
-    ctx.shadowBlur = 26;
-    ctx.fillStyle = `rgba(255,236,196,${0.78 + 0.22 * glow})`;
-    ctx.fillText(label, W / 2, y);
-    ctx.shadowBlur = 0;
-
-    // THE SECOND LINE EARNS ITS PLACE. The soundtrack is ten of the client's
-    // own instrumentals and it is the first thing this page exists to deliver,
-    // so it is worth one quiet sentence asking for the volume before the theme
-    // starts rather than after somebody has already missed it.
-    ctx.font = `600 ${Math.round(size * 0.40)}px system-ui, sans-serif`;
-    ctx.fillStyle = 'rgba(226,214,236,0.62)';
-    ctx.fillText('TURN YOUR SOUND UP', W / 2, y + size * 1.15);
-    ctx.restore();
+  // SO THE ASSEMBLY IS THE ACTIVITY. "Everything cut out should move and fall
+  // into place — it should basically be like a street and a blank skyline and
+  // then everything falls into place." A card that is still building itself is
+  // visibly not finished, which is a better invitation than a label, and by the
+  // time it settles the tap has usually already happened.
+  //
+  // What this function is left holding is the ORDER OF APPEARANCE for the two
+  // controls that are not part of the painting. OPTIONS and CHAMPAGNE RELAY are
+  // held back until the assembly lands and then fade up with it, so the page
+  // finishes as the menu rather than cutting to it.
+  function splashControlAlpha(introT) {
+    return at(introT, INTRO_END - 10, INTRO_END + 22);
   }
 
   // ── WHERE THE LIFTED WORD LANDS, AND HOW BIG ─────────────────────────
@@ -543,9 +517,36 @@ export function createTitle(ctx, canvas, still) {
   // at or below it opens the panel — and "below" runs all the way to the
   // bottom of the display, not just to the bottom of the painting, so the
   // relocated word is inside its own zone by construction.
-  function hitOptions(box, y) {
-    if (!box) return false;
-    return y >= box.dy + (SPLIT_Y / SRC_H) * box.dh;
+  // ── THE BUTTONS ARE THE BUTTONS, AND NOTHING ELSE IS ────────────────────
+  //
+  // This used to be `y >= the split line` — the ENTIRE lower part of the
+  // display, black included, opened OPTIONS. That was the right answer to the
+  // problem it was solving: the two controls are painted 43 rows apart, which
+  // is thirteen screen pixels on a phone, and the client kept getting START
+  // when he meant OPTIONS. Two enormous targets and one boundary fixed it.
+  //
+  // IT IS THE WRONG ANSWER NOW, and he is right about why. "That whole bottom
+  // black area, once you tap it it's OPTIONS. I want those buttons isolated so
+  // only when I tap the button is OPTIONS. If I tap empty space, that should
+  // actually turn the music on." The reason the catch-all was needed is gone:
+  // OPTIONS is no longer thirteen pixels of painting, it is a lifted card with
+  // a measured rect, and CHAMPAGNE RELAY has its own pill under it. Two real
+  // targets do not need half the screen between them.
+  //
+  // So: the OPTIONS word is OPTIONS, the pill is the pill, and every other
+  // pixel on this screen — the black band included — is the one big START that
+  // the painting has always advertised. The first of those taps buys the sound.
+  //
+  // MARGIN, because a rect measured off lettering is smaller than a thumb. The
+  // same 10px the relay pill uses, and it is checked AFTER the pill so the two
+  // margins cannot overlap into an ambiguous strip.
+  const HIT_MARGIN = 10;
+
+  function hitOptions(box, x, y) {
+    const r = optionsRect(box);
+    if (!r) return false;
+    return x >= r.x - HIT_MARGIN && x <= r.x + r.w + HIT_MARGIN
+      && y >= r.y - HIT_MARGIN && y <= r.y + r.h + HIT_MARGIN;
   }
   return { draw, hitOptions, optionsRect, hitRelay, relayRect };
 }

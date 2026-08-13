@@ -330,7 +330,12 @@ canvas.addEventListener('pointerdown', (e) => {
       startRun();
       return;
     }
-    if (title.hitOptions(state.titleBox, y)) { press(); panel.open('board'); return; }
+    // THE WORD, not the half-screen it used to be. Client: "I want those
+    // buttons isolated so only when I tap the button is OPTIONS. If I tap empty
+    // space, that should actually turn the music on." Everything that is not
+    // one of the two controls now falls through to START below — including the
+    // black band, which is where most of those taps land.
+    if (title.hitOptions(state.titleBox, x, y)) { press(); panel.open('board'); return; }
     // The run starting is the biggest commitment on the screen, so it gets the
     // triad rather than the click. And it clears CHAMPAGNE RELAY: without
     // this, one walkthrough run would leave every later run in relay too,
