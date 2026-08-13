@@ -34,6 +34,19 @@ const newPage = async () => {
 const atTitle = (p) => p.waitForFunction(() => window.__game && window.__game.screen === 'title',
   null, { timeout: 25000 });
 
+// THE GAME OPENS ON A BLACK CARD. Nothing on the title exists until it is
+// tapped — `titleBox` is not even set, so relayRect() returns null and a
+// harness that reaches for a button first dies on `reading 'x'`. One tap in
+// open space opens the door and starts the assembly; wait for that to land
+// before touching anything, or the button is still fading in under the finger.
+const enter = async (p) => {
+  await atTitle(p);
+  await p.waitForTimeout(400);
+  await p.touchscreen.tap(215, 466);
+  await p.waitForFunction(() => window.__game.introTapped, null, { timeout: 10000 });
+  await p.waitForTimeout(2600);
+};
+
 // Walk all four stages: what spawned, is the aura up, does a pit kill him.
 async function sweep(p) {
   const out = [];
@@ -98,12 +111,11 @@ for (const tod of ['night', 'day']) {
   // The title button, in this time of day, with no URL flag at all.
   const pb = await newPage();
   await pb.goto(`http://localhost:5199/?tod=${tod}`, { waitUntil: 'networkidle' });
-  await atTitle(pb); await pb.waitForTimeout(900);
+  await enter(pb);
   await pb.screenshot({ path: `${OUT}/relay-title-${tod}.png` });
   const rect = await pb.evaluate(() => window.__title.relayRect(window.__game.titleBox));
-  const cx = rect.x + rect.w / 2, cy = rect.y + rect.h / 2;
-  await pb.touchscreen.tap(cx, cy); await pb.waitForTimeout(500);   // first tap wakes audio
-  await pb.touchscreen.tap(cx, cy); await pb.waitForTimeout(1600);
+  await pb.touchscreen.tap(rect.x + rect.w / 2, rect.y + rect.h / 2);
+  await pb.waitForTimeout(1600);
   const pressed = await pb.evaluate(() => ({ screen: window.__game.screen,
     tod: window.__game.level && window.__game.level.stage.tod,
     enemies: window.__game.level ? window.__game.level.enemies.length : null,
@@ -130,8 +142,7 @@ const before = await ps.evaluate(async () => (await import('/src/world/stages.js
 const want = before === 'night' ? 'day' : 'night';
 await ps.evaluate((v) => localStorage.setItem('wh_tod', v), want);
 await ps.reload({ waitUntil: 'networkidle' });
-await atTitle(ps);
-await ps.waitForTimeout(900);
+await enter(ps);
 const after = await ps.evaluate(async () => ({ tod: (await import('/src/world/stages.js')).STAGES[0].tod,
   screen: window.__game.screen,
   relayBtn: !!window.__title.relayRect(window.__game.titleBox) }));
@@ -140,8 +151,8 @@ check('the reload lands back on the title card', after.screen === 'title');
 check('CHAMPAGNE RELAY is still on that title card', after.relayBtn);
 
 const rect2 = await ps.evaluate(() => window.__title.relayRect(window.__game.titleBox));
-await ps.touchscreen.tap(rect2.x + rect2.w / 2, rect2.y + rect2.h / 2); await ps.waitForTimeout(500);
-await ps.touchscreen.tap(rect2.x + rect2.w / 2, rect2.y + rect2.h / 2); await ps.waitForTimeout(1600);
+await ps.touchscreen.tap(rect2.x + rect2.w / 2, rect2.y + rect2.h / 2);
+await ps.waitForTimeout(1600);
 const post = await ps.evaluate(() => ({ screen: window.__game.screen,
   tod: window.__game.level && window.__game.level.stage.tod,
   enemies: window.__game.level ? window.__game.level.enemies.length : null,
@@ -151,13 +162,38 @@ check('relay works after the switch', post.screen === 'playing' && post.enemies 
 
 // And the flag must NOT survive into a normal run started after it.
 await ps.reload({ waitUntil: 'networkidle' });
-await atTitle(ps); await ps.waitForTimeout(900);
-await ps.touchscreen.tap(215, 300); await ps.waitForTimeout(400);
+await enter(ps);
 await ps.touchscreen.tap(215, 300); await ps.waitForTimeout(1600);
 const normal = await ps.evaluate(() => ({ screen: window.__game.screen,
   enemies: window.__game.level ? window.__game.level.enemies.length : null }));
 check('a normal START after the switch is still a normal run',
   normal.screen === 'playing' && normal.enemies > 0, JSON.stringify(normal));
+
+// ── The front door ───────────────────────────────────────────────────────
+console.log('\n=== THE BLACK CARD ===');
+const pd = await newPage();
+await pd.goto('http://localhost:5199/?tod=night', { waitUntil: 'networkidle' });
+await atTitle(pd); await pd.waitForTimeout(1200);
+const shut = await pd.evaluate(() => ({ tapped: window.__game.introTapped,
+  box: !!window.__game.titleBox }));
+check('opens shut, with no title drawn behind it', !shut.tapped && !shut.box,
+  JSON.stringify(shut));
+await pd.touchscreen.tap(215, 466);
+await pd.waitForFunction(() => window.__game.introTapped, null, { timeout: 10000 });
+await pd.waitForTimeout(300);
+const opened = await pd.evaluate(() => ({ cue: window.__audio.music.status().playing,
+  audible: !window.__audio.music.status().el?.paused, screen: window.__game.screen }));
+check('one tap in open space starts the theme', opened.cue === 'title' && opened.audible,
+  JSON.stringify(opened));
+await pd.waitForTimeout(2600);
+const settled = await pd.evaluate(() => ({ screen: window.__game.screen,
+  relay: !!window.__title.relayRect(window.__game.titleBox),
+  opts: !!window.__title.optionsRect(window.__game.titleBox) }));
+check('it settles into the menu, both controls present',
+  settled.screen === 'title' && settled.relay && settled.opts, JSON.stringify(settled));
+await pd.touchscreen.tap(215, 240); await pd.waitForTimeout(1600);
+const ran = await pd.evaluate(() => ({ screen: window.__game.screen }));
+check('then open space is START', ran.screen === 'playing', JSON.stringify(ran));
 
 console.log('');
 console.log(checks.every(([, p]) => p)

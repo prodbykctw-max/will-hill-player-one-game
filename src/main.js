@@ -168,6 +168,25 @@ const state = {
   resumeTo: 'playing', // what pausing interrupted, so resume goes back to it
   screenT: 0,
   tick: 0,
+  // ── THE FRONT DOOR ───────────────────────────────────────────────────────
+  // The game opens on a black card that says TAP ANYWHERE, and that tap does
+  // three things at once: it lets the browser release the sound, it starts the
+  // theme, and it sets the title card building itself. Client: "I'd rather it
+  // just be a black screen at the beginning that says tap anywhere, and that
+  // initiates the sliding in of all the components and layers, and then that
+  // becomes where I press start — by then the music should already be playing."
+  //
+  // Which is a better design than what it replaces, where the card assembled
+  // itself on load and the tap was a separate thing afterwards. The theme now
+  // comes up WITH the world instead of after it.
+  //
+  // `introTapped` latches once for the session. `introAt` is the tick the
+  // assembly started from, reset on every later return to the title so the card
+  // rebuilds itself each time you come back to it — the black page does not
+  // come back, because by then the sound is already on and it would be a gate
+  // asking for something it already has.
+  introTapped: false,
+  introAt: 0,
   runLog: createRunLog(),
 };
 
@@ -288,31 +307,33 @@ canvas.addEventListener('pointerdown', (e) => {
   if (state.screen === 'title') {
     if (state.screenT <= TITLE_ARM_TICKS) return;
     e.preventDefault();
-    // ── THE FIRST TAP WAKES THE MUSIC. IT DOES NOT START THE RUN. ────────
+    // ── THE FIRST TAP OPENS THE GAME. IT DOES NOT START THE RUN. ─────────
     //
-    // The client: "as soon as I click the icon I wanna hear the home screen
-    // music, because that's what pops up immediately."
+    // Until it happens the screen is black and says TAP ANYWHERE, and this is
+    // what that card is waiting for. One gesture buys all three things:
     //
-    // Tapping a home-screen icon is a tap on the OS launcher, not inside the
-    // page, so no browser lets sound out on the strength of it. Measured on a
-    // cold load: the title cue is genuinely PLAYING the whole time — element
-    // unpaused, currentTime climbing 0 -> 0.73 -> 1.53 — but the AudioContext
-    // is suspended, so it runs through a dead bus and makes no sound. Then the
-    // first tap resumes the context AND starts the run in the same gesture, so
-    // 220ms later the cue is stage_01 and the title track was never once
-    // audible.
+    //   the browser releases the audio    (it will not before a gesture, and
+    //                                      tapping a home-screen icon is a
+    //                                      gesture on the OS, not on the page)
+    //   the theme starts
+    //   the title card begins assembling itself
     //
-    // So this tap is spent on the music. It clicks, it ticks under the thumb,
-    // and the beat comes up on the card the player is already looking at; the
-    // next tap starts the game.
+    // Measured on a cold load before this existed: the title cue was genuinely
+    // PLAYING the whole time — element unpaused, currentTime climbing 0 ->
+    // 0.73 -> 1.53 — but the AudioContext was suspended, so it ran through a
+    // dead bus and made no sound. Then the first tap resumed the context AND
+    // started the run in the same gesture, so 220ms later the cue was stage_01
+    // and the title track had never once been audible.
     //
-    // AT MOST ONE TAP IS EVER SWALLOWED. If resume() is refused — and it can
-    // be — a condition written purely on `audio.ready()` would eat every tap
-    // and leave the game unstartable. And there is no point spending a tap for
-    // somebody who has turned the sound off.
-    if (!state.audioTapSpent && !audio.ready() && soundEnabled()) {
-      state.audioTapSpent = true;
-      audio.unlock();
+    // IT LATCHES ON THE TAP, NOT ON `audio.ready()`. An earlier version gated
+    // this on the audio being asleep, which meant that on a browser handing out
+    // a running context — or for anyone who had turned the sound off — the door
+    // was not there at all and the first tap started a run from a black screen.
+    // The door is the door. Sound is the thing it happens to also unlock.
+    if (!state.introTapped) {
+      state.introTapped = true;
+      state.introAt = state.screenT;
+      if (!audio.ready() && soundEnabled()) audio.unlock();
       press();
       return;
     }
@@ -384,10 +405,16 @@ document.addEventListener('visibilitychange', () => {
 // the tap that ends a run's GAME KNOCKED screen carries straight through the
 // title and into the next run.
 const TITLE_ARM_TICKS = 24;
+// How long the title card spends assembling itself after the front-door tap,
+// with room for the two controls to fade up behind it. Kept a little longer
+// than title.js's own INTRO_END so the last frames of that fade still get the
+// assembling path rather than snapping to the finished menu mid-fade.
+const INTRO_TICKS = 134;
 
 
 function showTitle() {
   state.screen = 'title';
+  state.introAt = 0;
   state.screenT = 0;
   audio.ambience(0);
 }
@@ -539,14 +566,14 @@ function update() {
   if (state.screen === 'title') {
     state.screenT++;
     if (state.screenT > TITLE_ARM_TICKS && confirmPressed()) {
-      // The same one-shot the tap path spends — see the pointer handler. A
-      // desktop player pressing JUMP on the title has the identical problem:
-      // the keypress wakes the context and starts the run in one move, and the
-      // title track never sounds. `audioTapSpent` is shared, so exactly ONE
-      // input is ever spent on the music, whichever way it arrives.
-      if (!state.audioTapSpent && !audio.ready() && soundEnabled()) {
-        state.audioTapSpent = true;
-        audio.unlock();
+      // The same door the tap path opens — see the pointer handler. A desktop
+      // player pressing JUMP on a black screen has the identical problem, and
+      // `introTapped` is shared so exactly one input is ever spent on it,
+      // whichever way it arrives.
+      if (!state.introTapped) {
+        state.introTapped = true;
+        state.introAt = state.screenT;
+        if (!audio.ready() && soundEnabled()) audio.unlock();
         press();
         return;
       }
@@ -932,16 +959,13 @@ function draw() {
     // Keep where the painting landed — the OPTIONS hit test converts through
     // it, so the button follows the art on any screen instead of living at a
     // guessed screen coordinate.
-    // The intro page shows for exactly as long as the game is still owed the
-    // gesture that lets sound out — the SAME condition the tap handler and the
-    // keyboard path both test, so the page cannot outlive the tap it is asking
-    // for, or fail to appear when one is still needed. Sound off means nothing
-    // to unlock, so that player goes straight to the menu.
-    const owed = !state.audioTapSpent && !audio.ready() && soundEnabled();
-    // `screenT` is ticks on this screen, which is the intro's clock — it starts
-    // at zero the moment the title comes up and it is already what arms the
-    // tap, so the assembly and the input it is waiting for run off one counter.
-    state.titleBox = title.draw(images, state.tick, owed, state.screenT);
+    // BLACK CARD FIRST, then the reveal, then the menu. See title.drawTapPage
+    // and title.introFx. `titleBox` is deliberately left alone on the black
+    // card: the hit tests convert through it, and there is nothing on that
+    // screen to hit — every tap there goes through the front door above.
+    if (!state.introTapped) { title.drawTapPage(state.tick); return; }
+    const introT = state.screenT - state.introAt;
+    state.titleBox = title.draw(images, state.tick, introT <= INTRO_TICKS, introT);
     return;
   }
 

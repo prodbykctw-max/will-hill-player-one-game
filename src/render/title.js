@@ -303,15 +303,18 @@ export function createTitle(ctx, canvas, still) {
   // here simply arrives at rest, which is the safe failure.
   const INTRO = [
     { from: [-0.52, 0.00], t0: 2, t1: 54 },    // 0 clouds — across the sky
-    { from: [0.00, -0.34], t0: 26, t1: 84 },   // 1 the title itself, dropping
+    { from: [0.00, -0.34], t0: 24, t1: 78 },   // 1 the title itself, dropping
     { from: [-0.46, 0.06], t0: 8, t1: 56 },    // 2 sign, left of frame
     { from: [0.46, 0.06], t0: 14, t1: 62 },    // 3 sign, right of frame
     { from: [0.00, 0.44], t0: 20, t1: 74 },    // 4 Will Hill — up off the street
   ];
-  // The backdrop's own window. Late, and slower than anything else, so it
-  // reads as the world resolving rather than as a cut.
-  const BASE_IN = [46, 88];
-  const INTRO_END = 88;
+  // ⚠️ THE BACKDROP MUST NOT START BEFORE THE LAST CARD HAS LANDED. Its copy of
+  // every moving piece is already sitting at the destination, so any overlap
+  // shows the piece twice — caught in the very first capture of this sequence,
+  // where the base came up at tick 46 while the title was still falling and the
+  // frame held two PLAYER ONEs. Starts one tick after the slowest t1 above.
+  const BASE_IN = [78, 104];
+  const INTRO_END = 104;
   const ease = (u) => 1 - (1 - u) * (1 - u) * (1 - u);
   const at = (t, t0, t1) => ease(Math.max(0, Math.min(1, (t - t0) / (t1 - t0))));
 
@@ -371,6 +374,50 @@ export function createTitle(ctx, canvas, still) {
   // finishes as the menu rather than cutting to it.
   function splashControlAlpha(introT) {
     return at(introT, INTRO_END - 10, INTRO_END + 22);
+  }
+
+  // ── THE BLACK CARD THE GAME OPENS ON ─────────────────────────────────────
+  //
+  // Client: "I'd rather it just be a black screen at the beginning that says
+  // tap anywhere, and that initiates the sliding in of all the components and
+  // layers, and then that becomes where I press start — by then the music
+  // should already be playing."
+  //
+  // WHY IT IS BETTER THAN WHAT IT REPLACES, which had the card assemble itself
+  // on load with the tap as a separate event afterwards: a browser will not
+  // release sound before a gesture, so SOMETHING has to ask for one. Asking
+  // first, on an empty screen, means the gesture buys the theme and the reveal
+  // at the same instant — the world builds WITH the music instead of in
+  // silence, and nothing has been spent before the player arrives.
+  //
+  // It is also the only honest thing to put on screen at that moment. The
+  // alternative is a finished title card sitting mute, which this project has
+  // now shipped twice and had reported as broken twice.
+  //
+  // Nothing else is drawn. No logo, no border, no sound hint — the whole page
+  // is one instruction, and the very next frame after it is obeyed is the
+  // reveal, which is where the game gets to introduce itself properly.
+  function drawTapPage(tick) {
+    const W = canvas.width;
+    const H = canvas.height;
+    const touch = typeof document !== 'undefined'
+      && document.body && document.body.classList.contains('touch');
+    const label = touch ? 'TAP ANYWHERE' : 'PRESS ANY KEY';
+    // A heartbeat, not a blink, and slower than anything on the menu — this is
+    // the one thing on screen and it has all the time in the world.
+    const glow = 0.5 + 0.5 * Math.sin(tick / 42);
+    ctx.save();
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, W, H);
+    const size = Math.max(19, Math.min(42, W * 0.075));
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = `800 ${Math.round(size)}px system-ui, sans-serif`;
+    ctx.shadowColor = `rgba(255,198,86,${0.26 + 0.44 * glow})`;
+    ctx.shadowBlur = 30;
+    ctx.fillStyle = `rgba(255,238,202,${0.62 + 0.38 * glow})`;
+    ctx.fillText(label, W / 2, H * 0.5);
+    ctx.restore();
   }
 
   // ── WHERE THE LIFTED WORD LANDS, AND HOW BIG ─────────────────────────
@@ -548,5 +595,5 @@ export function createTitle(ctx, canvas, still) {
     return x >= r.x - HIT_MARGIN && x <= r.x + r.w + HIT_MARGIN
       && y >= r.y - HIT_MARGIN && y <= r.y + r.h + HIT_MARGIN;
   }
-  return { draw, hitOptions, optionsRect, hitRelay, relayRect };
+  return { draw, drawTapPage, hitOptions, optionsRect, hitRelay, relayRect };
 }
