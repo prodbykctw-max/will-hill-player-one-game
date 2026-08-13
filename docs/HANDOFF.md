@@ -503,7 +503,9 @@ contest run is bad enough to guard before a third door exists.
 Measured end to end (`scratchpad/todset.mjs`, no manual reload in the day/night
 legs): pick day → panel returns open on SETTINGS at `day`, run reports
 `stageTod: day`; pick night → `stageTod: night`; plain refresh → panel stays
-shut; pick auto at device hour 0 → night.
+shut; pick auto at device hour 0 → night. And again on the **shipped** bundle,
+by pixels rather than state — day sky luma 93.0, night 30.1, rain only on the
+night frame. See "Verification recipe".
 
 ### Day framing — measured off landmarks, and it was badly wrong
 
@@ -1101,3 +1103,21 @@ telemetry to clients2.google.com). `curl` works fine, so **confirm the deploy
 landed by fetching the live index.html and matching its `assets/index-*.js`
 hash against `dist/index.html`**, then exercise behaviour against
 `vite preview`. That pair covers everything except Pages' own caching.
+
+**The tightest version of that, and worth the extra minute for anything the
+client will judge by eye:** extract the branch that was actually pushed and
+serve *those* bytes.
+
+```bash
+git fetch origin gh-pages && git archive origin/gh-pages | tar -x -C ghp/
+sha256sum ghp/assets/index-<hash>.js
+curl -s <live>/assets/index-<hash>.js | sha256sum      # must match
+(cd ghp && python3 -m http.server 5200)                # paths are relative, root is fine
+```
+
+Now the harness is driving the deployed artefact, byte for byte, and the only
+thing left unverified is Pages' CDN. Measure the canvas directly rather than
+decoding a screenshot — `getImageData` on the top third gives a mean luma in
+one `evaluate`, and there is no `pngjs` in this tree. Day vs night on the
+shipped bundle reads **93.0 vs 30.1**, a 3.1× split; anything near 1× means the
+setting is not reaching the pixels.
