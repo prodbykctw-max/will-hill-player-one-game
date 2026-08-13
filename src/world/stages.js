@@ -84,6 +84,7 @@ import eavDayFence from '../assets/backgrounds/eav-day-fence.webp';
 import eavDayVerge from '../assets/backgrounds/eav-day-verge.webp';
 import eavDayTree from '../assets/backgrounds/eav-day-tree.webp';
 import eavDayPole from '../assets/backgrounds/eav-day-pole.webp';
+import eavDayShrubRight from '../assets/backgrounds/eav-day-shrub_right.webp';
 import edgewoodDayClouds from '../assets/backgrounds/edgewood-day-clouds.webp';
 import edgewoodDayTrees from '../assets/backgrounds/edgewood-day-trees.webp';
 import edgewoodDaySkyline from '../assets/backgrounds/edgewood-day-skyline.webp';
@@ -367,7 +368,7 @@ const STAGE_DEFS = [
         // colour taken down 28% red / 14% green with blue held, which is how
         // a real sky deepens overhead. Wherever the plate's top edge lands on
         // whatever screen, the gradient meets it within a few levels.
-        sky: ['#307bef', '#438fef'],
+        sky: ['#307aef', '#438fef'],
         horizon: '#438fef',
         glow: 'rgba(255,244,214,0.09)',
         // No rain in the daytime set. The client's day plates are clear-sky
@@ -385,16 +386,16 @@ const STAGE_DEFS = [
         // the measured night->day transform, since the two exports are a
         // percent or two different in size.
         cards: [
-          { key: 'clouds', img: eavDayClouds, depth: 0.02, drift: -0.035, span: [0.114, 1.000] },
-          { key: 'skyline', img: eavDaySkyline, depth: 0.07, span: [0.752, 1.000] },
-          { key: 'mcdonalds', img: eavDayMcdonalds, depth: 0.16, span: [0.906, 0.977] },
-          { key: 'cars', img: eavDayCars, depth: 0.21, span: [0.773, 1.000] },
-          { key: 'swifty', img: eavDaySwifty, depth: 0.25, span: [0.114, 0.422] },
-          { key: 'citgo', img: eavDayCitgo, depth: 0.41, span: [0.097, 0.523] },
-          { key: 'fence', img: eavDayFence, depth: 0.67, span: [0.288, 0.775] },
-          { key: 'verge', img: eavDayVerge, depth: 0.75, span: [0.091, 0.854] , rate: 0.30 },
+          { key: 'clouds', img: eavDayClouds, depth: 0.02, drift: -0.035, span: [0.111, 1.000] },
+          { key: 'skyline', img: eavDaySkyline, depth: 0.07, span: [0.768, 0.980] },
+          { key: 'mcdonalds', img: eavDayMcdonalds, depth: 0.16, span: [0.899, 0.979] },
+          { key: 'cars', img: eavDayCars, depth: 0.21, span: [0.772, 0.979] },
+          { key: 'swifty', img: eavDaySwifty, depth: 0.25, span: [0.129, 0.416] },
+          { key: 'citgo', img: eavDayCitgo, depth: 0.41, span: [0.119, 0.542] },
+          { key: 'fence', img: eavDayFence, depth: 0.67, span: [0.212, 0.772] },
+          { key: 'verge', img: eavDayVerge, depth: 0.75, span: [0.000, 0.837] , rate: 0.30 },
           {
-          key: 'tree', img: eavDayTree, depth: 0.81, span: [0.000, 0.293],
+          key: 'tree', img: eavDayTree, depth: 0.81, span: [0.000, 0.298],
           sway: [
             // CANOPY. Pivot at the bottom of the leaf mass — the trunk is
             // below it and stays dead still.
@@ -404,6 +405,15 @@ const STAGE_DEFS = [
             { top: 0.52, pivot: 0.92, amp: 2.5, freq: 1.7, xRanges: [[0.077, 0.290]] },
           ],
           },
+          // THE CARD THE OLD DAY CUT LOST. Night has always had it; the day
+          // pass never emitted it, and the fence card was cut with a
+          // shrub-shaped hole where it belongs — which is what the client saw
+          // as vertical slots torn through the planks with the skyline
+          // showing between them. Same depth and the same sway as night.
+          {
+            key: 'shrub_right', img: eavDayShrubRight, depth: 0.85, span: [0.725, 0.799],
+            sway: [{ top: 0.66, pivot: 0.88, amp: 2.5, freq: 1.7, xRanges: [[0.725, 0.799]] }],
+          },
           // ⚠️ PLANTED ON THE GROUND STRIP, SO IT TRAVELS WITH IT.
           // The kerb/verge carries an explicit rate: 0.30 with the 400px strip
           // clamp, while a depth-derived card is clamped at 90 — so a pole
@@ -412,7 +422,7 @@ const STAGE_DEFS = [
           // you move to the right it separates from the pole." A thing whose
           // base is IN another card is not at its own depth; it is at that
           // card's rate.
-          { key: 'pole', img: eavDayPole, depth: 1.00, span: [0.810, 0.911], rate: 0.30 },
+          { key: 'pole', img: eavDayPole, depth: 1.00, span: [0.810, 0.894], rate: 0.30 },
         ],
         lights: [],
       },
@@ -532,7 +542,7 @@ const STAGE_DEFS = [
         // colour taken down 28% red / 14% green with blue held, which is how
         // a real sky deepens overhead. Wherever the plate's top edge lands on
         // whatever screen, the gradient meets it within a few levels.
-        sky: ['#2c78f2', '#3d8bf2'],
+        sky: ['#2b77f2', '#3d8bf2'],
         horizon: '#3d8bf2',
         glow: 'rgba(255,244,214,0.09)',
         // No rain in the daytime set. The client's day plates are clear-sky
@@ -553,7 +563,7 @@ const STAGE_DEFS = [
           // The one card with NO night counterpart: the night plate's sky is a
           // black band with nothing in it to lift. Farthest thing in the
           // picture, so it gets the smallest depth and barely moves.
-          { key: 'clouds', img: edgewoodDayClouds, depth: 0.02, drift: -0.035, span: [0.046, 1.000] },
+          { key: 'clouds', img: edgewoodDayClouds, depth: 0.02, drift: -0.035, span: [0.024, 1.000] },
           // ── THE OVERHANGING TREE ────────────────────────────────────
           // Its own card at last. It was split between `skyline` (25% of the
           // canopy, travelling with the buildings) and the static base (the
@@ -573,20 +583,20 @@ const STAGE_DEFS = [
             sway: [{ top: 0.0, pivot: 0.328, amp: 4, freq: 0.85,
               xRanges: [[0.000, 0.274]] }],
           },
-          { key: 'skyline', img: edgewoodDaySkyline, depth: 0.05, span: [0.096, 1.000] },
-          { key: 'parapet', img: edgewoodDayParapet, depth: 0.20, span: [0.049, 0.102] },
-          { key: 'facade', img: edgewoodDayFacade, depth: 0.34, span: [0.000, 1.000] },
-          { key: 'bay_left', img: edgewoodDayBayLeft, depth: 0.44, span: [0.055, 0.230] },
-          { key: 'bay_mid1', img: edgewoodDayBayMid1, depth: 0.46, span: [0.371, 0.516] },
-          { key: 'bay_mid2', img: edgewoodDayBayMid2, depth: 0.48, span: [0.529, 0.678] },
-          { key: 'bay_right', img: edgewoodDayBayRight, depth: 0.44, span: [0.785, 0.946] },
-          { key: 'sign_blm', img: edgewoodDaySignBlm, depth: 0.47, span: [0.391, 0.488] },
-          { key: 'sign_soul', img: edgewoodDaySignSoul, depth: 0.49, span: [0.559, 0.634] },
-          { key: 'neon_open', img: edgewoodDayNeonOpen, depth: 0.49, span: [0.596, 0.654] },
-          { key: 'neon_ourbar', img: edgewoodDayNeonOurbar, depth: 0.45, span: [0.084, 0.198] },
-          { key: 'neon_dis', img: edgewoodDayNeonDis, depth: 0.45, span: [0.827, 0.900] },
-          { key: 'lamps', img: edgewoodDayLamps, depth: 0.62, span: [0.021, 0.961] },
-          { key: 'pavement', img: edgewoodDayPavement, depth: 0.84, span: [0.000, 1.000], rate: 0.30 },
+          { key: 'skyline', img: edgewoodDaySkyline, depth: 0.05, span: [0.021, 0.995] },
+          { key: 'parapet', img: edgewoodDayParapet, depth: 0.20, span: [0.025, 0.992] },
+          { key: 'facade', img: edgewoodDayFacade, depth: 0.34, span: [0.001, 0.995] },
+          { key: 'bay_left', img: edgewoodDayBayLeft, depth: 0.44, span: [0.056, 0.244] },
+          { key: 'bay_mid1', img: edgewoodDayBayMid1, depth: 0.46, span: [0.367, 0.518] },
+          { key: 'bay_mid2', img: edgewoodDayBayMid2, depth: 0.48, span: [0.522, 0.655] },
+          { key: 'bay_right', img: edgewoodDayBayRight, depth: 0.44, span: [0.781, 0.929] },
+          { key: 'sign_blm', img: edgewoodDaySignBlm, depth: 0.47, span: [0.396, 0.488] },
+          { key: 'sign_soul', img: edgewoodDaySignSoul, depth: 0.49, span: [0.554, 0.627] },
+          { key: 'neon_open', img: edgewoodDayNeonOpen, depth: 0.49, span: [0.592, 0.650] },
+          { key: 'neon_ourbar', img: edgewoodDayNeonOurbar, depth: 0.45, span: [0.109, 0.201] },
+          { key: 'neon_dis', img: edgewoodDayNeonDis, depth: 0.45, span: [0.823, 0.890] },
+          { key: 'lamps', img: edgewoodDayLamps, depth: 0.62, span: [0.004, 0.992] },
+          { key: 'pavement', img: edgewoodDayPavement, depth: 0.84, span: [0.003, 0.995], rate: 0.30 },
         ],
         lights: [],
       },
@@ -859,21 +869,21 @@ const STAGE_DEFS = [
           // black band with nothing in it to lift. Farthest thing in the
           // picture, so it gets the smallest depth and barely moves.
           { key: 'clouds', img: l5pDayClouds, depth: 0.02, drift: -0.035, span: [0.000, 1.000] },
-          { key: 'farbuild', img: l5pDayFarbuild, depth: 0.06, span: [0.000, 0.165] },
-          { key: 'sign', img: l5pDaySign, depth: 0.22, span: [0.455, 0.940] },
-          { key: 'letters', img: l5pDayLetters, depth: 0.23, span: [0.507, 0.899] },
+          { key: 'farbuild', img: l5pDayFarbuild, depth: 0.06, span: [0.021, 0.173] },
+          { key: 'sign', img: l5pDaySign, depth: 0.22, span: [0.458, 0.936] },
+          { key: 'letters', img: l5pDayLetters, depth: 0.23, span: [0.512, 0.897] },
           { key: 'rightpillar', img: l5pDayRightpillar, depth: 0.30, span: [0.937, 1.000] },
-          { key: 'newused', img: l5pDayNewused, depth: 0.40, span: [0.140, 0.310] },
-          { key: 'newusedsign', img: l5pDayNewusedsign, depth: 0.41, span: [0.140, 0.291] },
-          { key: 'brick', img: l5pDayBrick, depth: 0.48, span: [0.177, 0.470] },
-          { key: 'buysell', img: l5pDayBuysell, depth: 0.49, span: [0.331, 0.408] },
-          { key: 'bayleft', img: l5pDayBayleft, depth: 0.56, span: [0.450, 0.605] },
-          { key: 'openneon', img: l5pDayOpenneon, depth: 0.57, span: [0.473, 0.542] },
-          { key: 'baymid', img: l5pDayBaymid, depth: 0.60, span: [0.603, 0.729] },
-          { key: 'awning', img: l5pDayAwning, depth: 0.63, span: [0.775, 0.899] },
-          { key: 'bayright', img: l5pDayBayright, depth: 0.64, span: [0.767, 0.940] },
-          { key: 'poster', img: l5pDayPoster, depth: 0.65, span: [0.800, 0.907] },
-          { key: 'kerb', img: l5pDayKerb, depth: 0.82, span: [0.000, 0.952] , rate: 0.30 },
+          { key: 'newused', img: l5pDayNewused, depth: 0.40, span: [0.143, 0.315] },
+          { key: 'newusedsign', img: l5pDayNewusedsign, depth: 0.41, span: [0.160, 0.313] },
+          { key: 'brick', img: l5pDayBrick, depth: 0.48, span: [0.313, 0.466] },
+          { key: 'buysell', img: l5pDayBuysell, depth: 0.49, span: [0.339, 0.411] },
+          { key: 'bayleft', img: l5pDayBayleft, depth: 0.56, span: [0.454, 0.605] },
+          { key: 'openneon', img: l5pDayOpenneon, depth: 0.57, span: [0.478, 0.544] },
+          { key: 'baymid', img: l5pDayBaymid, depth: 0.60, span: [0.606, 0.726] },
+          { key: 'awning', img: l5pDayAwning, depth: 0.63, span: [0.776, 0.898] },
+          { key: 'bayright', img: l5pDayBayright, depth: 0.64, span: [0.736, 0.975] },
+          { key: 'poster', img: l5pDayPoster, depth: 0.65, span: [0.802, 0.906] },
+          { key: 'kerb', img: l5pDayKerb, depth: 0.82, span: [0.022, 0.971] , rate: 0.30 },
           // ⚠️ PLANTED ON THE GROUND STRIP, SO IT TRAVELS WITH IT.
           // The kerb/verge carries an explicit rate: 0.30 with the 400px strip
           // clamp, while a depth-derived card is clamped at 90 — so a pole
@@ -882,7 +892,7 @@ const STAGE_DEFS = [
           // you move to the right it separates from the pole." A thing whose
           // base is IN another card is not at its own depth; it is at that
           // card's rate.
-          { key: 'pole', img: l5pDayPole, depth: 0.96, span: [0.055, 0.165], rate: 0.30 },
+          { key: 'pole', img: l5pDayPole, depth: 0.96, span: [0.072, 0.149], rate: 0.30 },
         ],
         lights: [],
       },

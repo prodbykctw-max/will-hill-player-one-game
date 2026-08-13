@@ -1,0 +1,123 @@
+{
+ "eav": {
+  "day_id": "eav-day",
+  "mirrored": [
+   "skyline",
+   "mcdonalds",
+   "cars",
+   "swifty",
+   "citgo",
+   "tree",
+   "fence",
+   "shrub_right",
+   "verge",
+   "pole"
+  ],
+  "day_own": [
+   "clouds"
+  ],
+  "names": [
+   "skyline",
+   "mcdonalds",
+   "cars",
+   "swifty",
+   "citgo",
+   "tree",
+   "fence",
+   "shrub_right",
+   "verge",
+   "pole",
+   "clouds"
+  ],
+  "score": 0.501,
+  "scale": 0.985
+ },
+ "edgewood": {
+  "day_id": "edgewood-day",
+  "mirrored": [
+   "skyline",
+   "parapet",
+   "facade",
+   "bay_left",
+   "bay_mid1",
+   "bay_mid2",
+   "bay_right",
+   "sign_blm",
+   "sign_soul",
+   "neon_open",
+   "neon_ourbar",
+   "neon_dis",
+   "lamps",
+   "pavement"
+  ],
+  "day_own": [
+   "clouds",
+   "trees"
+  ],
+  "names": [
+   "skyline",
+   "parapet",
+   "facade",
+   "bay_left",
+   "bay_mid1",
+   "bay_mid2",
+   "bay_right",
+   "sign_blm",
+   "sign_soul",
+   "neon_open",
+   "neon_ourbar",
+   "neon_dis",
+   "lamps",
+   "pavement",
+   "clouds",
+   "trees"
+  ],
+  "score": 0.572,
+  "scale": 0.99
+ },
+ "l5p": {
+  "day_id": "l5p-day",
+  "mirrored": [
+   "farbuild",
+   "sign",
+   "rightpillar",
+   "newused",
+   "brick",
+   "bayleft",
+   "baymid",
+   "bayright",
+   "letters",
+   "newusedsign",
+   "buysell",
+   "awning",
+   "openneon",
+   "poster",
+   "pole",
+   "kerb"
+  ],
+  "day_own": [
+   "clouds"
+  ],
+  "names": [
+   "farbuild",
+   "sign",
+   "rightpillar",
+   "newused",
+   "brick",
+   "bayleft",
+   "baymid",
+   "bayright",
+   "letters",
+   "newusedsign",
+   "buysell",
+   "awning",
+   "openneon",
+   "poster",
+   "pole",
+   "kerb",
+   "clouds"
+  ],
+  "score": 0.561,
+  "scale": 0.98
+ }
+}

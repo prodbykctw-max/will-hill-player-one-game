@@ -119,14 +119,28 @@ const panel = createPanel({
 // audio.tryAutostart.
 audio.tryAutostart();
 {
+  // EVERY EVENT THAT COUNTS AS ACTIVATION, not just the three that ought to.
+  //
+  // The client, on the shipped build: "the home screen music doesn't play
+  // unless I hit OPTIONS first." That is the tell. OPTIONS is not special —
+  // it is just SEVERAL more gestures (a tap to open the panel, a tap on a
+  // button inside it, a tap to close), and if it takes several then a single
+  // one is not landing. Safari is the known offender: it does not reliably
+  // honour resume() from `pointerdown`, and a handler that calls
+  // preventDefault() first — which the title's does, to stop the tap
+  // scrolling — can cost the activation outright. `touchend` and `click` are
+  // the two it does honour.
+  //
+  // Cheap to be exhaustive: unlock() is idempotent, the listeners are passive,
+  // and they all detach the moment the context reports running.
+  const EVENTS = ['keydown', 'keyup', 'pointerdown', 'pointerup',
+                  'touchstart', 'touchend', 'click'];
   const unlock = () => {
     audio.unlock();
     if (!audio.ready()) return;
-    for (const ev of ['keydown', 'pointerdown', 'touchstart']) {
-      window.removeEventListener(ev, unlock);
-    }
+    for (const ev of EVENTS) window.removeEventListener(ev, unlock);
   };
-  for (const ev of ['keydown', 'pointerdown', 'touchstart']) {
+  for (const ev of EVENTS) {
     window.addEventListener(ev, unlock, { passive: true });
   }
 }
