@@ -97,6 +97,31 @@ const FADE = 0.9;      // seconds to cross from one cue to the next
 const DUCK_TO = 0.42;  // how far the music drops under a punch
 const DUCK_MS = 260;   // how long it stays down before recovering
 
+// ── ONE KNOB FOR THE WHOLE SOUNDTRACK ────────────────────────────────────
+// The client's report, in a car with the stereo maxed: "they're very low. I
+// got the car on Max and it sounds like I got it on 25%." He is right, and
+// the arithmetic says so. The files are mastered to -16 LUFS, then the cue
+// gain (0.50) and the master bus (0.85) each take a bite: 0.50 x 0.85 =
+// 0.425, which is -7.4 dB, so the music actually reaches the speaker around
+// -23 LUFS. That is bed level for something playing under dialogue, not for
+// the thing you are meant to be listening to.
+//
+// Raise it HERE and not in the files. The mp3s are already matched to each
+// other track-for-track by tools/cut_loop.py, and re-encoding them louder
+// would throw away that matching, requantise ten files, and push their
+// peaks toward the -1 dBFS ceiling. One multiplier over the top keeps the
+// balance exactly as measured and is a single number to nudge — he asked
+// for it "an increment at a time," so leave it that way.
+//
+// Headroom check at +3 dB (x1.413): the loudest cue is credits at 0.60 ->
+// 0.848, times the file's -1 dBFS peak (0.891) = 0.755, times master 0.85 =
+// 0.642 at the destination. Still a third of full scale spare for the SFX
+// sitting alongside it, so nothing clips. Anything past about +6 dB starts
+// eating that margin, and past +7 the no-WebAudio fallback clamps (element
+// volume cannot exceed 1.0) and the boost silently stops applying.
+const BOOST_DB = 3.0;
+const BOOST = 10 ** (BOOST_DB / 20);
+
 export function createMusic(getContext, getMaster) {
   const nodes = new Map();   // slot -> { el, src, gain }
   let current = null;
@@ -163,7 +188,7 @@ export function createMusic(getContext, getMaster) {
 
   function levelOf(node) {
     if (muted) return 0;
-    return node.cue.gain * (ducking > 0 ? DUCK_TO : 1);
+    return node.cue.gain * BOOST * (ducking > 0 ? DUCK_TO : 1);
   }
 
   function ramp(node, to, secs) {

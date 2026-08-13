@@ -323,6 +323,85 @@ def trace_contours(mask, min_area=24):
 
 # ── Fill ──────────────────────────────────────────────────────────────────
 
+def sink_night(rgb, claimed):
+    """The night base: inpaint the holes, then blur and darken the fill.
+
+    Two thirds to three quarters of a night plate is hole once the cards come
+    off, so there is no real scenery left to reconstruct and a sharp fill only
+    produces ghosts — a smeared Welcome sign hanging in mid-air where the fence
+    used to be. Sink the fill instead: blur it flat and darken it, ramped by
+    distance from the nearest real pixel so it fades out of the cut edge rather
+    than starting at one. What a card slides away from then reads as night
+    depth behind it.
+
+    DO NOT REUSE THIS FOR DAYLIGHT. See sink_day.
+    """
+    base = pyramid_inpaint(rgb, claimed)
+    soft = np.array(Image.fromarray(base).filter(ImageFilter.GaussianBlur(9)))
+    k = np.clip(ndi.distance_transform_edt(claimed) / 14.0, 0, 1)[..., None]
+    return (base * (1 - k) + soft * 0.55 * k).astype(np.uint8)
+
+
+# ── The day base ─────────────────────────────────────────────────────────
+# HOW THE DAY PLATES GOT CHOPPED UP, and it was this function's absence.
+#
+# The day cut ran through sink_night, because there was only one path. Both
+# halves of that treatment are night reasoning:
+#
+#   1. THE FILL SOURCE. pyramid_inpaint diffuses the pixels that are LEFT
+#      after the cut. On eav-day 81.6% of the plate is hole, so the only
+#      survivors are a strip of sky at the top and a strip of grass at the
+#      bottom — and diffusing those two across everything between them
+#      produces a flat olive-green field. That is the smear behind the EAV
+#      fence: not a bug in the mask, the inpaint honestly reporting that it
+#      has nothing to work from.
+#   2. THE DARKENING. Multiplying the fill by 0.55 is invisible at night,
+#      where the plate sits at luma 20 and the fill lands at 10. In daylight
+#      the painting is at luma 94-111 and the fill lands at 53-64. Measured
+#      against the original at the very same pixels: night is 11-24 luma
+#      short, day is 27-52 short. That is a grey hole you can see.
+#
+# WHAT THIS DOES INSTEAD, and it is the same three ideas, re-aimed at noon.
+#
+#   FILL FROM THE PAINTING, NOT FROM WHAT SURVIVED IT. The plate we cut up is
+#   still on disk, so the pixels behind a card are not unknown — they are the
+#   card. Softened, they read as more fence behind the fence and more sky
+#   behind the sign, which is what is actually back there. The gap the client
+#   photographed fills with blurred fence instead of olive green.
+#
+#   OUT OF FOCUS, NOT INVENTED. Blur is what stops the echo. A sharp copy of
+#   the Welcome sign sliding behind the real one is a ghost; a soft one is
+#   depth of field. Cards separate by at most MAX_SEPARATION (90px on screen)
+#   so the echo is never far from what it echoes, and at this radius no text
+#   survives to be read twice.
+#
+#   PUSHED BACK BY AIR, NOT BY DARKNESS. Distance in daylight desaturates and
+#   lifts toward the sky; it does not dim. So the fill loses a little contrast
+#   and takes a little of the plate's own sky colour, sampled off the UNCUT
+#   image — sampling the cut base reads the fill and the whole thing walks
+#   itself grey a shade per run.
+#
+#   RAMPED FROM THE CUT EDGE, exactly as at night: k is 0 where the hole meets
+#   real painting, so the base is continuous with its surroundings there, and
+#   reaches full softness a few pixels in.
+BLUR_R = 14        # px. Enough to kill lettering, not so much it goes to fog.
+HAZE = 0.14        # fraction of the plate's own sky mixed into the fill
+HAZE_CONTRAST = 0.88
+RAMP_PX = 10.0     # how fast the fill goes soft, measured in from the cut edge
+
+
+def sink_day(rgb, claimed):
+    """The day base: the painting itself, out of focus and a little hazy."""
+    h = rgb.shape[0]
+    sky = rgb[:max(4, h // 14)].reshape(-1, 3).mean(0)   # off the UNCUT plate
+    soft = np.array(Image.fromarray(rgb).filter(ImageFilter.GaussianBlur(BLUR_R)))
+    soft = soft.astype(np.float64)
+    m = soft.mean(axis=(0, 1), keepdims=True)
+    soft = np.clip((soft - m) * HAZE_CONTRAST + m, 0, 255) * (1 - HAZE) + sky * HAZE
+    k = np.clip(ndi.distance_transform_edt(claimed) / RAMP_PX, 0, 1)[..., None]
+    return (rgb * (1 - k) + soft * k).astype(np.uint8)
+
+
 def pyramid_inpaint(rgb, hole, levels=9):
     """Push-pull fill: pull colour down a pyramid, push it back into holes."""
     col = rgb.astype(np.float64).copy()
@@ -1277,16 +1356,12 @@ def cut(stage_id, items, debug_only=False, proof=False):
               ', '.join(f"{it['name']}={int(m.sum())}" for it, m in zip(items, masks)))
         return
 
-    base = pyramid_inpaint(rgb, claimed)
-    # Seven tenths of this plate is now hole, so there is no real scenery left
-    # to reconstruct and a sharp fill only produces ghosts — a smeared Welcome
-    # sign hanging in mid-air where the fence used to be. Sink the fill instead:
-    # blur it flat and darken it, ramped by distance from the nearest real
-    # pixel so it fades out of the cut edge rather than starting at one. What a
-    # card slides away from then reads as night depth behind it.
-    soft = np.array(Image.fromarray(base).filter(ImageFilter.GaussianBlur(9)))
-    k = np.clip(ndi.distance_transform_edt(claimed) / 14.0, 0, 1)[..., None]
-    base = (base * (1 - k) + soft * 0.55 * k).astype(np.uint8)
+    # Which sky the plate is under decides how the holes get filled — see
+    # sink_day. Keyed off the id because that is what already distinguishes the
+    # two halves everywhere else in this project, and because it means the
+    # night plates go through byte-identical code.
+    sink = sink_day if stage_id.endswith('-day') else sink_night
+    base = sink(rgb, claimed)
     Image.fromarray(base).save(os.path.join(BG, f'{stage_id}-base.webp'),
                                'WEBP', quality=92, method=6)
     Image.fromarray(base).save(os.path.join(DEBUG_DIR, stage_id + '_base.png'))
