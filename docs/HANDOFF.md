@@ -716,6 +716,50 @@ for day/night adds **zero** to boot: a night player never fetches a day cue.
 
 ---
 
+## The DAY plates are patchy, and here is why
+
+The client: *"a whole bunch of daytime errors on the scenery."* He is right,
+it is not subtle, and it is specific to the day cut.
+
+`tools/harness/daynight.mjs` parks the camera at the same five fractions of
+each stage in both halves and counts, per frame, **full-height hard columns** —
+a vertical step across more than half the plate band, which is what a card edge
+or a missing card produces, as opposed to a painted corner which only covers
+part of the height. Night scores **zero everywhere, all four stages**. Day:
+
+| stage | 2% | 25% | 50% | 75% | 95% |
+|---|---|---|---|---|---|
+| **eav-day** | 0 | 1 | 3 | **10** | **8** |
+| edgewood-day | 0 | 0 | 1 | 0 | 0 |
+| underground-day | 4 | 0 | 0 | 0 | 0 |
+| l5p-day | 0 | 0 | 1 | 1 | 0 |
+
+**EAV's day fence has vertical slots torn straight through it** in the back
+half of the stage — you see the shrub and the skyline through gaps in the
+planks. At the identical camera position the night fence is one unbroken run.
+
+Diffing the two cut tables says why:
+
+- **`eav-day` is missing `shrub_right` entirely.** `eav-planes.json` has 11
+  regions, `eav-day-planes.json` has 10, and that is the one absent.
+- **`edgewood-day` `parapet` span collapsed**: `0.024-0.997` at night,
+  `0.049-0.102` in the day cut. A roofline that runs the width of the building
+  became a mask 5% wide.
+- **`underground-day` `backdrop` span collapsed** the same way: `0.27-0.82`
+  became `0.299-0.348`.
+
+Those two are SAM masks that caught a fragment instead of the whole object. The
+fix is a re-cut of the day plates with those regions corrected — `sam_segment`
+then `cut_planes` — not a patch over the symptom, and it wants doing carefully
+rather than at the end of a long session.
+
+Re-measure with:
+```bash
+PLAYWRIGHT=... CHROMIUM=... node tools/harness/daynight.mjs
+```
+
+---
+
 ## The repeat seam
 
 `drawPlate` tiles each plate straight — not mirrored, because a flipped copy
