@@ -207,7 +207,7 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
     }
     $('todNote').textContent = tod === 'auto'
       ? 'The stages match the time of day on your phone — night streets after 7pm.'
-      : 'Takes effect next time the game loads.';
+      : (tod === 'day' ? 'Always daytime streets.' : 'Always night streets.');
   }
 
   // ── wiring ────────────────────────────────────────────────────────────
@@ -252,8 +252,14 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
   });
   $('sTod').addEventListener('change', (e) => {
     try { localStorage.setItem('wh_tod', e.target.value); } catch (_e) {}
-    $('todNote').textContent = 'Takes effect next time the game loads.';
-    onTimeOfDayChange?.(e.target.value);
+    // The handler RELOADS when it can, and returns true when it did — so the
+    // note below is only ever seen in the case it is true for. It used to be
+    // printed unconditionally, which is how a setting that works after a
+    // reload came to look like a setting that does nothing.
+    const applied = onTimeOfDayChange?.(e.target.value);
+    $('todNote').textContent = applied
+      ? 'Switching…'
+      : 'Applies when this run ends — finish the stage or go back to the title.';
   });
 
   // Tapping the dimmed area behind the card closes it. Not the card itself,

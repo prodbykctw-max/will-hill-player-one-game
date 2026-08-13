@@ -468,10 +468,42 @@ needs latitude and day-of-year, which needs location.
 read at midday, and painting them as if they did is what makes a day scene
 look like a night scene with the brightness turned up.
 
-**Not finished:** only Underground's day plate is cut into multiplane cards
-(19). EAV, Edgewood and L5P day are FLAT — the renderer treats a stage with no
-`cards` as the old single-plate backdrop, which is shallow, not broken. The
-client's instruction is uniformity: the same cut on every plate, day and night.
+All four day plates are cut into multiplane cards — see the table under
+"Background depth" for the per-stage counts.
+
+### The SETTINGS switch, and why it reloads
+
+The client: *"when I select always day from settings it doesn't change."* He
+was right about the symptom and it was not the setting that was broken. The
+value always **saved**, and a run started after a manual reload always came up
+in the right half — measured, both directions. What was missing was anything
+that applied it *before* one: `STAGES` is resolved once at module load, and
+`onTimeOfDayChange` was never passed to `createPanel` at all. The note under
+the row said "takes effect next time the game loads", which on a phone — where
+there is no visible reload — reads as a dead switch.
+
+**It now calls `location.reload()`.** That is the fix, not a dodge. Changing
+the half changes which of eight plates and ~60 cards the image manifest has to
+hold, plus the sky gradient, the lighting rig and the rain; re-resolving all of
+it live is a lot of machinery to apply one setting, and every bit of it is
+already correct on a cold boot. `wh_tod` is in localStorage before the reload
+fires, so the new page comes up in the half he picked.
+
+**It comes back to the same pane.** `sessionStorage.wh_reopen = 'settings'` is
+written before the reload and read-and-cleared once at boot, so the blink lands
+you back on SETTINGS with your value showing — a settings switch that dumps you
+out to the title is its own small broken thing. A plain refresh does not reopen
+it; that is checked.
+
+**Mid-run returns `false` instead**, and the panel says "applies when this run
+ends". Nothing opens the panel mid-run today — OPTIONS on the title and the end
+of a finished run are the only two doors — but a reload that eats somebody's
+contest run is bad enough to guard before a third door exists.
+
+Measured end to end (`scratchpad/todset.mjs`, no manual reload in the day/night
+legs): pick day → panel returns open on SETTINGS at `day`, run reports
+`stageTod: day`; pick night → `stageTod: night`; plain refresh → panel stays
+shut; pick auto at device hour 0 → night.
 
 ### Day framing — measured off landmarks, and it was badly wrong
 

@@ -66,6 +66,41 @@ const panel = createPanel({
   onClose: () => { if (state.screen === 'paused' && state.resumeTo) resume(); },
   onSoundChange: (on) => audio.setMuted(!on),
   onHapticsChange: (on) => haptics.setEnabled(on),
+  // ── TIME OF DAY APPLIES NOW, NOT "NEXT TIME THE GAME LOADS" ──────────
+  //
+  // The setting always SAVED correctly and always worked after a reload —
+  // verified: pick "Always day", reload, and the stage reports tod=day. What
+  // it did not do was anything you could see, because `STAGES` is resolved
+  // once at module load and this callback was never even passed to the panel.
+  // The note said "takes effect next time the game loads", which on a phone —
+  // where there is no visible reload — reads as a broken switch. The client:
+  // "when I select always day from settings it doesn't change."
+  //
+  // A RELOAD IS THE FIX, and it is not a cop-out. Changing the time of day
+  // changes which of eight background plates and which ~60 multiplane cards
+  // the image manifest has to hold, plus the sky gradient, the lighting rig
+  // and the rain. Re-resolving all of that live is a large amount of
+  // machinery to get one setting applied, and every bit of it is already
+  // correct on a cold boot. The choice is in localStorage before the reload
+  // happens, so the new page comes up in the half he asked for.
+  //
+  // MID-RUN IS THE EXCEPTION. Reloading would throw the run away, so the
+  // panel is told to say so instead and the change lands at the next boot.
+  // Nothing opens the panel mid-run today — OPTIONS on the title and the end
+  // of a finished run are the only two doors — but a reload that eats a run
+  // is bad enough that the guard is worth having before the third one exists.
+  //
+  // AND IT COMES BACK TO THE SAME PANE. A settings switch that dumps you out
+  // to the title is its own small broken thing: you flip one row and lose the
+  // other three. The flag below is read once at boot, so the blink lands you
+  // back on SETTINGS with the value you just picked already showing.
+  onTimeOfDayChange: () => {
+    const midRun = ['playing', 'paused', 'riding', 'stageClear'].includes(state.screen);
+    if (midRun) return false;      // panel keeps the "next run" note
+    try { sessionStorage.setItem('wh_reopen', 'settings'); } catch (_e) {}
+    location.reload();
+    return true;
+  },
   haptics,
   audio,
 });
@@ -930,6 +965,14 @@ loadImages(imageManifest)
     images = loaded;
     showTitle();
     loop.start();
+    // Coming back from the TIME OF DAY reload — see onTimeOfDayChange. Read
+    // and cleared in one go, so a plain refresh never reopens it.
+    let reopen = null;
+    try {
+      reopen = sessionStorage.getItem('wh_reopen');
+      sessionStorage.removeItem('wh_reopen');
+    } catch (_e) {}
+    if (reopen === 'settings') panel.open('settings');
   })
   .catch((err) => {
     // A rejected asset load used to leave a permanently black canvas with
