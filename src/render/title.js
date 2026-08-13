@@ -188,6 +188,17 @@ const OPT = (spriteManifest.options || [])[0] || null;
 // below opens the panel. Both targets are enormous and there is exactly one
 // boundary to miss instead of two adjacent edges.
 export const TITLE_ZOOM = 1;
+// How much sky the fit may crop off the top to fill the width instead of
+// letterboxing — see stillscene.fit.
+//
+// MEASURED, AND MEASURED TWICE. The first number came off the letters' bright
+// FACE, row 281, and a 430x800 window duly cropped 257 rows and clipped the top
+// of WILL HILL: — because these glyphs carry a thick black outline the bright
+// key cannot see. Growing the letter mass 16px and keeping the dark pixels it
+// reaches finds the real edge at row 265. 241 leaves 24 rows of margin under
+// that, which covers every window down to about 430x820 and falls back to bars
+// below it.
+export const TITLE_COVER_ROWS = 241;
 export const TITLE_BIAS = 0;
 // In the painting's own rows: below PRESS START, which ends on row 907. Row
 // 950 used to be the top of OPTIONS; the word has since been lifted out and
@@ -211,7 +222,7 @@ export function createTitle(ctx, canvas, still) {
     // words of its own; his painting's own PRESS START is the prompt.
     const fx = splash ? introFx(introT || 0) : null;
     const box = still.draw(images.title_base, titleCards(images), tick,
-      TITLE_ZOOM, TITLE_BIAS, fx);
+      TITLE_ZOOM, TITLE_BIAS, fx, TITLE_COVER_ROWS);
     still.pulsePrompt(box, PROMPT, SRC_W, SRC_H, tick);
     // The two controls that are NOT part of the painting come up with the last
     // layer, so the page finishes as the menu instead of cutting to it.
