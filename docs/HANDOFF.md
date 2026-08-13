@@ -22,6 +22,18 @@ read off the logo artwork, which is the authority. It does not
 come apart into "KC TW". Legal name Melvin D. Brown III, which belongs on
 paperwork, not on screen.
 
+Also **Knowledge**, which he uses as a name for himself and not only as the
+word the acronym starts with. His own list, given verbatim: *"prodbyKCTW,
+a.k.a. Melvin D. Brown the third, a.k.a. KCTW, a.k.a. Change The World, a.k.a.
+Knowledge — that's me. I'm the person making all of this."*
+
+**"WE" MEANS HIM, OR HIM AND ME.** Stated outright and worth writing down,
+because it decides how every note in this file and every commit message should
+read: *"when I refer to 'we' I'm talking about myself mostly, and sometimes
+myself and you. We, you and I, are us. We refer to anyone else by their given
+name when I include them."* So a "we" in his messages is never a vague team —
+it is him, or the two of us. Anyone else gets named: Will Hill, Chemo, Kema.
+
 **Will Hill** — the artist the game stars, and the player character. Not the
 developer.
 
