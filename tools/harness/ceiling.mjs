@@ -166,10 +166,7 @@ console.log('=== THE BOARD ===');
 await p.evaluate(() => localStorage.removeItem('wh_local_runs'));
 await p.reload({ waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__game && window.__game.screen === 'title', null, { timeout: 25000 });
-await p.waitForFunction(() => {
-  const t = window.__title, g = window.__game;
-  return t && g && g.screen === 'title' && (g.introT || 0) >= t.settledAt();
-}, null, { timeout: 20000 });
+await p.waitForTimeout(2600);
 const opt = await p.evaluate(() => window.__title.optionsRect(window.__game.titleBox));
 await p.touchscreen.tap(opt.x + opt.w / 2, opt.y + opt.h / 2);
 await p.waitForTimeout(900);
