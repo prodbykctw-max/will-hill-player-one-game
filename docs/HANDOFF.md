@@ -1226,6 +1226,59 @@ it does decide how hard the identity check needs to be.
 
 ---
 
+## The score ceiling, and why Will Hill sits at 50,000
+
+**Measured 2026-08-14 by `tools/harness/ceiling.mjs`.** Re-run it after any
+change to bag rate, rat rate, `CHAMPAGNE_SECONDS`, `CHAMPAGNE_MULT` or stage
+length — all five move this table, and the pin is only defensible while the
+table is true.
+
+The harness walks all four shipping stages, forces every spawn with
+`genAhead`, and then does the part that cannot be done on paper: it counts the
+bags that **actually** fall inside each bottle's real window. The window is
+9s at the measured 4.80 px/tick on a 16.6ms tick — **2,602px of road** — and
+overlapping windows are unioned, because a bag cannot be doubled twice.
+
+| stage | cols | bags | rats | bottles | bags doubled (as placed / best possible) |
+|---|---|---|---|---|---|
+| eav | 360 | 90 | 21 | 2 | 43 / 53 |
+| edgewood | 390 | 97 | 24 | 2 | 40 / 50 |
+| underground | 420 | 90 | 27 | 2 | 36 / 47 |
+| l5p | 450 | 102 | 33 | 2 | 38 / 51 |
+| **total** | **1620** | **379** | **105** | **8** | **157 / 201** |
+
+```
+  379 bags at 100                              37,900
+  105 rats at 50                               +5,250
+  ── flawless with no bottle at all             43,150
+  157 bags doubled, bottles where they sit     +15,700
+  ── PERFECT RUN, as the map is built           58,850
+  201 doubled, bottles moved to the densest
+     stretches (upper bound, not the game)     +20,100
+  ── absolute ceiling if bottles were re-placed 63,250
+```
+
+**50,000 is 85% of the perfect run.** The line that matters is the middle one:
+before `CHAMPAGNE_MULT`, the hard ceiling was 43,150, so 50,000 **was not
+reachable at all**. The doubler is what put the pin inside the world — which
+is why "make champagne harder and make it multiply" and "put 50,000 next to
+Will Hill" are the same decision, a day apart.
+
+**The route to beat him**, since it is a specific one and not "play well":
+all eight bottles, all 157 bags inside their windows, every rat, and ~134 of
+the 222 bags outside the windows (60%) — and no enemy touch late, because a
+touch dumps the *entire* purse on the pavement (`main.js`, the Sonic-rings
+branch) and anything not re-collected before it despawns is gone.
+
+**Scale of the thing:** 32px per column, so the four stages are 51,264px of
+road. Running flat out and stopping for nothing that is **2m 58s**; a real
+collecting run with the three rides is more like 6–8 minutes.
+
+The card art paints **125,680** beside his name. That was always decoration —
+double the absolute ceiling — and the board draws 50,000 over it.
+
+---
+
 ## Still open
 
 - **Daytime multiplane — DONE for all four stages.** Every day plate is now
@@ -1266,6 +1319,30 @@ it does decide how hard the identity check needs to be.
   two stomps a second over a ~1.6s beat, which is a beating rather than a
   defect. It is on the list because `measure_cycle.py` will keep reporting it,
   not because anything looks wrong.
+- **`credits` runs out and the ending goes quiet.** Measured durations, all
+  ten cues: title 1:26, stage_01 1:36, stage_02 1:39, stage_03 1:42, stage_04
+  1:38, map_01_02 0:44, map_02_03 0:47, map_03_04 0:48, ui_pause 1:18,
+  **credits 0:41**. Every other cue loops and every stage is 40–49s of road,
+  so no stage cue even reaches its loop point — that half is comfortable. But
+  `credits` is deliberately `loop: false` ("the one cue that plays start to
+  finish") and the `complete` screen has no time limit, so a player who sits
+  on the ending past 41s sits in silence. Three ways out: loop it, fade the
+  screen out with the track, or get a longer cue. **The client's call — it is
+  a music decision, not a bug.**
+- **The clouds are not cut out of the portrait title.** Every other element is
+  (`tp_logo`, `tp_signL`, `tp_signR`, `tp_hero`, `tp_pole`), so the clouds do
+  not slide in with the rest the way he asked. SAM merges them into the sky —
+  they have no edge it can find — so this needs a colour key rather than a
+  mask, which is a different tool from `sam_segment.py`.
+- **The leaderboard rows are monospace, not a pixel font.** His MARTA card is
+  hand-lettered and the fallback does not match it. Any real pixel face is a
+  licence question, so it is a decision before it is a job.
+- **`bag: 0.34` in every stage recipe.** Raising it to 0.45 was measured at
+  523 bags (52,300 from bags alone), which would put 50,000 back inside reach
+  without a bottle and undo the section above. Left where it is on purpose.
+- **The branch is well ahead of `main`.** `claude/last-markdown-game-link-lvk1n6`
+  carries everything from the day plates forward; `main` is still at
+  "CHAMPAGNE RELAY on the title card". Merging is authorised, not automatic.
 
 ### Corrected — these were listed as open and are DONE
 
