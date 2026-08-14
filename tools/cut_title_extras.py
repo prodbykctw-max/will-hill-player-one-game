@@ -160,6 +160,39 @@ def emit(rgb, m, name, planes):
           f'y {ys.min()}..{ys.max()}  -> titlep-{name}.webp  ({w}x{h})')
 
 
+def scrub_star_leak(stars_mask):
+    """The right star was already sitting, opaque, inside titlep-pole.webp.
+
+    Not a guess — checked pixel (808,339), the star's own centroid, against
+    every emitted card: `pole` gave back (153,17,1,255), solid. SAM's original
+    cut of the lamp post's card bled into the star sitting beside it, so the
+    star rode along on the POLE's early slide-in (tick 4) instead of landing
+    with PLAYER ONE the way the client asked — "that star is still over the
+    street sign." The star card itself was clean; the leak was in a card this
+    script does not otherwise touch.
+
+    So every OTHER already-emitted titlep-*.webp is checked against a DILATED
+    copy of the star mask (the antialiased fringe around a colour-keyed star
+    reaches a couple of pixels past the strict threshold, so a tight mask
+    would leave a faint red ring behind) and scrubbed to fully transparent
+    wherever it overlaps. Self-healing: if a future re-cut of some other card
+    reintroduces the leak, running this script again removes it again.
+    """
+    grown = ndi.binary_dilation(stars_mask, np.ones((3, 3), bool), iterations=4)
+    for path in sorted(os.listdir(BG)):
+        if not path.startswith('titlep-') or path in (
+                'titlep-wordmark.webp', 'titlep-logo.webp', 'titlep-stars.webp'):
+            continue
+        p = os.path.join(BG, path)
+        card = np.array(Image.open(p).convert('RGBA'))
+        hit = grown & (card[:, :, 3] > 0)
+        if not hit.any():
+            continue
+        card[hit] = 0
+        Image.fromarray(card, 'RGBA').save(p, quality=95, method=6)
+        print(f'  scrubbed {int(hit.sum())}px of leaked star out of {path}')
+
+
 def main():
     rgb = np.asarray(Image.open(PLATE).convert('RGB'))
     print(f'title-portrait {rgb.shape[1]}x{rgb.shape[0]}')
@@ -179,6 +212,7 @@ def main():
         emit(rgb, m, name, planes)
     json.dump(planes, open(PLANES, 'w'), separators=(',', ':'))
     print(f'  planes -> title-portrait-planes.json ({len(planes)} cards)')
+    scrub_star_leak(cuts['stars'])
 
 
 if __name__ == '__main__':
