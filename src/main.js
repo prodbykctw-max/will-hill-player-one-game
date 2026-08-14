@@ -8,12 +8,12 @@ import { createLoop } from './core/loop.js';
 import { createCamera } from './core/camera.js';
 import { createInput } from './core/input.js';
 import { advanceAnim } from './core/animate.js';
-import { createPlayer, stepPlayer, stepKnockedDown, isInvulnerable, grantInvulnerability, trip, CHAMPAGNE_SECONDS, PLAYER_SPRITE } from './entities/player.js';
+import { createPlayer, stepPlayer, stepKnockedDown, isInvulnerable, isChampagne, grantInvulnerability, trip, CHAMPAGNE_SECONDS, PLAYER_SPRITE } from './entities/player.js';
 import { createAudio } from './audio/audio.js';
 import { WALK_SPEED, RUN_SPEED } from './core/physics.js';
 import { ENEMY_SPRITES, updateEnemy, resolveEnemyCollision } from './entities/enemy.js';
 import { beginStompOut, stepStompOut, splitStompers } from './entities/knockdown.js';
-import { overlapsPlayer, PROP_SPRITES, createDroppedBag, BAG_VALUE } from './entities/collectibles.js';
+import { overlapsPlayer, PROP_SPRITES, createDroppedBag, BAG_VALUE, CHAMPAGNE_MULT } from './entities/collectibles.js';
 import { createLevel, buildRunway, genAhead, finishLineX } from './world/generator.js';
 import { STAGES } from './world/stages.js';
 import { T, FLOOR_R, SLAB_R, FALL_DEATH_Y, isSolid } from './world/tilemap.js';
@@ -717,12 +717,20 @@ function update() {
     if (overlapsPlayer(bag, player, now)) {
       bag.got = true;
       audio.play('coin');
-      state.score += bag.value;
+      // DOUBLE WHILE THE CHAMPAGNE IS LIT. isChampagne, NOT isInvulnerable —
+      // the latter is also true during the i-frames from taking a hit, and
+      // paying a bonus for getting hit rewards the thing the game is asking
+      // you to avoid.
+      const lit = isChampagne(player, now);
+      state.score += bag.value * (lit ? CHAMPAGNE_MULT : 1);
       // Mirror of the loss above: a scattered bag can be worth several bags,
-      // so it logs several `bag` events. Keeps the Worker's recomputed score
-      // identical to the one on screen.
+      // so it logs several events. Keeps the Worker's recomputed score
+      // identical to the one on screen — which is why a boosted bag logs its
+      // OWN event name rather than just logging `bag` twice. Two `bag`s and
+      // one boosted bag are the same number and a different run, and the
+      // Worker has to be able to tell them apart.
       const units = Math.max(1, Math.round(bag.value / BAG_VALUE));
-      for (let i = 0; i < units; i++) state.runLog.record('bag');
+      for (let i = 0; i < units; i++) state.runLog.record(lit ? 'bagx2' : 'bag');
     }
   }
 

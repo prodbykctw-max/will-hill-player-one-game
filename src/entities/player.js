@@ -91,6 +91,17 @@ export function isInvulnerable(player, now) {
   return now < player.invulnerableUntil || player.inv > 0;
 }
 
+// ⚠️ THE CHAMPAGNE WINDOW ONLY — NOT the same question as isInvulnerable.
+//
+// That one is also true during the i-frames you get for TAKING A HIT, and the
+// bag multiplier must never pay out for those. Wiring the bonus to
+// isInvulnerable would mean walking into a rat turned the next second and a
+// quarter into double money, which rewards exactly the thing the game is
+// asking you to avoid.
+export function isChampagne(player, now) {
+  return now < player.invulnerableUntil;
+}
+
 // CHAMPAGNE_SECONDS is the single source of truth for how long the power-up
 // runs. It was 30, which is a very long time to be untouchable in a game whose
 // whole tension is three touches — long enough that the interesting part of a

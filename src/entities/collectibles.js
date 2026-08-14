@@ -16,6 +16,22 @@ export const PROP_SPRITES = { bag: bagUrl, champagne: bottleUrl };
 
 export const BAG_VALUE = 100;
 
+// ── WHAT THE CHAMPAGNE IS ACTUALLY FOR ───────────────────────────────────
+// Client: "champagne bottle more difficult, and multiplies bag value until
+// the champagne effect completes."
+//
+// Until now the bottle bought nine seconds of not-dying, which is worth
+// something only if you were about to die — so on a clean run it was worth
+// nothing at all, and the reward for finding one was "nothing bad happens".
+// Doubling every bag for the duration turns it into a decision: nine seconds
+// to grab as much as you can reach before it runs out.
+//
+// ⚠️ MIRRORED IN cloudflare/leaderboard-worker.js. The Worker recomputes a
+// score from the event log to validate it, so if SCORE_RULES there does not
+// know about the multiplier every boosted run is rejected as fraudulent. The
+// run log records the boosted bags separately for exactly this reason.
+export const CHAMPAGNE_MULT = 2;
+
 // Sized in real-world terms like everything else, then nudged up for
 // readability — a pickup has to catch the eye at portrait scale.
 const BAG_H = metersToWorld(0.62);

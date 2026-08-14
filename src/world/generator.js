@@ -186,7 +186,23 @@ export function genAhead(level, untilCol) {
       // RAISED STREET FEATURE — a wide slab (stoop, loading dock, awning
       // ledge). Deliberately long: short floating chunks look like debris.
       const w = PLATFORM_MIN_W + Math.floor(rnd01(c * 2.3 + level.seed) * PLATFORM_EXTRA_W);
-      const heightRows = 2 + Math.floor(rnd01(c * 4.7 + level.seed) * recipe.vert * 10);
+      // ── A SLAB A BOTTLE SITS ON IS BUILT TALLER ─────────────────────────
+      //
+      // Client, after the bottles first moved off the floor: "champagne bottle
+      // more difficult." Moving them onto the slabs was not enough on its own,
+      // because the slabs vary — 2 to 6 rows — and the short ones are a step
+      // up rather than a jump.
+      //
+      // MEASURED AGAINST THE REAL PHYSICS. Integrating the fixed step at
+      // JUMP_V -12.8 and GRAV 0.52, a single jump peaks at 151px and a double
+      // at 266. A row is 32px, so a 4-row slab (128) is a single jump and a
+      // 5-row one (160) is not. Bottle slabs are therefore 5 or 6 rows — 160
+      // or 192 — which is over the single-jump ceiling every time and still
+      // comfortably inside the double.
+      const bottleHere = level.champagneMarks.length && c >= level.champagneMarks[0];
+      const heightRows = bottleHere
+        ? 5 + Math.floor(rnd01(c * 4.7 + level.seed) * 2)
+        : 2 + Math.floor(rnd01(c * 4.7 + level.seed) * recipe.vert * 10);
       // GROUND THE WHOLE SPAN, not just the first column. This grounded c and
       // then jumped genC to c+w, so columns c+1..c+w-1 were never visited:
       // the raised slab was drawn with NO STREET UNDERNEATH IT. A stoop you
@@ -213,7 +229,6 @@ export function genAhead(level, untilCol) {
       //
       // ONE PRIZE PER SLAB. If the bottle takes it, the bag does not also
       // spawn — they would sit on the same centre line and overlap.
-      const bottleHere = level.champagneMarks.length && c >= level.champagneMarks[0];
       if (bottleHere) {
         level.champagneMarks.shift();
         level.champagnes.push(createChampagneBottle(
@@ -292,16 +307,34 @@ export function genAhead(level, untilCol) {
     // flat, because a bottle needs ground under it and this branch is the only
     // one that guarantees that. `champagneMarks` is consumed in order, so a
     // mark that falls inside a long feature simply lands just after it.
-    // THE FALLBACK, and it must exist. Two bottles a stage is a guarantee the
-    // whole 9-second balance rests on, so if no slab turns up within
-    // CHAMPAGNE_WAIT_COLS of the mark the bottle takes flat ground rather than
-    // going missing. Measured, it almost never fires — but "almost" is not a
-    // thing to leave a power-up budget standing on.
+    // THE FALLBACK BUILDS ITS OWN SLAB. It has to exist — two bottles a stage
+    // is a guarantee the whole 9-second balance rests on, so a mark that never
+    // meets a platform cannot simply go missing.
+    //
+    // ⚠️ IT USED TO DROP THE BOTTLE ON THE FLOOR, which quietly undid the
+    // change it was the fallback for: measured, it fires on two of the eight
+    // bottles — Underground's first and L5P's first — so a quarter of them
+    // were still free. (I read it as zero at first, because the probe walked
+    // up from row 13 and groundCol fills from row 14 DOWN, so flat ground
+    // reads as "nothing found" rather than as zero. The classifier said 8 of 8
+    // were on slabs when it was 6.)
+    //
+    // So it puts one up instead: same 5-or-6 rows the platform branch uses for
+    // a bottle, grounded underneath the whole way like every other slab here.
+    // Every bottle in the game is now a double jump, by construction rather
+    // than by luck.
     if (level.champagneMarks.length
         && c >= level.champagneMarks[0] + CHAMPAGNE_WAIT_COLS) {
       level.champagneMarks.shift();
+      const w = PLATFORM_MIN_W;
+      const heightRows = 5 + Math.floor(rnd01(c * 4.7 + level.seed) * 2);
+      for (let k = 0; k < w; k++) groundCol(level.map, c + k, FLOOR_R, LH - 1);
+      plat(level.map, c, FLOOR_R - heightRows, w);
       level.champagnes.push(createChampagneBottle(
-        c * T + 8, champagneTopFor(FLOOR_R * T)));
+        c * T + w * T * 0.5 - 12, champagneTopFor((FLOOR_R - heightRows) * T)));
+      level.lastFeatureCol = c + w;
+      level.genC = c + w;
+      continue;
     }
     if (!isRelay() && rnd01(c * 11.1 + level.seed) < recipe.enemy * 0.6 && c - level.lastEnemyCol > MIN_ENEMY_SPACING_COLS) {
       level.enemies.push(createEnemy(c * T, FLOOR_R * T - ENEMY_H, PATROL_RANGE, pickVariant(level, c)));

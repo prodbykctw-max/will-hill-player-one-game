@@ -115,14 +115,20 @@ const LOCAL_KEY = 'wh_local_runs';
 // COUNTED, NOT INVENTED. Every stage generated to its own stageEnd and the
 // bags tallied off the live level:
 //
-//   eav 90 · edgewood 97 · underground 91 · l5p 100  =  378 bags
-//   378 x BAG_VALUE 100                              =  37,800
+//   eav 90 · edgewood 97 · underground 90 · l5p 102  =  379 bags
+//   379 x BAG_VALUE 100                              =  37,900
 //
-// It was 379 until the champagne bottles moved onto the raised slabs: a
-// bottle now claims the slab it lands on and the bag that would have sat
-// there does not spawn, because the two share a centre line and would
-// overlap. Underground lost the one. Recount whenever the generator changes —
-// this number is a measurement, and a measurement goes stale.
+// ⚠️ AND IT MOVES WHENEVER THE GENERATOR DOES. A bottle claims the slab it
+// lands on and suppresses the bag that would have sat there, so moving the
+// bottles onto slabs took it to 378, and then giving the fallback its own
+// slab to build took it back to 379 by a different route — Underground lost
+// one, L5P gained two. Same number, different game. This is a MEASUREMENT.
+// Recount it, do not reason about it.
+//
+// ⚠️ AND IT IS NO LONGER THE CEILING. Bags pay double while the champagne is
+// lit, so the real maximum depends on how many bags a player can reach inside
+// eight 9-second windows — which is a question about routing, not about
+// counting, and the only honest way to answer it is to play it.
 //
 // ⚠️ THIS IS BEATABLE BY FIFTY POINTS. Bags are not the only thing that
 // scores — a stomp is worth 50, and there are 106 rats across the four
@@ -136,9 +142,9 @@ const LOCAL_KEY = 'wh_local_runs';
 // not a run somebody did on this phone, so it survives a cleared cache and it
 // shows on a device that has never played. `me` is deliberately absent — the
 // YOUR RANK line belongs to whoever is holding the phone.
-export const BAGS_IN_GAME = 378;
-export const PERFECT_RUN = 43100;      // every bag AND every rat
-export const WILL_HILL = Object.freeze({ name: 'WILL HILL', score: 37800, pinned: true });
+export const BAGS_IN_GAME = 379;
+export const PERFECT_RUN = 43200;      // every bag AND every rat
+export const WILL_HILL = Object.freeze({ name: 'WILL HILL', score: 37900, pinned: true });
 
 // Merge him into whatever the board is showing, wherever his score puts him.
 // Not spliced at index 0 — if a player ever does beat it, the board has to
