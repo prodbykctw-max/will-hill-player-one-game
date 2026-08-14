@@ -31,7 +31,10 @@ const page = async () => {
   // NO FRONT DOOR ANY MORE — the black TAP ANYWHERE card is gone, and a tap
   // here would start a run rather than open anything. Let the card reveal
   // itself, then go straight to a stage through the DEV hook.
-  await p.waitForTimeout(2600);
+  await p.waitForFunction(() => {
+  const t = window.__title, g = window.__game;
+  return t && g && g.screen === 'title' && (g.introT || 0) >= t.settledAt();
+}, null, { timeout: 20000 });
   await p.evaluate(() => window.__startStage(0));
   await p.waitForFunction(() => window.__game.screen === 'playing', null, { timeout: 15000 });
   return p;
@@ -107,7 +110,10 @@ await p2.route('**/will-hill.atlas.json*', (route) => route.fulfill({
 }));
 await p2.goto('http://localhost:5199/?tod=night&relay=1', { waitUntil: 'networkidle' });
 await p2.waitForFunction(() => window.__game && window.__game.screen === 'title', null, { timeout: 25000 });
-await p2.waitForTimeout(2600);
+await p2.waitForFunction(() => {
+  const t = window.__title, g = window.__game;
+  return t && g && g.screen === 'title' && (g.introT || 0) >= t.settledAt();
+}, null, { timeout: 20000 });
 await p2.evaluate(() => window.__startStage(0));
 await p2.waitForFunction(() => window.__game.screen === 'playing', null, { timeout: 15000 });
 

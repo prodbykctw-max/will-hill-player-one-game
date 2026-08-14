@@ -406,11 +406,13 @@ document.addEventListener('visibilitychange', () => {
 // the tap that ends a run's GAME KNOCKED screen carries straight through the
 // title and into the next run.
 const TITLE_ARM_TICKS = 24;
-// How long the title card spends assembling itself after the front-door tap,
-// with room for the two controls to fade up behind it. Kept a little longer
-// than title.js's own INTRO_END so the last frames of that fade still get the
-// assembling path rather than snapping to the finished menu mid-fade.
-const INTRO_TICKS = 134;
+// How long the title card spends assembling itself is title.js's business, and
+// asking it beats keeping a copy here. This was a hardcoded 134 "kept a little
+// longer than title.js's own INTRO_END" — which held right up until the
+// wordmark was re-ordered to land PLAYER ONE last, pushing the controls' fade
+// out to tick 148. A 134 against a 148 fade snaps the menu on mid-dissolve,
+// and nothing would have failed loudly. `title.settledAt()` is derived from
+// the INTRO table itself, so the two cannot drift again.
 
 
 function showTitle() {
@@ -980,8 +982,12 @@ function draw() {
     // play from the home screen." So the card reveals itself the moment the
     // game loads, and the first input is still spent on the audio, over his
     // painting with PRESS START pulsing rather than over an empty screen.
+    // Published on state so a harness can wait for the assembly to finish
+    // rather than sleeping on a hardcoded guess at how long it takes — see
+    // title.settledAt().
     const introT = state.screenT - state.introAt;
-    state.titleBox = title.draw(images, state.tick, introT <= INTRO_TICKS, introT,
+    state.introT = introT;
+    state.titleBox = title.draw(images, state.tick, introT <= title.settledAt(), introT,
       soundEnabled());
     return;
   }
