@@ -51,12 +51,17 @@ export function createLighting(ctx) {
   // practicals rather than a fixed palette entry — so the street picks up
   // the neon of whatever is actually glowing on that block.
   function keyRgbFor(stage) {
+    // In day the key light is the SUN (the stage's own day `light.key`),
+    // never the first neon's colour — a noon figure rimmed in sign-pink was
+    // part of what made day read as "night with the brightness up".
+    if (stage.tod === 'day') return stage.light.key;
     const ls = stage.bg && stage.bg.lights;
     return ls && ls.length ? ls[0].rgb : stage.light.key;
   }
 
   // How lit a point is, 0..1, by its distance from the nearest lamp.
   function litness(x) {
+    if (isDay()) return DAY_LIT;
     const d = Math.abs(x - nearestLampX(x));
     return Math.max(0, 1 - d / (LAMP_SPACING * 0.62));
   }
@@ -75,9 +80,37 @@ export function createLighting(ctx) {
   // is still a key with a direction and things still cast shadows at noon.
   const lampsLit = (stage) => stage.tod !== 'day';
 
+  // ⚠️ AND THE LAMPS' GEOMETRY HAS TO DIE AT MIDDAY TOO, NOT JUST THEIR GLOW.
+  //
+  // Gating the pools/shafts/bloom (above) turned off the light you could SEE,
+  // but litness() kept modulating the sprite key-light and both shadow
+  // functions by distance to the nearest lamp on the 420-unit grid — lamps
+  // that no longer exist in daylight. So Will Hill brightened and dimmed
+  // every 420 units as he ran, and his shadow swung around as if something
+  // overhead were passing. Client, from the live game: "there is beam of
+  // light coming down on him in the daytime... he walks shining on and not
+  // shining on him... even though it's daytime — that's only for nighttime."
+  //
+  // At midday the key is the SUN: one direction, one intensity, everywhere.
+  // So in day litness() returns a constant and the shadows drop the
+  // lamp-relative skew/stretch. The colours still come from the stage's own
+  // day `light` block — the line above about key/bounce/shadowRgb staying
+  // ungated remains true; it is only the per-lamp VARIATION that dies.
+  //
+  // DAY_LIT is the constant. 0.5 keeps him readable without the hot top-light
+  // a lamp would give: head key alpha lands at 0.23, foot shade at 0.28.
+  const DAY_LIT = 0.5;
+  // drawCastShadow/drawPropShadow take no stage — rather than churn every
+  // call site, the stage is captured once per frame by drawGroundPools,
+  // which main.js already calls (with the stage in hand) before any entity
+  // is drawn. drawLitSprite has its own stage param and does not need this.
+  let curStage = null;
+  const isDay = () => !!curStage && curStage.tod === 'day';
+
   // Pools on the street surface. Call inside the camera transform, before
   // entities are drawn.
   function drawGroundPools(camera, stage) {
+    curStage = stage;              // captured before the gate — see DAY_LIT
     if (!lampsLit(stage)) return;
     const groundWorldY = FLOOR_R * T;
     const x0 = camera.x - LAMP_SPACING;
@@ -121,8 +154,10 @@ export function createLighting(ctx) {
   function drawCastShadow(entity, colliderH, baseW) {
     const cx = entity.x + entity.w / 2;
     const feet = entity.y + colliderH;
-    const lamp = nearestLampX(cx);
-    const dx = cx - lamp;
+    // Noon sun: straight overhead, so dx=0 kills the skew and the stretch
+    // and litness() is already constant — a steady contact shadow underfoot
+    // instead of one that swings lamp-to-lamp in daylight.
+    const dx = isDay() ? 0 : cx - nearestLampX(cx);
     const lit = litness(cx);
 
     // airborne characters cast a smaller, fainter, offset shadow
@@ -159,7 +194,7 @@ export function createLighting(ctx) {
     bctx.clearRect(0, 0, buf.width, buf.height);
     bctx.drawImage(image, sx, sy, sw, sh, 0, 0, sw, sh);
 
-    const lit = litness(worldX);
+    const lit = stage && stage.tod === 'day' ? DAY_LIT : litness(worldX);
 
     // Vertical light ramp: brighter toward the head (lamps are overhead),
     // falling into shadow at the feet. Applied INSIDE the silhouette.
@@ -238,8 +273,7 @@ export function createLighting(ctx) {
     // already softened by `hover` below.
     if (rest < groundWorldY - AIRBORNE) return;
 
-    const lamp = nearestLampX(cx);
-    const dx = cx - lamp;
+    const dx = isDay() ? 0 : cx - nearestLampX(cx);   // noon: no lamp to lean from
     const lit = litness(cx);
     const hover = Math.max(0, Math.abs(lift)) / 10;
 

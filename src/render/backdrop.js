@@ -439,6 +439,14 @@ export function createBackdrop(ctx, canvas) {
   // itself brightens and dims, not just the halo around it. A glow alone
   // reads as fog lit from behind; the tube has to visibly change too.
   function drawNeonRelight(stage, camera, tick, plate) {
+    // ⚠️ NO NEON AT NOON. All four day `bg` variants still DECLARE their
+    // lights (the declarations double as data for the night look and were
+    // never stripped), so without this gate every sign relit, buzzed and
+    // stuttered in broad daylight. Client: "no spotlights are needed on any
+    // day screens" — and later, seeing it live: "there is beam of light
+    // coming down on him in the daytime... that's only for nighttime."
+    // Gated on tod, ONE rule, same reasoning as lampsLit in lighting.js.
+    if (stage.tod === 'day') return;
     const lights = stage.bg.lights;
     if (!lights || !plate) return;
     const period = plate.drawW;
@@ -472,6 +480,10 @@ export function createBackdrop(ctx, canvas) {
   // they bloom, flicker and (via render/lighting.js) light the street and
   // the characters standing under them.
   function drawPractical(stage, camera, tick, plate) {
+    // Same gate as drawNeonRelight above: the day variants declare lights,
+    // and an additive halo flickering over a sunlit plate IS the daytime
+    // "glow of overhead light" the client reported. Nothing glows at noon.
+    if (stage.tod === 'day') return;
     const lights = stage.bg.lights;
     if (!lights || !plate) return;
     const period = plate.drawW;
@@ -579,6 +591,11 @@ export function createBackdrop(ctx, canvas) {
   }
 
   function drawFloorFog(stage, groundY) {
+    // Wet-street glow is a NIGHT phenomenon — the warm band is lamplight
+    // gathered by standing water, and the day streets are dry (the ambience
+    // keys rain off the same plates). The day bg blocks still declare a
+    // `glow` colour, so this needs the tod gate, not a data check.
+    if (stage.tod === 'day') return;
     const h = 70;
     if (groundY < -h || groundY > canvas.height + h) return;
     const g = ctx.createLinearGradient(0, groundY - h, 0, groundY + h * 0.4);
