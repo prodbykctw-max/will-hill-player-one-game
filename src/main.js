@@ -922,6 +922,12 @@ function update() {
     state.screen = 'gameOver';
     state.screenT = 0;
     lbSubmit(state.runLog.finish());
+    // Banked locally too, exactly like the complete path. A knocked-down run
+    // already SUBMITS to the contest (the line above), but it never reached
+    // wh_local_runs — so "your best on this device" and the share card lied
+    // for the most common way a run actually ends. bankLocalRun ignores
+    // score 0, so dying broke on the first stage stays unrecorded.
+    bankLocalRun(state.score);
     return;
   }
 

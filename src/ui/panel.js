@@ -24,6 +24,7 @@ import {
 // Through the bundler, so the URL is the content-hashed one. A literal path in
 // the stylesheet resolves in dev and 404s in dist.
 import leaderboardCard from '../assets/backgrounds/leaderboard-card.webp';
+import { prepareShareCard, shareScore } from './share.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -155,6 +156,11 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
   }
 
   function fillBoard() {
+    // The share card is drawn NOW, while the board is opening, so the File
+    // already exists when the thumb reaches SHARE — navigator.share has to
+    // run inside the tap's user activation and Safari will not wait around
+    // for a canvas render. See the gesture note in ui/share.js.
+    prepareShareCard();
     // ── UNTIL THE CONTEST IS LIVE, THE BOARD IS WILL HILL AND FOUR EMPTY
     //    SLOTS ──────────────────────────────────────────────────────────
     //
@@ -287,6 +293,20 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
   on('panelClose', 'back', () => api.close());
   on('btnBoardClose', 'back', () => api.close());
   on('btnRegister', 'press', () => show('form'));
+  // SHARE decides its own note copy, because the same tap means different
+  // things on different machines: a phone opens the OS sheet (nothing to
+  // say), a desktop silently saves the card and copies the caption — which
+  // NEEDS saying, or the button looks like it did nothing.
+  on('btnShare', 'press', async () => {
+    const how = await shareScore();
+    if (how === 'downloaded') {
+      $('boardNote').textContent = 'Card saved and caption copied — post it anywhere.';
+    } else if (how === 'text') {
+      $('boardNote').textContent = 'Shared the challenge — the card needs a newer phone.';
+    } else if (how === 'failed') {
+      $('boardNote').textContent = 'This browser refused every share route.';
+    }
+  });
   on('btnSettings', 'press', () => show('settings'));
   on('btnBack', 'back', () => show('board'));
   on('btnSkip', 'back', () => show('board'));
