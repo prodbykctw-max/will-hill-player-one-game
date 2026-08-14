@@ -56,6 +56,7 @@ for (let i = 0; i < 4; i++) {
     return {
       id: g.level.stage.id,
       end: g.level.stage.stageEnd,
+      quota: g.level.bagQuota,
       bags: g.level.bags.map((x) => Math.round(x.x)).sort((a, c) => a - c),
       champagnes: g.level.champagnes.map((x) => Math.round(x.x)).sort((a, c) => a - c),
       enemies: g.level.enemies.length,
@@ -122,6 +123,35 @@ console.log(`  Will Hill at 50,000 is ${(50000 / realCeil * 100).toFixed(1)}% of
 console.log(`  and ${(50000 / bestCeil * 100).toFixed(1)}% of the re-placed ceiling.`);
 console.log(`  bags needed at flat rate to reach 50,000: ${Math.ceil(50000 / BAG_VALUE)} of ${totalBags}`
   + ` (${(Math.ceil(50000 / BAG_VALUE) / totalBags * 100).toFixed(1)}% of every bag in the game)`);
+console.log('');
+
+// ── THE QUOTA IS A GUARANTEE, SO PROVE IT ────────────────────────────────
+//
+// Client: "make it 400 bags total." That number is only worth stating if the
+// generator cannot miss it, so both halves get checked: every stage lands on
+// its own quota, and the four sum to 400.
+console.log('=== THE BAG QUOTA ===');
+for (const s of stages) {
+  check(`${s.id} placed exactly its quota of ${s.quota}`,
+    s.bags.length === s.quota, `placed ${s.bags.length}`);
+}
+check('400 bags in the game, so every bag is 40,000',
+  totalBags === 400 && totalBags * BAG_VALUE === 40000, `${totalBags} bags = ${totalBags * BAG_VALUE}`);
+
+// SPREAD, not just count. Selection sampling hits the number by construction
+// even if it does it badly — an under-tuned CANDIDATE_FRACTION would coast
+// through the stage and then dump the shortfall on the run-in to the finish,
+// which is exactly the same 400 bags and a completely different game. So
+// compare the halves: a stage is fine if neither half holds more than 60%.
+console.log('');
+for (const s of stages) {
+  const mid = s.end * 32 / 2;
+  const first = s.bags.filter((x) => x < mid).length;
+  const share = first / s.bags.length;
+  check(`${s.id} spreads its bags across the stage`,
+    share >= 0.40 && share <= 0.60,
+    `${first} in the first half, ${s.bags.length - first} in the second (${(share * 100).toFixed(0)}%)`);
+}
 console.log('');
 
 check('50,000 is reachable — the perfect run clears it', realCeil > 50000, `${realCeil}`);

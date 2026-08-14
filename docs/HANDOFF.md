@@ -1229,8 +1229,8 @@ it does decide how hard the identity check needs to be.
 ## The score ceiling, and why Will Hill sits at 50,000
 
 **Measured 2026-08-14 by `tools/harness/ceiling.mjs`.** Re-run it after any
-change to bag rate, enemy rate, `CHAMPAGNE_SECONDS`, `CHAMPAGNE_MULT` or stage
-length — all five move this table, and the pin is only defensible while the
+change to the per-stage bag quota, enemy rate, `CHAMPAGNE_SECONDS`,
+`CHAMPAGNE_MULT` or stage length — all five move this table, and the pin is only defensible while the
 table is true.
 
 > **ENEMIES ARE NOT RATS.** Two different things, and an earlier draft of this
@@ -1249,34 +1249,55 @@ bags that **actually** fall inside each bottle's real window. The window is
 9s at the measured 4.80 px/tick on a 16.6ms tick — **2,602px of road** — and
 overlapping windows are unioned, because a bag cannot be doubled twice.
 
-| stage | cols | bags | enemies | bottles | bags doubled (as placed / best possible) |
+| stage | cols | bags (quota) | enemies | bottles | bags doubled (as placed / best possible) |
 |---|---|---|---|---|---|
-| eav | 360 | 90 | 21 | 2 | 43 / 53 |
-| edgewood | 390 | 97 | 24 | 2 | 40 / 50 |
-| underground | 420 | 90 | 27 | 2 | 36 / 47 |
-| l5p | 450 | 102 | 33 | 2 | 38 / 51 |
-| **total** | **1620** | **379** | **105** | **8** | **157 / 201** |
+| eav | 360 | 90 | 21 | 2 | 44 / 54 |
+| edgewood | 390 | 97 | 24 | 2 | 40 / 51 |
+| underground | 420 | 103 | 27 | 2 | 40 / 54 |
+| l5p | 450 | 110 | 33 | 2 | 40 / 55 |
+| **total** | **1620** | **400** | **105** | **8** | **164 / 214** |
 
 ```
-  379 bags at 100                              37,900
+  400 bags at 100                              40,000
   105 masked enemies stomped at 50             +5,250
-  ── flawless with no bottle at all             43,150
-  157 bags doubled, bottles where they sit     +15,700
-  ── PERFECT RUN, as the map is built           58,850
-  201 doubled, bottles moved to the densest
-     stretches (upper bound, not the game)     +20,100
-  ── absolute ceiling if bottles were re-placed 63,250
+  ── flawless with no bottle at all             45,250
+  164 bags doubled, bottles where they sit     +16,400
+  ── PERFECT RUN, as the map is built           61,650
+  214 doubled, bottles moved to the densest
+     stretches (upper bound, not the game)     +21,400
+  ── absolute ceiling if bottles were re-placed 66,650
 ```
 
-**50,000 is 85% of the perfect run.** The line that matters is the middle one:
-before `CHAMPAGNE_MULT`, the hard ceiling was 43,150, so 50,000 **was not
-reachable at all**. The doubler is what put the pin inside the world — which
-is why "make champagne harder and make it multiply" and "put 50,000 next to
-Will Hill" are the same decision, a day apart.
+### 400 is a quota, not a rate
+
+Client, 2026-08-14: *"make it 400 bags total"* — so all the bags in the game
+come to a round 40,000. It used to be `recipe.bag = 0.34`, a per-column dice
+roll that **happened** to produce 379 and would have drifted the next time a
+stage got longer or a hazard rate moved. Each stage now carries
+`recipe.bags: <n>` and `generator.js wantsBag()` hits it by selection
+sampling — take each candidate column with probability (owed / columns left).
+
+Two things about that worth knowing before touching it:
+
+- **Not every column can hold a bag.** Hazards get none, and a slab that draws
+  a bottle gives its bag up to the bottle. `CANDIDATE_FRACTION = 0.74` corrects
+  the denominator for that. It is a measured constant, not a derived one.
+- **Sampling alone came up two short** — 89/90 on EAV, 109/110 on L5P — because
+  the last stretch of road can run out of flat columns before it runs out of
+  owed bags. `topUpBags()` spreads any shortfall back through the flat columns
+  the sampler skipped. The harness asserts each stage's exact quota AND that
+  neither half of a stage holds more than 60% of its bags, so a future change
+  that hits 400 by dumping them all at the finish line fails the test.
+
+**50,000 is 81% of the perfect run** (it was 85% at 379 bags). The line that
+still matters is the middle one: a flawless run that never touches a bottle
+tops out at **45,250**, so 50,000 **remains unreachable without the doubler**.
+That property is the thing to protect — **past about 447 bags, bags alone
+clear him and the champagne stops mattering at the top of the board.**
 
 **The route to beat him**, since it is a specific one and not "play well":
-all eight bottles, all 157 bags inside their windows, every enemy, and ~134 of
-the 222 bags outside the windows (60%) — and no enemy touch late, because a
+all eight bottles, all 164 bags inside their windows, every enemy, and ~118 of
+the 236 bags outside the windows (50%) — and no enemy touch late, because a
 touch dumps the *entire* purse on the pavement (`main.js`, the Sonic-rings
 branch) and anything not re-collected before it despawns is gone.
 
@@ -1347,9 +1368,10 @@ double the absolute ceiling — and the board draws 50,000 over it.
 - **The leaderboard rows are monospace, not a pixel font.** His MARTA card is
   hand-lettered and the fallback does not match it. Any real pixel face is a
   licence question, so it is a decision before it is a job.
-- **`bag: 0.34` in every stage recipe.** Raising it to 0.45 was measured at
-  523 bags (52,300 from bags alone), which would put 50,000 back inside reach
-  without a bottle and undo the section above. Left where it is on purpose.
+- **The bag count is now a quota, and it has a ceiling of its own.** 400 is
+  set (90/97/103/110). Anything past ~447 bags puts 50,000 inside reach on
+  bags alone and makes the champagne irrelevant at the top of the board — see
+  "400 is a quota, not a rate" above.
 - **The branch is well ahead of `main`.** `claude/last-markdown-game-link-lvk1n6`
   carries everything from the day plates forward; `main` is still at
   "CHAMPAGNE RELAY on the title card". Merging is authorised, not automatic.

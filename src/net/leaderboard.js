@@ -111,10 +111,15 @@ const LOCAL_KEY = 'wh_local_runs';
 //
 // Client: "we're gonna put 50,000 points next to Will Hill."
 //
-// It began as "the total amount of bags that can be gotten in the game",
-// which counted out at 37,900 — and that turned out to be the wrong shape for
-// the job, because a bag is not the only thing that scores. Anyone clearing
-// every bag and stomping one masked enemy passed him by fifty.
+// It began as "the total amount of bags that can be gotten in the game" — and
+// that turned out to be the wrong shape for the job, because a bag is not the
+// only thing that scores. Anyone clearing every bag and stomping one masked
+// enemy passed him by fifty.
+//
+// THE BAGS THEN BECAME A ROUND NUMBER ON PURPOSE. Client: "make it 400 bags
+// total." They used to be a dice roll that happened to land on 379; they are
+// now a quota the generator cannot miss (world/generator.js wantsBag), so
+// every bag in the game is exactly 40,000.
 //
 // 50,000 is a better number than either that or the arithmetic ceiling, for a
 // reason worth writing down: IT IS BEATABLE, BUT ONLY JUST. Every line below
@@ -123,11 +128,11 @@ const LOCAL_KEY = 'wh_local_runs';
 // fall inside each bottle's real 9-second window (2,602px of road at the
 // measured 4.80 px/tick) rather than assuming an average density.
 //
-//   379 bags at 100                                       37,900
+//   400 bags at 100                                       40,000
 //   105 masked enemies stomped at 50                      +5,250
-//   ── flawless with no bottle at all                      43,150
-//   157 of those bags doubled, bottles where they sit     +15,700
-//   ── PERFECT RUN, as the map is built                    58,850
+//   ── flawless with no bottle at all                      45,250
+//   164 of those bags doubled, bottles where they sit     +16,400
+//   ── PERFECT RUN, as the map is built                    61,650
 //
 // (The ENEMIES are the masked hoodie figures — docs/GDD.md "Enemy design",
 // three palette variants, the only thing in the game worth 50. They are not
@@ -135,13 +140,15 @@ const LOCAL_KEY = 'wh_local_runs';
 // render/undercroft.js, cannot be touched, and are worth nothing. An earlier
 // draft of this note called the enemies rats and the client caught it.)
 //
-// So he sits at 85% of a perfect run. Note the middle line: before the
-// multiplier the game's hard ceiling was 43,150, so 50,000 WAS NOT REACHABLE
-// AT ALL. The doubler is the only thing that puts him inside the world, which
-// is why the two decisions arrived together.
+// So he sits at 81% of a perfect run. Note the middle line: even with 400
+// bags, a flawless run that never touches a bottle tops out at 45,250 — SO
+// 50,000 STILL CANNOT BE REACHED WITHOUT THE DOUBLER. That was true at 379
+// bags and it survives the raise, which is the property worth protecting: if
+// the bag count ever goes past 447, bags alone clear him and the champagne
+// stops mattering at the top of the board.
 //
-// Reaching him means all eight bottles, all 157 bags inside their windows,
-// every enemy stomped, and about 60% of the 222 bags outside the windows —
+// Reaching him means all eight bottles, all 164 bags inside their windows,
+// every enemy stomped, and about 50% of the 236 bags outside the windows —
 // and no enemy touch late, because a touch dumps the whole purse on the
 // pavement. A real target with a real route behind it, which is what the top
 // of a contest board should be — not an unbeatable wall, and not a number the
@@ -149,8 +156,8 @@ const LOCAL_KEY = 'wh_local_runs';
 //
 // The card art paints 125,680 next to his name. That was always decoration;
 // no run can approach it.
-export const BAGS_IN_GAME = 379;
-export const PERFECT_RUN = 58850;      // measured — tools/harness/ceiling.mjs
+export const BAGS_IN_GAME = 400;
+export const PERFECT_RUN = 61650;      // measured — tools/harness/ceiling.mjs
 export const WILL_HILL = Object.freeze({ name: 'WILL HILL', score: 50000, pinned: true });
 
 // Merge him into whatever the board is showing, wherever his score puts him.
