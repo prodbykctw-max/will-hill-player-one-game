@@ -217,9 +217,31 @@ export function createMusic(getContext, getMaster) {
     // Ask for a cue. Safe to call every frame — asking for the cue that is
     // already playing does nothing, which is what lets main.js state it
     // declaratively at each screen instead of tracking transitions.
+    //
+    // ⚠️ "DOES NOTHING" USED TO INCLUDE "NEVER RETRIES A STUCK-PAUSED
+    // ELEMENT." The title cue is built and asked for on the very first
+    // frame, long before any gesture — el.play() there is refused, exactly
+    // as expected, and `current` is still set to it. Every frame after that
+    // hits the early return above and never touches the element again, so
+    // when a real gesture finally arrives (the MUSIC checkbox) there was
+    // nothing left in this function for it to unstick — only WebAudio
+    // (ambience, effects) shares a resume() path with unlock(); a media
+    // element needs its OWN play() inside a real gesture. Client: "when I
+    // click music... it just starts the background ambient noise" — that
+    // was the WebAudio graph waking up while the <audio> element sat
+    // paused forever. Retrying here, still gated on the element actually
+    // being paused, means the direct call main.js now makes from inside the
+    // tap handler (see hitMusic) is the one that finally lands inside the
+    // gesture.
     play(slot) {
       wanted = slot;
-      if (current && current.slot === slot) return;
+      if (current && current.slot === slot) {
+        if (current.el.paused && !muted) {
+          const pr = current.el.play();
+          if (pr && pr.catch) pr.catch(() => {});
+        }
+        return;
+      }
       const node = build(slot);
       const prev = current;
       if (!node) {

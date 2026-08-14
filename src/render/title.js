@@ -636,10 +636,19 @@ export function createTitle(ctx, canvas, still) {
     const idealH = o.h;
     const idealGap = Math.max(14, idealH * 0.65);
     const room = canvas.height - (o.y + o.h);          // to the TRUE edge, nothing assumed
-    const MIN_GAP = 0.5;                                // never zero — never touching OPTIONS
+    // ⚠️ THE GAP GETS A SHARE FIRST, BUT A SMALL ONE — HEIGHT STILL WINS THE
+    // REST. A 0.5px floor read as one smear instead of two controls:
+    // "OPTIONS needs to be up a little bit above the music section." But
+    // giving the gap equal say with height went too far the other way on the
+    // tightest crop measured — MUSIC shrank to 3px and stopped being
+    // readable at all, which is worse than close-together. A quarter of
+    // whatever room is left is enough gap to read as a real seam without
+    // starving the label; height still takes whatever remains, which is
+    // most of it.
+    const MIN_GAP = 2.5;
     let h = idealH, gap = idealGap;
     if (gap + h > room) {
-      gap = MIN_GAP;
+      gap = Math.max(MIN_GAP, Math.min(idealGap, room * 0.25));
       h = Math.max(0, room - gap);                      // whatever is left, however small
     }
     const boxSz = h * ICON_H;

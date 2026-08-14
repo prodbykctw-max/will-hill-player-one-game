@@ -351,6 +351,18 @@ canvas.addEventListener('pointerdown', (e) => {
       setSoundEnabled(on);
       audio.setMuted(!on);
       if (on && !audio.ready()) audio.unlock();
+      // ⚠️ THE THEME NEEDS ITS OWN play() IN THIS HANDLER, NOT NEXT FRAME.
+      // unlock() only resumes the WebAudio graph — which is why ambience and
+      // the tap/confirm cues came through fine — but the title track is a
+      // real <audio> element, and WebKit tracks a media element's gesture
+      // unlock SEPARATELY from an AudioContext's. Leaving it to update()'s
+      // per-frame `audio.music.play(cueForScreen())` meant the element's
+      // first real play() call always landed one requestAnimationFrame after
+      // the tap, outside the gesture, and got silently refused — heard as
+      // "checking MUSIC starts the background noise but not the song."
+      // Calling it here, inside the same synchronous tap, is what actually
+      // counts as the gesture.
+      if (on) audio.music.play(cueForScreen());
       state.introTapped = true;   // the audio has had its input either way
       press();
       return;

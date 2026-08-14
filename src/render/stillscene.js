@@ -92,7 +92,21 @@ export function createStillScene(ctx, canvas) {
     const dw = img.width * s;
     const dh = img.height * s;
     if (useCover) {
-      const offTop = budget > 0 ? cropRows * (spareTop / budget) : cropRows;
+      // ⚠️ NOT A STRAIGHT spareTop:spareBot SPLIT ANY MORE. That gave the
+      // margin above WILL HILL: and the margin below OPTIONS roughly equal
+      // shares (44/56 on the tightest phone measured) — reasonable for the
+      // sky, wrong for OPTIONS, because MUSIC has to fit ENTIRELY inside
+      // whatever margin is left below it. Client, from a live screenshot on
+      // his own phone: "OPTIONS needs to be up a little bit above the music
+      // section." Same crop budget, same no-bars guarantee (this only moves
+      // which END the existing slack is spent on, never how much of it
+      // there is), just weighted so the bottom keeps most of it: whatever
+      // margin survives the crop is split 25% top / 75% bottom instead of
+      // proportionally, which on the tightest shape measured moves OPTIONS
+      // up enough to roughly double the room musicRect has to work with.
+      const leftover = Math.max(0, budget - cropRows);
+      const topMargin = leftover * 0.25;
+      const offTop = Math.max(0, Math.min(spareTop, cropRows, spareTop - topMargin));
       return { s, dw, dh, dx: (canvas.width - dw) / 2, dy: -offTop * s };
     }
     const slack = (canvas.height - dh) / 2;

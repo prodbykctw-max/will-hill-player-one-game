@@ -1079,6 +1079,153 @@ plate (877, 952) that SAM's mask missed — and at 87 per channel it is *below*
 the surrounding road's own maximum speckle of 91, i.e. inside the dither and
 not distinguishable from it.
 
+### CHAMPAGNE RELAY comes off the card; MUSIC stacks under OPTIONS
+
+Client: *"the champagne relay is not going to be there, that's like a
+dev/dashboard thing. Nothing's gonna be there but PRESS START, OPTIONS and
+MUSIC."* The three-column row (RELAY pill / OPTIONS / MUSIC checkbox) is
+gone from `src/render/title.js` — `rowMetrics`, `relayRect`, `drawRelay`,
+`hitRelay` all deleted, not just hidden. `core/relay.js`'s `isRelay`/
+`setRelay` and the `?relay=1` URL flag still work exactly as before, and so
+does the `window.__startStage` dev hook — that flag is the whole surviving
+door now, "a dev/dashboard thing" with no on-screen button a player can find.
+
+MUSIC now stacks directly under OPTIONS, centred on the same x. Client:
+*"that music button ultimately is going to be under the OPTIONS button... and
+that will be stacked perfectly."* `musicRect()` solves height and gap as ONE
+budget against the true canvas edge — `room = canvas.height - (o.y + o.h)`;
+if the ideal height + gap don't fit that room, the GAP holds at a 0.5px floor
+and the HEIGHT gives way, never the reverse, and `y` is a direct sum
+(`o.y + o.h + gap`) with no separate clamp — so MUSIC can never mathematically
+land inside OPTIONS or past the frame edge, on any crop. (Two earlier
+attempts — a fixed edge margin, then a two-step shrink — each had an
+unsatisfiable pair of constraints on the two tightest phone crops tested and
+put MUSIC a fraction of a pixel inside OPTIONS' own box. Caught by
+`titlefit.mjs`, not by eye.)
+
+Verification: `tools/harness/titlefit.mjs` (56 checks, 7 phone shapes —
+no side bars, no overlap, MUSIC inside the frame, MUSIC x-centred on OPTIONS
+within 1px, MUSIC below OPTIONS, `relayRect`/`hitRelay` both `undefined`),
+`tools/harness/relaytod.mjs` (26 checks, rewritten to prove the removal as a
+negative case — a plain tap always starts a normal run, never relay).
+`tools/harness/relaybtn.mjs`, which existed only to test the removed pill,
+was deleted rather than left to bit-rot.
+
+### The 100vh bug — OPTIONS/MUSIC clipped off-screen on real iOS Safari
+
+Client sent a live screenshot: PRESS START fully visible, **nothing below
+it** — no OPTIONS, no MUSIC — on his phone with both the Safari address bar
+and the bottom toolbar showing at once. Every harness shape (down to iPhone
+SE and the client's own screenshot dimensions) was passing 56/56 at the time,
+and the deployed bundle hash matched exactly what had been verified, which
+ruled out a bad deploy or a stale build.
+
+The actual cause was one CSS declaration: `#game { height: 100vh }` in
+`index.html`. On iOS Safari, `vh` is anchored to the **large** viewport —
+the height available with the browser chrome collapsed — not to whatever is
+currently visible. `html, body` carry `overflow: hidden` (deliberately, so a
+game canvas never rubber-bands), so there is no scroll to reveal the
+shortfall when both bars are up: the canvas's CSS box claims more height than
+the screen actually shows, and the excess — exactly where OPTIONS and MUSIC
+draw, below PRESS START — is clipped off the bottom, invisible and
+unreachable. None of the seven shapes in `titlefit.mjs` modelled "both bars
+visible at once" because Playwright's fixed viewport can't replay Safari's
+live chrome animation; the bug was real and specific to that device state,
+not a regression in the fit math.
+
+Fixed with the paired CSS/JS change dynamic-viewport units exist for:
+- `index.html`: `height: 100vh; height: 100dvh;` — `100dvh` tracks the bars
+  actually on screen; `100vh` stays first as the fallback for a browser that
+  can't parse `dvh` (an unrecognised declaration is ignored, so the last one
+  understood wins).
+- `src/main.js`'s `resize()`: sizes the drawing buffer from
+  `window.visualViewport` when it exists, and listens on
+  `visualViewport`'s own `resize` event as well as `window`'s — iOS does not
+  reliably fire a `window` resize when only its own chrome toggles.
+
+Every existing harness still passed unchanged afterward (titlefit 56/56,
+relaytod 26/26, musicbox 7/7, titleintro 6/6, relay 8/8) since this is a
+sizing fix, not a change to the fit math itself. Directly reproduced and
+confirmed fixed with a one-off Playwright script at a 393x660 "both bars up"
+shape: canvas CSS box and drawing-buffer height now match the visible height
+exactly (previously the CSS box would have been the large-viewport height,
+taller than 660), and a screenshot at that shape shows OPTIONS and MUSIC both
+on screen under PRESS START.
+
+⚠️ **If a future "X is missing on my phone" report ever comes in again with
+no matching harness failure, check the CSS viewport units before anything
+else** — a real device's browser chrome is a state Playwright's fixed
+viewport cannot fully stand in for.
+
+### OPTIONS was crowding MUSIC on the tightest crops — the crop split moved
+
+Client, on the phone that had just been fixed above: *"OPTIONS needs to be up
+a little bit above the music section."* On the tightest crops the split
+between top and bottom (see "the crop is split between top and bottom",
+above) spent its two margins close to evenly — reasonable for the sky above
+the title, wrong for OPTIONS, because whatever margin survives below it is
+the ONLY room `musicRect()` has to work with. `fit()` in
+`src/render/stillscene.js` now spends that leftover margin 25% above the
+title / 75% below OPTIONS instead of proportionally to the source plate's own
+165:209 split — same crop budget, same no-bars guarantee (this only moves
+which end the EXISTING slack is spent on, it cannot make cropRows exceed
+budget), just weighted toward where the room is actually needed.
+
+That alone wasn't enough — `musicRect()`'s own shrink order was backwards.
+When room ran short it held height at OPTIONS' own size and crushed the GAP
+to a 0.5px floor, so on the tightest phone the two read as one control
+instead of two. Flipped: gap now claims a small floor first (`Math.max(2.5,
+room * 0.25)`), height takes whatever is left. First pass over-corrected —
+gap got an equal cut and MUSIC shrank to 3px, unreadable, worse than close
+together — so gap's floor is deliberately small, just enough to read as a
+real seam rather than a hairline.
+
+Verified: all five harnesses unchanged (titlefit 56/56, relaytod 26/26,
+musicbox 7/7, titleintro 6/6, relay 8/8) — the checks are all inequalities
+(no overlap, inside the frame, centred, below), not exact pixel equality, so
+a legitimate rebalance within those bounds doesn't need new numbers, only to
+keep passing them. Screenshotted at 471x825 and 393x660 (both "his
+screenshot" and a fresh both-bars-up shape) to confirm MUSIC reads as
+legible and separate, not just numerically non-overlapping — the first pass
+passed every harness check while looking wrong on screen, which is why this
+got eyeballed before shipping rather than trusted on the numbers alone.
+
+### MUSIC checkbox unlocked the ambience, not the theme
+
+Client: *"when I click music... it doesn't start the theme music... it just
+starts the background, ambient nighttime noise."* Real, and findable by
+reading the two unlock paths side by side rather than guessing — WebKit
+tracks a `<video>`/`<audio>` element's gesture-unlock SEPARATELY from an
+AudioContext's. `audio.unlock()` (`src/audio/audio.js`) only ever resumes
+the WebAudio graph — which is exactly why the ambience (built from
+oscillator/buffer nodes on that same graph) came through fine. The title
+theme is a real `<audio>` element (`src/audio/music.js`, see "WHY <audio>
+AND NOT decodeAudioData" — it has to stream, not decode, or ten cues would
+be most of a gigabyte of RAM), and nothing in the MUSIC tap handler ever
+called `.play()` on it directly. The only place that happened was
+`update()`'s per-frame `audio.music.play(cueForScreen())` — one
+`requestAnimationFrame` after the tap, outside the gesture, silently
+refused, and then never retried: `play()` returned early on every later
+frame because the slot already matched `current`.
+
+Two changes, both needed:
+- `src/audio/music.js`'s `play(slot)`: the early return for "already on this
+  slot" now still retries `el.play()` if the element is stuck paused,
+  instead of doing nothing.
+- `src/main.js`'s `hitMusic` branch: calls `audio.music.play(cueForScreen())`
+  directly, in the same synchronous tap handler that already unlocks the
+  WebAudio graph — so the element's real, gesture-qualifying `.play()` call
+  happens on the same touch that checks the box, not a frame later.
+
+⚠️ **Not independently reproduced on real iOS hardware** — Playwright's
+Chromium does not model WebKit's separate media-element gesture-gate, so
+`musicbox.mjs` passing (7/7, unchanged) proves the checkbox still toggles
+`wh_sound` and starts the *AudioBuffer-based* cue correctly in an automated
+context, not that this specific iOS refusal is fixed. The diagnosis is a
+structural one (`unlock()` never touches the element; the one line that did
+call `.play()` ran a frame late) rather than an assumption, but it should be
+confirmed on the client's own phone before being called closed.
+
 ---
 
 ## Button feedback: click, confirm, and a tick under the thumb
