@@ -50,10 +50,37 @@ const PLATE_PARALLAX = 0.1;
 //
 // At a 0.010 spread the tree stays within ~77px of home across the whole
 // 7680px stage. It stays its tree, in front of its bit of fence, and merely
-// floats in front of it. MAX_SEPARATION is the hard backstop that makes
-// migration impossible even if the spread is later dialled up.
+// floats in front of it.
 const DEPTH_SPREAD = 0.010;
-const MAX_SEPARATION = 90; // px at zoom 1
+
+// ⚠️ SEPARATION IS NOT DRIFT-FROM-HOME. IT IS DOUBLE VISION.
+//
+// The base plate is the FULL painting — it still carries its own copy of
+// every item the cards re-draw (measured: the cards' opaque pixels are
+// 99-100% identical to the base underneath them, all stages, day and night).
+// So every pixel a card moves off its base copy prints the item twice: once
+// on the card, once on the plate behind it. Alpha holes make it worse — the
+// gaps between fence planks show whatever is behind them, and what is behind
+// them is the base's copy of the SAME area, offset.
+//
+// At MAX_SEPARATION 90 with the base at depth 0, day EAV at 256m put the
+// fence card 34.7px off the base's painted fence (zoom 0.645; the base alone
+// contributed -25.9px of that) and the sign's metal ring printed twice. The
+// client photographed it from the live game. At night the same offsets have
+// been there all along — dark planks just have no contrast to read a double
+// edge against. Daylight does.
+//
+// Two changes keep the double under the reading threshold everywhere:
+//   * the base draws at NEUTRAL depth (BASE_DEPTH 0.5), so the error splits
+//     between far and near cards instead of the base itself walking away
+//     from all of them at the -0.5 rate;
+//   * the clamp is a tanh EASE, not a wall — cards slow INTO the bound
+//     instead of slamming against it, and near saturation the RELATIVE shear
+//     between neighbouring depths compresses instead of accumulating, so the
+//     strip lesson above stays honoured with no per-card exceptions.
+// 16px doubles read as paint thickness, not as a second object.
+const MAX_SEPARATION = 16; // px of screen — the most any card may sit off the base
+const BASE_DEPTH = 0.5;
 
 // GROUND STRIPS USED TO BE AN EXCEPTION. They are not any more, and the reason
 // they stopped being one is the most expensive lesson in this file.
@@ -88,10 +115,10 @@ const MAX_SEPARATION = 90; // px at zoom 1
 // sits 64px from the mid buildings purely on depth and reads as depth.
 //
 // So: no strip rate, no strip clamp. Depth drives every card, the spread stays
-// at 0.010, and the widest gap any card can now open on the plate is 72px at
-// depth 1.0 over the longest stage — inside MAX_SEPARATION, so nothing
-// saturates and every card keeps moving for the whole stage instead of
-// slamming into a limit and freezing there.
+// at 0.010, and the tanh ease means a long stage settles every card toward the
+// same small bound together — the verge and the fence planted in it arrive at
+// nearly the same offset, so the ground never again walks out from under what
+// stands on it.
 
 // WEATHER MOVES ON ITS OWN. Parallax is a function of where the CAMERA is, so
 // a cloud card only ever slides while the player runs — stand still and the
@@ -107,9 +134,9 @@ const MAX_SEPARATION = 90; // px at zoom 1
 // the depth the rest of the multiplane set is buying.
 function cardParallax(camX, depth, card, tick) {
   const drift = card && card.drift ? card.drift * (tick || 0) : 0;
-  const diff = camX * (depth - 0.5) * DEPTH_SPREAD;
+  const diff = camX * (depth - BASE_DEPTH) * DEPTH_SPREAD;
   return camX * PLATE_PARALLAX + drift
-    + Math.max(-MAX_SEPARATION, Math.min(MAX_SEPARATION, diff));
+    + MAX_SEPARATION * Math.tanh(diff / MAX_SEPARATION);
 }
 const RAIN_TIERS = [
   { n: 26, len: 26, speed: 5.2, alpha: 0.1, width: 1.0, par: 0.18 },
@@ -199,9 +226,11 @@ export function createBackdrop(ctx, canvas) {
     const bottom = groundY + 4 * camera.zoom;
     const by = bottom - drawH;
 
-    // The base plate sits at depth 0 — the far wall the cards stand in front
-    // of. On a stage with no cards this is just the old flat plate.
-    const par = cardParallax(camera.x * camera.zoom, 0);
+    // The base plate sits at NEUTRAL depth — the average of the deck, so its
+    // copies of the carded items stay as close as possible to every card at
+    // once (see the MAX_SEPARATION note). On a stage with no cards this is
+    // just the old flat plate.
+    const par = cardParallax(camera.x * camera.zoom, BASE_DEPTH);
     _par = par;
     // Straight repeat, NOT mirrored. Mirroring hides the seam on a
     // non-tiling image, but these plates are real Atlanta streetscapes full
@@ -371,7 +400,7 @@ export function createBackdrop(ctx, canvas) {
   // "tick is not defined" on the first frame of play.
   function lightParallax(stage, camera, light, tick) {
     const card = (stage.bg.cards || []).find((c) => c.key === light.layer);
-    return cardParallax(camera.x * camera.zoom, card ? card.depth : 0, card, tick);
+    return cardParallax(camera.x * camera.zoom, card ? card.depth : BASE_DEPTH, card, tick);
   }
 
   // Gust curve — two sines beaten together with a squared envelope, so the
