@@ -107,22 +107,47 @@ for (const tod of ['day', 'night']) {
       // card sway); an un-gated practical buzzing at 'lighter' alpha 0.16-0.36
       // is far louder. Night is NOT asserted this way — rain streaks make
       // night motion unconditionally, which would pass vacuously.
-      const strips = [];
-      for (let k = 0; k < 8; k++) {
-        await frame();
-        const row = [];
-        for (let sYf = 0.10; sYf <= 0.55; sYf += 0.15) {
-          const v = lum(0, cv.height * sYf, cv.width, 14);
-          if (v != null) row.push(v);
+      // ⚠️ AND THE CAPTURE ITSELF MUST BE QUIET. The walk above parks the
+      // player wherever its last stop was — once, an enemy closed the gap
+      // DURING these 8 frames, the hit flash landed on a capture frame, and
+      // edgewood-day "buzzed" at 95. That is the player's own feedback, not
+      // the plate. So: retreat to a stop with no enemy anywhere near, and if
+      // anything still reaches him mid-capture (hearts change), move on and
+      // recapture rather than reporting his damage flash as backdrop light.
+      let buzz = Infinity;
+      for (let attempt = 0; attempt < 4 && buzz === Infinity; attempt++) {
+        let placed = false;
+        for (let i = attempt; i < 12 && !placed; i++) {
+          const px = start + i * (SPACING / 4);
+          const clear = !g.level.enemies.some((e) =>
+            Math.abs((e.x + e.w / 2) - px) < 320);
+          if (!clear) continue;
+          g.player.x = px;
+          g.player.y = groundW - g.player.h;
+          g.player.vy = 0;
+          placed = true;
         }
-        strips.push(row);
-      }
-      let buzz = 0;
-      for (let k = 1; k < strips.length; k++) {
-        for (let j = 0; j < strips[k].length; j++) {
-          buzz = Math.max(buzz, Math.abs(strips[k][j] - strips[k - 1][j]));
+        for (let k = 0; k < 20; k++) await frame();
+        const h0 = g.player.hearts;
+        const strips = [];
+        for (let k = 0; k < 8; k++) {
+          await frame();
+          const row = [];
+          for (let sYf = 0.10; sYf <= 0.55; sYf += 0.15) {
+            const v = lum(0, cv.height * sYf, cv.width, 14);
+            if (v != null) row.push(v);
+          }
+          strips.push(row);
+        }
+        if (g.player.hearts !== h0 || g.player.dead) continue; // he got hit — retry
+        buzz = 0;
+        for (let k = 1; k < strips.length; k++) {
+          for (let j = 0; j < strips[k].length; j++) {
+            buzz = Math.max(buzz, Math.abs(strips[k][j] - strips[k - 1][j]));
+          }
         }
       }
+      if (buzz === Infinity) buzz = -1; // never got a quiet capture — visible in output
       const span = (a) => (a.length ? Math.max(...a) - Math.min(...a) : null);
       return {
         id: g.level.stage.id, tod: g.level.stage.tod,

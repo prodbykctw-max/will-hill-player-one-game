@@ -75,6 +75,7 @@ import bgL5pDay from '../assets/backgrounds/l5p-day-base.webp';
 
 // ── DAY MULTIPLANE CARDS ─────────────────────────────────────────────────
 import eavDayClouds from '../assets/backgrounds/eav-day-clouds.webp';
+import eavDaySkystruct from '../assets/backgrounds/eav-day-skystruct.webp';
 import eavDaySkyline from '../assets/backgrounds/eav-day-skyline.webp';
 import eavDayMcdonalds from '../assets/backgrounds/eav-day-mcdonalds.webp';
 import eavDayCars from '../assets/backgrounds/eav-day-cars.webp';
@@ -384,7 +385,15 @@ const STAGE_DEFS = [
         // the measured night->day transform, since the two exports are a
         // percent or two different in size.
         cards: [
-          { key: 'clouds', img: eavDayClouds, depth: 0.02, drift: -0.035, span: [0.111, 1.000] },
+          // Puffs on transparency, not a band of sky — the band's alpha edge
+          // printed a travelling seam and its baked twins doubled every
+          // cloud once the drift accumulated (tools/scrub_stage_clouds.py).
+          { key: 'clouds', img: eavDayClouds, depth: 0.02, drift: -0.035, span: [0.490, 0.993] },
+          // Poles, signal, arch — the sky band's STATIC furniture, repainted
+          // over the drifting puffs so a cloud passes BEHIND them. Depth 0.5
+          // is BASE_DEPTH on purpose: at the base's own rate it registers
+          // with the base's copy to the pixel, forever.
+          { key: 'skystruct', img: eavDaySkystruct, depth: 0.5, span: [0.082, 1.000] },
           { key: 'skyline', img: eavDaySkyline, depth: 0.07, span: [0.768, 0.980] },
           { key: 'mcdonalds', img: eavDayMcdonalds, depth: 0.16, span: [0.899, 0.979] },
           { key: 'cars', img: eavDayCars, depth: 0.21, span: [0.772, 0.979] },
