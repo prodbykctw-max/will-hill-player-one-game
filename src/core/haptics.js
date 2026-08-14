@@ -55,18 +55,51 @@ export function createHaptics() {
   // and out of the accessibility tree: it is not a control, it is a noise
   // maker, and a screen reader announcing "switch, off" before every button
   // press would be worse than no haptics at all.
+  // ⚠️ THREE THINGS WERE WRONG WITH THIS AND THE CLIENT FELT ALL OF THEM:
+  // "I still haven't felt any haptic feedback from the game."
+  //
+  //  1. IT WAS PARKED AT left:-9999px WITH opacity:0. WebKit plays the switch
+  //     haptic as a side effect of ANIMATING a real control. A control parked
+  //     off-canvas at zero opacity is not something it has to draw, so there
+  //     is nothing to animate and nothing to feel. It now sits inside the
+  //     viewport at a hair above transparent, 1x1, under everything.
+  //  2. IT WAS BUILT LAZILY AND CLICKED IN THE SAME TICK. The element was
+  //     created and .click()ed before layout had ever run on it, so at the
+  //     moment of the first press it was not a laid-out control yet. It is
+  //     now built once up front and forced through layout immediately.
+  //  3. pointer-events:none. Harmless for a scripted click, but it is one
+  //     more signal that this is not an interactive control, so it is gone.
+  //
+  // This is still a hack against an undocumented side effect and it is still
+  // the only route a web page has to the Taptic Engine.
   let sw = null;
-  function iosSwitch() {
-    if (sw || !isIOS || typeof document === 'undefined') return sw;
+  function buildIosSwitch() {
+    if (sw || !isIOS || typeof document === 'undefined' || !document.body) return sw;
     sw = document.createElement('input');
     sw.type = 'checkbox';
     sw.setAttribute('switch', '');
     sw.tabIndex = -1;
     sw.setAttribute('aria-hidden', 'true');
-    sw.style.cssText = 'position:fixed;left:-9999px;top:0;width:1px;height:1px;'
-      + 'opacity:0;pointer-events:none';
+    // In the viewport, drawn, but invisible and un-hittable by a thumb.
+    sw.style.cssText = 'position:fixed;left:0;top:0;width:1px;height:1px;'
+      + 'opacity:0.01;z-index:-1;margin:0;padding:0;border:0;'
+      + 'appearance:auto;-webkit-appearance:auto';
     document.body.appendChild(sw);
+    void sw.offsetHeight;             // force layout NOW, not at first press
     return sw;
+  }
+  function iosSwitch() { return sw || buildIosSwitch(); }
+
+  // ⚠️ BUILT HERE, NOT UP WITH THE OTHER SETUP. `sw` is a `let` declared just
+  // above, so calling buildIosSwitch() before this point lands in the
+  // temporal dead zone and throws "Cannot access 'sw' before
+  // initialization" — and createHaptics() runs at module load, so that
+  // throw would have taken the whole game down ON iOS ONLY, which is the one
+  // platform this code path exists for and the one I cannot test here.
+  // Caught by asking each platform which route it reports.
+  if (isIOS && typeof document !== 'undefined') {
+    if (document.body) buildIosSwitch();
+    else document.addEventListener('DOMContentLoaded', buildIosSwitch, { once: true });
   }
 
   function fire(pattern) {
