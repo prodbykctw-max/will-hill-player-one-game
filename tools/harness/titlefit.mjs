@@ -85,6 +85,14 @@ for (const [name, w, h] of SHAPES) {
   // Everything drawn has to be inside the frame, or a control is unreachable.
   const inside = (x) => !x || (x.y >= 0 && x.y + x.h <= r.ch && x.x >= 0 && x.x + x.w <= 430 + 400);
   check(`  both controls are inside the frame`, inside(r.relay) && inside(r.music));
+  // Client: "reduced to about the same width as OPTIONS and equal width as
+  // MUSIC." All three now share one literal target width, so this checks it
+  // rather than trusting the geometry — a stray extra pixel of gap or icon
+  // width is exactly the kind of thing that reads fine in the code and wrong
+  // on his phone.
+  check(`  RELAY, OPTIONS and MUSIC are all the same width`,
+    Math.abs(r.relay.w - r.opt.w) <= 1 && Math.abs(r.music.w - r.opt.w) <= 1,
+    `opt=${r.opt.w.toFixed(1)} relay=${r.relay.w.toFixed(1)} music=${r.music.w.toFixed(1)}`);
 
   await p.screenshot({ path: `${OUT}/titlefit-${name.replace(/[^a-z0-9]+/gi, '_')}.png` });
   await p.context().close();
