@@ -239,7 +239,14 @@ const occ = await p.evaluate(async () => {
 
   // For a given cloud, find a probe inside a solid tower that it crosses,
   // plus a tick where it is there and a tick where no cloud is.
-  const trial = async (s) => {
+  // `pad` is how much solid tower must surround the probe. The FAR test needs
+  // a generous margin because it asserts "nothing shows" and the plate draws
+  // at about half scale, so one screen pixel straddles two source pixels and
+  // a probe near the tower's feathered edge picks up real bleed. The NEAR
+  // test asserts the opposite — "the cloud is plainly visible" — so it only
+  // needs the point to BE a building, and demanding a wide solid margin there
+  // just filters out every candidate.
+  const trial = async (s, pad) => {
     for (let y = Math.max(0, s.y + 4); y < s.y + s.h - 4; y += 3) {
       for (let x = 20; x < t.SRC_W - 20; x += 7) {
         // ⚠️ SOLID OVER A NEIGHBOURHOOD, not just at the point. The plate is
@@ -249,8 +256,8 @@ const occ = await p.evaluate(async () => {
         // failure. Require the whole neighbourhood the screen pixel samples
         // from to be tower.
         let solidAround = true;
-        for (let dy = -3; dy <= 3 && solidAround; dy++) {
-          for (let dx = -3; dx <= 3; dx++) {
+        for (let dy = -pad; dy <= pad && solidAround; dy++) {
+          for (let dx = -pad; dx <= pad; dx++) {
             if (alphaAt(x + dx, y + dy) < 254) { solidAround = false; break; }
           }
         }
@@ -272,8 +279,8 @@ const occ = await p.evaluate(async () => {
   const far = spr.filter((s) => !s.near).sort((a, b) => b.w - a.w);
   const near = spr.filter((s) => s.near).sort((a, b) => b.w - a.w);
   let f = null, n = null;
-  for (const s of far) { f = await trial(s); if (f) break; }
-  for (const s of near) { n = await trial(s); if (n) break; }
+  for (const s of far) { f = await trial(s, 3); if (f) break; }
+  for (const s of near) { n = await trial(s, 1); if (n) break; }
   return { far: f, near: n };
 });
 console.log('  far  :', JSON.stringify(occ.far));

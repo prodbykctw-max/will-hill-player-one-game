@@ -339,7 +339,15 @@ def main():
     print(f"  grain x{grain:.2f}: fill {energy(filled, fillmask):.2f} "
           f"vs real sky {target:.2f}")
     filled = filled.astype(np.uint8)
-    patch = np.dstack([filled, (fillmask.astype(np.uint8) * 255)])
+    # ⚠️ FEATHER THE PATCH EDGE. A binary alpha means the inpainted sky butts
+    # against the real sky along a hard line, and a hard line is visible even
+    # when the colours either side match to under two levels — it reads as the
+    # cut-out shape of the cloud that used to be there. Softening the boundary
+    # dissolves it, the same fix the OPTIONS band needed.
+    falpha = ndimage.gaussian_filter(fillmask.astype(np.float32), 2.0)
+    falpha = np.clip((falpha - 0.15) / 0.7, 0, 1)
+    falpha[fillmask] = 1.0                  # never thin the middle of a fill
+    patch = np.dstack([filled, (falpha * 255).astype(np.uint8)])
     print(f"\nfill patch covers rows {ys.min()}..{ys.max()}, "
           f"cols {xs.min()}..{xs.max()}  (grain donor at x{bx})")
     Image.fromarray(patch, "RGBA").save(BG / "title-portrait-skyfill.webp",
@@ -357,13 +365,48 @@ def main():
     # band, because a cloud drifting at y589 has towers below it as well as
     # beside it, and a card that stopped short would let one slide out over
     # the street.
-    towers = np.zeros((H, W), bool)
-    for x in range(W):
-        if skyline[x] < H:
-            towers[skyline[x]:, x] = True
-    towers &= ~protect                      # never mask the lettering
-    # Close pinholes so window highlights inside a tower do not punch through.
-    towers = ndimage.binary_closing(towers, np.ones((5, 5), bool))
+    # ⚠️ THE REAL SILHOUETTE, NOT "EVERYTHING BELOW A PER-COLUMN SKYLINE".
+    #
+    # The first version filled each column from its skyline row downward, and
+    # that skyline was minimum-filtered over 25 columns to be "conservative".
+    # Both of those put SKY inside the towers card: the min-filter dragged
+    # each spire's tip sideways across its 25 neighbours, and filling downward
+    # swallowed every patch of open sky between and beside the buildings.
+    #
+    # Because the towers card draws over the far clouds, all of that invisible
+    # sky ATE THEM. Client, exactly: "only behind buildings... and other white
+    # clouds. But never behind the sky, former holes or patches."
+    #
+    # So the mask is simply what is actually painted there — not sky, not
+    # cloud — which is the buildings themselves and nothing else. A cloud can
+    # then only ever be hidden by something a person can see.
+    # Sky is whatever the open air along the TOP of the frame can reach,
+    # travelling through sky and cloud. Anything it cannot reach is enclosed,
+    # and enclosed means masonry — which sorts the two hard cases apart on its
+    # own: a lit window is walled in on every side and becomes tower, while a
+    # gap between two towers still opens upward and stays sky.
+    #
+    # A plain colour key could not tell those apart. Closing it with a big
+    # kernel and filling every hole (the first attempt) covered the windows
+    # but swallowed 10.2% of the open sky in the skyline band with it.
+    # Reachability plus a 3px close gets that to 4.4% while still covering
+    # 93.4% of the masonry, and what is left is a pixel or two of halo on each
+    # building's own edge.
+    openable = sky | cloud | protect
+    seed = np.zeros((H, W), bool)
+    seed[0:3, :] = openable[0:3, :]
+    sky_open = ndimage.binary_propagation(seed, mask=openable)
+    towers = ~sky_open
+    towers[660:, :] = True                  # below the skyline it is all street
+    towers = ndimage.binary_closing(towers, np.ones((3, 3), bool))
+    towers &= ~protect
+    # Specks of "not sky" floating in open sky are dither, not architecture,
+    # and each one would clip a little bite out of a passing cloud.
+    tl, tn = ndimage.label(towers)
+    if tn:
+        keep = {i for i, sz in enumerate(ndimage.sum(towers, tl, range(1, tn + 1)), 1)
+                if sz >= 400}
+        towers = np.isin(tl, list(keep))
     tsoft = ndimage.gaussian_filter(towers.astype(np.float32), 0.6)
     talpha = np.clip((tsoft - 0.35) / 0.4, 0, 1)
     Image.fromarray(np.dstack([rgb, (talpha * 255).astype(np.uint8)]),
