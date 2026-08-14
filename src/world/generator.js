@@ -29,6 +29,10 @@ const MIN_ENEMY_SPACING_COLS = 8;
 // hazard features against the old 23 — a 17% INCREASE while the config said
 // -10%. Spacing them 9 columns apart instead of 7 removes 22% of the
 // opportunities and lands the realised count where it was asked to be.
+// How far past its mark a bottle will wait for a raised slab before settling
+// for flat ground. Platforms come roughly every 1-in-5 eligible columns, so
+// this is many times the expected wait — it is a backstop, not a schedule.
+const CHAMPAGNE_WAIT_COLS = 26;
 const MIN_FEATURE_GAP_COLS = 9;
 // Platform width, down 10% with the rest of the difficulty pass: w was
 // 5 + [0..4] (mean 7.0), now 5 + [0..3] (mean 6.5). A narrower stoop is a
@@ -191,7 +195,30 @@ export function genAhead(level, untilCol) {
       // of eight of EAV's twenty-one holes.
       for (let k = 0; k < w; k++) groundCol(level.map, c + k, FLOOR_R, LH - 1);
       plat(level.map, c, FLOOR_R - heightRows, w);
-      if (rnd01(c * 5.3 + level.seed) < recipe.bag) {
+      // ── A BOTTLE IS SOMETHING YOU JUMP FOR ──────────────────────────────
+      //
+      // Client: "the champagne bottle shouldn't be so easy to get."
+      //
+      // He is right, and the placement was the whole problem: it sat at ankle
+      // height on flat ground in the middle of the running lane, so nine
+      // seconds of invulnerability cost exactly nothing — you collected it by
+      // not stopping. A power-up you get for free is not a power-up, it is a
+      // timer that starts when you walk past a point.
+      //
+      // So a mark that comes due takes the next RAISED SLAB instead, and the
+      // bottle goes on top of it: 2 to 6 rows up, which is a committed jump
+      // rather than a step. The slab is the right home for it — the generator
+      // already grounds the whole span, so there is somewhere to land, and it
+      // is already where the bags worth reaching for live.
+      //
+      // ONE PRIZE PER SLAB. If the bottle takes it, the bag does not also
+      // spawn — they would sit on the same centre line and overlap.
+      const bottleHere = level.champagneMarks.length && c >= level.champagneMarks[0];
+      if (bottleHere) {
+        level.champagneMarks.shift();
+        level.champagnes.push(createChampagneBottle(
+          c * T + w * T * 0.5 - 12, champagneTopFor((FLOOR_R - heightRows) * T)));
+      } else if (rnd01(c * 5.3 + level.seed) < recipe.bag) {
         level.bags.push(createMoneyBag(c * T + w * T * 0.5 - 12, (FLOOR_R - heightRows) * T - 26));
       }
       level.lastFeatureCol = c + w;
@@ -265,7 +292,13 @@ export function genAhead(level, untilCol) {
     // flat, because a bottle needs ground under it and this branch is the only
     // one that guarantees that. `champagneMarks` is consumed in order, so a
     // mark that falls inside a long feature simply lands just after it.
-    if (level.champagneMarks.length && c >= level.champagneMarks[0]) {
+    // THE FALLBACK, and it must exist. Two bottles a stage is a guarantee the
+    // whole 9-second balance rests on, so if no slab turns up within
+    // CHAMPAGNE_WAIT_COLS of the mark the bottle takes flat ground rather than
+    // going missing. Measured, it almost never fires — but "almost" is not a
+    // thing to leave a power-up budget standing on.
+    if (level.champagneMarks.length
+        && c >= level.champagneMarks[0] + CHAMPAGNE_WAIT_COLS) {
       level.champagneMarks.shift();
       level.champagnes.push(createChampagneBottle(
         c * T + 8, champagneTopFor(FLOOR_R * T)));
