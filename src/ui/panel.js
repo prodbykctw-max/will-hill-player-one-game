@@ -155,20 +155,38 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
   }
 
   function fillBoard() {
-    // Will Hill is on the board whichever source it came from — he is part of
-    // the game, not a run somebody did. See withWillHill.
-    const local = withWillHill(localRuns());
-    render(local, 'Loading…');
+    // ── UNTIL THE CONTEST IS LIVE, THE BOARD IS WILL HILL AND FOUR EMPTY
+    //    SLOTS ──────────────────────────────────────────────────────────
+    //
+    // Client: "all the other slots empty, until live."
+    //
+    // It used to fall back to this device's own runs, which was the right call
+    // when the board had no art of its own — better than "could not load".
+    // On his card it is the wrong one twice over: those runs are not RANKED
+    // against anybody, so putting them in slots 2-5 states a placing that does
+    // not exist, and a board full of one person's practice runs is not what
+    // this screen is for.
+    //
+    // The runs are still banked (bankLocalRun is untouched) and the player's
+    // best is still told to them — in the note, where it can say what it
+    // actually is rather than pretending to be a rank.
+    const local = localRuns();
+    const best = local.reduce((m, r) => Math.max(m, Number(r.score) || 0), 0);
+    const waiting = best
+      ? `Your best on this device: ${best.toLocaleString()}. The board opens when the contest goes live.`
+      : 'The board opens when the contest goes live.';
+
+    render(withWillHill([]), 'Loading…');
     lbTop(20, (runs) => {
       if (!open) return;
       if (runs && runs.length) {
         render(withWillHill(runs), isRegistered() ? 'You are entered in the contest.'
           : 'Enter the contest to get your score on this board.');
       } else {
-        // The Worker is not deployed yet, or the phone is offline. Either way
-        // the honest thing is to show what we do have and say what it is.
-        render(local, local.length ? 'Your runs on this device. The global board is not live yet.'
-          : 'The global board is not live yet.');
+        // The Worker is not deployed, or the phone is offline. Either way
+        // there is no ranking to show, so the slots stay empty and the note
+        // says why.
+        render(withWillHill([]), waiting);
       }
     });
   }
