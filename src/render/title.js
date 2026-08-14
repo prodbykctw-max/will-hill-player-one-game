@@ -603,16 +603,32 @@ export function createTitle(ctx, canvas, still) {
   // label, nothing drawn behind them, same as OPTIONS itself.
   const COL_PAD = 8;
 
+  // ── THE WIDTH IS OPTIONS' WIDTH, EXACTLY, NOT "UP TO ITS COLUMN" ─────────
+  //
+  // Client: "the words CHAMPAGNE RELAY are still too wide. They're supposed
+  // to be reduced to about the same width as the OPTIONS button and equal
+  // width as the MUSIC button." An earlier pass let the pill grow to fill its
+  // whole free column (173px on his phone) so the label stayed readable —
+  // that was solving the wrong problem. He does not want it readable at
+  // column width, he wants it the SAME WIDTH as the other two controls, even
+  // if that forces the type down small. So the target is fixed at OPTIONS'
+  // own width and both controls are drawn to fill exactly that, each fitting
+  // its own font size into it independently — CHAMPAGNE RELAY is fifteen
+  // characters and MUSIC is five, so at a shared width the labels land at
+  // very different sizes, and that is correct: equal WIDTH, not equal type.
   function rowMetrics(box) {
     const o = optionsRect(box);
     if (!o) return null;
     return {
       o,
       h: o.h,                       // no taller than OPTIONS
-      maxW: o.w,                    // no wider than OPTIONS
+      w: o.w,                       // no wider OR narrower — the shared target
       cy: o.y + o.h / 2,
       leftCx: o.x / 2,
       rightCx: (o.x + o.w + canvas.width) / 2,
+      // Still guarded against a column that is somehow narrower than OPTIONS
+      // itself — an extreme viewport, not any phone measured, but a control
+      // must never be asked to draw wider than the room it is centred in.
       leftRoom: Math.max(0, o.x - COL_PAD * 2),
       rightRoom: Math.max(0, canvas.width - (o.x + o.w) - COL_PAD * 2),
     };
@@ -650,48 +666,56 @@ export function createTitle(ctx, canvas, still) {
   //
   // So the full label CANNOT be OPTIONS-height at OPTIONS-width; fifteen
   // characters do not go into ninety-two pixels at any readable size. Width is
-  // the constraint that bends, and it bends to the COLUMN rather than to the
-  // word — each control is still centred in its own column and still no taller
-  // than OPTIONS, which is the uniformity that reads. (Shortening the label to
-  // RELAY would satisfy both at once and is a branding decision, not mine.)
+  // ⚠️ SUPERSEDED — kept for the arithmetic, not the conclusion. This measured
+  // what CHAMPAGNE RELAY needs to stay READABLE, and sized the pill to its own
+  // column to get there. The client came back and said that reasoning does not
+  // matter to him: "reduced in size to about the same width as the OPTIONS
+  // button and equal width as the MUSIC button" — he wants the WIDTH matched,
+  // full stop, however small the type has to go to fit it. So the target below
+  // is fixed at OPTIONS' own width (`m.w`) rather than the column, and each
+  // control fits its own font size into that fixed width independently. The
+  // two are not the same font size any more — CHAMPAGNE RELAY is fifteen
+  // characters and MUSIC is five, so at equal WIDTH they land at very
+  // different sizes, which is the correct reading of "equal width", not
+  // "equal type".
   //
-  // THE BOTTLE IS DRAWN AT ROW HEIGHT, NOT AT THE TYPE'S CAP. Matching it to
-  // the cap made it 9px tall and, on a bottle silhouette that is mostly neck,
-  // about three pixels wide: "leave the champagne bottle the size it was,
-  // can't even see what it is."
+  //   OPTIONS                            92 x 15 px
+  //   "CHAMPAGNE RELAY" in  92px   ->  5.6px cap   what he asked for
+  //   "MUSIC"           in  92px   -> 14.9px cap   comfortable at that width
+  //
+  // THE BOTTLE IS DRAWN AT ROW HEIGHT, NOT AT THE TYPE'S CAP — unchanged, per
+  // the client's separate, standing instruction: "leave the champagne bottle
+  // the size it was, can't even see what it is."
   const CAP = 0.72;        // cap height as a fraction of font size, bold system-ui
   const ICON_H = 0.86;     // bottle and checkbox, as a fraction of row height
+  // The bottle art's OWN aspect ratio (54x168, measured off the file) rather
+  // than a guessed 0.62 — that guess reserved almost twice the width the
+  // bottle actually draws at, which at OPTIONS' own tight width is space the
+  // label needs.
+  const BOTTLE_ASPECT = 54 / 168;
 
-  function rowFont(m) {
-    const maxPx = m.h / CAP;               // never taller than OPTIONS
-    const avail = m.leftRoom;              // its own column, not OPTIONS' width
-    const icon = m.h * ICON_H;
+  // Step the font down from `maxPx` (the CAP ceiling — never taller than
+  // OPTIONS) until `label` plus whatever else shares the row (`extra`, a
+  // function of the trial px since a gap scales with type) fits `targetW`.
+  function fitToWidth(label, maxPx, targetW, extra) {
     ctx.save();
     let px = maxPx;
-    for (; px > 5; px -= 0.25) {
+    for (; px > 4; px -= 0.25) {
       ctx.font = `700 ${px}px system-ui, sans-serif`;
-      if (ctx.measureText(RELAY_LABEL).width + icon * 0.62 + px * 0.34 <= avail) break;
+      if (ctx.measureText(label).width + extra(px) <= targetW) break;
     }
     ctx.restore();
     return px;
   }
 
-  function textW(label, px) {
-    ctx.save();
-    ctx.font = `700 ${px}px system-ui, sans-serif`;
-    const w = ctx.measureText(label).width;
-    ctx.restore();
-    return w;
-  }
-
   function relayRect(box) {
     const m = rowMetrics(box);
     if (!m) return null;
-    const px = rowFont(m);
+    const w = Math.min(m.leftRoom, m.w);           // OPTIONS' own width
     const ih = m.h * ICON_H;
-    const iconW = ih * 0.62;             // the bottle is tall and narrow
-    const gap = px * 0.34;
-    const w = Math.min(m.leftRoom, textW(RELAY_LABEL, px) + iconW + gap);
+    const iconW = ih * BOTTLE_ASPECT;
+    const px = fitToWidth(RELAY_LABEL, m.h / CAP, w, (p) => iconW + p * 0.30);
+    const gap = px * 0.30;
     return { x: m.leftCx - w / 2, y: m.cy - m.h / 2, w, h: m.h,
       iconW, ih, gap, fontPx: px };
   }
@@ -749,10 +773,10 @@ export function createTitle(ctx, canvas, still) {
   function musicRect(box) {
     const m = rowMetrics(box);
     if (!m) return null;
-    const px = rowFont(m);               // the SAME size the relay row uses
-    const boxSz = m.h * ICON_H;          // and the same icon height
-    const gap = px * 0.38;
-    const w = Math.min(m.rightRoom, textW(MUSIC_LABEL, px) + boxSz + gap);
+    const w = Math.min(m.rightRoom, m.w);          // the SAME width RELAY uses
+    const boxSz = m.h * ICON_H;                    // the checkbox, unchanged
+    const px = fitToWidth(MUSIC_LABEL, m.h / CAP, w, (p) => boxSz + p * 0.34);
+    const gap = px * 0.34;
     return { x: m.rightCx - w / 2, y: m.cy - m.h / 2, w, h: m.h, boxSz, gap,
       fontPx: px };
   }
