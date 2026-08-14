@@ -1226,6 +1226,45 @@ structural one (`unlock()` never touches the element; the one line that did
 call `.play()` ran a frame late) rather than an assumption, but it should be
 confirmed on the client's own phone before being called closed.
 
+### The board had no way out but a small ✕ in the corner
+
+Client: *"when I pulled a leaderboard up, I have no way to get back to the
+main screen cause it just takes me back to the settings... how can I get out
+of options? How can I get out of the leaderboard? Do you look at that flow
+in that logic and make sure it is standard?"*
+
+`src/ui/panel.js` has three views — `board` (the leaderboard, and the panel's
+HOME view: OPTIONS opens straight to it), `form` (contest sign-up) and
+`settings` — and two of the three already had a labelled, bottom-of-card
+`.btn.ghost` to step back: the form's NOT NOW and settings' BACK both call
+`show('board')`. The board itself had nothing at that level — its only exit
+was `#panelClose`, a small ✕ in the header, a different shape and place from
+the other two. `#btnBoardClose` ("BACK TO GAME") in `index.html`'s `#pvBoard`
+closes the same way ✕ does (`api.close()`), just where a thumb already
+expects one after using the other two views.
+
+Verified with a new harness, `tools/harness/panelnav.mjs` (9 checks): OPTIONS
+opens to the board; SETTINGS and BACK step there and back; ENTER THE CONTEST
+and NOT NOW do the same for the form; the new button closes the panel and
+returns to the title; ✕ still closes from two levels deep (settings); the
+game is still playable afterward.
+
+⚠️ **The first version of this harness failed, and it was the harness, not
+the app.** Reopening the panel with `page.touchscreen.tap()` a second time —
+after buttons already existed at that same point on screen — landed on ENTER
+THE CONTEST instead of opening fresh to the board. Traced with temporary
+`console.log`s in `show()`/`open()`: `panel.open('board')` fired correctly
+every time, immediately followed by an UNASKED-FOR `show('form')` from
+`btnRegister`'s own click handler. Playwright's touch emulation fires a
+touchstart/touchend AND a delayed synthesized mouse `click` at the same
+coordinates; the first opens the panel (canvas `pointerdown`), and by the
+time the synthesized click lands a moment later, a real button now sits at
+that exact point and eats it. Switching the harness's re-open helper from
+`touchscreen.tap()` to `mouse.click()` (one real click, nothing synthesized
+after it) fixed the harness; the underlying navigation code was never wrong.
+Worth remembering for any future harness that taps a coordinate a SECOND
+time once new UI can appear there.
+
 ---
 
 ## Button feedback: click, confirm, and a tick under the thumb

@@ -381,6 +381,16 @@
         <p id="boardNote" class="note"></p>
         <button class="btn" id="btnRegister" type="button">ENTER THE CONTEST</button>
         <button class="btn ghost" id="btnSettings" type="button">SETTINGS</button>
+        <!-- The board is the panel's HOME view (OPTIONS opens straight to it),
+             and until now the only way out of it was the small ✕ in the
+             corner — every OTHER view had its own bottom, thumb-reachable
+             ghost button (NOT NOW, BACK) and this one did not. Client: "I
+             need to be able to go back one level, and then from there back
+             another level... how can I get out of the leaderboard?" Same
+             shape as the other two, so the exit is never a hunt: BACK TO
+             GAME closes the panel exactly like ✕ does, just where a thumb
+             already expects to find it. -->
+        <button class="btn ghost" id="btnBoardClose" type="button">BACK TO GAME</button>
       </div>
 
       <div id="pvForm" class="pv" hidden>

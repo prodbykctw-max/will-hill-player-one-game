@@ -264,7 +264,18 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
   }
 
   // ── wiring ────────────────────────────────────────────────────────────
+  //
+  // ONE LEVEL OF BACK PER VIEW, AND EVERY VIEW HAS ONE. Client: "when I'm
+  // done the leaderboard, I need to be able to go back one level, and then
+  // from there back another level... how can I get out of options? How can
+  // I get out of the leaderboard?" The board is the panel's home view
+  // (OPTIONS opens straight to it), so its "back" is the panel itself
+  // closing — same destination as ✕, same 'back' cue, just a second,
+  // thumb-reachable way to reach it instead of only the corner icon. Form
+  // and settings both already stepped back to the board; this is what was
+  // missing from the board's own step, not a new idea.
   on('panelClose', 'back', () => api.close());
+  on('btnBoardClose', 'back', () => api.close());
   on('btnRegister', 'press', () => show('form'));
   on('btnSettings', 'press', () => show('settings'));
   on('btnBack', 'back', () => show('board'));
