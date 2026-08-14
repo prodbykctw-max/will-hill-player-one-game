@@ -607,7 +607,23 @@ function update() {
   // The aura is topped up every tick rather than granted once, so it cannot
   // run out mid-stage however long he spends looking at a fence.
   if (isRelay()) {
-    grantInvulnerability(player, now, CHAMPAGNE_SECONDS);
+    // ⚠️ TOP UP ONLY WHEN IT IS ABOUT TO LAPSE, not every tick.
+    //
+    // Re-granting the full window on every frame pins the remaining time at
+    // its maximum, and the grow ramp is driven by how much has ELAPSED — so
+    // `since` never left zero and the walkthrough build never showed the
+    // transformation at all. Will Hill stayed his normal size for the whole
+    // board with a full aura around him, which is the one combination that
+    // looks like a bug. Found by screenshotting the bags in relay and noticing
+    // that neither they NOR he had grown.
+    //
+    // A single 1.2s-from-lapse top-up lets the ramp run to its settled +30%
+    // and hold there. The cost is that the Mario stutter replays on each
+    // renewal, roughly every eight seconds — a tic, in a build whose whole
+    // purpose is standing still and looking at scenery.
+    if (player.invulnerableUntil - now < 1200) {
+      grantInvulnerability(player, now, CHAMPAGNE_SECONDS);
+    }
     // Remember the last ground he actually stood on. Catching a fall by
     // snapping him back to standing height at his CURRENT x would drop him
     // straight back down the same hole; putting him where he took off from
@@ -1030,7 +1046,18 @@ function draw() {
     // light rather than having it painted over them.
     renderer.lighting.drawGroundPools(camera, stage);
     renderer.drawFinishLine(finishLineX(level), state.tick);
-    for (const bag of level.bags) renderer.drawPickup(bag, images.bag, state.tick, 'rgba(255,206,110,0.30)');
+    // The bags ride Will Hill's own power curve — they swell while they are
+    // paying double and shrink back when that stops. The BOTTLES do not: a
+    // bottle you have not picked up yet is not part of the effect, and growing
+    // the next one while the last is still burning would say it is.
+    // Date.now() here, not the update loop's `now` — that one is local to
+    // stepWorld and this is the draw. Same clock, read again.
+    const champMs = Math.max(0, player.invulnerableUntil - Date.now());
+    // Grown AND blue while the champagne is lit — the two say the same thing,
+    // that these are paying double right now. The glow goes cool with them.
+    const bagImg = champMs > 0 ? images.bagBlue : images.bag;
+    const bagGlow = champMs > 0 ? 'rgba(120,180,255,0.34)' : 'rgba(255,206,110,0.30)';
+    for (const bag of level.bags) renderer.drawPickup(bag, bagImg, state.tick, bagGlow, champMs);
     for (const bottle of level.champagnes) renderer.drawPickup(bottle, images.champagne, state.tick, 'rgba(255,240,170,0.34)');
     for (const hz of level.obstacles) renderer.drawHazard(hz);
     // STOMP-OUT draw order: the enemy in the `back` slot goes down BEFORE the
@@ -1105,6 +1132,7 @@ const loop = createLoop({ update, draw });
 const imageManifest = {
   player: PLAYER_SPRITE.url,
   bag: PROP_SPRITES.bag,
+  bagBlue: PROP_SPRITES.bagBlue,
   champagne: PROP_SPRITES.champagne,
   // The client's stylized MARTA rail map, for the between-stage screen.
   martamap: martaMapArt,
