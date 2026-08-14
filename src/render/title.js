@@ -469,99 +469,151 @@ export function createTitle(ctx, canvas, still) {
   //
   // Each control is sized to ITS OWN slot rather than to a fixed number, so a
   // narrow phone shrinks the pill instead of running it off the edge.
-  // Measured off the painting: OPTIONS is 167 x 27 source px at x342..509 of
-  // 853, so it is centred, and the two slots either side of it are 342 and 344
-  // columns — equal, which is what lets the row be symmetric.
-  const ROW_GAP = 12;      // between a control and the word
-  const EDGE_PAD = 10;     // between a control and the frame
+  // ── THREE COLUMNS, OPTIONS IN THE MIDDLE ─────────────────────────────────
+  //
+  // Client: "imagine the OPTIONS button sits in the middle of the row — there
+  // should be two equally displaced columns left and right of it. Centre MUSIC
+  // in its own column, centre CHAMPAGNE RELAY in its own column, and none of
+  // these should be wider or taller than OPTIONS."
+  //
+  // So OPTIONS is the unit everything else is measured in, which is right: it
+  // is painted into the artwork and cannot move, so it is the fixed element.
+  // Measured, it is 167 x 27 source px at x342..509 of 853 — centred to within
+  // a pixel of the plate's own centre line, which is what makes a symmetric
+  // three-column row possible at all.
+  //
+  // The columns are the FREE SPACE either side of the word, and each control
+  // is centred in its own. Taking the midpoint of the free space rather than
+  // thirds of the frame means the two are equally displaced from OPTIONS by
+  // construction, whatever the screen does.
+  //
+  // AND THE PILL IS GONE. It was a rounded box with a border around the words,
+  // which is the one thing on this card that was not his aesthetic — "just
+  // leave the champagne bottle and the text." Now it is the bottle and the
+  // label, nothing drawn behind them, same as OPTIONS itself.
+  const COL_PAD = 8;
 
   function rowMetrics(box) {
     const o = optionsRect(box);
     if (!o) return null;
     return {
       o,
-      // NO TALLER THAN OPTIONS. The client asked for uniformity and the word
-      // is the fixed element — it is painted, so everything else matches it
-      // rather than the other way round. The DRAWN box is this small; the HIT
-      // box is not, because hit() adds HIT_MARGIN on every side.
-      h: o.h,
+      h: o.h,                       // no taller than OPTIONS
+      maxW: o.w,                    // no wider than OPTIONS
       cy: o.y + o.h / 2,
-      leftW: Math.max(0, o.x - ROW_GAP - EDGE_PAD),
-      rightW: Math.max(0, canvas.width - EDGE_PAD - (o.x + o.w + ROW_GAP)),
+      leftCx: o.x / 2,
+      rightCx: (o.x + o.w + canvas.width) / 2,
+      leftRoom: Math.max(0, o.x - COL_PAD * 2),
+      rightRoom: Math.max(0, canvas.width - (o.x + o.w) - COL_PAD * 2),
     };
   }
 
-  // THE TYPE IS FITTED TO THE SLOT, NOT CLIPPED TO IT. The previous pass sized
-  // the pill with Math.min(slotWidth, wanted) and then drew the label at full
-  // size inside it, so on a narrow slot the box shrank and the words did not:
-  // "the words are coming out of the pill." Shrinking the FONT until the label
-  // plus its furniture fits is the fix, and it degrades gracefully — a narrow
-  // phone gets smaller type rather than a broken control.
-  function fitFont(label, avail, extra, maxPx) {
+  // ── ONE SIZE FOR THE WHOLE ROW ───────────────────────────────────────────
+  //
+  // Client: "make the word CHAMPAGNE RELAY the same height as the champagne
+  // bottle, or equal to the same height as the OPTIONS button" — on top of
+  // "none of these should be wider or taller than OPTIONS."
+  //
+  // Those two cannot both hold at full size, and the arithmetic says so
+  // plainly. OPTIONS is 27 source rows tall, about 15px on his phone. Type
+  // with a 15px cap height is a ~21px font, and CHAMPAGNE RELAY set at 21px
+  // bold measures around 180px — twice OPTIONS' 92px width. Something has to
+  // give, and it is not the width, because he asked for that twice.
+  //
+  // So the row gets ONE size, and it is the largest that fits its tightest
+  // member. CHAMPAGNE RELAY is the long label, so it sets the size; MUSIC uses
+  // the same one and simply takes less room. The bottle and the checkbox are
+  // then drawn at the TYPE'S CAP HEIGHT rather than at the row height, which
+  // is the part he was actually looking at — a 13px bottle beside 9px letters
+  // reads as mismatched no matter how tidily the box is placed.
+  //
+  // Solving it is slightly circular — the icon is as tall as the type, and the
+  // type has to fit around the icon — so it is stepped rather than derived.
+  // MEASURED ON HIS PHONE, because the two constraints fight and the numbers
+  // decide which one bends:
+  //
+  //   OPTIONS                            92 x 15 px
+  //   a column beside it                173 px wide
+  //   "CHAMPAGNE RELAY" in  92px   ->  5.6px cap   unreadable
+  //   "CHAMPAGNE RELAY" in 173px   -> 10.4px cap   fine
+  //   "RELAY"           in  92px   -> 14.9px cap   matches OPTIONS exactly
+  //
+  // So the full label CANNOT be OPTIONS-height at OPTIONS-width; fifteen
+  // characters do not go into ninety-two pixels at any readable size. Width is
+  // the constraint that bends, and it bends to the COLUMN rather than to the
+  // word — each control is still centred in its own column and still no taller
+  // than OPTIONS, which is the uniformity that reads. (Shortening the label to
+  // RELAY would satisfy both at once and is a branding decision, not mine.)
+  //
+  // THE BOTTLE IS DRAWN AT ROW HEIGHT, NOT AT THE TYPE'S CAP. Matching it to
+  // the cap made it 9px tall and, on a bottle silhouette that is mostly neck,
+  // about three pixels wide: "leave the champagne bottle the size it was,
+  // can't even see what it is."
+  const CAP = 0.72;        // cap height as a fraction of font size, bold system-ui
+  const ICON_H = 0.86;     // bottle and checkbox, as a fraction of row height
+
+  function rowFont(m) {
+    const maxPx = m.h / CAP;               // never taller than OPTIONS
+    const avail = m.leftRoom;              // its own column, not OPTIONS' width
+    const icon = m.h * ICON_H;
     ctx.save();
     let px = maxPx;
-    let w = Infinity;
-    for (; px > 6; px -= 0.5) {
+    for (; px > 5; px -= 0.25) {
       ctx.font = `700 ${px}px system-ui, sans-serif`;
-      w = ctx.measureText(label).width;
-      if (w + extra <= avail) break;
+      if (ctx.measureText(RELAY_LABEL).width + icon * 0.62 + px * 0.34 <= avail) break;
     }
     ctx.restore();
-    return { px, w };
+    return px;
+  }
+
+  function textW(label, px) {
+    ctx.save();
+    ctx.font = `700 ${px}px system-ui, sans-serif`;
+    const w = ctx.measureText(label).width;
+    ctx.restore();
+    return w;
   }
 
   function relayRect(box) {
     const m = rowMetrics(box);
     if (!m) return null;
-    const h = m.h;
-    const pad = h * 0.46;
-    const iconW = h * 0.72;
-    const extra = pad * 2 + iconW + pad * 0.55;
-    const f = fitFont(RELAY_LABEL, m.leftW, extra, h * 0.80);
-    const w = Math.min(m.leftW, f.w + extra);
-    // FLUSH LEFT against the frame, with MUSIC flush right, so the padding
-    // either side of the row matches and the three read as one line. Tucking
-    // both in against OPTIONS instead left them huddled in the middle with all
-    // the space at the edges — the client: "the music button should be further
-    // to the right, we need proper padding and spacing."
-    return { x: EDGE_PAD, y: m.cy - h / 2, w, h, pad, iconW, fontPx: f.px };
+    const px = rowFont(m);
+    const ih = m.h * ICON_H;
+    const iconW = ih * 0.62;             // the bottle is tall and narrow
+    const gap = px * 0.34;
+    const w = Math.min(m.leftRoom, textW(RELAY_LABEL, px) + iconW + gap);
+    return { x: m.leftCx - w / 2, y: m.cy - m.h / 2, w, h: m.h,
+      iconW, ih, gap, fontPx: px };
   }
 
   function drawRelay(box, champImg, tick) {
     const r = relayRect(box);
     if (!r) return;
-    const rad = r.h / 2;
-    // A slow breath, out of phase with both the prompt and OPTIONS, so three
-    // pressable things on one card never pulse together and read as one.
+    // NO PILL. It was a bordered rounded box behind the words and it was the
+    // one thing on this card that was not his artwork. Client: "just leave the
+    // champagne bottle and the text." The breath stays, carried on the ink
+    // instead of on a border — slow, and out of phase with both PRESS START
+    // and OPTIONS, so three pressable things never pulse together and read as
+    // one object.
     const glow = 0.5 + 0.5 * Math.sin(tick / 46 + 2.1);
     ctx.save();
-    ctx.beginPath();
-    if (ctx.roundRect) ctx.roundRect(r.x, r.y, r.w, r.h, rad);
-    else ctx.rect(r.x, r.y, r.w, r.h);
-    ctx.fillStyle = 'rgba(12,8,20,0.72)';
-    ctx.fill();
-    ctx.lineWidth = 1.5;
-    ctx.strokeStyle = `rgba(255,214,110,${0.42 + 0.30 * glow})`;
-    ctx.stroke();
-
-    const ih = r.h * 0.78;
-    const ix = r.x + r.pad;
+    ctx.textBaseline = 'middle';
+    ctx.font = `700 ${r.fontPx}px system-ui, sans-serif`;
+    const ih = r.ih;
+    let x = r.x;
     if (champImg && champImg.width) {
       const iw = ih * (champImg.width / champImg.height);
       ctx.imageSmoothingEnabled = false;
-      ctx.drawImage(champImg, ix, r.y + (r.h - ih) / 2, iw, ih);
-      ctx.textAlign = 'left';
-      ctx.fillStyle = '#ffd66e';
-      ctx.font = `700 ${r.fontPx}px system-ui, sans-serif`;
-      ctx.textBaseline = 'middle';
-      ctx.fillText(RELAY_LABEL, ix + iw + r.pad * 0.55, r.y + r.h / 2 + 1);
-    } else {
-      ctx.textAlign = 'center';
-      ctx.fillStyle = '#ffd66e';
-      ctx.font = `700 ${r.fontPx}px system-ui, sans-serif`;
-      ctx.textBaseline = 'middle';
-      ctx.fillText(RELAY_LABEL, r.x + r.w / 2, r.y + r.h / 2 + 1);
+      ctx.drawImage(champImg, x, r.y + (r.h - ih) / 2, iw, ih);
+      x += iw + r.gap;
     }
+    // A soft warm halo under the type does what the border used to do — marks
+    // it pressable — without putting a shape on his painting.
+    ctx.shadowColor = `rgba(255,196,90,${0.30 + 0.34 * glow})`;
+    ctx.shadowBlur = r.h * 0.5;
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#ffd66e';
+    ctx.fillText(RELAY_LABEL, x, r.y + r.h / 2 + 1);
     ctx.restore();
   }
 
@@ -587,14 +639,12 @@ export function createTitle(ctx, canvas, still) {
   function musicRect(box) {
     const m = rowMetrics(box);
     if (!m) return null;
-    const h = m.h;
-    const boxSz = h * 0.74;
-    const extra = boxSz + h * 0.38;
-    const f = fitFont(MUSIC_LABEL, m.rightW, extra, h * 0.80);
-    const w = Math.min(m.rightW, f.w + extra);
-    // Flush right, mirroring the pill on the left.
-    return { x: canvas.width - EDGE_PAD - w, y: m.cy - h / 2, w, h, boxSz,
-      fontPx: f.px };
+    const px = rowFont(m);               // the SAME size the relay row uses
+    const boxSz = m.h * ICON_H;          // and the same icon height
+    const gap = px * 0.38;
+    const w = Math.min(m.rightRoom, textW(MUSIC_LABEL, px) + boxSz + gap);
+    return { x: m.rightCx - w / 2, y: m.cy - m.h / 2, w, h: m.h, boxSz, gap,
+      fontPx: px };
   }
 
   function drawMusic(box, on, tick) {
