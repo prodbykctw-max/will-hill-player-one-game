@@ -44,7 +44,9 @@
 import titleBase from '../assets/backgrounds/title-portrait.webp';
 // The portrait plate's own cards, SAM-cut. The base is NOT cut — these are
 // drawn over a whole painting, which is the rule everywhere in this game now.
+import tpWordmark from '../assets/backgrounds/titlep-wordmark.webp';
 import tpLogo from '../assets/backgrounds/titlep-logo.webp';
+import tpStars from '../assets/backgrounds/titlep-stars.webp';
 import tpSignL from '../assets/backgrounds/titlep-signL.webp';
 import tpSignR from '../assets/backgrounds/titlep-signR.webp';
 import tpHero from '../assets/backgrounds/titlep-hero.webp';
@@ -109,7 +111,8 @@ export const CLOUD_SPRITES = CLOUD_LIST.map((s, i) => ({
 // Loaded through the same manifest as everything else; see main.js.
 export const TITLE_IMAGES = {
   title_base: titleBase,
-  tp_logo: tpLogo, tp_signL: tpSignL, tp_signR: tpSignR,
+  tp_wordmark: tpWordmark, tp_logo: tpLogo, tp_stars: tpStars,
+  tp_signL: tpSignL, tp_signR: tpSignR,
   tp_hero: tpHero, tp_pole: tpPole,
   title_options: titleOptions,
   ...Object.fromEntries(CLOUD_SPRITES.map((s) => [s.key, s.url])),
@@ -243,8 +246,17 @@ export function titleCards(images) {
 //
 // Spans and pivots are read off each card's own emitted bounding box
 // (title-portrait-planes.json), not eyeballed off a screenshot.
+// ⚠️ THE WORDMARK IS THREE CARDS NOW, NOT ONE. tools/cut_title_extras.py split
+// what `tp_logo` used to carry alone: WILL HILL: (tp_wordmark, never a card at
+// all before — it lived in the undoubled backdrop and could not appear until
+// the whole base faded up, after PLAYER ONE), PLAYER ONE re-cut clean of the
+// sky fringing and star fragment SAM's mask used to drag in, and both red
+// stars as their own card (tp_stars) so they can land on PLAYER ONE's own
+// beat. See INTRO below for the order this earns them.
 const CARD_SPEC = [
+  { key: 'tp_wordmark', depth: 0.04 },
   { key: 'tp_logo', depth: 0.05 },
+  { key: 'tp_stars', depth: 0.06 },
   {
     key: 'tp_signL', depth: 0.44,
     sway: [{ top: 0.398, pivot: 0.632, ampFrac: 0.0040, freq: 1.0,
@@ -277,6 +289,11 @@ export function createTitle(ctx, canvas, still) {
     const box = still.draw(images.title_base, titleCards(images), tick,
       TITLE_ZOOM, TITLE_BIAS, fx, TITLE_SAFE);
     still.pulsePrompt(box, PROMPT, SRC_W, SRC_H, tick);
+    // Client: "gleam off his chain... glimmer, glisten or glow off the red
+    // stars." Held back until the card is fully settled — see drawGlints — so
+    // the shimmer reads as the finished screen's own idle life rather than as
+    // one more thing competing with the assembly.
+    if (!splash) drawGlints(box, tick);
     // The two controls that are NOT part of the painting come up with the last
     // layer, so the page finishes as the menu instead of cutting to it.
     const a = splash ? splashControlAlpha(introT || 0) : 1;
@@ -289,6 +306,86 @@ export function createTitle(ctx, canvas, still) {
       ctx.restore();
     }
     return box;
+  }
+
+  // ── THE GLEAM, AND THE GLISTEN ────────────────────────────────────────────
+  //
+  // Client: "make it glistening a little bit like maybe a little gleam or
+  // glisten come off his chain, and glimmer glisten or glow come off the red
+  // stars as well."
+  //
+  // NOT A BREATHING GLOW — that is already spoken for. PRESS START, OPTIONS
+  // and the drawn controls all use the same slow always-on pulse (pulseRect /
+  // the shadowBlur breath on CHAMPAGNE RELAY) to say "you can press this."
+  // A chain and two painted stars are not buttons, so borrowing that language
+  // would tell the player they are. What jewellery and starlight actually do
+  // is CATCH light and let it go — a brief flash, then dark again for a
+  // while — so this is a short flare on a long, staggered cycle instead of a
+  // continuous breath.
+  //
+  // Three points, read straight off the plate (python3+PIL, not eyeballed):
+  // his chain's centroid, and the centroid of each red star individually.
+  // Different periods and phases per point so the three never flash together
+  // and read as one blinking unit — a chain catching the light does not do it
+  // on the same beat a star does.
+  // `r` is a radius in the PLATE'S OWN PIXELS (853x1844), scaled to the screen
+  // in drawGlints the same way every other measured rect in this file is —
+  // 15 on the chain is about a third of its own 48x52 bbox; 11 on a star is
+  // about the star's own size, so it reads as the star itself catching light
+  // rather than a separate glow sitting near it.
+  const GLINTS = [
+    { x: 409 / SRC_W, y: 1062 / SRC_H, r: 15, period: 260, phase: 0, hue: '255,224,150' },
+    { x: 48 / SRC_W, y: 338 / SRC_H, r: 11, period: 310, phase: 90, hue: '255,120,120' },
+    { x: 808 / SRC_W, y: 339 / SRC_H, r: 11, period: 340, phase: 200, hue: '255,120,120' },
+  ];
+
+  // A brief flare, most of its cycle dark. u sweeps 0..1 across `period`
+  // ticks; the flash itself lives in a narrow window near u=0 so the point
+  // sits quiet for several seconds between catches of light.
+  function glintAlpha(tick, g) {
+    const u = ((tick + g.phase) % g.period) / g.period;
+    const flare = Math.max(0, 1 - u * 9);           // narrow: on for ~1/9 of the cycle
+    return flare * flare * flare;                    // cubic, so it snaps in and eases out
+  }
+
+  // A four-point sparkle — a bright core plus two crossed blades — which is
+  // what a catch of light on a hard edge (a chain link, a star's point) reads
+  // as, rather than the soft round glow the pulse buttons use.
+  function drawSparkle(cx, cy, r, a, hue) {
+    if (a <= 0.002) return;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.translate(cx, cy);
+    const core = ctx.createRadialGradient(0, 0, 0, 0, 0, r * 0.55);
+    core.addColorStop(0, `rgba(${hue},${a})`);
+    core.addColorStop(1, `rgba(${hue},0)`);
+    ctx.fillStyle = core;
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 0.55, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = `rgba(${hue},${a * 0.85})`;
+    ctx.lineWidth = Math.max(1, r * 0.09);
+    ctx.lineCap = 'round';
+    for (const rot of [0, Math.PI / 2]) {
+      ctx.save();
+      ctx.rotate(rot);
+      ctx.beginPath();
+      ctx.moveTo(-r, 0);
+      ctx.lineTo(r, 0);
+      ctx.stroke();
+      ctx.restore();
+    }
+    ctx.restore();
+  }
+
+  function drawGlints(box, tick) {
+    if (!box) return;
+    const S = box.dw / SRC_W;          // r above is in the plate's own pixels
+    for (const g of GLINTS) {
+      const a = glintAlpha(tick, g);
+      if (a <= 0.002) continue;
+      drawSparkle(box.dx + g.x * box.dw, box.dy + g.y * box.dh, g.r * S, a, g.hue);
+    }
   }
 
   // ── THE CARD BUILDING ITSELF ─────────────────────────────────────────────
@@ -333,12 +430,25 @@ export function createTitle(ctx, canvas, still) {
   //
   // Indices are positions in titleCards(). A card added there without a line
   // here simply arrives at rest, which is the safe failure.
+  // ── THE ORDER: STREET FIRST, THEN HIS NAME, THEN THE TITLE ───────────────
+  //
+  // Client: "Will Hill's name should come in first after everything settles...
+  // I want the stars to land with the words PLAYER ONE at the same time."
+  //
+  // So this is now three beats, not one:
+  //   1. the street furniture — signs, hero, pole — same timing as before,
+  //      all landed by tick 74.
+  //   2. WILL HILL: drops in AFTER that, alone, and settles.
+  //   3. PLAYER ONE and both stars drop in TOGETHER, last — same t0/t1 on
+  //      purpose, so nothing separates their landing by even one tick.
   const INTRO = [
-    { from: [0.00, -0.34], t0: 24, t1: 78 },   // 0 the title, dropping in
-    { from: [-0.46, 0.05], t0: 8, t1: 56 },    // 1 left gantry, off frame
-    { from: [0.46, 0.05], t0: 14, t1: 62 },    // 2 right gantry
-    { from: [0.00, 0.44], t0: 20, t1: 74 },    // 3 Will Hill, up off the street
-    { from: [0.34, 0.00], t0: 4, t1: 58 },     // 4 the pole, in from the kerb
+    { from: [0.00, -0.34], t0: 76, t1: 112 },   // 0 WILL HILL:, after the street settles
+    { from: [0.00, -0.34], t0: 112, t1: 148 },  // 1 PLAYER ONE — lands WITH the stars
+    { from: [0.00, -0.30], t0: 112, t1: 148 },  // 2 both stars — same beat as PLAYER ONE
+    { from: [-0.46, 0.05], t0: 8, t1: 56 },     // 3 left gantry, off frame
+    { from: [0.46, 0.05], t0: 14, t1: 62 },     // 4 right gantry
+    { from: [0.00, 0.44], t0: 20, t1: 74 },     // 5 Will Hill, up off the street
+    { from: [0.34, 0.00], t0: 4, t1: 58 },      // 6 the pole, in from the kerb
   ];
   const LAST_LAND = titleCards().length
     ? Math.max(...INTRO.slice(0, titleCards().length).map((c) => c.t1)) : 0;
