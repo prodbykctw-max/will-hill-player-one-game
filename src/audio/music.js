@@ -84,8 +84,17 @@ export const MANIFEST = {
   stage_04:  { src: mStage04, loop: true,  gain: 0.50, startAt: 0 },  // lonliness 2        @ 0:26.8
   // An interlude, under a frozen screen — quieter, so it does not pull focus.
   ui_pause:  { src: mPause,   loop: true,  gain: 0.38, startAt: 0 },  // doggzzz            @ 0:40.0
-  // The ONLY cue that plays start to finish instead of looping.
-  credits:   { src: mCredits, loop: false, gain: 0.60, startAt: 0 },  // Project 9          @ 1:57.5
+  // ⚠️ THIS LOOPS NOW. It was the one cue set to play start-to-finish, and
+  // the ending screen has no time limit — so anyone who sat on the results
+  // board longer than 41 seconds watched the credits play out and then sat
+  // in silence. Client had it on the list as "the ending goes silent".
+  //
+  // Safe to loop because it was never a raw track: tools/cut_loop.py cut
+  // every one of these to a length whose end genuinely runs back into its own
+  // start, searched by cross-correlation. musiccheck.mjs confirms this file
+  // is 41.4s against a cut plan of 41.4, i.e. it is the loop-ready cut, so
+  // `loop` here wraps at the point that was chosen for wrapping.
+  credits:   { src: mCredits, loop: true,  gain: 0.60, startAt: 0 },  // Project 9          @ 1:57.5
 };
 
 // Which cue belongs to which stage index, so main.js never builds a slot name
@@ -119,7 +128,16 @@ const DUCK_MS = 260;   // how long it stays down before recovering
 // sitting alongside it, so nothing clips. Anything past about +6 dB starts
 // eating that margin, and past +7 the no-WebAudio fallback clamps (element
 // volume cannot exceed 1.0) and the boost silently stops applying.
-const BOOST_DB = 3.0;
+// Client asked for another +2 on top of the +3 that was already here, and
+// asked for it "an increment at a time" — so this is 5, not a jump to some
+// number nobody measured. Headroom re-checked at +5 dB (x1.778): the loudest
+// cue is credits at 0.60 -> 1.067, times the file's -1 dBFS peak (0.891) =
+// 0.950, times master 0.85 = 0.808 at the destination. Still under full
+// scale with room for the effects alongside it, but this is now the last
+// increment that is comfortable: past about +6 dB the margin goes, and past
+// +7 the no-WebAudio fallback silently stops applying it because an element's
+// volume cannot exceed 1.0.
+const BOOST_DB = 5.0;
 const BOOST = 10 ** (BOOST_DB / 20);
 
 export function createMusic(getContext, getMaster) {

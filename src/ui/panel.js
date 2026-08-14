@@ -172,9 +172,15 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
     // actually is rather than pretending to be a rank.
     const local = localRuns();
     const best = local.reduce((m, r) => Math.max(m, Number(r.score) || 0), 0);
+    // ⚠️ NOTHING HERE SAYS "NOT LIVE YET". Client: anything that "speaks
+    // about the game as if it's not live already" comes out. These two lines
+    // are the only copy in the whole game that did — and they are the
+    // FALLBACK shown when the Worker returns nothing, which is also what a
+    // dropped connection looks like, so announcing a launch date was wrong in
+    // that case too. They now say what is actually true: no scores came back.
     const waiting = best
-      ? `Your best on this device: ${best.toLocaleString()}. The board opens when the contest goes live.`
-      : 'The board opens when the contest goes live.';
+      ? `Your best on this device: ${best.toLocaleString()}.`
+      : 'No scores to show yet.';
 
     render(withWillHill([]), 'Loading…');
     lbTop(20, (runs) => {

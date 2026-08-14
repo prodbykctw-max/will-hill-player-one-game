@@ -137,6 +137,21 @@ def main():
     # Label the GROWN clouds, but identify them by the strict-key bbox the
     # agreed coordinates were measured from — growing moves an outline, and
     # the pinned set must not drift underneath it.
+    # ── WHAT IS MASONRY, decided once and used twice ─────────────────────
+    #
+    # Sky is whatever the open air along the top of the frame can reach,
+    # travelling through sky and cloud; anything it cannot reach is enclosed,
+    # and enclosed means building. Computed here rather than further down
+    # because the DONOR SEARCH needs it too — see the note there.
+    openable = sky | cloud | protect
+    seed0 = np.zeros((H, W), bool)
+    seed0[0:3, :] = openable[0:3, :]
+    sky_open = ndimage.binary_propagation(seed0, mask=openable)
+    structure = ~sky_open
+    structure[660:, :] = True
+    structure = ndimage.binary_closing(structure, np.ones((3, 3), bool))
+    structure &= ~protect
+
     lab, n = ndimage.label(cloud)
     objs = ndimage.find_objects(lab)
     sizes = ndimage.sum(cloud, lab, range(1, n + 1))
@@ -245,6 +260,15 @@ def main():
     fillmask = ndimage.binary_dilation(take, iterations=DILATE)
     rgbf = rgb.astype(np.float32)
     clean = sky & ~cloud & ~protect & ~fillmask
+    # ⚠️ DONOR-SAFE IS NOT THE SAME AS `clean`. `clean` demands a saturated
+    # blue, and near the horizon the sky is hazy enough to fail that — so
+    # requiring a 100%-`clean` donor window pushed every low cloud's donor
+    # hundreds of rows up into the plain upper sky, which is SMOOTHER than
+    # where it was going (texture fell to 0.82 against real sky's 2.18) and
+    # needed a 29-level correction to sit right. What actually matters is
+    # that no BUILDING and no other CLOUD gets copied; hazy sky is still sky
+    # and is exactly the texture the low holes want.
+    donor_ok = ~structure & ~cloud & ~protect & ~fillmask
 
     filled = rgbf.copy()
     hl, hn = ndimage.label(fillmask)
@@ -256,6 +280,14 @@ def main():
         x0, x1 = sl[1].start, sl[1].stop
         h, w = y1 - y0, x1 - x0
         hole = (hl[sl] == i)
+        # Only the pixels that actually get pasted have to come from clean
+        # sky — plus a few for the feather. Demanding the whole RECTANGLE be
+        # clean is what forced the big left cloud's donor 364 rows up into the
+        # plain upper sky (smoother than where it was going, and needing a
+        # 29-level correction): a cloud is a wisp, and its bounding box is
+        # mostly the sky around it, so the rectangle test was rejecting
+        # perfectly good donors over pixels it was never going to copy.
+        need = ndimage.binary_dilation(hole, iterations=4)
         # The ring just outside this hole is what the donor has to agree with.
         ring = ndimage.binary_dilation(hole, iterations=4) & ~hole
         target = rgbf[sl][ring & clean[sl]] if (ring & clean[sl]).any() else None
@@ -266,8 +298,14 @@ def main():
         # at y424. So the search runs over a vertical offset too, preferring
         # to stay level (the gradient is vertical, so dy is what costs) and
         # correcting whatever difference is left off the boundary ring.
+        # ⚠️ CAPPED AT 150 ROWS ON PURPOSE. Left unbounded this search happily
+        # returned a donor 364 rows away for the big left cloud and so the
+        # strip fallback below never ran — a donor that far up is a different
+        # blue and a smoother texture, and needed a 50-level correction to sit
+        # anywhere near right. Better to admit no whole-hole donor exists and
+        # go band by band.
         best, bestx, besty = None, None, None
-        for dy in range(0, 260, 4):
+        for dy in range(0, 152, 4):
             for sgn in ((0,) if dy == 0 else (-1, 1)):
                 yd = y0 + sgn * dy
                 if yd < 0 or yd + h > 660:
@@ -276,7 +314,15 @@ def main():
                     if sgn == 0 and abs(xd - x0) < w // 3:
                         continue                # not its own hole
                     win = np.s_[yd:yd + h, xd:xd + w]
-                    if clean[win].mean() < 0.97:
+                    # ⚠️ THE DONOR MUST BE 100% OPEN SKY. A 97% threshold
+                    # sounds strict and is not: a building's ANTENNA is a
+                    # couple of pixels wide, so a whole spire fits inside the
+                    # 3% slack — and one duly got pasted into the sky where a
+                    # cloud used to be, leaving an antenna floating on its own
+                    # with no building under it. Client, on my own screenshot:
+                    # "your own image shows that you are wrong." Nothing but
+                    # sky may be copied, so the test is absolute.
+                    if not donor_ok[win][need].all():
                         continue
                     if target is None:
                         best, bestx, besty = 0, xd, yd
@@ -285,15 +331,70 @@ def main():
                     if len(cand) != len(target):
                         continue
                     # dy is penalised so a level donor wins ties.
-                    err = float(np.abs(cand - target).mean()) + dy * 0.02
+                    err = float(np.abs(cand - target).mean()) + dy * 0.08
                     if best is None or err < best:
                         best, bestx, besty = err, xd, yd
                 if best is not None and dy == 0 and target is None:
                     break
-            if best is not None and dy > 60:
+            if best is not None and dy > 120:
                 break                            # good enough, stop widening
         if bestx is None:
-            report.append((i, w, h, 'NO DONOR — left to the pyramid'))
+            # ⚠️ STRIPS, WHEN THE WHOLE HOLE CANNOT BE SOURCED AT ITS OWN
+            # HEIGHT. The big left cloud is a 183x102 wisp covering 59% of its
+            # box, and there is genuinely no clean sky that shape anywhere
+            # near its own rows — the nearest valid donor is 366 rows up, in
+            # the plain upper sky, which is both smoother and a different
+            # blue. Cutting the hole into short horizontal bands makes each
+            # one easy to source locally, and because a band is only a few
+            # rows tall the vertical gradient inside it is nearly flat, so a
+            # small dy costs almost nothing.
+            done_any = False
+            for sy in range(y0, y1, 24):
+                sh = min(24, y1 - sy)
+                ssl = np.s_[sy:sy + sh, x0:x1]
+                shole = (hl[ssl] == i)
+                if not shole.any():
+                    continue
+                sneed = ndimage.binary_dilation(shole, iterations=4)
+                sring = ndimage.binary_dilation(shole, iterations=4) & ~shole
+                stgt = rgbf[ssl][sring & clean[ssl]] if (sring & clean[ssl]).any() else None
+                sb, sbx, sby = None, None, None
+                for dy in range(0, 200, 2):
+                    for sgn in ((0,) if dy == 0 else (-1, 1)):
+                        yd = sy + sgn * dy
+                        if yd < 0 or yd + sh > 660:
+                            continue
+                        for xd in range(0, W - w + 1, 3):
+                            if sgn == 0 and abs(xd - x0) < w // 3:
+                                continue
+                            if not donor_ok[yd:yd + sh, xd:xd + w][sneed].all():
+                                continue
+                            if stgt is None:
+                                sb, sbx, sby = 0, xd, yd
+                                break
+                            cnd = rgbf[yd:yd + sh, xd:xd + w][sring & clean[ssl]]
+                            if len(cnd) != len(stgt):
+                                continue
+                            e = float(np.abs(cnd - stgt).mean()) + dy * 0.08
+                            if sb is None or e < sb:
+                                sb, sbx, sby = e, xd, yd
+                        if sb is not None and dy == 0:
+                            break
+                    if sb is not None and dy > 40:
+                        break
+                if sbx is None:
+                    continue
+                dn = rgbf[sby:sby + sh, sbx:sbx + w].copy()
+                if stgt is not None:
+                    dr = rgbf[sby:sby + sh, sbx:sbx + w][sring & clean[ssl]]
+                    dn += (stgt.mean(axis=0) - dr.mean(axis=0))
+                wg = ndimage.gaussian_filter(shole.astype(np.float32), 1.5)
+                wg = np.clip((wg - 0.12) / 0.7, 0, 1)
+                wg[shole] = 1.0
+                filled[ssl] = filled[ssl] * (1 - wg[..., None]) + dn * wg[..., None]
+                done_any = True
+            report.append((i, w, h, 'filled in 24px strips' if done_any
+                           else 'NO DONOR — left to the pyramid'))
             continue
         donor = rgbf[besty:besty + h, bestx:bestx + w].copy()
         # Any residual level difference is taken off using the boundary ring,
@@ -383,14 +484,7 @@ def main():
     # Reachability plus a 3px close gets that to 4.4% while still covering
     # 93.4% of the masonry, and what is left is a pixel or two of halo on each
     # building's own edge.
-    openable = sky | cloud | protect
-    seed = np.zeros((H, W), bool)
-    seed[0:3, :] = openable[0:3, :]
-    sky_open = ndimage.binary_propagation(seed, mask=openable)
-    towers = ~sky_open
-    towers[660:, :] = True                  # below the skyline it is all street
-    towers = ndimage.binary_closing(towers, np.ones((3, 3), bool))
-    towers &= ~protect
+    towers = structure.copy()
     # Specks of "not sky" floating in open sky are dither, not architecture,
     # and each one would clip a little bite out of a passing cloud.
     tl, tn = ndimage.label(towers)
