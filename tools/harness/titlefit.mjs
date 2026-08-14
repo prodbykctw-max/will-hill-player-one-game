@@ -51,7 +51,12 @@ const SHAPES = [
 
 // Source rows, and they must match TITLE_SAFE in src/render/title.js.
 const NAME_TOP = 165;
-const OPT_BOTTOM = 1635;
+// ⚠️ OPTIONS IS NO LONGER WHERE IT IS PAINTED. liftOptions() redraws the
+// plate's bottom band OPTIONS_LIFT rows higher, so the word's foot lands at
+// 1635 - OPTIONS_LIFT. Checking the painted row would now be checking bare
+// road, and would pass while the word itself hung off the bottom.
+const OPTIONS_LIFT = 16;
+const OPT_BOTTOM = 1635 - OPTIONS_LIFT;
 
 const overlaps = (a, c) => a && c
   && a.x < c.x + c.w && c.x < a.x + a.w && a.y < c.y + c.h && c.y < a.y + a.h;

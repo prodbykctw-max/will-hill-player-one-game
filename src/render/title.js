@@ -288,6 +288,11 @@ export function createTitle(ctx, canvas, still) {
     const fx = splash ? introFx(introT || 0) : null;
     const box = still.draw(images.title_base, titleCards(images), tick,
       TITLE_ZOOM, TITLE_BIAS, fx, TITLE_SAFE);
+    // His OPTIONS, moved up into the dead road under PRESS START. Straight
+    // after the plate and before anything drawn over it, and on EVERY frame
+    // including the intro's — see liftOptions for why it needs the fade's
+    // own alpha rather than being held back until the fade finishes.
+    liftOptions(images.title_base, box, fx ? fx.base.a : 1);
     still.pulsePrompt(box, PROMPT, SRC_W, SRC_H, tick);
     // Client: "gleam off his chain... glimmer, glisten or glow off the red
     // stars." Held back until the card is fully settled — see drawGlints — so
@@ -527,20 +532,157 @@ export function createTitle(ctx, canvas, still) {
   // 1600-1780, x 342-508, y 1609-1635.
   const OPTIONS_BOX = { x: 342, y: 1609, w: 167, h: 27 };
 
+  // ── AND IT IS LIFTED OFF THE ROAD ────────────────────────────────────────
+  //
+  // Client: "we just need to move the options up slightly... it's a bigger
+  // space underneath the PRESS START button, we could use that space as real
+  // estate... can you not just lift that, make it transparent and put it
+  // there?" Measured on his shape before touching anything: 22px of bare road
+  // between PRESS START's foot and OPTIONS' top, and only 14px under MUSIC.
+  // He is right — the empty space is above, and the crowding is below.
+  //
+  // The word is PAINTED INTO HIS PLATE at rows 1609-1635, so there is no
+  // layer to nudge. The landscape plate solved this by SAM-cutting the word
+  // out and retexturing the hole behind it (see above) — a real piece of
+  // work, and it needed `retexture()` because the fill sat as a smooth patch
+  // in a speckled road.
+  //
+  // NONE OF THAT IS NEEDED HERE, because of what is under the word: 208 rows
+  // of plain road and nothing else. So instead of cutting the word out and
+  // patching the gap it leaves, this REDRAWS THE WHOLE BOTTOM BAND of the
+  // plate shifted up by OPTIONS_LIFT rows. The word rides up with the band
+  // and the road closes behind it by itself — there is no hole to fill, and
+  // so nothing to retexture.
+  //
+  // ONE SEAM, and it lands on bare road between PRESS START and OPTIONS with
+  // only OPTIONS_LIFT rows of the plate's own vertical gradient across it —
+  // far under the tone step the landscape cut had to work around.
+  //
+  // The band has room to slide into: the last plate row visible on any phone
+  // measured is ~1724 of 1844, so the shift never runs out of road.
+  const OPTIONS_LIFT = 16;                    // source rows, ~7px on his phone
+
+  // ⚠️ WHERE THE BAND STARTS IS MEASURED, NOT CHOSEN, AND IT IS PINNED BETWEEN
+  // TWO HARD LIMITS.
+  //
+  //   BAND_TOP - OPTIONS_LIFT  must stay BELOW PRESS START's foot, or the
+  //                            shift saws the bottom off his prompt. PROMPT
+  //                            is rows 1518-1572, so the earliest the band
+  //                            can land is 1573 — an earlier pass here read
+  //                            the foot as 1561 off a guess and picked a row
+  //                            that would have clipped it.
+  //   BAND_TOP                 must stay ABOVE the lettering at 1609, or the
+  //                            band does not carry the word it exists to move.
+  //
+  // That leaves rows 1589-1608, and inside that window the seam step was
+  // measured for every candidate (|row r-1| against |row r+LIFT|, mean
+  // luminance across the plate's width). The flattest is 1592 at 2.22 levels.
+  // NOTHING in the window is flat: the road under PRESS START carries a real
+  // lighting gradient, so a hard join anywhere here shows. Rows further up
+  // reach 0.01 and are unusable — they are inside PRESS START.
+  const BAND_TOP = 1592;
+  // So the join is CROSS-FADED rather than butted. Twelve rows is enough to
+  // dissolve a 2-level step below the plate's own dither, and the whole
+  // feather sits on bare road between the prompt and the word — clear of
+  // PRESS START's foot above and OPTIONS' top below.
+  const BAND_FEATHER = 12;
+  const BAND_DEST_TOP = BAND_TOP - OPTIONS_LIFT;
+  const BAND_H = SRC_H - BAND_DEST_TOP;
+
+  // ── THE CORRECTION IS BUILT ONCE, IN THE PLATE'S OWN PIXELS ──────────────
+  //
+  // It depends only on the artwork, never on the window, so there is nothing
+  // in it to redo when the phone rotates or the browser chrome moves. Built
+  // at source resolution and scaled on the way out, exactly like the plate.
+  // Keyed on the image itself because day and night are different plates.
+  let bandCache = null;
+  let bandCacheFor = null;
+
+  function buildBand(base) {
+    const cv = document.createElement('canvas');
+    cv.width = SRC_W;
+    cv.height = BAND_H;
+    const c = cv.getContext('2d');
+    c.imageSmoothingEnabled = false;
+    // The band, lifted: everything from BAND_TOP down, moved up by the lift.
+    const lifted = SRC_H - BAND_TOP;
+    c.drawImage(base, 0, BAND_TOP, SRC_W, lifted, 0, 0, SRC_W, lifted);
+    // The lift leaves OPTIONS_LIFT rows bare at the plate's very foot. Off
+    // screen on every phone measured, but a desktop contain-fit shows the
+    // whole card, so the last rows are repeated to close it — road over road.
+    c.drawImage(base, 0, SRC_H - OPTIONS_LIFT, SRC_W, OPTIONS_LIFT,
+      0, lifted, SRC_W, OPTIONS_LIFT);
+    // THE FEATHER. Lay the rows that genuinely belong at this destination
+    // back over the top edge, fading out downward — so the band OPENS as an
+    // exact continuation of the plate above it and has dissolved into the
+    // lifted content well before the word arrives. Masked with
+    // destination-out and a gradient, which is the only way to get a varying
+    // alpha out of drawImage.
+    const t = document.createElement('canvas');
+    t.width = SRC_W;
+    t.height = BAND_FEATHER;
+    const tc = t.getContext('2d');
+    tc.imageSmoothingEnabled = false;
+    tc.drawImage(base, 0, BAND_DEST_TOP, SRC_W, BAND_FEATHER, 0, 0, SRC_W, BAND_FEATHER);
+    tc.globalCompositeOperation = 'destination-out';
+    const g = tc.createLinearGradient(0, 0, 0, BAND_FEATHER);
+    g.addColorStop(0, 'rgba(0,0,0,0)');     // keep the original here
+    g.addColorStop(1, 'rgba(0,0,0,1)');     // and none of it by the bottom
+    tc.fillStyle = g;
+    tc.fillRect(0, 0, SRC_W, BAND_FEATHER);
+    c.drawImage(t, 0, 0);
+    return cv;
+  }
+
+  // Repaint the band, shifted. Called every frame straight after the plate so
+  // the word is NEVER drawn in its unlifted place — there is no frame where
+  // it jumps, and no state where the pulse and the lettering disagree.
+  //
+  // ⚠️ IT TAKES THE BASE'S OWN FADE ALPHA, AND CLEARS TO BLACK FIRST. The
+  // intro brings the plate up out of black (introFx: the base only fades, it
+  // never moves), so simply drawing the band over it at the same alpha would
+  // composite the shifted band ON TOP of the unshifted one and ghost a second
+  // OPTIONS underneath. Painting the region black and then laying the band
+  // down at `alpha` reproduces the fade exactly instead of doubling it — and
+  // because the feather's first row IS the original row, the two halves of
+  // the join stay identical at every alpha, not just at 1.
+  function liftOptions(base, box, alpha) {
+    if (!base || !base.width || !box || OPTIONS_LIFT <= 0) return;
+    if (bandCacheFor !== base) {
+      bandCache = buildBand(base);
+      bandCacheFor = base;
+    }
+    const S = box.dw / SRC_W;
+    const dy = box.dy + BAND_DEST_TOP * S;
+    ctx.save();
+    ctx.imageSmoothingEnabled = false;
+    // The same black the letterbox uses, so this is indistinguishable from
+    // the fill stillscene.draw() already laid down under the plate.
+    ctx.fillStyle = '#07060a';
+    ctx.fillRect(0, dy, canvas.width, canvas.height - dy);
+    ctx.globalAlpha = alpha;
+    ctx.drawImage(bandCache, 0, 0, SRC_W, BAND_H, box.dx, dy, box.dw, BAND_H * S);
+    ctx.restore();
+  }
+
   function optionsRect(box) {
     if (!box) return null;
     const S = box.dw / SRC_W;
-    return { x: box.dx + OPTIONS_BOX.x * S, y: box.dy + OPTIONS_BOX.y * S,
+    // The LIFTED position — this is where the word actually is on screen, so
+    // the hit box and the pulse both follow it without either being told.
+    return { x: box.dx + OPTIONS_BOX.x * S,
+             y: box.dy + (OPTIONS_BOX.y - OPTIONS_LIFT) * S,
              w: OPTIONS_BOX.w * S, h: OPTIONS_BOX.h * S };
   }
 
   function drawOptions(_img, box, tick) {
     const r = optionsRect(box);
     if (!r) return;
-    // NOTHING IS BLITTED. The word is in the painting. All this adds is the
-    // breath that marks it as pressable — opposite beat to PRESS START and
-    // cooler, so it reads as a second thing you can press rather than as a
-    // caption under the first. Additive glow over his lettering, as ever.
+    // STILL NOTHING IS BLITTED HERE. The word is his lettering, moved by
+    // liftOptions() above as part of the plate rather than lifted out of it.
+    // All this adds is the breath that marks it as pressable — opposite beat
+    // to PRESS START and cooler, so it reads as a second thing you can press
+    // rather than as a caption under the first.
     still.pulseRect(r.x, r.y, r.w, r.h, tick + 57, '150,210,255');
   }
 
@@ -634,7 +776,21 @@ export function createTitle(ctx, canvas, still) {
     // and most with the browser's own UI showing — none of this engages and
     // MUSIC comes out at OPTIONS' own height, stacked perfectly underneath.
     const idealH = o.h;
-    const idealGap = Math.max(14, idealH * 0.65);
+    // ── MUSIC COMES UP HALF AS FAR AS OPTIONS DID ──────────────────────────
+    //
+    // Client, exactly: "move the options up slightly... and then move the
+    // music up half a pixel" — half of whatever OPTIONS moved, so the two
+    // do not travel together and the space between them OPENS instead of
+    // sliding along unchanged.
+    //
+    // MUSIC hangs off optionsRect, which now returns the LIFTED word, so it
+    // would otherwise follow the full lift for free. Adding half the lift
+    // back onto the gap is what leaves it behind by the other half: OPTIONS
+    // rises by LIFT, MUSIC by LIFT/2, the gap between them grows by LIFT/2,
+    // and MUSIC still gains LIFT/2 of clearance under it at the bottom —
+    // which is the edge he said it was being cut off against.
+    const halfLift = (OPTIONS_LIFT / 2) * (box.dw / SRC_W);
+    const idealGap = Math.max(14, idealH * 0.65) + halfLift;
     const room = canvas.height - (o.y + o.h);          // to the TRUE edge, nothing assumed
     // ⚠️ THE GAP GETS A SHARE FIRST, BUT A SMALL ONE — HEIGHT STILL WINS THE
     // REST. A 0.5px floor read as one smear instead of two controls:
@@ -743,12 +899,22 @@ export function createTitle(ctx, canvas, still) {
   //
   // MARGIN, because a rect measured off lettering is smaller than a thumb.
   const HIT_MARGIN = 10;
+  // ⚠️ LESS SLACK ABOVE THE WORD THAN AROUND IT, and this is the cost of the
+  // lift. OPTIONS moved up into the gap under PRESS START, so the two are
+  // closer than they were — and since EVERYTHING that is not OPTIONS or MUSIC
+  // starts a run, an over-generous top edge turns a thumb aimed at PRESS
+  // START into an accidental trip to the leaderboard. Measured after the
+  // lift there are ~15px between PRESS START's painted foot and OPTIONS'
+  // top; a 10px top margin would eat two thirds of that, 5 leaves the run
+  // the bigger share of a gap that is bare road anyway. Sides and bottom
+  // have nothing to steal from and stay generous.
+  const HIT_MARGIN_TOP = 5;
 
   function hitOptions(box, x, y) {
     const r = optionsRect(box);
     if (!r) return false;
     return x >= r.x - HIT_MARGIN && x <= r.x + r.w + HIT_MARGIN
-      && y >= r.y - HIT_MARGIN && y <= r.y + r.h + HIT_MARGIN;
+      && y >= r.y - HIT_MARGIN_TOP && y <= r.y + r.h + HIT_MARGIN;
   }
   return { draw, hitOptions, optionsRect,
     hitMusic, musicRect, drawMusic };

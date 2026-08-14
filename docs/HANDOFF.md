@@ -1226,6 +1226,101 @@ structural one (`unlock()` never touches the element; the one line that did
 call `.play()` ran a frame late) rather than an assumption, but it should be
 confirmed on the client's own phone before being called closed.
 
+### Lifting OPTIONS off the road — the word is IN the painting
+
+Client, after the spacing pass above still wasn't right: *"can you not just
+lift the options button up... like slightly up... and then move the music up
+half... music is being cut off at the bottom slightly and options is just too
+close on top of music, and it's a bigger space underneath the PRESS START
+button, we could use that space as real estate... can you not just lift that,
+make it transparent and put it there?"*
+
+Measured on his shape (393x732, both Safari bars up) BEFORE touching
+anything, and he was reading it exactly right: **22px of bare road between
+PRESS START's foot and OPTIONS' top, and only 14px under MUSIC.** The empty
+space was above; the crowding was below.
+
+The catch is that OPTIONS is **painted into the portrait plate** at rows
+1609-1635 — there is no layer to nudge (see "OPTIONS is cut out of the
+painting and re-placed" above: that was the LANDSCAPE plate, where the word
+was SAM-cut out and the hole retextured. Real work, and it needed
+`retexture()` because the fill read as a smooth patch in a speckled road).
+
+**None of that was needed here**, because of what sits under the word: 208
+rows of plain road and nothing else. So instead of cutting the word out and
+patching the hole it leaves, `liftOptions()` in `src/render/title.js`
+**redraws the whole bottom band of the plate shifted up by `OPTIONS_LIFT`
+rows.** The word rides up with the band and the road closes behind it by
+itself — no hole, so nothing to retexture.
+
+- `OPTIONS_LIFT = 16` source rows (~7px on his phone).
+- `optionsRect()` returns the LIFTED position, so the hit box and the pulse
+  follow the lettering without either being told separately.
+- MUSIC comes up **half as far**, exactly as asked: it hangs off
+  `optionsRect()` so it would otherwise follow the full lift for free, and
+  adding `LIFT/2` back onto its gap is what leaves it behind by the other
+  half. Net on his phone: OPTIONS up 7.4px, MUSIC up 3.7px, the gap between
+  them 14 → 17.7px, and the room under MUSIC 14.1 → 17.8px.
+
+⚠️ **`BAND_TOP` is measured, not chosen, and it is pinned between two hard
+limits.** `BAND_TOP - OPTIONS_LIFT` must stay below PRESS START's foot or the
+shift saws the bottom off his prompt; `BAND_TOP` must stay above 1609 or the
+band doesn't carry the word it exists to move. **`PROMPT` is rows 1518-1572** —
+an earlier pass in this same session read that foot as 1561 from a guess
+(1609 − "48 rows apart") and picked row 1579, which would have **clipped
+PRESS START**. Reading the actual `PROMPT` constant is what caught it. The
+usable window is 1589-1608.
+
+⚠️ **AND THE SEAM HAD TO BE MEASURED, NOT EYEBALLED.** The first version
+butted the band straight onto the plate and *looked* perfect in a 3x
+screenshot — a pixel probe said otherwise: **a 7.8-level luminance step
+across the join, against 0.3 on undisturbed road.** Well outside the sub-1
+standard the landscape cut was held to. Then the seam step was measured for
+every candidate row in the usable window and the flattest is only 2.22
+(row 1592) — **nothing in that window is flat**, because the road under
+PRESS START carries a real lighting gradient. (Rows reaching 0.01 exist, but
+they are all inside PRESS START.)
+
+So the join is **cross-faded rather than butted**: `BAND_FEATHER = 12` rows
+where the rows that genuinely belong at that destination are laid back over
+the top edge and faded out downward (`destination-out` + a linear gradient,
+the only way to vary alpha under `drawImage`). The band therefore OPENS as an
+exact continuation of the plate and has dissolved into the lifted content
+well before the word arrives. Re-measured after: **worst row-to-row jump
+across the join 23.15 against 26.75 on undisturbed road** — i.e. now *inside*
+the plate's own dither rather than above it.
+
+The correction is built **once, in the plate's own pixels**, into a cached
+offscreen canvas — it depends only on the artwork, never on the window, so
+nothing about it is redone when the phone rotates or the browser chrome
+moves. Cached per image, because day and night are different plates.
+
+Two more things the implementation has to get right:
+- It runs on **every** frame including the intro's, so the word is never
+  drawn in its unlifted place and there is no frame where it jumps.
+- It takes the base's **own fade alpha and clears to black first**. The intro
+  brings the plate up out of black (`introFx` — the base only fades, it never
+  moves), so drawing the band over it at the same alpha would composite the
+  shifted band on top of the unshifted one and **ghost a second OPTIONS**.
+  Painting black then laying the band down at `alpha` reproduces the fade
+  instead of doubling it — and because the feather's first row IS the
+  original row, the two halves of the join stay identical at every alpha.
+
+`HIT_MARGIN_TOP = 5` (against `HIT_MARGIN = 10` on the other three sides) is
+the cost of the lift: OPTIONS moved into the gap under PRESS START, and since
+everything that is *not* OPTIONS or MUSIC starts a run, a 10px top edge would
+eat two thirds of the ~15px that is left and turn a thumb aimed at PRESS
+START into an accidental trip to the leaderboard.
+
+`titlefit.mjs` had to be told about this too — it checked painted row 1635,
+which is now bare road, and would have passed while the word itself hung off
+the bottom of the screen. It carries its own `OPTIONS_LIFT = 16` and checks
+`1635 - OPTIONS_LIFT`. **Keep the two in step.**
+
+Verified: titlefit 56/56, relaytod 26/26, musicbox 7/7, titleintro 6/6,
+relay 8/8, panelnav 9/9, plus the seam probe above and screenshots at day and
+night confirming PRESS START is uncut and the road reads continuous.
+
 ### The board had no way out but a small ✕ in the corner
 
 Client: *"when I pulled a leaderboard up, I have no way to get back to the
