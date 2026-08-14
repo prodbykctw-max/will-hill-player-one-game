@@ -97,6 +97,48 @@ function bagY(level, x) {
   return overHole(level, x) ? BAG_REST_Y - BAG_AIR_LIFT : BAG_REST_Y;
 }
 
+// ── EXACTLY `recipe.bags` A STAGE — 400 in the game, so every bag is 40,000 ──
+//
+// Client's number, so it has to be a guarantee, not an outcome. `bag: 0.34`
+// was a per-column dice roll that happened to land on 379 and would have
+// drifted the next time a stage got longer. Same trap the bottles were pulled
+// out of: you cannot balance against a supply you do not control.
+//
+// Selection sampling — take each candidate with probability (owed / left), so
+// it stops dead at zero and takes everything if it falls behind. Not every
+// column CAN hold a bag (hazards, and a slab that drew a bottle gives up its
+// bag to it), hence the fraction; topUpBags() covers the rest.
+//
+// bagsPlaced is its own counter, not bags.length: a player taking a hit
+// scatters dropped bags into that same array while the stage is still
+// streaming, and counting those would let a beating rewrite the economy.
+const CANDIDATE_FRACTION = 0.74;
+
+function wantsBag(level, c, salt) {
+  const owed = level.bagQuota - level.bagsPlaced;
+  if (owed <= 0) return false;
+  const left = level.stage.stageEnd - c;
+  if (owed >= left) return true;
+  return rnd01(c * salt + level.seed) < owed / (left * CANDIDATE_FRACTION);
+}
+
+function placeBag(level, bag) {
+  level.bags.push(bag);
+  level.bagsPlaced++;
+}
+
+// Measured first time out: 89/90 on EAV, 109/110 on L5P. The tail can run out
+// of flat road before it runs out of owed bags. So put the stragglers down —
+// spread through the flat columns the sampler skipped, not dumped at the end.
+function topUpBags(level) {
+  const owed = level.bagQuota - level.bagsPlaced;
+  const spare = level.spareFlat;
+  for (let i = 0; i < Math.min(owed, spare.length); i++) {
+    const x = spare[Math.floor(((i + 0.5) / owed) * spare.length)] * T + 8;
+    placeBag(level, createMoneyBag(x, bagY(level, x)));
+  }
+}
+
 export function createLevel(stage, stageIndex = 0) {
   return {
     stage,
@@ -106,6 +148,13 @@ export function createLevel(stage, stageIndex = 0) {
     bags: [],
     champagnes: [],
     obstacles: [], // static hazards: {x,y,w,h}
+    // The stage's bag budget, and the generator's own tally against it. See
+    // wantsBag() — the tally is separate from bags.length on purpose, because
+    // a player taking a hit scatters dropped bags into that same array.
+    bagQuota: stage.recipe.bags,
+    bagsPlaced: 0,
+    spareFlat: [],     // flat columns the sampler passed over — topUpBags()
+    toppedUp: false,
     genC: 0,
     lastEnemyCol: -999,
     lastFeatureCol: -999,
@@ -158,6 +207,13 @@ export function genAhead(level, untilCol) {
 
     // Past the finish line: flat safe plaza, no more hazards/spawns.
     if (c >= stageEnd) {
+      // The stage's road is fully laid at this point, so this is the moment
+      // the bag count is final and the last moment it can still be corrected
+      // ON the route rather than out in the plaza. Once only.
+      if (!level.toppedUp) {
+        level.toppedUp = true;
+        topUpBags(level);
+      }
       groundCol(level.map, c, FLOOR_R, LH - 1);
       level.genC++;
       continue;
@@ -233,8 +289,9 @@ export function genAhead(level, untilCol) {
         level.champagneMarks.shift();
         level.champagnes.push(createChampagneBottle(
           c * T + w * T * 0.5 - 12, champagneTopFor((FLOOR_R - heightRows) * T)));
-      } else if (rnd01(c * 5.3 + level.seed) < recipe.bag) {
-        level.bags.push(createMoneyBag(c * T + w * T * 0.5 - 12, (FLOOR_R - heightRows) * T - 26));
+      } else if (wantsBag(level, c, 5.3)) {
+        placeBag(level, createMoneyBag(
+          c * T + w * T * 0.5 - 12, (FLOOR_R - heightRows) * T - 26));
       }
       level.lastFeatureCol = c + w;
       level.genC = c + w;
@@ -290,8 +347,12 @@ export function genAhead(level, untilCol) {
 
     // FLAT run — plain ground, sprinkled bags/champagne/rare enemy.
     groundCol(level.map, c, FLOOR_R, LH - 1);
-    if (rnd01(c * 7.9 + level.seed) < recipe.bag) {
-      level.bags.push(createMoneyBag(c * T + 8, bagY(level, c * T + 8)));
+    if (wantsBag(level, c, 7.9)) {
+      placeBag(level, createMoneyBag(c * T + 8, bagY(level, c * T + 8)));
+    } else {
+      // Passed over, but it IS a valid bag site — remembered in case the
+      // sampler comes up short at the finish. See topUpBags().
+      level.spareFlat.push(c);
     }
     // EXACTLY TWO BOTTLES PER STAGE, and they are PLACED, not rolled for.
     //

@@ -447,7 +447,7 @@ const STAGE_DEFS = [
     // hazard, bag and enemy is a per-column roll, so density is identical and
     // only the duration grows.
     stageEnd: 360, // finish-line column (T=32px/col -> 11520px, ~137m)
-    recipe: { gap: 0.072, plat: 0.20, haz: 0.306, gapMax: 2, vert: 0.25, enemy: 0.27, bag: 0.34 },
+    recipe: { gap: 0.072, plat: 0.20, haz: 0.306, gapMax: 2, vert: 0.25, enemy: 0.27, bags: 90 },
   },
   {
     id: 'edgewood',
@@ -608,7 +608,7 @@ const STAGE_DEFS = [
     },
     enemyVariants: ['b'],
     stageEnd: 390,
-    recipe: { gap: 0.090, plat: 0.22, haz: 0.342, gapMax: 3, vert: 0.30, enemy: 0.324, bag: 0.34 },
+    recipe: { gap: 0.090, plat: 0.22, haz: 0.342, gapMax: 3, vert: 0.30, enemy: 0.324, bags: 97 },
   },
   {
     id: 'underground',
@@ -749,7 +749,7 @@ const STAGE_DEFS = [
     },
     enemyVariants: ['c'],
     stageEnd: 420,
-    recipe: { gap: 0.108, plat: 0.24, haz: 0.378, gapMax: 3, vert: 0.35, enemy: 0.378, bag: 0.34 },
+    recipe: { gap: 0.108, plat: 0.24, haz: 0.378, gapMax: 3, vert: 0.35, enemy: 0.378, bags: 103 },
   },
   {
     id: 'l5p',
@@ -899,7 +899,7 @@ const STAGE_DEFS = [
     },
     enemyVariants: ['a', 'b', 'c'],
     stageEnd: 450,
-    recipe: { gap: 0.126, plat: 0.26, haz: 0.414, gapMax: 4, vert: 0.40, enemy: 0.432, bag: 0.34 },
+    recipe: { gap: 0.126, plat: 0.26, haz: 0.414, gapMax: 4, vert: 0.40, enemy: 0.432, bags: 110 },
   },
 ];
 
