@@ -21,6 +21,9 @@ import {
   lbName, setLbName, contestRegistration, setContestRegistration,
   isRegistered, phoneDigits, lbTop, localRuns,
 } from '../net/leaderboard.js';
+// Through the bundler, so the URL is the content-hashed one. A literal path in
+// the stylesheet resolves in dev and 404s in dist.
+import leaderboardCard from '../assets/backgrounds/leaderboard-card.webp';
 
 const $ = (id) => document.getElementById(id);
 
@@ -79,6 +82,8 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
     fn();
   });
 
+  const card = $('lbCard');
+  if (card) card.style.backgroundImage = `url(${leaderboardCard})`;
   const views = { board: $('pvBoard'), form: $('pvForm'), settings: $('pvSettings') };
   const title = $('panelTitle');
   let open = false;
@@ -92,31 +97,59 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
     if (view === 'settings') fillSettings();
   }
 
-  // ── the board ─────────────────────────────────────────────────────────
+  // ── the board, laid over his MARTA card ───────────────────────────────
+  //
+  // The card carries five rows and a YOUR RANK line, so that is what the board
+  // shows — his design decides the shape, not the other way round. It used to
+  // list twenty; the rest are one tap away in the run log and nobody reads
+  // past five on a phone anyway.
+  //
+  // Row TOPS are fractions of the card, measured off the artwork and matching
+  // the bands its placeholder rows were blanked out of. Positioning each `li`
+  // absolutely means a name too long to fit ellipsises inside its own row
+  // instead of pushing the ones below it off their measured line.
+  const ROW_TOP = [0.5385, 0.5850, 0.6300, 0.6745, 0.7180];
+
   function render(runs, note) {
     const ol = $('board');
     ol.innerHTML = '';
     const me = lbName().toLowerCase();
-    runs.slice(0, 20).forEach((r, i) => {
+    const top = runs.slice(0, ROW_TOP.length);
+    top.forEach((r, i) => {
       const li = document.createElement('li');
+      li.style.top = `${ROW_TOP[i] * 100}%`;
       if (r.me || String(r.name || '').toLowerCase() === me) li.className = 'me';
       const rank = document.createElement('span');
       rank.className = 'r';
-      rank.textContent = `${i + 1}.`;
+      rank.textContent = String(i + 1);
       const name = document.createElement('span');
       name.className = 'n';
       name.textContent = r.name || 'PLAYER ONE';   // textContent, never innerHTML
       const score = document.createElement('span');
       score.className = 's';
-      score.textContent = `$${Number(r.score || 0).toLocaleString()}`;
+      score.textContent = Number(r.score || 0).toLocaleString();
       li.append(rank, name, score);
       ol.append(li);
     });
-    if (!runs.length) {
-      const li = document.createElement('li');
-      li.textContent = 'No runs yet. Be the first.';
-      ol.append(li);
+
+    // YOUR RANK. Where the player actually placed, even if that is well below
+    // the five on show — which is the whole reason his card has the line.
+    const you = $('lbYou');
+    const mine = runs.findIndex((r) => r.me || String(r.name || '').toLowerCase() === me);
+    if (mine >= 0) {
+      const r = runs[mine];
+      you.querySelector('.r').textContent = String(mine + 1);
+      you.querySelector('.n').textContent = r.name || 'PLAYER ONE';
+      you.querySelector('.s').textContent = Number(r.score || 0).toLocaleString();
+      you.hidden = false;
+    } else {
+      you.hidden = true;
     }
+
+    const empty = $('lbEmpty');
+    empty.hidden = !!runs.length;
+    if (!runs.length) empty.textContent = 'NO RUNS YET. BE THE FIRST.';
+
     $('boardNote').textContent = note;
     $('btnRegister').textContent = isRegistered() ? 'EDIT MY DETAILS' : 'ENTER THE CONTEST';
   }
