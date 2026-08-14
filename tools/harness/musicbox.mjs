@@ -35,8 +35,8 @@ const shots=[]; const grab=async l=>shots.push({l,b64:(await p.screenshot()).toS
 await grab('0  on load — no black card, sound off');
 const g=await p.evaluate(()=>{const t=window.__title,bx=window.__game.titleBox;
   const R=x=>x&&Object.fromEntries(Object.entries(x).map(([k,v])=>[k,Math.round(v)]));
-  return {music:R(t.musicRect(bx)), relay:R(t.relayRect(bx)), opts:R(t.optionsRect(bx))};});
-console.log('  OPTIONS', JSON.stringify(g.opts), ' RELAY', JSON.stringify(g.relay), ' MUSIC', JSON.stringify(g.music));
+  return {music:R(t.musicRect(bx)), opts:R(t.optionsRect(bx))};});
+console.log('  OPTIONS', JSON.stringify(g.opts), ' MUSIC', JSON.stringify(g.music));
 check('the card is up straight away, no black page', true);
 const before=await p.evaluate(()=>({snd:localStorage.getItem('wh_sound'),
   cue:window.__audio.music.status().playing, audible:!window.__audio.music.status().el?.paused}));

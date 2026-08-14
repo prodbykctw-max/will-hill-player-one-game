@@ -1,21 +1,24 @@
 // CHAMPAGNE RELAY across BOTH times of day, and across the settings switch.
 //
-// relay.mjs already proved the flag works at night. The client's question is
+// relay.mjs already proved the flag works at night. The client's question was
 // narrower and more practical: "I wanna make sure that the champagne relay
 // version of the game works in night mode as well... when I switch the time
 // of day, as long as that works I could check it."
 //
-// So there are three things to prove, not one:
+// ⚠️ THE TITLE BUTTON IS GONE. Client, later: "the champagne relay is not
+// going to be there, that's like a dev/dashboard thing." So point 2 of the
+// original three below no longer applies — there is no on-screen control to
+// press, only `?relay=1` and the `window.__startStage` dev hook. This file now
+// proves that removal explicitly (the pill is gone, and no tap on the title
+// card can reach it) alongside the two points that still stand:
 //   1. relay behaves identically whether the stages resolved day or night,
-//   2. the TITLE BUTTON (not just ?relay=1) starts a relay run in either,
-//   3. flipping the setting in OPTIONS — which reloads the page, and a reload
-//      is exactly where a runtime flag can quietly evaporate — leaves relay
-//      reachable and the stages actually switched.
+//   2. flipping the setting in OPTIONS — which reloads the page, and a reload
+//      is exactly where a runtime flag can quietly evaporate — leaves the URL
+//      flag reachable and the stages actually switched.
 //
-// Point 3 is the one worth the harness. `TIME_OF_DAY` is read once at boot,
-// so changing it reloads; `relay` lives in a module variable. If the reload
-// dropped him somewhere other than the title card he would be stuck in a
-// normal run with no way back to the button.
+// Point 2 is the one worth the harness. `TIME_OF_DAY` is read once at boot,
+// so changing it reloads; `relay` lives in a module variable. A reload has to
+// leave `?relay=1` still meaning something, or the URL door is broken too.
 const _pw = await import(process.env.PLAYWRIGHT || 'playwright');
 const chromium = _pw.chromium || _pw.default?.chromium;
 const b = await chromium.launch(process.env.CHROMIUM ? { executablePath: process.env.CHROMIUM } : {});
@@ -105,20 +108,24 @@ for (const tod of ['night', 'day']) {
     relay.every((r, i) => r.bags === real[i].bags && r.champagnes === real[i].champagnes),
     `bags ${relay.map((r) => r.bags).join('/')} vs ${real.map((r) => r.bags).join('/')}`);
 
-  // The title button, in this time of day, with no URL flag at all.
+  // The title card, in this time of day, with no URL flag at all — a normal
+  // tap on open space must start a NORMAL run, never a relay one. There is no
+  // button left to press instead; this is the negative case that replaces it.
   const pb = await newPage();
   await pb.goto(`http://localhost:5199/?tod=${tod}`, { waitUntil: 'networkidle' });
   await enter(pb);
   await pb.screenshot({ path: `${OUT}/relay-title-${tod}.png` });
-  const rect = await pb.evaluate(() => window.__title.relayRect(window.__game.titleBox));
-  await pb.touchscreen.tap(rect.x + rect.w / 2, rect.y + rect.h / 2);
+  const noButton = await pb.evaluate(() => typeof window.__title.relayRect === 'undefined'
+    && typeof window.__title.hitRelay === 'undefined');
+  check(`[${tod}] no CHAMPAGNE RELAY button exists on the title card`, noButton);
+  await pb.touchscreen.tap(215, 300);
   await pb.waitForTimeout(1600);
   const pressed = await pb.evaluate(() => ({ screen: window.__game.screen,
     tod: window.__game.level && window.__game.level.stage.tod,
     enemies: window.__game.level ? window.__game.level.enemies.length : null,
     aura: window.__game.player ? window.__game.player.invulnerableUntil > performance.now() : null }));
-  check(`[${tod}] title button starts a relay run`,
-    pressed.screen === 'playing' && pressed.enemies === 0 && pressed.aura && pressed.tod === tod,
+  check(`[${tod}] a tap on the title card is a normal run, never relay`,
+    pressed.screen === 'playing' && pressed.enemies > 0 && !pressed.aura && pressed.tod === tod,
     JSON.stringify(pressed));
   byTod[tod] = relay;
 }
@@ -141,23 +148,27 @@ await ps.evaluate((v) => localStorage.setItem('wh_tod', v), want);
 await ps.reload({ waitUntil: 'networkidle' });
 await enter(ps);
 const after = await ps.evaluate(async () => ({ tod: (await import('/src/world/stages.js')).STAGES[0].tod,
-  screen: window.__game.screen,
-  relayBtn: !!window.__title.relayRect(window.__game.titleBox) }));
+  screen: window.__game.screen }));
 check(`switching ${before} -> ${want} actually switched`, after.tod === want, JSON.stringify(after));
 check('the reload lands back on the title card', after.screen === 'title');
-check('CHAMPAGNE RELAY is still on that title card', after.relayBtn);
 
-const rect2 = await ps.evaluate(() => window.__title.relayRect(window.__game.titleBox));
-await ps.touchscreen.tap(rect2.x + rect2.w / 2, rect2.y + rect2.h / 2);
-await ps.waitForTimeout(1600);
-const post = await ps.evaluate(() => ({ screen: window.__game.screen,
-  tod: window.__game.level && window.__game.level.stage.tod,
-  enemies: window.__game.level ? window.__game.level.enemies.length : null,
-  aura: window.__game.player ? window.__game.player.invulnerableUntil > performance.now() : null }));
-check('relay works after the switch', post.screen === 'playing' && post.enemies === 0
-  && post.aura && post.tod === want, JSON.stringify(post));
+// The URL flag, not the (removed) button, is the surviving door — reload with
+// it still in the address bar and the dev hook must still reach relay mode.
+await ps.goto(`http://localhost:5199/?relay=1&tod=${want}`, { waitUntil: 'networkidle' });
+await atTitle(ps);
+const post = await ps.evaluate(async (idx) => {
+  const frame = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+  const g = window.__game;
+  window.__startStage(0);
+  for (let k = 0; k < 3; k++) await frame();
+  return { screen: g.screen, tod: g.level.stage.tod, enemies: g.level.enemies.length,
+    aura: g.player.invulnerableUntil > performance.now() };
+});
+check('relay still reachable by URL after the switch', post.screen === 'playing'
+  && post.enemies === 0 && post.aura && post.tod === want, JSON.stringify(post));
 
-// And the flag must NOT survive into a normal run started after it.
+// And the flag must NOT survive into a normal run started by TAPPING the
+// title card — the whole point of it being a "dev/dashboard thing" now.
 await ps.reload({ waitUntil: 'networkidle' });
 await enter(ps);
 await ps.touchscreen.tap(215, 300); await ps.waitForTimeout(1600);
@@ -173,27 +184,24 @@ await pd.goto('http://localhost:5199/?tod=night', { waitUntil: 'networkidle' });
 await enter(pd);
 const up = await pd.evaluate(() => ({ screen: window.__game.screen,
   box: !!window.__game.titleBox,
-  relay: !!window.__title.relayRect(window.__game.titleBox),
   opts: !!window.__title.optionsRect(window.__game.titleBox),
-  music: !!window.__title.musicRect(window.__game.titleBox) }));
-check('no black card — the title is up with all three controls',
-  up.screen === 'title' && up.box && up.relay && up.opts && up.music, JSON.stringify(up));
-// The three controls sit on ONE ROW now — CHAMPAGNE RELAY flush left, the
-// painted OPTIONS centred, MUSIC flush right — so the separation to check is
-// HORIZONTAL. This assertion used to measure the vertical gaps of a stack and
-// went negative the moment the row landed, which is the test doing its job.
+  music: !!window.__title.musicRect(window.__game.titleBox),
+  noRelay: typeof window.__title.relayRect === 'undefined'
+    && typeof window.__title.hitRelay === 'undefined' }));
+check('no black card — the title is up with OPTIONS and MUSIC, and no relay pill',
+  up.screen === 'title' && up.box && up.opts && up.music && up.noRelay, JSON.stringify(up));
+// Client: "that music button ultimately is going to be under the OPTIONS
+// button... stacked perfectly." MUSIC directly below OPTIONS, centred on the
+// same x, is that shape — checked here rather than trusted.
 const sep = await pd.evaluate(() => {
   const t = window.__title, b2 = window.__game.titleBox;
-  const o = t.optionsRect(b2), r = t.relayRect(b2), m = t.musicRect(b2);
-  return { relayToOpt: Math.round(o.x - (r.x + r.w)),
-           optToMusic: Math.round(m.x - (o.x + o.w)),
-           sameRow: Math.abs(Math.round(r.y - m.y)) <= 1,
-           noTallerThanOptions: r.h <= o.h + 0.5 && m.h <= o.h + 0.5 };
+  const o = t.optionsRect(b2), m = t.musicRect(b2);
+  return { xDelta: Math.abs((o.x + o.w / 2) - (m.x + m.w / 2)),
+           below: m.y > o.y + o.h,
+           gap: Math.round(m.y - (o.y + o.h)) };
 });
-check('the three controls do not overlap',
-  sep.relayToOpt > 0 && sep.optToMusic > 0, JSON.stringify(sep));
-check('they sit on one row, none taller than OPTIONS',
-  sep.sameRow && sep.noTallerThanOptions, JSON.stringify(sep));
+check('MUSIC is centred under OPTIONS, not overlapping it',
+  sep.xDelta <= 1 && sep.below && sep.gap > 0, JSON.stringify(sep));
 await pd.touchscreen.tap(215, 240); await pd.waitForTimeout(1700);
 check('open space is START', await pd.evaluate(() => window.__game.screen) === 'playing');
 
