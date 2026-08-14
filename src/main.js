@@ -215,6 +215,11 @@ if (import.meta.env.DEV) {
   // frozen loop. Anything that wants stage four gets the same door the game
   // uses.
   window.__startStage = startStage;
+  // The loaded image set. A card whose file failed to resolve is SILENTLY
+  // skipped by the renderer — it simply never appears — so a harness checking
+  // an assembly needs to be able to ask whether the art is actually there
+  // rather than infer it from a screenshot that looks plausible.
+  Object.defineProperty(window, '__images', { get: () => images });
 }
 
 let images = null; // { player, enemy, eav, edgewood, l5p, underground }

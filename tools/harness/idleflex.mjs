@@ -28,8 +28,9 @@ const page = async () => {
   p.on('pageerror', (e) => console.log('  THROWN: ' + e.message));
   await p.goto('http://localhost:5199/?tod=night&relay=1', { waitUntil: 'networkidle' });
   await p.waitForFunction(() => window.__game && window.__game.screen === 'title', null, { timeout: 25000 });
-  await p.touchscreen.tap(215, 466);                       // the front door
-  await p.waitForFunction(() => window.__game.introTapped, null, { timeout: 10000 });
+  // NO FRONT DOOR ANY MORE — the black TAP ANYWHERE card is gone, and a tap
+  // here would start a run rather than open anything. Let the card reveal
+  // itself, then go straight to a stage through the DEV hook.
   await p.waitForTimeout(2600);
   await p.evaluate(() => window.__startStage(0));
   await p.waitForFunction(() => window.__game.screen === 'playing', null, { timeout: 15000 });
@@ -106,8 +107,6 @@ await p2.route('**/will-hill.atlas.json*', (route) => route.fulfill({
 }));
 await p2.goto('http://localhost:5199/?tod=night&relay=1', { waitUntil: 'networkidle' });
 await p2.waitForFunction(() => window.__game && window.__game.screen === 'title', null, { timeout: 25000 });
-await p2.touchscreen.tap(215, 466);
-await p2.waitForFunction(() => window.__game.introTapped, null, { timeout: 10000 });
 await p2.waitForTimeout(2600);
 await p2.evaluate(() => window.__startStage(0));
 await p2.waitForFunction(() => window.__game.screen === 'playing', null, { timeout: 15000 });

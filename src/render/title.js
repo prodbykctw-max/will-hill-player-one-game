@@ -42,10 +42,13 @@
 // intro is a straight reveal until it has. Cutting it is the next job — SAM
 // and its checkpoint are both present (tools/sam_segment.py, /root/sam).
 import titleBase from '../assets/backgrounds/title-portrait.webp';
-import titleFront from '../assets/backgrounds/title-front.webp';
-import titleSignL from '../assets/backgrounds/title-signL.webp';
-import titleSignR from '../assets/backgrounds/title-signR.webp';
-import titleHero from '../assets/backgrounds/title-hero.webp';
+// The portrait plate's own cards, SAM-cut. The base is NOT cut — these are
+// drawn over a whole painting, which is the rule everywhere in this game now.
+import tpLogo from '../assets/backgrounds/titlep-logo.webp';
+import tpSignL from '../assets/backgrounds/titlep-signL.webp';
+import tpSignR from '../assets/backgrounds/titlep-signR.webp';
+import tpHero from '../assets/backgrounds/titlep-hero.webp';
+import tpPole from '../assets/backgrounds/titlep-pole.webp';
 import titleOptions from '../assets/backgrounds/title-options0.webp';
 import spriteManifest from '../assets/backgrounds/title-sprites.json';
 
@@ -106,12 +109,8 @@ export const CLOUD_SPRITES = CLOUD_LIST.map((s, i) => ({
 // Loaded through the same manifest as everything else; see main.js.
 export const TITLE_IMAGES = {
   title_base: titleBase,
-  // Buildings and the logo, drawn AFTER the clouds so they travel behind the
-  // skyline instead of over it. The client's note: the buildings stay put.
-  title_front: titleFront,
-  title_signL: titleSignL,
-  title_signR: titleSignR,
-  title_hero: titleHero,
+  tp_logo: tpLogo, tp_signL: tpSignL, tp_signR: tpSignR,
+  tp_hero: tpHero, tp_pole: tpPole,
   title_options: titleOptions,
   ...Object.fromEntries(CLOUD_SPRITES.map((s) => [s.key, s.url])),
 };
@@ -210,10 +209,55 @@ export const SPLIT_Y = 920;
 // `key` indexes the loaded image set. Bands are in 0..1 of the painting.
 // ORDER IS PAINT ORDER: clouds first, then the layer that must cover them,
 // then the things standing in front of everything.
-export function titleCards() {
-  // Empty until the portrait plate is cut. See the note on the import.
-  return [];
+export function titleCards(images) {
+  if (!images) return CARD_SPEC;
+  return CARD_SPEC.map((c) => ({ ...c, img: images[c.key] }));
 }
+
+// ── THE PORTRAIT PLATE'S CARDS ───────────────────────────────────────────
+//
+// SAM-cut off the painting itself (tools/sam_groups/title-portrait.json holds
+// which mask indices are which card, which is the reviewable decision — the
+// raw .npy is 130MB and its indices move the moment the sampling grid does).
+//
+// FAR TO NEAR, because that is the draw order. The logo is up in the sky and
+// the two sign gantries stand on the kerb Will Hill is standing on, so he goes
+// last and in front. The pole is nearest of all — it is the thing at the edge
+// of frame you would walk past.
+//
+// SWAY IS THE SAME FUNCTION THE EAV TREES USE. A roadside sign is a plate on a
+// post and the post is planted, which is a tree as far as the maths cares; the
+// pivot is the foot of the post so the panel travels and the base does not.
+// Will Hill's is a third of theirs on purpose — a person shifting their weight,
+// not a person swaying. Amplitudes are FRACTIONS of the drawn width, never
+// pixels, or a breath on a phone is a lurch on a desktop.
+//
+// Spans and pivots are read off each card's own emitted bounding box
+// (title-portrait-planes.json), not eyeballed off a screenshot.
+const CARD_SPEC = [
+  { key: 'tp_logo', depth: 0.05 },
+  {
+    key: 'tp_signL', depth: 0.44,
+    sway: [{ top: 0.398, pivot: 0.632, ampFrac: 0.0040, freq: 1.0,
+      xRanges: [[0.062, 0.400]] }],
+  },
+  {
+    key: 'tp_signR', depth: 0.46,
+    sway: [{ top: 0.462, pivot: 0.636, ampFrac: 0.0040, freq: 1.25,
+      xRanges: [[0.601, 0.894]] }],
+  },
+  {
+    key: 'tp_hero', depth: 0.62,
+    sway: [{ top: 0.515, pivot: 0.782, ampFrac: 0.0014, freq: 0.75,
+      xRanges: [[0.361, 0.612]] }],
+  },
+  {
+    key: 'tp_pole', depth: 0.80,
+    // Only the lamp head and the ATL banner move; the post is bolted down.
+    sway: [{ top: 0.173, pivot: 0.726, ampFrac: 0.0022, freq: 0.9,
+      xRanges: [[0.768, 0.986]] }],
+  },
+];
 
 export function createTitle(ctx, canvas, still) {
   function draw(images, tick, splash, introT, musicOn) {
@@ -281,21 +325,12 @@ export function createTitle(ctx, canvas, still) {
   // Indices are positions in titleCards(). A card added there without a line
   // here simply arrives at rest, which is the safe failure.
   const INTRO = [
-    { from: [-0.52, 0.00], t0: 2, t1: 54 },    // 0 clouds — across the sky
-    { from: [0.00, -0.34], t0: 24, t1: 78 },   // 1 the title itself, dropping
-    { from: [-0.46, 0.06], t0: 8, t1: 56 },    // 2 sign, left of frame
-    { from: [0.46, 0.06], t0: 14, t1: 62 },    // 3 sign, right of frame
-    { from: [0.00, 0.44], t0: 20, t1: 74 },    // 4 Will Hill — up off the street
+    { from: [0.00, -0.34], t0: 24, t1: 78 },   // 0 the title, dropping in
+    { from: [-0.46, 0.05], t0: 8, t1: 56 },    // 1 left gantry, off frame
+    { from: [0.46, 0.05], t0: 14, t1: 62 },    // 2 right gantry
+    { from: [0.00, 0.44], t0: 20, t1: 74 },    // 3 Will Hill, up off the street
+    { from: [0.34, 0.00], t0: 4, t1: 58 },     // 4 the pole, in from the kerb
   ];
-  // ⚠️ THE BACKDROP MUST NOT START BEFORE THE LAST CARD HAS LANDED. Its copy of
-  // every moving piece is already sitting at the destination, so any overlap
-  // shows the piece twice — caught in the very first capture of this sequence,
-  // where the base came up at tick 46 while the title was still falling and the
-  // frame held two PLAYER ONEs. Starts one tick after the slowest t1 above.
-  // DERIVED, not fixed. With cards, the backdrop must not start before the
-  // last one lands or its twin shows through — that cost two PLAYER ONEs once
-  // already. With none, there is nothing to double against, so it simply
-  // reveals. Recomputing it here means restoring the cards restores the guard.
   const LAST_LAND = titleCards().length
     ? Math.max(...INTRO.slice(0, titleCards().length).map((c) => c.t1)) : 0;
   const BASE_IN = LAST_LAND ? [LAST_LAND, LAST_LAND + 26] : [6, 74];
