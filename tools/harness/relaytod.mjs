@@ -178,16 +178,22 @@ const up = await pd.evaluate(() => ({ screen: window.__game.screen,
   music: !!window.__title.musicRect(window.__game.titleBox) }));
 check('no black card — the title is up with all three controls',
   up.screen === 'title' && up.box && up.relay && up.opts && up.music, JSON.stringify(up));
-// The MUSIC box must not be reachable by a stray press of START, and vice
-// versa: three controls in a 90px stack is where a fat hit rect would show.
+// The three controls sit on ONE ROW now — CHAMPAGNE RELAY flush left, the
+// painted OPTIONS centred, MUSIC flush right — so the separation to check is
+// HORIZONTAL. This assertion used to measure the vertical gaps of a stack and
+// went negative the moment the row landed, which is the test doing its job.
 const sep = await pd.evaluate(() => {
   const t = window.__title, b2 = window.__game.titleBox;
   const o = t.optionsRect(b2), r = t.relayRect(b2), m = t.musicRect(b2);
-  return { optToRelay: Math.round(r.y - (o.y + o.h)),
-           relayToMusic: Math.round(m.y - (r.y + r.h)) };
+  return { relayToOpt: Math.round(o.x - (r.x + r.w)),
+           optToMusic: Math.round(m.x - (o.x + o.w)),
+           sameRow: Math.abs(Math.round(r.y - m.y)) <= 1,
+           noTallerThanOptions: r.h <= o.h + 0.5 && m.h <= o.h + 0.5 };
 });
 check('the three controls do not overlap',
-  sep.optToRelay > 0 && sep.relayToMusic > 0, JSON.stringify(sep));
+  sep.relayToOpt > 0 && sep.optToMusic > 0, JSON.stringify(sep));
+check('they sit on one row, none taller than OPTIONS',
+  sep.sameRow && sep.noTallerThanOptions, JSON.stringify(sep));
 await pd.touchscreen.tap(215, 240); await pd.waitForTimeout(1700);
 check('open space is START', await pd.evaluate(() => window.__game.screen) === 'playing');
 

@@ -187,17 +187,26 @@ const OPT = (spriteManifest.options || [])[0] || null;
 // below opens the panel. Both targets are enormous and there is exactly one
 // boundary to miss instead of two adjacent edges.
 export const TITLE_ZOOM = 1;
-// How much sky the fit may crop off the top to fill the width instead of
-// letterboxing — see stillscene.fit.
+// THE BAND OF THE PAINTING THAT MUST STAY ON SCREEN, in its own rows.
+// Everything outside it is budget the fit may crop to fill the width instead
+// of letterboxing — see stillscene.fit.
 //
-// MEASURED, AND MEASURED TWICE. The first number came off the letters' bright
-// FACE, row 281, and a 430x800 window duly cropped 257 rows and clipped the top
-// of WILL HILL: — because these glyphs carry a thick black outline the bright
-// key cannot see. Growing the letter mass 16px and keeping the dark pixels it
-// reaches finds the real edge at row 265. 241 leaves 24 rows of margin under
-// that, which covers every window down to about 430x820 and falls back to bars
-// below it.
-export const TITLE_COVER_ROWS = 241;
+// MEASURED THREE TIMES, and the third one is the one to trust. The first came
+// off the letters' bright FACE, row 281. The second grew the letter mass 16px
+// to catch the black outline and got 265. Both were measuring the GOLD line.
+// Scanning for the topmost DARK row inside the text columns puts the top of
+// WILL HILL: — outline and all — at row 165, a hundred rows higher.
+//
+// 1635 is the bottom-most painted UI pixel, the foot of OPTIONS.
+//
+//   165 rows of sky above the title      }
+//   208 rows of wet street below OPTIONS }  373 rows of crop budget
+//
+// The old single number could only be spent off the TOP, so a phone needing
+// 350 rows would have had to eat 185 rows of his name and fell back to black
+// bars instead — which is the thing the client kept photographing. Split
+// across both ends, 350 fits inside 373. See the table in stillscene.fit.
+export const TITLE_SAFE = { top: 165, bottom: 1635 };
 export const TITLE_BIAS = 0;
 // In the painting's own rows: below PRESS START, which ends on row 907. Row
 // 950 used to be the top of OPTIONS; the word has since been lifted out and
@@ -266,7 +275,7 @@ export function createTitle(ctx, canvas, still) {
     // words of its own; his painting's own PRESS START is the prompt.
     const fx = splash ? introFx(introT || 0) : null;
     const box = still.draw(images.title_base, titleCards(images), tick,
-      TITLE_ZOOM, TITLE_BIAS, fx, TITLE_COVER_ROWS);
+      TITLE_ZOOM, TITLE_BIAS, fx, TITLE_SAFE);
     still.pulsePrompt(box, PROMPT, SRC_W, SRC_H, tick);
     // The two controls that are NOT part of the painting come up with the last
     // layer, so the page finishes as the menu instead of cutting to it.
@@ -440,23 +449,82 @@ export function createTitle(ctx, canvas, still) {
   // with his painting.
   const RELAY_LABEL = 'CHAMPAGNE RELAY';
 
-  function relayRect(box) {
+  // ── THE THREE CONTROLS SIT ON ONE ROW, OPTIONS IN THE MIDDLE ─────────────
+  //
+  // Client: "MUSIC and CHAMPAGNE RELAY should be next to OPTIONS, like on the
+  // left and right of the OPTIONS side" — and nothing above PRESS START.
+  //
+  // This replaces a stack, and the stack had stopped fitting. Filling the
+  // width costs rows: on his phone it leaves SEVEN pixels of screen under the
+  // painted OPTIONS and the two drawn controls need about seventy. Stacked
+  // they drew straight over PRESS START; parked in the empty road above it
+  // they were above PRESS START, which he does not want either.
+  //
+  // Flanking OPTIONS solves it by costing no vertical space at all. The word
+  // is painted centred — source x 342..509 of 853 — so there are 342 source
+  // columns free on its left and 344 on its right, about 190 screen pixels
+  // each on his phone, and CHAMPAGNE RELAY needs roughly 140 of them. The row
+  // is one line high instead of three, it reads as one menu, and it works the
+  // same whatever the crop does, so there is no second layout to keep true.
+  //
+  // Each control is sized to ITS OWN slot rather than to a fixed number, so a
+  // narrow phone shrinks the pill instead of running it off the edge.
+  // Measured off the painting: OPTIONS is 167 x 27 source px at x342..509 of
+  // 853, so it is centred, and the two slots either side of it are 342 and 344
+  // columns — equal, which is what lets the row be symmetric.
+  const ROW_GAP = 12;      // between a control and the word
+  const EDGE_PAD = 10;     // between a control and the frame
+
+  function rowMetrics(box) {
     const o = optionsRect(box);
     if (!o) return null;
-    const h = Math.max(26, Math.min(44, o.h * 0.62));
-    const pad = h * 0.42;
+    return {
+      o,
+      // NO TALLER THAN OPTIONS. The client asked for uniformity and the word
+      // is the fixed element — it is painted, so everything else matches it
+      // rather than the other way round. The DRAWN box is this small; the HIT
+      // box is not, because hit() adds HIT_MARGIN on every side.
+      h: o.h,
+      cy: o.y + o.h / 2,
+      leftW: Math.max(0, o.x - ROW_GAP - EDGE_PAD),
+      rightW: Math.max(0, canvas.width - EDGE_PAD - (o.x + o.w + ROW_GAP)),
+    };
+  }
+
+  // THE TYPE IS FITTED TO THE SLOT, NOT CLIPPED TO IT. The previous pass sized
+  // the pill with Math.min(slotWidth, wanted) and then drew the label at full
+  // size inside it, so on a narrow slot the box shrank and the words did not:
+  // "the words are coming out of the pill." Shrinking the FONT until the label
+  // plus its furniture fits is the fix, and it degrades gracefully — a narrow
+  // phone gets smaller type rather than a broken control.
+  function fitFont(label, avail, extra, maxPx) {
     ctx.save();
-    ctx.font = `700 ${Math.round(h * 0.40)}px system-ui, sans-serif`;
-    const tw = ctx.measureText(RELAY_LABEL).width;
+    let px = maxPx;
+    let w = Infinity;
+    for (; px > 6; px -= 0.5) {
+      ctx.font = `700 ${px}px system-ui, sans-serif`;
+      w = ctx.measureText(label).width;
+      if (w + extra <= avail) break;
+    }
     ctx.restore();
-    const w = Math.min(canvas.width - 24, tw + h * 0.80 + pad * 2);
-    // Into the empty road below the word. The portrait plate leaves 209 source
-    // rows of bare wet street under OPTIONS — 105px on a 430 phone — so the
-    // pill sits on painted ground instead of in a letterbox that no longer
-    // exists, and still clears the word by a comfortable margin.
-    const gap = Math.max(14, h * 0.55);
-    const y = Math.min(canvas.height - h - 10, o.y + o.h + gap);
-    return { x: (canvas.width - w) / 2, y, w, h, pad };
+    return { px, w };
+  }
+
+  function relayRect(box) {
+    const m = rowMetrics(box);
+    if (!m) return null;
+    const h = m.h;
+    const pad = h * 0.46;
+    const iconW = h * 0.72;
+    const extra = pad * 2 + iconW + pad * 0.55;
+    const f = fitFont(RELAY_LABEL, m.leftW, extra, h * 0.80);
+    const w = Math.min(m.leftW, f.w + extra);
+    // FLUSH LEFT against the frame, with MUSIC flush right, so the padding
+    // either side of the row matches and the three read as one line. Tucking
+    // both in against OPTIONS instead left them huddled in the middle with all
+    // the space at the edges — the client: "the music button should be further
+    // to the right, we need proper padding and spacing."
+    return { x: EDGE_PAD, y: m.cy - h / 2, w, h, pad, iconW, fontPx: f.px };
   }
 
   function drawRelay(box, champImg, tick) {
@@ -476,21 +544,21 @@ export function createTitle(ctx, canvas, still) {
     ctx.strokeStyle = `rgba(255,214,110,${0.42 + 0.30 * glow})`;
     ctx.stroke();
 
-    const ih = r.h * 0.66;
-    const ix = r.x + r.pad * 0.7;
+    const ih = r.h * 0.78;
+    const ix = r.x + r.pad;
     if (champImg && champImg.width) {
       const iw = ih * (champImg.width / champImg.height);
       ctx.imageSmoothingEnabled = false;
       ctx.drawImage(champImg, ix, r.y + (r.h - ih) / 2, iw, ih);
       ctx.textAlign = 'left';
       ctx.fillStyle = '#ffd66e';
-      ctx.font = `700 ${Math.round(r.h * 0.40)}px system-ui, sans-serif`;
+      ctx.font = `700 ${r.fontPx}px system-ui, sans-serif`;
       ctx.textBaseline = 'middle';
-      ctx.fillText(RELAY_LABEL, ix + iw + r.pad * 0.5, r.y + r.h / 2 + 1);
+      ctx.fillText(RELAY_LABEL, ix + iw + r.pad * 0.55, r.y + r.h / 2 + 1);
     } else {
       ctx.textAlign = 'center';
       ctx.fillStyle = '#ffd66e';
-      ctx.font = `700 ${Math.round(r.h * 0.40)}px system-ui, sans-serif`;
+      ctx.font = `700 ${r.fontPx}px system-ui, sans-serif`;
       ctx.textBaseline = 'middle';
       ctx.fillText(RELAY_LABEL, r.x + r.w / 2, r.y + r.h / 2 + 1);
     }
@@ -517,17 +585,16 @@ export function createTitle(ctx, canvas, still) {
   const MUSIC_LABEL = 'MUSIC';
 
   function musicRect(box) {
-    const r = relayRect(box);
-    if (!r) return null;
-    const h = Math.max(22, Math.min(38, r.h * 0.86));
-    ctx.save();
-    ctx.font = `700 ${Math.round(h * 0.44)}px system-ui, sans-serif`;
-    const tw = ctx.measureText(MUSIC_LABEL).width;
-    ctx.restore();
-    const boxSz = h * 0.62;
-    const w = boxSz + h * 0.42 + tw;
-    return { x: (canvas.width - w) / 2, y: Math.min(canvas.height - h - 8,
-      r.y + r.h + Math.max(12, h * 0.5)), w, h, boxSz };
+    const m = rowMetrics(box);
+    if (!m) return null;
+    const h = m.h;
+    const boxSz = h * 0.74;
+    const extra = boxSz + h * 0.38;
+    const f = fitFont(MUSIC_LABEL, m.rightW, extra, h * 0.80);
+    const w = Math.min(m.rightW, f.w + extra);
+    // Flush right, mirroring the pill on the left.
+    return { x: canvas.width - EDGE_PAD - w, y: m.cy - h / 2, w, h, boxSz,
+      fontPx: f.px };
   }
 
   function drawMusic(box, on, tick) {
@@ -561,7 +628,7 @@ export function createTitle(ctx, canvas, still) {
     }
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    ctx.font = `700 ${Math.round(r.h * 0.44)}px system-ui, sans-serif`;
+    ctx.font = `700 ${r.fontPx}px system-ui, sans-serif`;
     ctx.fillStyle = on ? 'rgba(255,236,190,0.95)'
       : `rgba(226,214,236,${0.58 + 0.30 * glow})`;
     ctx.fillText(MUSIC_LABEL, bx + r.boxSz + r.h * 0.42, r.y + r.h / 2 + 1);
