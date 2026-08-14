@@ -449,72 +449,82 @@ export function createTitle(ctx, canvas, still) {
   // with his painting.
   const RELAY_LABEL = 'CHAMPAGNE RELAY';
 
-  // ── WHERE THE TWO DRAWN CONTROLS GO WHEN THE ROAD RUNS OUT ───────────────
+  // ── THE THREE CONTROLS SIT ON ONE ROW, OPTIONS IN THE MIDDLE ─────────────
   //
-  // Filling the width costs rows. On the client's phone it costs 350 of the
-  // 373 spare, which leaves SEVEN pixels of screen under the painted OPTIONS —
-  // and CHAMPAGNE RELAY plus the MUSIC box need about seventy. Five things do
-  // not fit, and no split of the crop changes that; it is arithmetic, not a
-  // layout bug. Stacked, they drew straight over PRESS START and OPTIONS.
+  // Client: "MUSIC and CHAMPAGNE RELAY should be next to OPTIONS, like on the
+  // left and right of the OPTIONS side" — and nothing above PRESS START.
   //
-  // There is exactly one piece of empty screen left, and it is in the art:
-  // rows 1448-1524, the wet street between Will Hill's shoes (his mask ends at
-  // 1442) and the top of PRESS START (1518). Measured across the middle third
-  // it means 18 of 255 with not one pixel over 110 — bare road, on every
-  // screen, cropped or not.
+  // This replaces a stack, and the stack had stopped fitting. Filling the
+  // width costs rows: on his phone it leaves SEVEN pixels of screen under the
+  // painted OPTIONS and the two drawn controls need about seventy. Stacked
+  // they drew straight over PRESS START; parked in the empty road above it
+  // they were above PRESS START, which he does not want either.
   //
-  // So when the bottom is tight the two controls go there, SIDE BY SIDE on one
-  // row instead of stacked, which is what makes them fit in 84 source rows.
-  // When there is room below OPTIONS — a tall phone, no crop — nothing changes
-  // and they stack under the word exactly as before.
-  const STREET_GAP = { top: 1448, bottom: 1524 };
+  // Flanking OPTIONS solves it by costing no vertical space at all. The word
+  // is painted centred — source x 342..509 of 853 — so there are 342 source
+  // columns free on its left and 344 on its right, about 190 screen pixels
+  // each on his phone, and CHAMPAGNE RELAY needs roughly 140 of them. The row
+  // is one line high instead of three, it reads as one menu, and it works the
+  // same whatever the crop does, so there is no second layout to keep true.
+  //
+  // Each control is sized to ITS OWN slot rather than to a fixed number, so a
+  // narrow phone shrinks the pill instead of running it off the edge.
+  // Measured off the painting: OPTIONS is 167 x 27 source px at x342..509 of
+  // 853, so it is centred, and the two slots either side of it are 342 and 344
+  // columns — equal, which is what lets the row be symmetric.
+  const ROW_GAP = 12;      // between a control and the word
+  const EDGE_PAD = 10;     // between a control and the frame
 
-  function streetRow(box) {
-    const S = box.dw / SRC_W;
-    const top = box.dy + STREET_GAP.top * S;
-    const bot = box.dy + STREET_GAP.bottom * S;
-    return { top, bot, h: bot - top };
+  function rowMetrics(box) {
+    const o = optionsRect(box);
+    if (!o) return null;
+    return {
+      o,
+      // NO TALLER THAN OPTIONS. The client asked for uniformity and the word
+      // is the fixed element — it is painted, so everything else matches it
+      // rather than the other way round. The DRAWN box is this small; the HIT
+      // box is not, because hit() adds HIT_MARGIN on every side.
+      h: o.h,
+      cy: o.y + o.h / 2,
+      leftW: Math.max(0, o.x - ROW_GAP - EDGE_PAD),
+      rightW: Math.max(0, canvas.width - EDGE_PAD - (o.x + o.w + ROW_GAP)),
+    };
   }
 
-  // Compact when the stack cannot clear the bottom of the screen.
-  function isCompact(box) {
-    const o = optionsRect(box);
-    if (!o) return false;
-    const h = Math.max(26, Math.min(44, o.h * 0.62));
-    const need = h + musicHeight(h) + Math.max(12, musicHeight(h) * 0.5)
-      + Math.max(14, h * 0.55) + 8;
-    return o.y + o.h + need > canvas.height;
+  // THE TYPE IS FITTED TO THE SLOT, NOT CLIPPED TO IT. The previous pass sized
+  // the pill with Math.min(slotWidth, wanted) and then drew the label at full
+  // size inside it, so on a narrow slot the box shrank and the words did not:
+  // "the words are coming out of the pill." Shrinking the FONT until the label
+  // plus its furniture fits is the fix, and it degrades gracefully — a narrow
+  // phone gets smaller type rather than a broken control.
+  function fitFont(label, avail, extra, maxPx) {
+    ctx.save();
+    let px = maxPx;
+    let w = Infinity;
+    for (; px > 6; px -= 0.5) {
+      ctx.font = `700 ${px}px system-ui, sans-serif`;
+      w = ctx.measureText(label).width;
+      if (w + extra <= avail) break;
+    }
+    ctx.restore();
+    return { px, w };
   }
 
   function relayRect(box) {
-    const o = optionsRect(box);
-    if (!o) return null;
-    if (isCompact(box)) return compactRects(box).relay;
-    const h = Math.max(26, Math.min(44, o.h * 0.62));
-    const pad = h * 0.42;
-    ctx.save();
-    ctx.font = `700 ${Math.round(h * 0.40)}px system-ui, sans-serif`;
-    const tw = ctx.measureText(RELAY_LABEL).width;
-    ctx.restore();
-    const w = Math.min(canvas.width - 24, tw + h * 0.80 + pad * 2);
-    // Into the empty road below the word. The portrait plate leaves 209 source
-    // rows of bare wet street under OPTIONS — 105px on a 430 phone — so the
-    // pill sits on painted ground instead of in a letterbox that no longer
-    // exists, and still clears the word by a comfortable margin.
-    //
-    // ⚠️ THE STACK IS LAID OUT FROM THE BOTTOM OF THE SCREEN UP, not each
-    // control clamped independently. Both this and the music box used to end
-    // with `Math.min(canvas.height - h - N, ...)`, which is fine while there is
-    // room and turns into a pile-up the moment there is not: on a screen where
-    // the fit crops the road away they both clamped to the same few pixels and
-    // drew CHAMPAGNE RELAY, OPTIONS and MUSIC on top of one another. Reserving
-    // the music box's height first means the two can never collide, whatever
-    // the crop does.
-    const gap = Math.max(14, h * 0.55);
-    const reserve = musicHeight(h) + Math.max(12, musicHeight(h) * 0.5);
-    const lowest = canvas.height - reserve - h - 8;
-    const y = Math.min(lowest, o.y + o.h + gap);
-    return { x: (canvas.width - w) / 2, y, w, h, pad };
+    const m = rowMetrics(box);
+    if (!m) return null;
+    const h = m.h;
+    const pad = h * 0.46;
+    const iconW = h * 0.72;
+    const extra = pad * 2 + iconW + pad * 0.55;
+    const f = fitFont(RELAY_LABEL, m.leftW, extra, h * 0.80);
+    const w = Math.min(m.leftW, f.w + extra);
+    // FLUSH LEFT against the frame, with MUSIC flush right, so the padding
+    // either side of the row matches and the three read as one line. Tucking
+    // both in against OPTIONS instead left them huddled in the middle with all
+    // the space at the edges — the client: "the music button should be further
+    // to the right, we need proper padding and spacing."
+    return { x: EDGE_PAD, y: m.cy - h / 2, w, h, pad, iconW, fontPx: f.px };
   }
 
   function drawRelay(box, champImg, tick) {
@@ -534,21 +544,21 @@ export function createTitle(ctx, canvas, still) {
     ctx.strokeStyle = `rgba(255,214,110,${0.42 + 0.30 * glow})`;
     ctx.stroke();
 
-    const ih = r.h * 0.66;
-    const ix = r.x + r.pad * 0.7;
+    const ih = r.h * 0.78;
+    const ix = r.x + r.pad;
     if (champImg && champImg.width) {
       const iw = ih * (champImg.width / champImg.height);
       ctx.imageSmoothingEnabled = false;
       ctx.drawImage(champImg, ix, r.y + (r.h - ih) / 2, iw, ih);
       ctx.textAlign = 'left';
       ctx.fillStyle = '#ffd66e';
-      ctx.font = `700 ${Math.round(r.h * 0.40)}px system-ui, sans-serif`;
+      ctx.font = `700 ${r.fontPx}px system-ui, sans-serif`;
       ctx.textBaseline = 'middle';
-      ctx.fillText(RELAY_LABEL, ix + iw + r.pad * 0.5, r.y + r.h / 2 + 1);
+      ctx.fillText(RELAY_LABEL, ix + iw + r.pad * 0.55, r.y + r.h / 2 + 1);
     } else {
       ctx.textAlign = 'center';
       ctx.fillStyle = '#ffd66e';
-      ctx.font = `700 ${Math.round(r.h * 0.40)}px system-ui, sans-serif`;
+      ctx.font = `700 ${r.fontPx}px system-ui, sans-serif`;
       ctx.textBaseline = 'middle';
       ctx.fillText(RELAY_LABEL, r.x + r.w / 2, r.y + r.h / 2 + 1);
     }
@@ -574,50 +584,17 @@ export function createTitle(ctx, canvas, still) {
   // the two can never disagree.
   const MUSIC_LABEL = 'MUSIC';
 
-  // Shared so relayRect can reserve the room this will need before it places
-  // itself — see the note there about the three-way pile-up.
-  const musicHeight = (relayH) => Math.max(22, Math.min(38, relayH * 0.86));
-
-  // Both controls on one row in the empty street. Sized off the gap itself so
-  // it cannot outgrow the road it is standing on.
-  function compactRects(box) {
-    const row = streetRow(box);
-    const h = Math.max(20, Math.min(34, row.h * 0.74));
-    const mh = musicHeight(h);
-    const pad = h * 0.42;
-    ctx.save();
-    ctx.font = `700 ${Math.round(h * 0.40)}px system-ui, sans-serif`;
-    const rw = ctx.measureText(RELAY_LABEL).width;
-    ctx.font = `700 ${Math.round(mh * 0.44)}px system-ui, sans-serif`;
-    const mw = ctx.measureText(MUSIC_LABEL).width;
-    ctx.restore();
-    const boxSz = mh * 0.62;
-    const relayW = rw + h * 0.80 + pad * 2;
-    const musicW = boxSz + mh * 0.42 + mw;
-    const gap = Math.max(14, h * 0.55);
-    const total = Math.min(canvas.width - 16, relayW + gap + musicW);
-    const x0 = (canvas.width - total) / 2;
-    const cy = row.top + row.h / 2;
-    return {
-      relay: { x: x0, y: cy - h / 2, w: total - gap - musicW, h, pad },
-      music: { x: x0 + (total - musicW), y: cy - mh / 2, w: musicW, h: mh, boxSz },
-    };
-  }
-
   function musicRect(box) {
-    if (box && isCompact(box)) return compactRects(box).music;
-    const r = relayRect(box);
-    if (!r) return null;
-    const h = musicHeight(r.h);
-    ctx.save();
-    ctx.font = `700 ${Math.round(h * 0.44)}px system-ui, sans-serif`;
-    const tw = ctx.measureText(MUSIC_LABEL).width;
-    ctx.restore();
-    const boxSz = h * 0.62;
-    const w = boxSz + h * 0.42 + tw;
-    // Directly under the pill, always — the pill has already left room.
-    return { x: (canvas.width - w) / 2,
-      y: r.y + r.h + Math.max(12, h * 0.5), w, h, boxSz };
+    const m = rowMetrics(box);
+    if (!m) return null;
+    const h = m.h;
+    const boxSz = h * 0.74;
+    const extra = boxSz + h * 0.38;
+    const f = fitFont(MUSIC_LABEL, m.rightW, extra, h * 0.80);
+    const w = Math.min(m.rightW, f.w + extra);
+    // Flush right, mirroring the pill on the left.
+    return { x: canvas.width - EDGE_PAD - w, y: m.cy - h / 2, w, h, boxSz,
+      fontPx: f.px };
   }
 
   function drawMusic(box, on, tick) {
@@ -651,7 +628,7 @@ export function createTitle(ctx, canvas, still) {
     }
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    ctx.font = `700 ${Math.round(r.h * 0.44)}px system-ui, sans-serif`;
+    ctx.font = `700 ${r.fontPx}px system-ui, sans-serif`;
     ctx.fillStyle = on ? 'rgba(255,236,190,0.95)'
       : `rgba(226,214,236,${0.58 + 0.30 * glow})`;
     ctx.fillText(MUSIC_LABEL, bx + r.boxSz + r.h * 0.42, r.y + r.h / 2 + 1);
