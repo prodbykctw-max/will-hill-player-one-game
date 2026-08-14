@@ -19,7 +19,7 @@
 
 import {
   lbName, setLbName, contestRegistration, setContestRegistration,
-  isRegistered, phoneDigits, lbTop, localRuns,
+  isRegistered, phoneDigits, lbTop, localRuns, withWillHill,
 } from '../net/leaderboard.js';
 // Through the bundler, so the URL is the content-hashed one. A literal path in
 // the stylesheet resolves in dev and 404s in dist.
@@ -155,12 +155,14 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
   }
 
   function fillBoard() {
-    const local = localRuns();
+    // Will Hill is on the board whichever source it came from — he is part of
+    // the game, not a run somebody did. See withWillHill.
+    const local = withWillHill(localRuns());
     render(local, 'Loading…');
     lbTop(20, (runs) => {
       if (!open) return;
       if (runs && runs.length) {
-        render(runs, isRegistered() ? 'You are entered in the contest.'
+        render(withWillHill(runs), isRegistered() ? 'You are entered in the contest.'
           : 'Enter the contest to get your score on this board.');
       } else {
         // The Worker is not deployed yet, or the phone is offline. Either way

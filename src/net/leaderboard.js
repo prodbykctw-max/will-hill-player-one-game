@@ -107,6 +107,42 @@ export function createRunLog() {
 // showing your own last ten runs.
 const LOCAL_KEY = 'wh_local_runs';
 
+// ── WILL HILL HOLDS FIRST PLACE ──────────────────────────────────────────
+//
+// Client: "Will Hill will occupy first place. The total amount of bags that
+// can be gotten in the game is gonna be his high score."
+//
+// COUNTED, NOT INVENTED. Every stage generated to its own stageEnd and the
+// bags tallied off the live level:
+//
+//   eav 90 · edgewood 97 · underground 92 · l5p 100  =  379 bags
+//   379 x BAG_VALUE 100                              =  37,900
+//
+// ⚠️ THIS IS BEATABLE BY FIFTY POINTS. Bags are not the only thing that
+// scores — a stomp is worth 50, and there are 106 rats across the four
+// stages. Somebody who clears every bag AND stands on one rat finishes on
+// 37,950 and takes the top slot. A flawless run — every bag, every rat — is
+// 43,200, and THAT is the number nothing can pass. Which one belongs here is
+// his call: 37,900 is what he asked for, 43,200 is what "occupies first
+// place" needs. One constant either way.
+//
+// It is pinned rather than banked into localStorage: it is part of the game,
+// not a run somebody did on this phone, so it survives a cleared cache and it
+// shows on a device that has never played. `me` is deliberately absent — the
+// YOUR RANK line belongs to whoever is holding the phone.
+export const BAGS_IN_GAME = 379;
+export const PERFECT_RUN = 43200;      // every bag AND every rat
+export const WILL_HILL = Object.freeze({ name: 'WILL HILL', score: 37900, pinned: true });
+
+// Merge him into whatever the board is showing, wherever his score puts him.
+// Not spliced at index 0 — if a player ever does beat it, the board has to
+// show that honestly rather than pretend otherwise.
+export function withWillHill(runs) {
+  const list = (runs || []).filter((r) => !r.pinned).concat([WILL_HILL]);
+  list.sort((a, b) => b.score - a.score || (a.t || 0) - (b.t || 0));
+  return list;
+}
+
 export function localRuns() {
   try {
     const a = JSON.parse(localStorage.getItem(LOCAL_KEY) || '[]');
