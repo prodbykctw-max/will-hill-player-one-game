@@ -24,7 +24,8 @@ import { createHud } from './render/hud.js';
 import { createMartaMap } from './render/martamap.js';
 import { createEnding, statsFrom, endingCards, ENDING_IMAGES, PROMPT as ENDING_PROMPT } from './render/ending.js';
 import { createStillScene } from './render/stillscene.js';
-import { createTitle, TITLE_IMAGES, SRC_W as STILL_W, SRC_H as STILL_H } from './render/title.js';
+import { createTitle, TITLE_IMAGES, INTRO_TICKS as TITLE_INTRO_TICKS,
+  SRC_W as STILL_W, SRC_H as STILL_H } from './render/title.js';
 import martaMapArt from './assets/backgrounds/marta-map.webp';
 import { loadImages } from './render/images.js';
 import { createRunLog, lbSubmit, bankLocalRun, isRegistered } from './net/leaderboard.js';
@@ -468,7 +469,9 @@ const TITLE_ARM_TICKS = 24;
 // with room for the two controls to fade up behind it. Kept a little longer
 // than title.js's own INTRO_END so the last frames of that fade still get the
 // assembling path rather than snapping to the finished menu mid-fade.
-const INTRO_TICKS = 134;
+// Imported, never re-declared: title.js owns the assembly's length and this
+// file used to keep a second copy of it that was 40 ticks short.
+const INTRO_TICKS = TITLE_INTRO_TICKS;
 
 
 function showTitle() {

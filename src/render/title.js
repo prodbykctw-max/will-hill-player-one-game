@@ -42,6 +42,9 @@
 // intro is a straight reveal until it has. Cutting it is the next job — SAM
 // and its checkpoint are both present (tools/sam_segment.py, /root/sam).
 import titleBase from '../assets/backgrounds/title-portrait.webp';
+// The same painting with the title lettering lifted out and the sky closed
+// behind it — the intro's first beat. tools/cut_title_bare.py.
+import titleBare from '../assets/backgrounds/title-portrait-bare.webp';
 // The portrait plate's own cards, SAM-cut. The base is NOT cut — these are
 // drawn over a whole painting, which is the rule everywhere in this game now.
 import tpWordmark from '../assets/backgrounds/titlep-wordmark.webp';
@@ -131,6 +134,7 @@ export const CLOUD_SPRITES = CLOUD_LIST.map((s, i) => ({
 // Loaded through the same manifest as everything else; see main.js.
 export const TITLE_IMAGES = {
   title_base: titleBase,
+  title_bare: titleBare,
   tp_wordmark: tpWordmark, tp_logo: tpLogo, tp_stars: tpStars,
   tp_signL: tpSignL, tp_signR: tpSignR,
   tp_hero: tpHero, tp_pole: tpPole,
@@ -334,13 +338,87 @@ const CARD_SPEC = [
   },
 ];
 
+// ── THE ORDER: STREET FIRST, THEN HIS NAME, THEN THE TITLE ───────────────
+//
+// Client: "Will Hill's name should come in first after everything settles...
+// I want the stars to land with the words PLAYER ONE at the same time."
+//
+// So this is now three beats, not one:
+//   1. the street furniture — signs, hero, pole — same timing as before,
+//      all landed by tick 74.
+//   2. WILL HILL: drops in AFTER that, alone, and settles.
+//   3. PLAYER ONE and both stars drop in TOGETHER, last — same t0/t1 on
+//      purpose, so nothing separates their landing by even one tick.
+const INTRO = [
+  // ⚠️ INTRO IS INDEXED POSITIONALLY TO CARD_SPEC — entry i drives card i.
+  // `backdrop: true` means "arrive with the plate": introFx hands that card
+  // the BASE's own fade instead of a flight path, so it comes up as part of
+  // the painting. Its from/t0/t1 are never read.
+  { from: [0, 0], t0: 0, t1: 1, backdrop: true },   // far clouds
+  { from: [0, 0], t0: 0, t1: 1, backdrop: true },   // the towers
+  { from: [0, 0], t0: 0, t1: 1, backdrop: true },   // near clouds
+  { from: [0.00, -0.34], t0: 30, t1: 74 },    // 0 WILL HILL:, onto the finished street
+  { from: [0.00, -0.34], t0: 74, t1: 118 },   // 1 PLAYER ONE — lands WITH the stars
+  { from: [0.00, -0.30], t0: 74, t1: 118 },   // 2 both stars — same beat as PLAYER ONE
+  // THE STREET IS BACKGROUND NOW, NOT CARGO. Signs, hero and pole are in
+  // the bare plate and rise with it; flying them as well would print two of
+  // each. See BASE_IN.
+  { from: [0, 0], t0: 0, t1: 1, backdrop: true },   // 3 left gantry
+  { from: [0, 0], t0: 0, t1: 1, backdrop: true },   // 4 right gantry
+  { from: [0, 0], t0: 0, t1: 1, backdrop: true },   // 5 Will Hill
+  { from: [0, 0], t0: 0, t1: 1, backdrop: true },   // 6 the pole
+];
+
+// ── THE BACKGROUND ARRIVES FIRST ─────────────────────────────────────────
+//
+// Client: "most definitely the background should appear on the intro screen,
+// and then all the other layers — background first then all the other
+// layers."
+//
+// IT USED TO BE THE EXACT OPPOSITE, and not only by design. BASE_IN was
+// derived as [LAST_LAND, LAST_LAND + 26] = [148, 174], while main.js ends
+// the splash at INTRO_TICKS = 134 — so the plate's fade never reached a
+// single frame of the intro. Every card flew in over BLACK and the whole
+// painting then snapped to full alpha the instant the splash ended. That
+// mismatch is why the two numbers are now ONE number, exported from here
+// and imported by main.js, instead of two constants drifting apart in two
+// files.
+//
+// WHY IT COULD NOT SIMPLY BE FLIPPED. `title-portrait.webp` is the whole
+// painting: measured, every card cut from it is still in it (0.93-1.00
+// identical). Fading it up first would show WILL HILL and PLAYER ONE
+// already in place and then fly a second copy of each in — the two-PLAYER
+// ONEs bug, again. So the intro fades up `title-portrait-bare.webp`
+// instead (tools/cut_title_bare.py): the same street, the same skyline, the
+// same signs, hero and pole, with only the title lettering lifted out and
+// the sky closed behind it. The moment the assembly ends, the real plate
+// takes over — by then the lettering has landed, so the two are identical
+// and there is nothing to see in the swap.
+const BASE_IN = [0, 26];
+const LANDING = INTRO.slice(0, titleCards().length).filter((c) => !c.backdrop);
+const LAST_LAND = LANDING.length ? Math.max(...LANDING.map((c) => c.t1)) : 0;
+const INTRO_END = LAST_LAND ? LAST_LAND + 16 : 74;
+const ease = (u) => 1 - (1 - u) * (1 - u) * (1 - u);
+const at = (t, t0, t1) => ease(Math.max(0, Math.min(1, (t - t0) / (t1 - t0))));
+
+// The one number main.js needs: how long the assembly runs. It used to keep
+// its own copy (INTRO_TICKS = 134) and the two drifted 40 ticks apart, which
+// is what stranded the plate fade outside the intro entirely.
+export const INTRO_TICKS = INTRO_END;
+
 export function createTitle(ctx, canvas, still) {
   function draw(images, tick, splash, introT, musicOn, musicPressAge, mouse) {
     // THE INTRO PAGE. The card assembles itself out of an empty street and a
     // blank sky — see introFx — and that assembly IS the whole page. It has no
     // words of its own; his painting's own PRESS START is the prompt.
     const fx = splash ? introFx(introT || 0) : null;
-    const box = still.draw(images.title_base, titleCards(images), tick,
+    // During the assembly the plate is the BARE one, so the lettering can
+    // land on a street that does not already have it. Everything else about
+    // the painting is identical, and once the assembly ends the real plate
+    // takes over with the lettering already covered — see BASE_IN.
+    const plate = (fx && images.title_bare && images.title_bare.width)
+      ? images.title_bare : images.title_base;
+    const box = still.draw(plate, titleCards(images), tick,
       TITLE_ZOOM, TITLE_BIAS, fx, TITLE_SAFE);
     // His OPTIONS, moved up into the dead road under PRESS START. Straight
     // after the plate and before anything drawn over it, and on EVERY frame
@@ -530,44 +608,6 @@ export function createTitle(ctx, canvas, still) {
   //
   // Indices are positions in titleCards(). A card added there without a line
   // here simply arrives at rest, which is the safe failure.
-  // ── THE ORDER: STREET FIRST, THEN HIS NAME, THEN THE TITLE ───────────────
-  //
-  // Client: "Will Hill's name should come in first after everything settles...
-  // I want the stars to land with the words PLAYER ONE at the same time."
-  //
-  // So this is now three beats, not one:
-  //   1. the street furniture — signs, hero, pole — same timing as before,
-  //      all landed by tick 74.
-  //   2. WILL HILL: drops in AFTER that, alone, and settles.
-  //   3. PLAYER ONE and both stars drop in TOGETHER, last — same t0/t1 on
-  //      purpose, so nothing separates their landing by even one tick.
-  const INTRO = [
-    // ⚠️ INTRO IS INDEXED POSITIONALLY TO CARD_SPEC — entry i drives card i.
-    // The three backdrop cards were inserted at the FRONT, so these three
-    // placeholders keep every object card lined up with its own timing. Their
-    // numbers are never read: introFx gives a backdrop card the BASE's fade
-    // instead, so the sky arrives as part of the plate rather than flying in.
-    { from: [0, 0], t0: 0, t1: 1, backdrop: true },   // far clouds
-    { from: [0, 0], t0: 0, t1: 1, backdrop: true },   // the towers
-    { from: [0, 0], t0: 0, t1: 1, backdrop: true },   // near clouds
-    { from: [0.00, -0.34], t0: 76, t1: 112 },   // 0 WILL HILL:, after the street settles
-    { from: [0.00, -0.34], t0: 112, t1: 148 },  // 1 PLAYER ONE — lands WITH the stars
-    { from: [0.00, -0.30], t0: 112, t1: 148 },  // 2 both stars — same beat as PLAYER ONE
-    { from: [-0.46, 0.05], t0: 8, t1: 56 },     // 3 left gantry, off frame
-    { from: [0.46, 0.05], t0: 14, t1: 62 },     // 4 right gantry
-    { from: [0.00, 0.44], t0: 20, t1: 74 },     // 5 Will Hill, up off the street
-    { from: [0.34, 0.00], t0: 4, t1: 58 },      // 6 the pole, in from the kerb
-  ];
-  // Only the cards that actually FLY IN decide when the assembly is over.
-  // Counting the backdrop placeholders would have been harmless; counting
-  // them with real timings would feed back into BASE_IN, which is derived
-  // from this — hence the placeholders above, and this filter.
-  const LANDING = INTRO.slice(0, titleCards().length).filter((c) => !c.backdrop);
-  const LAST_LAND = LANDING.length ? Math.max(...LANDING.map((c) => c.t1)) : 0;
-  const BASE_IN = LAST_LAND ? [LAST_LAND, LAST_LAND + 26] : [6, 74];
-  const INTRO_END = LAST_LAND ? LAST_LAND + 26 : 74;
-  const ease = (u) => 1 - (1 - u) * (1 - u) * (1 - u);
-  const at = (t, t0, t1) => ease(Math.max(0, Math.min(1, (t - t0) / (t1 - t0))));
 
   function introFx(t) {
     const W = canvas.width;
