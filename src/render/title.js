@@ -337,8 +337,35 @@ export function createTitle(ctx, canvas, still) {
   // 15 on the chain is about a third of its own 48x52 bbox; 11 on a star is
   // about the star's own size, so it reads as the star itself catching light
   // rather than a separate glow sitting near it.
+  // ⚠️ THE CHAIN GLINT WAS ON HIS MOUTH. One sparkle sat at (409, 1062),
+  // which is his beard and closed lips, ~50 rows above the necklace — the
+  // client spotted it on a screenshot: "it is on his mouth and not on his
+  // chain." He then asked whether there was a grill there worth keeping, and
+  // there is not: measured over x 385-440, y 1048-1080, the mouth holds ZERO
+  // white pixels (no teeth showing) and its warmest pixels read R209 G133 B67
+  // — lit skin on the upper lip, not gold. His mouth is closed and shadowed.
+  // So the mouth sparkle is gone rather than kept.
+  //
+  // The chain itself was measured the same way, by finding the gold on the
+  // tp_hero plate: it runs x 396-451, y 1067-1121 in a V, and these three
+  // points are its brightest links — left strand, the bottom of the V, and
+  // the right strand.
+  //
+  // THREE, AT DIFFERENT SIZES, ON DIFFERENT CLOCKS. Client: "we're only gonna
+  // make the necklace glisten in a few places... variant sizes in proportion
+  // to the necklace and himself, maybe two or three, triggering in different
+  // sizes and different locations, periodically, naturally." The radii are
+  // small on purpose — the links are 5-6 source px thick, so the old r:15
+  // was a flare wider than the chain. The periods share no common factor
+  // worth speaking of and the phases are spread, so the three never settle
+  // into a pattern and never all fire at once.
   const GLINTS = [
-    { x: 409 / SRC_W, y: 1062 / SRC_H, r: 15, period: 260, phase: 0, hue: '255,224,150' },
+    // the bottom of the V — thickest part of the chain, so the largest catch
+    { x: 424 / SRC_W, y: 1118 / SRC_H, r: 9, period: 210, phase: 0, hue: '255,224,150' },
+    // the left strand, small
+    { x: 397 / SRC_W, y: 1103 / SRC_H, r: 6, period: 260, phase: 95, hue: '255,224,150' },
+    // the right strand, riding up toward his neck
+    { x: 444 / SRC_W, y: 1094 / SRC_H, r: 7, period: 320, phase: 185, hue: '255,224,150' },
     { x: 48 / SRC_W, y: 338 / SRC_H, r: 11, period: 310, phase: 90, hue: '255,120,120' },
     { x: 808 / SRC_W, y: 339 / SRC_H, r: 11, period: 340, phase: 200, hue: '255,120,120' },
   ];
