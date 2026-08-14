@@ -53,6 +53,9 @@ import tpHero from '../assets/backgrounds/titlep-hero.webp';
 import tpPole from '../assets/backgrounds/titlep-pole.webp';
 import titleOptions from '../assets/backgrounds/title-options0.webp';
 import spriteManifest from '../assets/backgrounds/title-sprites.json';
+import cloudManifest from '../assets/backgrounds/title-portrait-clouds.json';
+import titleSkyfill from '../assets/backgrounds/title-portrait-skyfill.webp';
+import titleSkyline from '../assets/backgrounds/title-portrait-skyline.webp';
 
 export const SRC_W = 853;
 export const SRC_H = 1844;
@@ -60,7 +63,13 @@ export const SRC_H = 1844;
 // The cloud sprites are cut by connected component, so how MANY there are is
 // decided by the art, not by this file — globbing them keeps a re-cut that
 // finds five clouds instead of four from silently dropping one.
-const cloudUrls = import.meta.glob('../assets/backgrounds/title-clouds*.webp',
+//
+// ⚠️ `title-pcloud*`, NOT `title-clouds*`. The latter were cut from the old
+// LANDSCAPE plate: their coordinates run out to x=1532 against this plate's
+// 853, so they are the wrong sky at the wrong scale and were never drawable
+// here. They stayed in the tree, loaded and unused, which is why the portrait
+// title had a sky full of clouds that never moved.
+const cloudUrls = import.meta.glob('../assets/backgrounds/title-pcloud*.webp',
   { eager: true, query: '?url', import: 'default' });
 const urlFor = (file) => cloudUrls[`../assets/backgrounds/${file}`];
 
@@ -98,14 +107,25 @@ function cloudSpeeds(list) {
     NEAR_SPEED * Math.pow(v / near, DEPTH_EXP)));
 }
 
-const CLOUD_LIST = spriteManifest.clouds || [];
+const CLOUD_LIST = cloudManifest.clouds || [];
 const CLOUD_SPEEDS = cloudSpeeds(CLOUD_LIST);
 
+// ── NEAR AND FAR ARE TWO DIFFERENT CARDS ─────────────────────────────────
+//
+// Client: "I want some of the clouds moving in front of and behind the
+// building — if it's a cloud that's supposed to be behind the building based
+// on distance, I want it to move behind the building."
+//
+// So the towers are cut as their own card (title-portrait-skyline.webp) and
+// the clouds are split around it. Which side a cloud goes on is decided by
+// its SIZE — the same signal that sets its speed, so the two depth cues can
+// never disagree with each other. `near` is stamped by the cutter.
 export const CLOUD_SPRITES = CLOUD_LIST.map((s, i) => ({
-  key: `title_cloud${i}`,
+  key: `title_pcloud${i}`,
   url: urlFor(s.file),
   x: s.x, y: s.y, w: s.w, h: s.h,
   speed: CLOUD_SPEEDS[i],
+  near: !!s.near,
 }));
 
 // Loaded through the same manifest as everything else; see main.js.
@@ -115,6 +135,10 @@ export const TITLE_IMAGES = {
   tp_signL: tpSignL, tp_signR: tpSignR,
   tp_hero: tpHero, tp_pole: tpPole,
   title_options: titleOptions,
+  // The sky with every drifting cloud lifted out of it, and the towers on
+  // their own so the far clouds can pass behind them.
+  tp_skyfill: titleSkyfill,
+  tp_skyline: titleSkyline,
   ...Object.fromEntries(CLOUD_SPRITES.map((s) => [s.key, s.url])),
 };
 
@@ -223,7 +247,19 @@ export const SPLIT_Y = 920;
 // then the things standing in front of everything.
 export function titleCards(images) {
   if (!images) return CARD_SPEC;
-  return CARD_SPEC.map((c) => ({ ...c, img: images[c.key] }));
+  return CARD_SPEC.map((c) => {
+    if (!c.clouds) return { ...c, img: images[c.key] };
+    // drawCard's travelling-sprite branch wants `sprites` + `srcW`; the
+    // painted x of each cloud is its phase, so at tick 0 every one of them is
+    // exactly where he put it and it goes on from there.
+    const want = c.clouds === 'near';
+    return {
+      ...c,
+      srcW: SRC_W,
+      sprites: CLOUD_SPRITES.filter((s) => s.near === want)
+        .map((s) => ({ ...s, img: images[s.key] })),
+    };
+  });
 }
 
 // ── THE PORTRAIT PLATE'S CARDS ───────────────────────────────────────────
@@ -254,6 +290,24 @@ export function titleCards(images) {
 // stars as their own card (tp_stars) so they can land on PLAYER ONE's own
 // beat. See INTRO below for the order this earns them.
 const CARD_SPEC = [
+  // ── THE SKY, IN THREE LAYERS ───────────────────────────────────────────
+  //
+  // Far clouds, then the towers, then near clouds — so the weather passes
+  // BOTH behind and in front of the skyline depending on how far away it is.
+  // Client: "if it's a cloud that's supposed to be behind the building based
+  // on distance, I want it to move behind the building."
+  //
+  // The towers card is the SAME PIXELS the base already has, drawn again on
+  // top of the far clouds and landing exactly over its own position — so it
+  // needs no inpainting and can never reveal anything behind it. It does NOT
+  // sway: everything else on this plate breathes, and a skyline that wobbled
+  // against the street it stands on would look like an earthquake.
+  //
+  // `backdrop: true` keeps them out of the assembly. They are scenery, not
+  // things that fly in — see LAST_LAND and introFx.
+  { key: 'tp_cloudsFar', depth: 0.010, backdrop: true, clouds: 'far' },
+  { key: 'tp_skyline', depth: 0.020, backdrop: true },
+  { key: 'tp_cloudsNear', depth: 0.030, backdrop: true, clouds: 'near' },
   { key: 'tp_wordmark', depth: 0.04 },
   { key: 'tp_logo', depth: 0.05 },
   { key: 'tp_stars', depth: 0.06 },
@@ -292,6 +346,18 @@ export function createTitle(ctx, canvas, still) {
     // after the plate and before anything drawn over it, and on EVERY frame
     // including the intro's — see liftOptions for why it needs the fade's
     // own alpha rather than being held back until the fade finishes.
+    // The sky with the drifting clouds taken out of it. Straight after the
+    // plate and BEFORE the cards, so the cloud layer lands on clean sky
+    // rather than on top of the painted copies of itself. Same alpha as the
+    // base so it fades in with it and never flashes.
+    if (images.tp_skyfill && images.tp_skyfill.width) {
+      const S = box.dw / SRC_W;
+      ctx.save();
+      ctx.imageSmoothingEnabled = false;
+      ctx.globalAlpha = fx ? fx.base.a : 1;
+      ctx.drawImage(images.tp_skyfill, box.dx, box.dy, SRC_W * S, SRC_H * S);
+      ctx.restore();
+    }
     liftOptions(images.title_base, box, fx ? fx.base.a : 1);
     still.pulsePrompt(box, PROMPT, SRC_W, SRC_H, tick);
     // Client: "gleam off his chain... glimmer, glisten or glow off the red
@@ -473,6 +539,14 @@ export function createTitle(ctx, canvas, still) {
   //   3. PLAYER ONE and both stars drop in TOGETHER, last — same t0/t1 on
   //      purpose, so nothing separates their landing by even one tick.
   const INTRO = [
+    // ⚠️ INTRO IS INDEXED POSITIONALLY TO CARD_SPEC — entry i drives card i.
+    // The three backdrop cards were inserted at the FRONT, so these three
+    // placeholders keep every object card lined up with its own timing. Their
+    // numbers are never read: introFx gives a backdrop card the BASE's fade
+    // instead, so the sky arrives as part of the plate rather than flying in.
+    { from: [0, 0], t0: 0, t1: 1, backdrop: true },   // far clouds
+    { from: [0, 0], t0: 0, t1: 1, backdrop: true },   // the towers
+    { from: [0, 0], t0: 0, t1: 1, backdrop: true },   // near clouds
     { from: [0.00, -0.34], t0: 76, t1: 112 },   // 0 WILL HILL:, after the street settles
     { from: [0.00, -0.34], t0: 112, t1: 148 },  // 1 PLAYER ONE — lands WITH the stars
     { from: [0.00, -0.30], t0: 112, t1: 148 },  // 2 both stars — same beat as PLAYER ONE
@@ -481,8 +555,12 @@ export function createTitle(ctx, canvas, still) {
     { from: [0.00, 0.44], t0: 20, t1: 74 },     // 5 Will Hill, up off the street
     { from: [0.34, 0.00], t0: 4, t1: 58 },      // 6 the pole, in from the kerb
   ];
-  const LAST_LAND = titleCards().length
-    ? Math.max(...INTRO.slice(0, titleCards().length).map((c) => c.t1)) : 0;
+  // Only the cards that actually FLY IN decide when the assembly is over.
+  // Counting the backdrop placeholders would have been harmless; counting
+  // them with real timings would feed back into BASE_IN, which is derived
+  // from this — hence the placeholders above, and this filter.
+  const LANDING = INTRO.slice(0, titleCards().length).filter((c) => !c.backdrop);
+  const LAST_LAND = LANDING.length ? Math.max(...LANDING.map((c) => c.t1)) : 0;
   const BASE_IN = LAST_LAND ? [LAST_LAND, LAST_LAND + 26] : [6, 74];
   const INTRO_END = LAST_LAND ? LAST_LAND + 26 : 74;
   const ease = (u) => 1 - (1 - u) * (1 - u) * (1 - u);
@@ -496,6 +574,10 @@ export function createTitle(ctx, canvas, still) {
       // too would leave a moving hard edge against the letterbox.
       base: { x: 0, y: 0, a: at(t, BASE_IN[0], BASE_IN[1]) },
       cards: INTRO.map((c) => {
+        // Scenery comes up WITH the plate it belongs to, not on its own
+        // schedule — a skyline sliding in from the side would be a different
+        // screen entirely.
+        if (c.backdrop) return { x: 0, y: 0, a: at(t, BASE_IN[0], BASE_IN[1]) };
         const u = at(t, c.t0, c.t1);
         return { x: c.from[0] * W * (1 - u), y: c.from[1] * H * (1 - u), a: u };
       }),

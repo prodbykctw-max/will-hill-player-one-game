@@ -1321,6 +1321,75 @@ Verified: titlefit 56/56, relaytod 26/26, musicbox 7/7, titleintro 6/6,
 relay 8/8, panelnav 9/9, plus the seam probe above and screenshots at day and
 night confirming PRESS START is uncut and the road reads continuous.
 
+### The clouds drift again, and pass both behind and in front of the towers
+
+Client: *"they're stationary, I want them to move across the skyline like they
+were in the beginning... isolate every cloud... furthest back moves slowest,
+closest up front moves fastest"* and then *"I want some of the clouds moving in
+front of and behind the building — if that means cutting the building so
+they're stationary while clouds move in front of and behind, that works."*
+
+**The old cuts were dead weight.** `title-clouds0-7.webp` came off the
+LANDSCAPE plate — coordinates out to x=1532 against this plate's 853 — so they
+had been loading and never drawing since the portrait plate landed. That is
+why the sky had clouds that never moved. `tools/cut_title_clouds.py` cuts new
+ones; the glob in title.js is now `title-pcloud*`.
+
+**Which blobs are clouds was HIS call, not the key's.** The automatic
+above-the-skyline test got 8 of 11 right and threw out two real clouds for
+sitting against the towers. He looked at the labelled scan: *"the two yellow
+rectangles on the right are actual clouds, the one on the left is actually
+just a building"* — 10 clouds, 1 building. The set is **pinned by coordinate**
+in the cutter and the skyline test is gone. ⚠️ I re-ran the scan at a lower
+threshold after that was settled and reopened the whole question; don't.
+
+**Three sky cards, not one:** far clouds → towers → near clouds, inserted at
+the front of `CARD_SPEC`. Front/back is decided by SIZE, the same signal that
+sets speed, so the two depth cues can never disagree (clean gap in the
+measured areas between 2302 and 1109 px). The towers card is *the same pixels
+the base already has*, drawn back over the far clouds and landing exactly on
+its own position — so it needs no inpainting and can never reveal anything
+behind it. Verified: compositing base → skyfill → skyline changes **0** pixels
+inside the towers.
+
+⚠️ **`INTRO` is indexed positionally to `CARD_SPEC`.** The three sky cards
+carry `backdrop: true`, get three placeholder INTRO entries to keep the seven
+object cards aligned, are excluded from `LAST_LAND` (they would otherwise feed
+back into `BASE_IN`, which is derived from it), and take the base's own fade
+in `introFx` instead of flying in.
+
+**The hole took four attempts and the lesson is the split.** Colour and grain
+are different jobs:
+- `cv2.inpaint` alone → right colour, no dither: a smooth smear per cloud.
+- Row-median alone → right dither, wrong colour: this sky varies horizontally
+  too, so one median per row came out visibly **teal**.
+- Shipped: `pyramid_inpaint` (the project's own, from `cut_planes.py`) for the
+  low frequencies + **borrowed** dither on top, same split as `retexture()`.
+- ⚠️ **The grain must be zero-mean over real sky.** No 120px column of this
+  plate is pure sky, so the donor clipped clouds, whose residual is hugely
+  positive — every fill was lifted, rim deltas +1 to +15, *all positive*.
+  Zeroing the non-sky donor pixels and subtracting the mean took worst rim
+  15.18 → **3.98**, mean 5.85 → **1.60**, and grain to 2.15 against real sky's
+  2.21. Also hysteresis (strict key to seed, loose key to grow, **bounded**
+  dilation — unbounded `binary_propagation` bridged separate clouds together)
+  so the faint wisps come with their cloud instead of being left behind.
+
+**Verification, and four ways the test lied before it told the truth.**
+`titleintro.mjs` now proves occlusion by pixel rather than by card order —
+order alone would pass even if the towers card were transparent. Final:
+far cloud over a tower **delta 0**, near cloud **delta 178**. Getting there:
+1. Compared against the towers card's own colour — canvas returns `(0,0,0)`
+   for transparent pixels, so the reference was black and meaningless. Fixed
+   by comparing the same pixel *with* a cloud over it against *without*.
+2. Probed the sprite's bounding box, not its alpha — a cloud is a wisp in a
+   rectangle, so the probe sat in an empty corner and read "not in front".
+3. Probed one pixel inside the towers' feathered edge; at half scale one
+   screen pixel straddles two source pixels, so it read 14 levels of bleed.
+   Now requires solid alpha over a neighbourhood.
+4. **Ran after the check that taps to skip the assembly** — which starts a
+   run, so it was sampling gameplay, not the title, and every reading was the
+   same dark value. Reloads to the title first.
+
 ### ⚠️ THE SOUNDTRACK WAS SILENT ON EVERY PLATFORM, AND THE HARNESS SAID FINE
 
 Client: *"when I click the button... it still doesn't trigger. It shows that

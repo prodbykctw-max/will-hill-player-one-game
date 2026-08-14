@@ -1,0 +1,97 @@
+{
+ "srcW": 853,
+ "srcH": 1844,
+ "skylineTop": 427,
+ "clouds": [
+  {
+   "file": "title-pcloud0.webp",
+   "x": 615,
+   "y": 49,
+   "w": 238,
+   "h": 98,
+   "px": 9931,
+   "near": true
+  },
+  {
+   "file": "title-pcloud1.webp",
+   "x": 27,
+   "y": 41,
+   "w": 242,
+   "h": 94,
+   "px": 8902,
+   "near": true
+  },
+  {
+   "file": "title-pcloud2.webp",
+   "x": 0,
+   "y": 421,
+   "w": 173,
+   "h": 91,
+   "px": 7610,
+   "near": true
+  },
+  {
+   "file": "title-pcloud3.webp",
+   "x": 0,
+   "y": 192,
+   "w": 116,
+   "h": 55,
+   "px": 2806,
+   "near": true
+  },
+  {
+   "file": "title-pcloud4.webp",
+   "x": 745,
+   "y": 209,
+   "w": 108,
+   "h": 56,
+   "px": 2677,
+   "near": true
+  },
+  {
+   "file": "title-pcloud5.webp",
+   "x": 602,
+   "y": 524,
+   "w": 99,
+   "h": 40,
+   "px": 1353,
+   "near": false
+  },
+  {
+   "file": "title-pcloud6.webp",
+   "x": 249,
+   "y": 518,
+   "w": 85,
+   "h": 35,
+   "px": 1038,
+   "near": false
+  },
+  {
+   "file": "title-pcloud7.webp",
+   "x": 227,
+   "y": 422,
+   "w": 74,
+   "h": 30,
+   "px": 713,
+   "near": false
+  },
+  {
+   "file": "title-pcloud8.webp",
+   "x": 429,
+   "y": 523,
+   "w": 66,
+   "h": 30,
+   "px": 625,
+   "near": false
+  },
+  {
+   "file": "title-pcloud9.webp",
+   "x": 17,
+   "y": 586,
+   "w": 66,
+   "h": 27,
+   "px": 563,
+   "near": false
+  }
+ ]
+}
