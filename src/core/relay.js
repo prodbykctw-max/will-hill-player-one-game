@@ -7,8 +7,11 @@
 // WHAT IT IS FOR. He needs to look at the game, not survive it: "I just wanna
 // be able to walk through the stage and examine each stage in the whole game
 // and the transitions." So three things change and NOTHING else does — bags,
-// rats, champagne bottles, the MARTA rides, the score, the music, the stage
-// clear, all of it behaves exactly as it does in the real build. His words:
+// champagne bottles, the undercroft (rats and all), the MARTA rides, the
+// score, the music, the stage clear: all of it behaves exactly as it does in
+// the real build. (The one thing that IS gone is the masked ENEMIES — see 1
+// below. They are a different thing from the undercroft rats, which are
+// scenery and stay.) His words:
 // "the game as is except no enemies, no subject to platform gap, and the
 // champagne power up is on the whole time."
 //

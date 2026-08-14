@@ -1229,9 +1229,19 @@ it does decide how hard the identity check needs to be.
 ## The score ceiling, and why Will Hill sits at 50,000
 
 **Measured 2026-08-14 by `tools/harness/ceiling.mjs`.** Re-run it after any
-change to bag rate, rat rate, `CHAMPAGNE_SECONDS`, `CHAMPAGNE_MULT` or stage
+change to bag rate, enemy rate, `CHAMPAGNE_SECONDS`, `CHAMPAGNE_MULT` or stage
 length — all five move this table, and the pin is only defensible while the
 table is true.
+
+> **ENEMIES ARE NOT RATS.** Two different things, and an earlier draft of this
+> section conflated them badly enough that the client caught it. The
+> **enemies** (`level.enemies`, `entities/enemy.js`) are the masked hoodie
+> figures — three palette variants, GDD "Enemy design", 50 points a stomp,
+> 105 of them across the four stages. The **rats** are one scurrying sprite of
+> undercroft scenery (`render/undercroft.js`, in the `kinds` list beside
+> roots/conduit/sewer/manhole), they live only under the street, they cannot
+> be touched and they score nothing. The word "rat" appears in this repo only
+> in that scenery code. Do not let it back into a scoring table.
 
 The harness walks all four shipping stages, forces every spawn with
 `genAhead`, and then does the part that cannot be done on paper: it counts the
@@ -1239,7 +1249,7 @@ bags that **actually** fall inside each bottle's real window. The window is
 9s at the measured 4.80 px/tick on a 16.6ms tick — **2,602px of road** — and
 overlapping windows are unioned, because a bag cannot be doubled twice.
 
-| stage | cols | bags | rats | bottles | bags doubled (as placed / best possible) |
+| stage | cols | bags | enemies | bottles | bags doubled (as placed / best possible) |
 |---|---|---|---|---|---|
 | eav | 360 | 90 | 21 | 2 | 43 / 53 |
 | edgewood | 390 | 97 | 24 | 2 | 40 / 50 |
@@ -1249,7 +1259,7 @@ overlapping windows are unioned, because a bag cannot be doubled twice.
 
 ```
   379 bags at 100                              37,900
-  105 rats at 50                               +5,250
+  105 masked enemies stomped at 50             +5,250
   ── flawless with no bottle at all             43,150
   157 bags doubled, bottles where they sit     +15,700
   ── PERFECT RUN, as the map is built           58,850
@@ -1265,7 +1275,7 @@ is why "make champagne harder and make it multiply" and "put 50,000 next to
 Will Hill" are the same decision, a day apart.
 
 **The route to beat him**, since it is a specific one and not "play well":
-all eight bottles, all 157 bags inside their windows, every rat, and ~134 of
+all eight bottles, all 157 bags inside their windows, every enemy, and ~134 of
 the 222 bags outside the windows (60%) — and no enemy touch late, because a
 touch dumps the *entire* purse on the pavement (`main.js`, the Sonic-rings
 branch) and anything not re-collected before it despawns is gone.
@@ -1375,6 +1385,32 @@ session of re-doing finished work.
   committed — the voice memo and the four sprite sheets. Re-downloadable packs
   and build scratch stay ignored. The rule is: if losing it means the work
   cannot be rebuilt, it goes in.
+
+## ⚠️ THE CONTAINER ROLLS BACK. ORIGIN IS THE ONLY TRUTH.
+
+**This happened three times on 2026-08-14 alone**, and once the day before.
+The remote container's working copy silently reverted to an older commit
+(`dff3d1e` every time) mid-session — no error, no warning. Files written
+minutes earlier were simply gone, and `git log` showed a HEAD from hours back.
+
+**Nothing was lost, because everything had been pushed.** That is the entire
+mitigation, and it is not optional:
+
+- **Commit and push after every finished piece of work**, not at the end of a
+  session. A push takes two seconds; re-deriving a day of measurements does
+  not.
+- **Harnesses live in `tools/harness/`, committed** — never in `/tmp` or the
+  scratchpad. An earlier rollback destroyed a set of scratch harnesses and
+  they had to be rewritten from memory. That is why they are in the repo now
+  even though they are test code.
+- **Recovery is one command**, and it is safe precisely because origin is
+  ahead: `git fetch origin <branch> && git reset --hard origin/<branch>`.
+- **Check first, then trust.** `git log --oneline -3` at the start of any
+  session, and again any time a file you know you wrote is missing. Do not
+  assume the checkout matches what you remember — it did not, three times.
+
+If a session starts and HEAD is not where this document's history says it
+should be, the checkout is stale, not the branch.
 
 ## ⚠️ Generated animation: the DOUBLE-BODY trap
 

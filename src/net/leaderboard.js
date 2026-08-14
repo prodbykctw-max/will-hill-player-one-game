@@ -114,7 +114,7 @@ const LOCAL_KEY = 'wh_local_runs';
 // It began as "the total amount of bags that can be gotten in the game",
 // which counted out at 37,900 — and that turned out to be the wrong shape for
 // the job, because a bag is not the only thing that scores. Anyone clearing
-// every bag and standing on one rat passed him by fifty.
+// every bag and stomping one masked enemy passed him by fifty.
 //
 // 50,000 is a better number than either that or the arithmetic ceiling, for a
 // reason worth writing down: IT IS BEATABLE, BUT ONLY JUST. Every line below
@@ -124,10 +124,16 @@ const LOCAL_KEY = 'wh_local_runs';
 // measured 4.80 px/tick) rather than assuming an average density.
 //
 //   379 bags at 100                                       37,900
-//   105 rats at 50                                        +5,250
+//   105 masked enemies stomped at 50                      +5,250
 //   ── flawless with no bottle at all                      43,150
 //   157 of those bags doubled, bottles where they sit     +15,700
 //   ── PERFECT RUN, as the map is built                    58,850
+//
+// (The ENEMIES are the masked hoodie figures — docs/GDD.md "Enemy design",
+// three palette variants, the only thing in the game worth 50. They are not
+// the undercroft RATS, which are scenery under the street in
+// render/undercroft.js, cannot be touched, and are worth nothing. An earlier
+// draft of this note called the enemies rats and the client caught it.)
 //
 // So he sits at 85% of a perfect run. Note the middle line: before the
 // multiplier the game's hard ceiling was 43,150, so 50,000 WAS NOT REACHABLE
@@ -135,10 +141,10 @@ const LOCAL_KEY = 'wh_local_runs';
 // is why the two decisions arrived together.
 //
 // Reaching him means all eight bottles, all 157 bags inside their windows,
-// every rat, and about 60% of the 222 bags outside the windows — and no
-// enemy touch late, because a touch dumps the whole purse on the pavement.
-// A real target with a real route behind it, which is what the top of a
-// contest board should be — not an unbeatable wall, and not a number the
+// every enemy stomped, and about 60% of the 222 bags outside the windows —
+// and no enemy touch late, because a touch dumps the whole purse on the
+// pavement. A real target with a real route behind it, which is what the top
+// of a contest board should be — not an unbeatable wall, and not a number the
 // first decent player strolls past.
 //
 // The card art paints 125,680 next to his name. That was always decoration;

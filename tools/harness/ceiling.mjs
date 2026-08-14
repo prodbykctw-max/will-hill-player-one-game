@@ -7,7 +7,10 @@
 // above it is real, so this walks the shipping levels and MEASURES it rather
 // than reasoning about it:
 //
-//   - every bag, every rat, every bottle, per stage, at their real x
+//   - every bag, every masked enemy, every bottle, per stage, at their real x
+//     (ENEMIES, not rats. `level.enemies` is the masked hoodie figures, the
+//     only thing here worth 50. The undercroft rats in render/undercroft.js
+//     are scenery under the street, cannot be touched and score nothing.)
 //   - the doubler's real yield: the champagne window is 9s, and he runs at a
 //     measured 4.80 px/tick on a 16.6ms tick, so the window covers a fixed
 //     stretch of road. Count the bags that ACTUALLY fall in that stretch
@@ -61,14 +64,14 @@ for (let i = 0; i < 4; i++) {
 }
 
 const BAG_VALUE = 100, STOMP = 50, MULT = 2;
-let totalBags = 0, totalRats = 0, totalBottles = 0, totalLen = 0;
+let totalBags = 0, totalEnemies = 0, totalBottles = 0, totalLen = 0;
 let realDoubled = 0, bestDoubled = 0;
 
 console.log(`\n  champagne window = ${CHAMP_MS}ms at ${RUN_PX_PER_TICK}px/tick = ${WINDOW_PX}px of road\n`);
-console.log('  stage          length   bags   rats  bottles   bags doubled (real placement / best possible)');
+console.log('  stage          length   bags  enemy  bottles   bags doubled (real placement / best possible)');
 for (const s of stages) {
   totalBags += s.bags.length;
-  totalRats += s.enemies;
+  totalEnemies += s.enemies;
   totalBottles += s.champagnes.length;
   totalLen += s.end;
 
@@ -99,17 +102,17 @@ for (const s of stages) {
     + `   ${String(doubled.size).padStart(4)} / ${String(taken.size).padStart(4)}`);
 }
 
-const flawless = totalBags * BAG_VALUE + totalRats * STOMP;
+const flawless = totalBags * BAG_VALUE + totalEnemies * STOMP;
 const realCeil = flawless + realDoubled * BAG_VALUE * (MULT - 1);
 const bestCeil = flawless + bestDoubled * BAG_VALUE * (MULT - 1);
 
 console.log('  ' + '-'.repeat(88));
 console.log(`  TOTAL        ${String(totalLen).padStart(7)} ${String(totalBags).padStart(6)}`
-  + ` ${String(totalRats).padStart(6)} ${String(totalBottles).padStart(8)}`
+  + ` ${String(totalEnemies).padStart(6)} ${String(totalBottles).padStart(8)}`
   + `   ${String(realDoubled).padStart(4)} / ${String(bestDoubled).padStart(4)}`);
 console.log('');
 console.log(`  every bag                    ${String(totalBags * BAG_VALUE).padStart(7)}`);
-console.log(`  every rat                   +${String(totalRats * STOMP).padStart(6)}`);
+console.log(`  every enemy stomped         +${String(totalEnemies * STOMP).padStart(6)}`);
 console.log(`  doubler, bottles where they are +${String(realDoubled * BAG_VALUE).padStart(6)}`);
 console.log(`  ── perfect run, as the map is built   ${String(realCeil).padStart(6)}`);
 console.log(`  doubler, if the bottles sat on the densest stretches +${String(bestDoubled * BAG_VALUE).padStart(6)}`);
@@ -125,7 +128,7 @@ check('50,000 is reachable — the perfect run clears it', realCeil > 50000, `${
 check('50,000 is not trivially reachable — bags alone fall short',
   totalBags * BAG_VALUE < 50000, `${totalBags * BAG_VALUE} from bags alone`);
 check('the doubler is what closes the gap',
-  totalBags * BAG_VALUE + totalRats * STOMP < 50000 && realCeil > 50000,
+  totalBags * BAG_VALUE + totalEnemies * STOMP < 50000 && realCeil > 50000,
   `no-doubler flawless ${flawless}`);
 
 // ── 2. the board actually shows him at 50,000 ────────────────────────────

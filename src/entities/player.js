@@ -95,7 +95,7 @@ export function isInvulnerable(player, now) {
 //
 // That one is also true during the i-frames you get for TAKING A HIT, and the
 // bag multiplier must never pay out for those. Wiring the bonus to
-// isInvulnerable would mean walking into a rat turned the next second and a
+// isInvulnerable would mean walking into an enemy turned the next second and a
 // quarter into double money, which rewards exactly the thing the game is
 // asking you to avoid.
 export function isChampagne(player, now) {
