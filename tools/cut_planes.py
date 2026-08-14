@@ -37,12 +37,13 @@ there it usually does not have to: items are listed far -> near and the NEARER
 one owns any overlap, so the fence takes its own overlap with the canopy
 behind it and the canopy keeps a clean edge.
 
-WHY THE BASE IS INPAINTED. An isolated item is erased from the base plate and
-the hole filled, or it would appear twice the moment its rate diverged. The
-fill is a push-pull pyramid rather than the old "stretch the band above
-downward", which left vertical streaks. What lands in the hole is whatever
-surrounds it, blurred — and the hole is covered by the item at rest, at night,
-under the aerial wash, so a soft fill there is invisible.
+THE BASE IS NOT CUT. It is the whole painting, untouched, and the cards sit on
+top of it — see the note above `pyramid_inpaint`. Items used to be erased from
+the base and the hole inpainted, on the theory that otherwise an item appears
+twice once its rate diverges. That is only true if it diverges FAR. It does
+not: 72px at most over a whole stage. What the fill actually bought was a
+blurred grey patch behind every card, 10 to 30 levels off the art, which the
+client saw immediately and named — "bruises everywhere on the game."
 
 Usage:
     python3 tools/cut_planes.py                # cut every stage with planes
@@ -322,6 +323,40 @@ def trace_contours(mask, min_area=24):
 
 
 # ── Fill ──────────────────────────────────────────────────────────────────
+
+# ── THE BASE IS THE PAINTING ─────────────────────────────────────────────
+#
+# There used to be two functions here, sink_night and sink_day, that inpainted
+# the holes the cards left and then blurred what they invented. Both are gone,
+# and the client is the one who called it:
+#
+#   "Bruises everywhere on the game — that's the blurry shit. We don't need no
+#    blurry bruises. Do we need to double up the background so those pieces can
+#    slide just subtly? You cut out the pieces you want to move and they just
+#    move, cause that's how everybody else does it."
+#
+# He is right, and it is the standard way. A hole only needs filling if the
+# thing that came out of it is gone. It is not gone — it is drawn back on top,
+# one layer up, a few pixels off. So DO NOT CUT A HOLE. Keep the whole painting
+# as the backdrop and lay the cut pieces over it.
+#
+# WHY IT WORKS, and why it did not use to. Cards separate from the plate by at
+# most 72px over a whole stage now (backdrop.js, after the ground strips lost
+# their 400px override). At that scale a card slides over its own twin and what
+# peeks out along the edge is the painting itself — correct scenery, softly
+# doubled, which reads as depth. It is what every cut-out parallax背景 does.
+# With the old 400px separation you would have seen a whole second fence, which
+# is presumably why someone reached for the inpaint in the first place.
+#
+# WHAT WE PAID FOR THE INPAINT. Measured against the plate at the same pixels,
+# the bases it produced sat 10.2 to 30.5 levels away from the art. In daylight
+# that is a grey hole you can see behind every card. Now they sit 1.1 to 1.6
+# levels away, which is WebP quantisation and nothing else.
+#
+# pyramid_inpaint is kept below: cut_still.py uses it to lift the OPTIONS word
+# off the title plate, where the hole really is permanent because the word is
+# redrawn somewhere else entirely.
+
 
 def pyramid_inpaint(rgb, hole, levels=9):
     """Push-pull fill: pull colour down a pyramid, push it back into holes."""
@@ -1277,16 +1312,8 @@ def cut(stage_id, items, debug_only=False, proof=False):
               ', '.join(f"{it['name']}={int(m.sum())}" for it, m in zip(items, masks)))
         return
 
-    base = pyramid_inpaint(rgb, claimed)
-    # Seven tenths of this plate is now hole, so there is no real scenery left
-    # to reconstruct and a sharp fill only produces ghosts — a smeared Welcome
-    # sign hanging in mid-air where the fence used to be. Sink the fill instead:
-    # blur it flat and darken it, ramped by distance from the nearest real
-    # pixel so it fades out of the cut edge rather than starting at one. What a
-    # card slides away from then reads as night depth behind it.
-    soft = np.array(Image.fromarray(base).filter(ImageFilter.GaussianBlur(9)))
-    k = np.clip(ndi.distance_transform_edt(claimed) / 14.0, 0, 1)[..., None]
-    base = (base * (1 - k) + soft * 0.55 * k).astype(np.uint8)
+    # No fill, no blur, no darkening. See the note at the top of this file.
+    base = rgb
     Image.fromarray(base).save(os.path.join(BG, f'{stage_id}-base.webp'),
                                'WEBP', quality=92, method=6)
     Image.fromarray(base).save(os.path.join(DEBUG_DIR, stage_id + '_base.png'))

@@ -249,17 +249,66 @@
       color: rgba(242,234,216,0.82); background: none;
       border: 1px solid rgba(255,214,110,0.32);
     }
+    /* ── THE BOARD, ON HIS MARTA CARD ──────────────────────────────────
+       The leaderboard is his breeze-card design and the rows are laid over
+       it, not drawn next to it. Everything here is a FRACTION of the card,
+       measured off the artwork itself (852x1846) and listed in the commit
+       that blanked its placeholder rows, so the layout survives the card
+       being shown at any width.
+
+         rank column   left edge   0.127
+         player        left edge   0.286
+         score         RIGHT edge  0.880
+         row centres   0.5612  0.6077  0.6528  0.6972  0.7405
+         your rank     0.8240
+
+       Aspect-ratio holds the box to the card's shape, so a percentage top
+       lands on the row it was measured against on any screen. Font size is
+       in cqw — container-query width — for the same reason: the lettering
+       has to scale WITH the card, and vw would scale with the window
+       instead and drift off the rows on a wide one. */
+    #lbCard {
+      position: relative; width: 100%; aspect-ratio: 852 / 1846;
+      container-type: inline-size;
+      background: center/100% 100% no-repeat;   /* image set in panel.js */
+      border-radius: 14px; overflow: hidden;
+    }
     #board { margin: 0; padding: 0; list-style: none; }
     #board li {
-      display: flex; gap: 10px; align-items: baseline;
-      padding: 7px 2px; border-bottom: 1px solid rgba(255,214,110,0.10);
-      font-variant-numeric: tabular-nums;
+      position: absolute; left: 0; right: 0; height: 4.4cqw;
+      display: flex; align-items: center;
+      /* Monospace, not the panel's system-ui. His card is lettered in a
+         pixel arcade face and a proportional sans over it reads as a caption
+         someone stuck on top. Mono with wide tracking is the closest thing
+         available without shipping a font file. */
+      font: 700 4.0cqw/1 ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+      letter-spacing: 0.06em; font-variant-numeric: tabular-nums;
+      color: #cfcabf; text-shadow: 0 0.25cqw 0 rgba(0,0,0,0.55);
     }
-    #board li .r { width: 2.2em; color: rgba(242,234,216,0.45); font-weight: 700; }
-    #board li .n { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    #board li .s { color: #ffd66e; font-weight: 700; }
-    #board li.me { background: rgba(255,214,110,0.10); border-radius: 6px; }
-    #board li.me .n { color: #ffd66e; }
+    #board li .r { position: absolute; left: 12.7%; }
+    #board li .n {
+      position: absolute; left: 28.6%; right: 13%;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    #board li .s { position: absolute; right: 12.0%; }
+    /* Rank one is gold in his art, and so is whoever is reading it. */
+    #board li:first-child, #board li.me { color: #f0b429; }
+    #lbYou {
+      position: absolute; left: 0; right: 0; top: 79.5%; height: 5.2cqw;
+      display: flex; align-items: center;
+      font: 700 4.4cqw/1 ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+      letter-spacing: 0.06em; font-variant-numeric: tabular-nums;
+      color: #f0b429; text-shadow: 0 0.25cqw 0 rgba(0,0,0,0.55);
+    }
+    #lbYou .r { position: absolute; left: 12.7%; }
+    #lbYou .n { position: absolute; left: 28.6%; right: 13%;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #lbYou .s { position: absolute; right: 12.0%; }
+    #lbEmpty {
+      position: absolute; left: 8%; right: 8%; top: 57%; margin: 0;
+      text-align: center; color: rgba(242,234,216,0.62);
+      font: 600 3.4cqw/1.5 ui-monospace, Menlo, monospace; letter-spacing: 0.04em;
+    }
 
     /* Landscape on a phone is short: shrink and tuck the pads in so they
        never eat the play area. */
@@ -313,7 +362,11 @@
       <h2 id="panelTitle">LEADERBOARD</h2>
 
       <div id="pvBoard" class="pv">
-        <ol id="board"></ol>
+        <div id="lbCard">
+          <ol id="board"></ol>
+          <div id="lbYou" hidden><span class="r"></span><span class="n"></span><span class="s"></span></div>
+          <p id="lbEmpty" hidden></p>
+        </div>
         <p id="boardNote" class="note"></p>
         <button class="btn" id="btnRegister" type="button">ENTER THE CONTEST</button>
         <button class="btn ghost" id="btnSettings" type="button">SETTINGS</button>

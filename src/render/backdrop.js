@@ -55,20 +55,43 @@ const PLATE_PARALLAX = 0.1;
 const DEPTH_SPREAD = 0.010;
 const MAX_SEPARATION = 90; // px at zoom 1
 
-// GROUND STRIPS ARE THE EXCEPTION, and it is worth being precise about why.
+// GROUND STRIPS USED TO BE AN EXCEPTION. They are not any more, and the reason
+// they stopped being one is the most expensive lesson in this file.
 //
-// MAX_SEPARATION exists to stop a DISCRETE OBJECT migrating: the tree that
-// starts the stage on the left and ends it on the right is not parallax, it is
-// the set falling over. But that failure needs a landmark to be visible on.
-// A ground strip — the grass verge, the kerb, the wet street at the bottom of
-// the plate — is a continuous featureless band running the full width. Slide
-// it 300px and there is nothing in it to notice having moved; all you see is
-// that it is travelling faster than the buildings behind it, which is exactly
-// the cue that the street is nearer than the storefronts.
+// The argument for the exception went: MAX_SEPARATION exists to stop a
+// DISCRETE OBJECT migrating, and a ground strip — the grass verge, the kerb,
+// the wet street at the bottom of the plate — is a continuous featureless band
+// running the full width, so slide it 300px and there is nothing in it to
+// notice having moved. On that reasoning the strips were given `rate: 0.30`
+// against the plate's 0.10 and a 400px clamp of their own.
 //
-// So a card may opt into a real rate and a looser clamp. Only ground strips
-// should. Anything with an identifiable feature in it keeps the tight default.
-const STRIP_MAX_SEPARATION = 400; // px at zoom 1
+// EVERY WORD OF THAT IS TRUE EXCEPT "FEATURELESS". A strip has no landmark
+// INSIDE it, but it has a hard edge along the TOP, and things stand on that
+// edge. At 0.30 against 0.10 the strip saturates its 400px clamp about 200px
+// into the stage, while the fence planted in it — depth-derived, spread 0.010 —
+// travels 20px. Measured at the far end of EAV: verge +400, fence +20. That is
+// 380px of shear on a 430px screen. The grass walks out from under the fence.
+//
+// Client, looking at the day plates: "you had the grass like a layer and then
+// the fence was another layer, but it was not lined up with each other... it
+// moved cool, it's just not visually looking right." Correct on both counts —
+// the motion was fine, the registration was not.
+//
+// WHY IT ONLY EVER SHOWED IN DAYLIGHT: at night the strip is dark wet asphalt
+// and the fence foot is in shadow, so 380px of shear has nothing to read
+// against. In daylight EAV's verge is bright green grass meeting grey pavement
+// along a hard line.
+//
+// AND THE CONTROL EXPERIMENT WAS ALREADY IN THE STAGE TABLE. Underground at
+// night is the one ground strip that never got the override — depth 0.82, no
+// rate — and it is the one backdrop the client has called perfect. Its street
+// sits 64px from the mid buildings purely on depth and reads as depth.
+//
+// So: no strip rate, no strip clamp. Depth drives every card, the spread stays
+// at 0.010, and the widest gap any card can now open on the plate is 72px at
+// depth 1.0 over the longest stage — inside MAX_SEPARATION, so nothing
+// saturates and every card keeps moving for the whole stage instead of
+// slamming into a limit and freezing there.
 
 // WEATHER MOVES ON ITS OWN. Parallax is a function of where the CAMERA is, so
 // a cloud card only ever slides while the player runs — stand still and the
@@ -84,14 +107,9 @@ const STRIP_MAX_SEPARATION = 400; // px at zoom 1
 // the depth the rest of the multiplane set is buying.
 function cardParallax(camX, depth, card, tick) {
   const drift = card && card.drift ? card.drift * (tick || 0) : 0;
-  const common = camX * PLATE_PARALLAX + drift;
-  if (card && card.rate !== undefined) {
-    const diff = camX * (card.rate - PLATE_PARALLAX);
-    const cap = card.maxSep === undefined ? STRIP_MAX_SEPARATION : card.maxSep;
-    return common + Math.max(-cap, Math.min(cap, diff));
-  }
   const diff = camX * (depth - 0.5) * DEPTH_SPREAD;
-  return common + Math.max(-MAX_SEPARATION, Math.min(MAX_SEPARATION, diff));
+  return camX * PLATE_PARALLAX + drift
+    + Math.max(-MAX_SEPARATION, Math.min(MAX_SEPARATION, diff));
 }
 const RAIN_TIERS = [
   { n: 26, len: 26, speed: 5.2, alpha: 0.1, width: 1.0, par: 0.18 },

@@ -22,6 +22,18 @@ read off the logo artwork, which is the authority. It does not
 come apart into "KC TW". Legal name Melvin D. Brown III, which belongs on
 paperwork, not on screen.
 
+Also **Knowledge**, which he uses as a name for himself and not only as the
+word the acronym starts with. His own list, given verbatim: *"prodbyKCTW,
+a.k.a. Melvin D. Brown the third, a.k.a. KCTW, a.k.a. Change The World, a.k.a.
+Knowledge — that's me. I'm the person making all of this."*
+
+**"WE" MEANS HIM, OR HIM AND ME.** Stated outright and worth writing down,
+because it decides how every note in this file and every commit message should
+read: *"when I refer to 'we' I'm talking about myself mostly, and sometimes
+myself and you. We, you and I, are us. We refer to anyone else by their given
+name when I include them."* So a "we" in his messages is never a vague team —
+it is him, or the two of us. Anyone else gets named: Will Hill, Chemo, Kema.
+
 **Will Hill** — the artist the game stars, and the player character. Not the
 developer.
 
@@ -1214,6 +1226,69 @@ it does decide how hard the identity check needs to be.
 
 ---
 
+## The score ceiling, and why Will Hill sits at 50,000
+
+**Measured 2026-08-14 by `tools/harness/ceiling.mjs`.** Re-run it after any
+change to bag rate, enemy rate, `CHAMPAGNE_SECONDS`, `CHAMPAGNE_MULT` or stage
+length — all five move this table, and the pin is only defensible while the
+table is true.
+
+> **ENEMIES ARE NOT RATS.** Two different things, and an earlier draft of this
+> section conflated them badly enough that the client caught it. The
+> **enemies** (`level.enemies`, `entities/enemy.js`) are the masked hoodie
+> figures — three palette variants, GDD "Enemy design", 50 points a stomp,
+> 105 of them across the four stages. The **rats** are one scurrying sprite of
+> undercroft scenery (`render/undercroft.js`, in the `kinds` list beside
+> roots/conduit/sewer/manhole), they live only under the street, they cannot
+> be touched and they score nothing. The word "rat" appears in this repo only
+> in that scenery code. Do not let it back into a scoring table.
+
+The harness walks all four shipping stages, forces every spawn with
+`genAhead`, and then does the part that cannot be done on paper: it counts the
+bags that **actually** fall inside each bottle's real window. The window is
+9s at the measured 4.80 px/tick on a 16.6ms tick — **2,602px of road** — and
+overlapping windows are unioned, because a bag cannot be doubled twice.
+
+| stage | cols | bags | enemies | bottles | bags doubled (as placed / best possible) |
+|---|---|---|---|---|---|
+| eav | 360 | 90 | 21 | 2 | 43 / 53 |
+| edgewood | 390 | 97 | 24 | 2 | 40 / 50 |
+| underground | 420 | 90 | 27 | 2 | 36 / 47 |
+| l5p | 450 | 102 | 33 | 2 | 38 / 51 |
+| **total** | **1620** | **379** | **105** | **8** | **157 / 201** |
+
+```
+  379 bags at 100                              37,900
+  105 masked enemies stomped at 50             +5,250
+  ── flawless with no bottle at all             43,150
+  157 bags doubled, bottles where they sit     +15,700
+  ── PERFECT RUN, as the map is built           58,850
+  201 doubled, bottles moved to the densest
+     stretches (upper bound, not the game)     +20,100
+  ── absolute ceiling if bottles were re-placed 63,250
+```
+
+**50,000 is 85% of the perfect run.** The line that matters is the middle one:
+before `CHAMPAGNE_MULT`, the hard ceiling was 43,150, so 50,000 **was not
+reachable at all**. The doubler is what put the pin inside the world — which
+is why "make champagne harder and make it multiply" and "put 50,000 next to
+Will Hill" are the same decision, a day apart.
+
+**The route to beat him**, since it is a specific one and not "play well":
+all eight bottles, all 157 bags inside their windows, every enemy, and ~134 of
+the 222 bags outside the windows (60%) — and no enemy touch late, because a
+touch dumps the *entire* purse on the pavement (`main.js`, the Sonic-rings
+branch) and anything not re-collected before it despawns is gone.
+
+**Scale of the thing:** 32px per column, so the four stages are 51,264px of
+road. Running flat out and stopping for nothing that is **2m 58s**; a real
+collecting run with the three rides is more like 6–8 minutes.
+
+The card art paints **125,680** beside his name. That was always decoration —
+double the absolute ceiling — and the board draws 50,000 over it.
+
+---
+
 ## Still open
 
 - **Daytime multiplane — DONE for all four stages.** Every day plate is now
@@ -1254,6 +1329,30 @@ it does decide how hard the identity check needs to be.
   two stomps a second over a ~1.6s beat, which is a beating rather than a
   defect. It is on the list because `measure_cycle.py` will keep reporting it,
   not because anything looks wrong.
+- **`credits` runs out and the ending goes quiet.** Measured durations, all
+  ten cues: title 1:26, stage_01 1:36, stage_02 1:39, stage_03 1:42, stage_04
+  1:38, map_01_02 0:44, map_02_03 0:47, map_03_04 0:48, ui_pause 1:18,
+  **credits 0:41**. Every other cue loops and every stage is 40–49s of road,
+  so no stage cue even reaches its loop point — that half is comfortable. But
+  `credits` is deliberately `loop: false` ("the one cue that plays start to
+  finish") and the `complete` screen has no time limit, so a player who sits
+  on the ending past 41s sits in silence. Three ways out: loop it, fade the
+  screen out with the track, or get a longer cue. **The client's call — it is
+  a music decision, not a bug.**
+- **The clouds are not cut out of the portrait title.** Every other element is
+  (`tp_logo`, `tp_signL`, `tp_signR`, `tp_hero`, `tp_pole`), so the clouds do
+  not slide in with the rest the way he asked. SAM merges them into the sky —
+  they have no edge it can find — so this needs a colour key rather than a
+  mask, which is a different tool from `sam_segment.py`.
+- **The leaderboard rows are monospace, not a pixel font.** His MARTA card is
+  hand-lettered and the fallback does not match it. Any real pixel face is a
+  licence question, so it is a decision before it is a job.
+- **`bag: 0.34` in every stage recipe.** Raising it to 0.45 was measured at
+  523 bags (52,300 from bags alone), which would put 50,000 back inside reach
+  without a bottle and undo the section above. Left where it is on purpose.
+- **The branch is well ahead of `main`.** `claude/last-markdown-game-link-lvk1n6`
+  carries everything from the day plates forward; `main` is still at
+  "CHAMPAGNE RELAY on the title card". Merging is authorised, not automatic.
 
 ### Corrected — these were listed as open and are DONE
 
@@ -1286,6 +1385,32 @@ session of re-doing finished work.
   committed — the voice memo and the four sprite sheets. Re-downloadable packs
   and build scratch stay ignored. The rule is: if losing it means the work
   cannot be rebuilt, it goes in.
+
+## ⚠️ THE CONTAINER ROLLS BACK. ORIGIN IS THE ONLY TRUTH.
+
+**This happened three times on 2026-08-14 alone**, and once the day before.
+The remote container's working copy silently reverted to an older commit
+(`dff3d1e` every time) mid-session — no error, no warning. Files written
+minutes earlier were simply gone, and `git log` showed a HEAD from hours back.
+
+**Nothing was lost, because everything had been pushed.** That is the entire
+mitigation, and it is not optional:
+
+- **Commit and push after every finished piece of work**, not at the end of a
+  session. A push takes two seconds; re-deriving a day of measurements does
+  not.
+- **Harnesses live in `tools/harness/`, committed** — never in `/tmp` or the
+  scratchpad. An earlier rollback destroyed a set of scratch harnesses and
+  they had to be rewritten from memory. That is why they are in the repo now
+  even though they are test code.
+- **Recovery is one command**, and it is safe precisely because origin is
+  ahead: `git fetch origin <branch> && git reset --hard origin/<branch>`.
+- **Check first, then trust.** `git log --oneline -3` at the start of any
+  session, and again any time a file you know you wrote is missing. Do not
+  assume the checkout matches what you remember — it did not, three times.
+
+If a session starts and HEAD is not where this document's history says it
+should be, the checkout is stale, not the branch.
 
 ## ⚠️ Generated animation: the DOUBLE-BODY trap
 
@@ -1416,3 +1541,86 @@ decoding a screenshot — `getImageData` on the top third gives a mean luma in
 one `evaluate`, and there is no `pngjs` in this tree. Day vs night on the
 shipped bundle reads **93.0 vs 30.1**, a 3.1× split; anything near 1× means the
 setting is not reaching the pixels.
+
+
+---
+
+## The second idle — Will Hill counts his money
+
+**Wired and tested; waiting only on the sheet.** Stand still for 200 ticks
+(3.3s) and `stepPlayer` switches `anim` to `idleFlex`; move, jump or take a hit
+and it drops on the same tick and the wait restarts from zero. Proven by
+`tools/harness/idleflex.mjs`, 8/8, against the real gate with a stand-in clip
+injected into the atlas before player.js reads it.
+
+**It is gated on the clip existing** (`HAS_FLEX`, read once at module load), so
+today's build behaves exactly as it always has. Without that gate `anim` would
+flip to a clip the sheet lacks — `resolveClip` would draw the right thing, but
+`advanceAnim` resets `animT` on every change of key, so the breathing idle
+would snap to frame 0 every few seconds forever. The harness watches 150 frames
+for exactly that and counts zero early resets.
+
+### To install it
+
+1. Generate the sheet (below).
+2. Compose it into `will-hill.webp` with `tools/compose_player_sheet.py`.
+3. Add an `idleFlex` entry to `will-hill.atlas.json` — same shape as `idle`:
+   `{ "start": <first frame>, "frameCount": N, "loop": true, "ticks": ~5, "fit": {...} }`.
+
+No code change. It starts working on the next load.
+
+### The animation, in the client's words
+
+> "When Will Hill is just standing idle I want him to start thumbing through his
+> money roll — counting money as one of the idle motions." … "He should be
+> thumbing through his money roll. If you need to look up images of rappers
+> thumbing through the check, as it's referred to, do that so you can get the
+> proper aesthetic. It's a stylized way of counting your money as a simple life
+> achievement in urban hip-hop culture."
+
+The motion, so whoever writes the prompt does not get a bank-teller counting
+notes flat on a desk: a **thick folded roll of bills held in one hand**, thumb
+riding the top edge and flicking the corners so they fan and snap back, wrist
+doing most of the work, the other hand loose at his side or tucked. **He is not
+looking at it** much — the flex is that he does not need to count carefully.
+Small nod or shoulder roll on the beat. Loops seamlessly, and the roll never
+leaves his hand.
+
+### The AutoSprite call, ready to fire
+
+```
+generate_spritesheet({
+  characterId: <the existing Will Hill character>,
+  animations: [{
+    kind: 'custom',
+    name: 'idleFlex',
+    loop: true,
+    prompt: 'standing still, holding a thick folded roll of cash in one hand, '
+          + 'thumb flicking down the edge of the bills so the corners fan and '
+          + 'snap back, wrist doing the work, other hand loose at his side, '
+          + 'casual and unhurried, barely glancing at the money, small nod on '
+          + 'the beat, feet planted, seamless loop',
+  }],
+  spritesheet: { frameCount: 32, frameSize: 256 },
+})
+```
+
+`frameCount: 32` and `frameSize: 256` match what the rest of this atlas was cut
+from (`sourceCellSize` 256x256, `idle` is 32 frames). Do **not** set
+`withSound` — it costs extra credits and this clip is silent.
+
+### ⚠️ AutoSprite is refusing calls in this environment
+
+Measured, not assumed — two different endpoints, same answer:
+
+```
+list_characters → Unauthorized: provide an MCP API key from https://www.autosprite.io/apikey.
+get_account     → Unauthorized: provide an MCP API key.
+```
+
+The server is REACHABLE — that is its own structured error coming back, not a
+timeout or a missing tool — so this is not a network problem and not a dead
+account. It is that no key is being presented on the connection. Generating a
+key at autosprite.io does not by itself attach it to anything; it has to be
+pasted into the AutoSprite connector's settings on the claude.ai side. Until
+then this session cannot generate the sheet.

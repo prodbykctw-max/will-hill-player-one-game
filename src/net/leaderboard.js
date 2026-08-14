@@ -107,6 +107,61 @@ export function createRunLog() {
 // showing your own last ten runs.
 const LOCAL_KEY = 'wh_local_runs';
 
+// ── WILL HILL HOLDS FIRST PLACE, AT 50,000 ──────────────────────────────
+//
+// Client: "we're gonna put 50,000 points next to Will Hill."
+//
+// It began as "the total amount of bags that can be gotten in the game",
+// which counted out at 37,900 — and that turned out to be the wrong shape for
+// the job, because a bag is not the only thing that scores. Anyone clearing
+// every bag and stomping one masked enemy passed him by fifty.
+//
+// 50,000 is a better number than either that or the arithmetic ceiling, for a
+// reason worth writing down: IT IS BEATABLE, BUT ONLY JUST. Every line below
+// is MEASURED off the shipping levels by tools/harness/ceiling.mjs, which
+// walks all four stages, forces every spawn, and counts the bags that actually
+// fall inside each bottle's real 9-second window (2,602px of road at the
+// measured 4.80 px/tick) rather than assuming an average density.
+//
+//   379 bags at 100                                       37,900
+//   105 masked enemies stomped at 50                      +5,250
+//   ── flawless with no bottle at all                      43,150
+//   157 of those bags doubled, bottles where they sit     +15,700
+//   ── PERFECT RUN, as the map is built                    58,850
+//
+// (The ENEMIES are the masked hoodie figures — docs/GDD.md "Enemy design",
+// three palette variants, the only thing in the game worth 50. They are not
+// the undercroft RATS, which are scenery under the street in
+// render/undercroft.js, cannot be touched, and are worth nothing. An earlier
+// draft of this note called the enemies rats and the client caught it.)
+//
+// So he sits at 85% of a perfect run. Note the middle line: before the
+// multiplier the game's hard ceiling was 43,150, so 50,000 WAS NOT REACHABLE
+// AT ALL. The doubler is the only thing that puts him inside the world, which
+// is why the two decisions arrived together.
+//
+// Reaching him means all eight bottles, all 157 bags inside their windows,
+// every enemy stomped, and about 60% of the 222 bags outside the windows —
+// and no enemy touch late, because a touch dumps the whole purse on the
+// pavement. A real target with a real route behind it, which is what the top
+// of a contest board should be — not an unbeatable wall, and not a number the
+// first decent player strolls past.
+//
+// The card art paints 125,680 next to his name. That was always decoration;
+// no run can approach it.
+export const BAGS_IN_GAME = 379;
+export const PERFECT_RUN = 58850;      // measured — tools/harness/ceiling.mjs
+export const WILL_HILL = Object.freeze({ name: 'WILL HILL', score: 50000, pinned: true });
+
+// Merge him into whatever the board is showing, wherever his score puts him.
+// Not spliced at index 0 — if a player ever does beat it, the board has to
+// show that honestly rather than pretend otherwise.
+export function withWillHill(runs) {
+  const list = (runs || []).filter((r) => !r.pinned).concat([WILL_HILL]);
+  list.sort((a, b) => b.score - a.score || (a.t || 0) - (b.t || 0));
+  return list;
+}
+
 export function localRuns() {
   try {
     const a = JSON.parse(localStorage.getItem(LOCAL_KEY) || '[]');

@@ -19,6 +19,9 @@ const FALLBACK = {
   knockdown: 'defeat', death: 'defeat', defeat: 'hit', hit: 'idle',
   stomp: 'attack', attack: 'walk', knockback: 'hit', fall: 'jumpLand',
   run: 'walk', walk: 'idle',
+  // The money-counting idle degrades to the plain one, so a build whose sheet
+  // predates the clip draws a standing Will Hill rather than nothing.
+  idleFlex: 'idle',
 };
 
 export function resolveClip(atlas, name) {

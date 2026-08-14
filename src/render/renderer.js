@@ -476,10 +476,16 @@ export function createRenderer(ctx, canvas) {
 
   function powerScale(msLeft, totalMs = CHAMPAGNE_SECONDS * 1000) {
     if (msLeft <= 0) return 1;
-    const since = totalMs - msLeft;
+    // CLAMPED, because `since` is a subtraction and callers do not all own
+    // both ends of it. A window granted for longer than totalMs makes it
+    // negative, the floor divide makes the index negative, GROW_STEPS returns
+    // undefined and the scale comes out NaN — which is a sprite that vanishes,
+    // not a sprite that looks wrong.
+    const since = Math.max(0, totalMs - msLeft);
     const rampOut = Math.min(1, msLeft / 700);
     if (since < GROW_MS && rampOut >= 1) {
-      return 1 + POWER_GROWTH * GROW_STEPS[Math.floor(since / GROW_STEP_MS)];
+      const step = Math.min(GROW_STEPS.length - 1, Math.floor(since / GROW_STEP_MS));
+      return 1 + POWER_GROWTH * GROW_STEPS[step];
     }
     return 1 + POWER_GROWTH * rampOut;
   }
@@ -662,10 +668,30 @@ export function createRenderer(ctx, canvas) {
   // ── pickups / hazards ────────────────────────────────────────────────
   // Pickups are AutoSprite-generated art (tools/compose_props.py), drawn
   // with a soft glow so they read against the dark street.
-  function drawPickup(item, img, tick, glow) {
+  // `msLeft` is the champagne remaining, or 0. See the note on the scale below.
+  function drawPickup(item, img, tick, glow, msLeft = 0) {
     if (item.got || !img) return;
     const bob = Math.sin(tick * 0.055 + item.x * 0.01) * 3;
     const y = item.y + bob;
+    // ── THE BAGS GROW WITH HIM ──────────────────────────────────────────
+    //
+    // Client: "the bags should grow and downsize the same as Will Hill does."
+    //
+    // Same powerScale, so it is the same curve and not a copy of it — the
+    // Mario stutter on the way in, the settle at +30%, the ramp out over the
+    // last 700ms. They swell exactly when they start paying double and shrink
+    // back exactly when that stops, which makes the multiplier something you
+    // can SEE on the street rather than a number you notice afterwards on the
+    // HUD.
+    //
+    // GROWN ABOUT THE FOOT, not the centre. Scaling around the middle lifts a
+    // bag off the pavement by half the gain and it reads as floating; these
+    // sit on the ground and the shadow under them is drawn to the same spot.
+    const ps = powerScale(msLeft);
+    const gw = item.w * ps;
+    const gh = item.h * ps;
+    const gx = item.x - (gw - item.w) / 2;
+    const gy = y - (gh - item.h);
 
     // Anything that occludes light casts a shadow — pickups included. Same
     // practical drives it as the characters', so a bag's shadow leans away
@@ -675,14 +701,14 @@ export function createRenderer(ctx, canvas) {
 
     ctx.save();
     const g = ctx.createRadialGradient(
-      item.x + item.w / 2, y + item.h / 2, 1,
-      item.x + item.w / 2, y + item.h / 2, item.h * 0.85,
+      gx + gw / 2, gy + gh / 2, 1,
+      gx + gw / 2, gy + gh / 2, gh * 0.85,
     );
     g.addColorStop(0, glow);
     g.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.fillStyle = g;
-    ctx.fillRect(item.x - item.h, y - item.h * 0.4, item.w + item.h * 2, item.h * 1.8);
-    ctx.drawImage(img, item.x, y, item.w, item.h);
+    ctx.fillRect(gx - gh, gy - gh * 0.4, gw + gh * 2, gh * 1.8);
+    ctx.drawImage(img, gx, gy, gw, gh);
     ctx.restore();
   }
 

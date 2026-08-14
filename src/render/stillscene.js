@@ -37,28 +37,55 @@ function ampOf(bd, box) {
 }
 
 export function createStillScene(ctx, canvas) {
-  // Fit the whole painting on screen. CONTAIN, not cover — these images carry
-  // their own layout (a title, a stats panel, a PRESS START button) and
-  // cropping to fill would throw part of that off the side of the phone.
+  // ── COVER TO THE WIDTH, AND TAKE THE CROP OFF THE SKY ────────────────────
   //
-  // `zoom` scales past that fit, which on a portrait phone means trimming the
-  // left and right edges. Used by the title card, where the two controls
-  // painted into the art land 13 screen pixels apart at plain contain-fit — a
-  // gap a thumb cannot aim inside. (Zoom alone never closed that; see
-  // render/title.js, where the OPTIONS word is cut off the plate and moved.)
-  // `bias` slides the result vertically, -1 top to +1 bottom; the title leaves
-  // it at 0 and the space below the card is the OPTIONS zone regardless.
-  function fit(img, zoom = 1, bias = 0) {
-    const s = Math.min(canvas.width / img.width, canvas.height / img.height) * zoom;
+  // Contain is right for a plate whose aspect is nothing like the window's —
+  // the landscape title needed its black bars. The portrait plate does not: it
+  // is 0.4626 against a phone's 0.4614, so at full height it already all but
+  // fills the screen.
+  //
+  // "All but" stops being true the moment the browser keeps some height for
+  // itself. Safari's URL bar turns a 430x932 window into about 430x830, and a
+  // contain fit then goes HEIGHT-limited — 830 tall, 384 wide, 46px of black
+  // down each side. Which is exactly what the client photographed: "needs to be
+  // wider and fit the screen."
+  //
+  // `coverRows` opts a caller into filling the WIDTH instead, and names its own
+  // budget: how many SOURCE rows may be cropped off the TOP before the fit
+  // gives up and goes back to contain. Off by default, so the ending screen and
+  // anything else keeps the behaviour it has always had.
+  //
+  // THE CROP COMES OFF THE TOP AND THE BOTTOM IS ANCHORED, and that ordering is
+  // the whole trick. PRESS START, OPTIONS, the relay pill and the music box all
+  // live in the bottom eighth; the sky above the logo is what can be given
+  // away. Bottom-anchored means the crop can only ever eat sky.
+  //
+  // Measured on the title plate: the topmost logo pixel is row 281 of 1844, so
+  // the budget is 267 and title.js passes that. It covers a 430x800 window
+  // (257 rows) and gives up around 430x760 (336) — bars at the edge of the
+  // frame beat a title with its top sliced off.
+  function fit(img, zoom = 1, bias = 0, coverRows = 0) {
+    const contain = Math.min(canvas.width / img.width, canvas.height / img.height);
+    const cover = canvas.width / img.width;
+    const cropRows = (img.height * cover - canvas.height) / cover;
+    const useCover = coverRows > 0 && cover > contain && cropRows <= coverRows;
+    const s = (useCover ? cover : contain) * zoom;
     const dw = img.width * s;
     const dh = img.height * s;
+    if (useCover) return { s, dw, dh, dx: (canvas.width - dw) / 2, dy: canvas.height - dh };
     const slack = (canvas.height - dh) / 2;
     return { s, dw, dh, dx: (canvas.width - dw) / 2, dy: slack + slack * bias };
   }
 
   // `cards`: [{ img, sway: [{ top, pivot, amp, freq, xRanges: [[a,b],...] }] }]
   // in the painting's own 0..1 coordinates.
-  function draw(base, cards, tick, zoom = 1, bias = 0) {
+  // `fx`, when given, is { base: {x,y,a}, cards: [{x,y,a}, ...] } indexed to
+  // `cards` — a per-layer translate and fade laid over the normal draw. It
+  // exists for the title's assembly intro (see title.js drawIntro): the whole
+  // point of a multiplane card set is that the layers are separable, so they
+  // can arrive separately too. Nothing else passes it, and with it absent this
+  // function behaves exactly as it always has.
+  function draw(base, cards, tick, zoom = 1, bias = 0, fx = null, coverRows = 0) {
     const w = canvas.width;
     const h = canvas.height;
     ctx.save();
@@ -67,7 +94,7 @@ export function createStillScene(ctx, canvas) {
     ctx.fillRect(0, 0, w, h);
     if (!base || !base.width) { ctx.restore(); return null; }
 
-    const box = fit(base, zoom, bias);
+    const box = fit(base, zoom, bias, coverRows);
 
     // THE LETTERBOX IS BLACK, and that is the client's call after seeing the
     // alternative. These are 3:2 landscape paintings on a 2.17:1 portrait
@@ -79,12 +106,25 @@ export function createStillScene(ctx, canvas) {
     // He is right. Stretching six rows of a DITHERED pixel painting carries
     // the dither with it, and dither stretched vertically is a set of
     // stripes. Flat black has no artefacts to notice.
-    ctx.drawImage(base, box.dx, box.dy, box.dw, box.dh);
-
-    for (const card of cards || []) {
-      if (!card.sprites && (!card.img || !card.img.width)) continue;
-      drawCard(card, box, tick);
+    const bfx = fx && fx.base;
+    if (bfx) {
+      ctx.save();
+      ctx.globalAlpha = bfx.a;
+      ctx.translate(bfx.x, bfx.y);
     }
+    ctx.drawImage(base, box.dx, box.dy, box.dw, box.dh);
+    if (bfx) ctx.restore();
+
+    (cards || []).forEach((card, i) => {
+      if (!card.sprites && (!card.img || !card.img.width)) return;
+      const c = fx && fx.cards && fx.cards[i];
+      // Translate rather than offset `box`: drawCard derives its sway bands and
+      // its sprite wrap from the box, so moving the box would move the pivots
+      // and the wrap period with it and the layer would deform on the way in.
+      if (c) { ctx.save(); ctx.globalAlpha = c.a; ctx.translate(c.x, c.y); }
+      drawCard(card, box, tick);
+      if (c) ctx.restore();
+    });
     ctx.restore();
     return box;
   }

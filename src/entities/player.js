@@ -27,6 +27,16 @@ import { collideH, collideV, FLOOR_R, T } from '../world/tilemap.js';
 import spriteSheetUrl from '../assets/sprites/will-hill.webp';
 import atlas from '../assets/sprites/will-hill.atlas.json';
 
+// ── THE SECOND IDLE ──────────────────────────────────────────────────────
+// How long he has to stand still before the money comes out. 200 ticks is
+// 3.3s at the fixed 16.6ms step — long enough that it never fires while you
+// are lining up a jump, short enough that standing to look at a stage gets
+// you the flex rather than a statue.
+const FLEX_AFTER = 200;
+const FLEX_CLIP = 'idleFlex';
+// Read ONCE, at module load. See the note where it is used.
+const HAS_FLEX = !!(atlas.animations && atlas.animations[FLEX_CLIP]);
+
 export const PLAYER_SPRITE = { url: spriteSheetUrl, atlas };
 
 const CONTACT_IFRAMES = 75; // ticks, matches Jandé's p.inv=75 on taking a hit
@@ -71,6 +81,7 @@ export function createPlayer(x, y) {
     anim: 'idle', // key into PLAYER_SPRITE.atlas.animations
     animT: 0,
     frame: 0,
+    idleT: 0,   // ticks stood still — see the second idle in stepPlayer
 
     _lastJumpHeld: false,
   };
@@ -78,6 +89,17 @@ export function createPlayer(x, y) {
 
 export function isInvulnerable(player, now) {
   return now < player.invulnerableUntil || player.inv > 0;
+}
+
+// ⚠️ THE CHAMPAGNE WINDOW ONLY — NOT the same question as isInvulnerable.
+//
+// That one is also true during the i-frames you get for TAKING A HIT, and the
+// bag multiplier must never pay out for those. Wiring the bonus to
+// isInvulnerable would mean walking into an enemy turned the next second and a
+// quarter into double money, which rewards exactly the thing the game is
+// asking you to avoid.
+export function isChampagne(player, now) {
+  return now < player.invulnerableUntil;
 }
 
 // CHAMPAGNE_SECONDS is the single source of truth for how long the power-up
@@ -288,5 +310,34 @@ export function stepPlayer(p, input, map) {
     p.anim = 'walk';
   } else {
     p.anim = 'idle';
+  }
+
+  // ── THE SECOND IDLE: HE COUNTS HIS MONEY ─────────────────────────────────
+  //
+  // Client: "when Will Hill is just standing idle I want him to start thumbing
+  // through his money roll — counting money as one of the idle motions."
+  //
+  // Stand still long enough and the breathing idle gives way to the flex: the
+  // roll comes out and he thumbs the edge of it. Move, jump, take a hit — any
+  // of it — and he is back to the plain idle on the same tick, because the
+  // counter resets the moment `anim` is anything else.
+  //
+  // WHY IT IS GATED ON THE CLIP EXISTING. `idleFlex` is not in the atlas yet;
+  // it needs an AutoSprite sheet, and AutoSprite is refusing calls in this
+  // environment for want of an API key. Without the gate this would switch to
+  // a clip the sheet does not have, and while resolveClip would fall back to
+  // `idle` and draw the right thing, advanceAnim resets animT on every change
+  // of `anim` — so the breathing idle would hitch back to frame 0 once every
+  // few seconds, forever, for no visible reason. Read once at module load, so
+  // it costs nothing per tick.
+  //
+  // DROPPING THE ART IN IS THE WHOLE INSTALL. Compose the sheet into
+  // will-hill.webp, add an `idleFlex` entry to will-hill.atlas.json, and this
+  // starts working with no code change. See docs/HANDOFF.md.
+  if (p.anim === 'idle') {
+    p.idleT++;
+    if (HAS_FLEX && p.idleT > FLEX_AFTER) p.anim = FLEX_CLIP;
+  } else {
+    p.idleT = 0;
   }
 }

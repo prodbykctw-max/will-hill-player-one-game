@@ -9,12 +9,43 @@
 // recompute from the run-event log.
 
 import bagUrl from '../assets/props/moneybag.webp';
+// ── THE BLUE NOTE ────────────────────────────────────────────────────────
+// Client: "the money in the enlarged state should be blue inside, similar to
+// the blue-note hundred dollar bill."
+//
+// Baked, not tinted at runtime. A composite pass over the whole sprite would
+// take the sack with it, and masking one every frame for every bag on screen
+// is work to repeat sixty times a second for an image that never changes.
+//
+// The recolour keeps each pixel's own LUMINANCE and replaces only its chroma —
+// map L onto a blue of the same L. Multiplying by a blue instead would darken
+// every bill and flatten the engraving the artist drew into them. Only the
+// 6.4% of the bag that is bills changes: they are the pale neutral-green fan
+// in the top 44%, which is what separates them from the warm sack, where red
+// leads green on every pixel including its highlights.
+import bagBlueUrl from '../assets/props/moneybag-blue.webp';
 import bottleUrl from '../assets/props/champagne.webp';
 import { metersToWorld } from '../world/scale.js';
 
-export const PROP_SPRITES = { bag: bagUrl, champagne: bottleUrl };
+export const PROP_SPRITES = { bag: bagUrl, bagBlue: bagBlueUrl, champagne: bottleUrl };
 
 export const BAG_VALUE = 100;
+
+// ── WHAT THE CHAMPAGNE IS ACTUALLY FOR ───────────────────────────────────
+// Client: "champagne bottle more difficult, and multiplies bag value until
+// the champagne effect completes."
+//
+// Until now the bottle bought nine seconds of not-dying, which is worth
+// something only if you were about to die — so on a clean run it was worth
+// nothing at all, and the reward for finding one was "nothing bad happens".
+// Doubling every bag for the duration turns it into a decision: nine seconds
+// to grab as much as you can reach before it runs out.
+//
+// ⚠️ MIRRORED IN cloudflare/leaderboard-worker.js. The Worker recomputes a
+// score from the event log to validate it, so if SCORE_RULES there does not
+// know about the multiplier every boosted run is rejected as fraudulent. The
+// run log records the boosted bags separately for exactly this reason.
+export const CHAMPAGNE_MULT = 2;
 
 // Sized in real-world terms like everything else, then nudged up for
 // readability — a pickup has to catch the eye at portrait scale.

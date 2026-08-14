@@ -279,7 +279,7 @@ const STAGE_DEFS = [
         { key: 'swifty', img: eavSwifty, depth: 0.25, span: [0.133, 0.432] },
         { key: 'citgo', img: eavCitgo, depth: 0.41, span: [0.094, 0.559] },
         { key: 'fence', img: eavFence, depth: 0.67, span: [0.217, 0.792] },
-        { key: 'verge', img: eavVerge, depth: 0.75, span: [0.000, 0.859] , rate: 0.30 },
+        { key: 'verge', img: eavVerge, depth: 0.75, span: [0.000, 0.859] },
         {
           key: 'tree', img: eavTree, depth: 0.81, span: [0.000, 0.313],
           sway: [
@@ -295,15 +295,13 @@ const STAGE_DEFS = [
           key: 'shrub_right', img: eavShrubRight, depth: 0.85, span: [0.737, 0.820],
           sway: [{ top: 0.66, pivot: 0.88, amp: 2.5, freq: 1.7, xRanges: [[0.737, 0.820]] }],
         },
-        // ⚠️ PLANTED ON THE GROUND STRIP, SO IT TRAVELS WITH IT.
-          // The kerb/verge carries an explicit rate: 0.30 with the 400px strip
-          // clamp, while a depth-derived card is clamped at 90 — so a pole
-          // standing ON the kerb could drift 310px away from the pavement it
-          // is planted in. Client: "the street on the left of that pole, as
-          // you move to the right it separates from the pole." A thing whose
-          // base is IN another card is not at its own depth; it is at that
-          // card's rate.
-          { key: 'pole', img: eavPole, depth: 1.00, span: [0.823, 0.916], rate: 0.30 },
+        // ⚠️ PLANTED IN THE GROUND STRIP, SO IT SITS AT THE GROUND'S DEPTH.
+          // Client, on an earlier build: "the street on the left of that pole,
+          // as you move to the right it separates from the pole." A thing
+          // whose base is IN another card is not at its own depth — it is at
+          // that card's. So the pole takes the verge/kerb's depth rather than
+          // the 1.0 its position in the draw order would suggest.
+          { key: 'pole', img: eavPole, depth: 0.76, span: [0.823, 0.916] },
       ],
       // Practicals actually visible in the art: the Citgo canopy soffit, the
       // backlit Swifty billboard, the McDonald's sign, and the uplighters
@@ -393,7 +391,7 @@ const STAGE_DEFS = [
           { key: 'swifty', img: eavDaySwifty, depth: 0.25, span: [0.129, 0.416] },
           { key: 'citgo', img: eavDayCitgo, depth: 0.41, span: [0.119, 0.542] },
           { key: 'fence', img: eavDayFence, depth: 0.67, span: [0.212, 0.772] },
-          { key: 'verge', img: eavDayVerge, depth: 0.75, span: [0.000, 0.837] , rate: 0.30 },
+          { key: 'verge', img: eavDayVerge, depth: 0.75, span: [0.000, 0.837] },
           {
           key: 'tree', img: eavDayTree, depth: 0.81, span: [0.000, 0.298],
           sway: [
@@ -414,15 +412,13 @@ const STAGE_DEFS = [
             key: 'shrub_right', img: eavDayShrubRight, depth: 0.85, span: [0.725, 0.799],
             sway: [{ top: 0.66, pivot: 0.88, amp: 2.5, freq: 1.7, xRanges: [[0.725, 0.799]] }],
           },
-          // ⚠️ PLANTED ON THE GROUND STRIP, SO IT TRAVELS WITH IT.
-          // The kerb/verge carries an explicit rate: 0.30 with the 400px strip
-          // clamp, while a depth-derived card is clamped at 90 — so a pole
-          // standing ON the kerb could drift 310px away from the pavement it
-          // is planted in. Client: "the street on the left of that pole, as
-          // you move to the right it separates from the pole." A thing whose
-          // base is IN another card is not at its own depth; it is at that
-          // card's rate.
-          { key: 'pole', img: eavDayPole, depth: 1.00, span: [0.810, 0.894], rate: 0.30 },
+          // ⚠️ PLANTED IN THE GROUND STRIP, SO IT SITS AT THE GROUND'S DEPTH.
+          // Client, on an earlier build: "the street on the left of that pole,
+          // as you move to the right it separates from the pole." A thing
+          // whose base is IN another card is not at its own depth — it is at
+          // that card's. So the pole takes the verge/kerb's depth rather than
+          // the 1.0 its position in the draw order would suggest.
+          { key: 'pole', img: eavDayPole, depth: 0.76, span: [0.810, 0.894] },
         ],
         lights: [],
       },
@@ -481,7 +477,7 @@ const STAGE_DEFS = [
         { key: 'neon_ourbar', img: ewNeonOurbar, depth: 0.45, span: [0.107, 0.200] },
         { key: 'neon_dis', img: ewNeonDis, depth: 0.45, span: [0.827, 0.894] },
         { key: 'lamps', img: ewLamps, depth: 0.62, span: [0.003, 0.997] },
-        { key: 'pavement', img: ewPavement, depth: 0.84, span: [0.001, 1.000], rate: 0.30 },
+        { key: 'pavement', img: ewPavement, depth: 0.84, span: [0.001, 1.000] },
       ],
       lights: [
         // OUR BAR ATL — the amber/violet tube, the steadiest of the three
@@ -596,7 +592,7 @@ const STAGE_DEFS = [
           { key: 'neon_ourbar', img: edgewoodDayNeonOurbar, depth: 0.45, span: [0.109, 0.201] },
           { key: 'neon_dis', img: edgewoodDayNeonDis, depth: 0.45, span: [0.823, 0.890] },
           { key: 'lamps', img: edgewoodDayLamps, depth: 0.62, span: [0.004, 0.992] },
-          { key: 'pavement', img: edgewoodDayPavement, depth: 0.84, span: [0.003, 0.995], rate: 0.30 },
+          { key: 'pavement', img: edgewoodDayPavement, depth: 0.84, span: [0.003, 0.995] },
         ],
         lights: [],
       },
@@ -728,7 +724,7 @@ const STAGE_DEFS = [
           { key: 'ped', img: ugdPed, depth: 0.74, span: [0.320, 0.434] },
           { key: 'newsbox', img: ugdNewsbox, depth: 0.78, span: [0.501, 0.597] },
           { key: 'poles', img: ugdPoles, depth: 0.80, span: [0.356, 0.875] },
-          { key: 'street', img: ugdStreet, depth: 0.86, span: [0.000, 0.999], rate: 0.30 },
+          { key: 'street', img: ugdStreet, depth: 0.86, span: [0.000, 0.999] },
           { key: 'columns', img: ugdColumns, depth: 0.94, span: [0.155, 0.837] },
         ],
         // Daylight. The marquee bulbs still read, faintly, but a Coca-Cola
@@ -784,16 +780,14 @@ const STAGE_DEFS = [
         { key: 'awning', img: l5pAwning, depth: 0.63, span: [0.768, 0.891] },
         { key: 'bayright', img: l5pBayright, depth: 0.64, span: [0.726, 0.969] },
         { key: 'poster', img: l5pPoster, depth: 0.65, span: [0.794, 0.899] },
-        { key: 'kerb', img: l5pKerb, depth: 0.82, span: [0.004, 0.965] , rate: 0.30 },
-        // ⚠️ PLANTED ON THE GROUND STRIP, SO IT TRAVELS WITH IT.
-          // The kerb/verge carries an explicit rate: 0.30 with the 400px strip
-          // clamp, while a depth-derived card is clamped at 90 — so a pole
-          // standing ON the kerb could drift 310px away from the pavement it
-          // is planted in. Client: "the street on the left of that pole, as
-          // you move to the right it separates from the pole." A thing whose
-          // base is IN another card is not at its own depth; it is at that
-          // card's rate.
-          { key: 'pole', img: l5pPole, depth: 0.96, span: [0.055, 0.132], rate: 0.30 },
+        { key: 'kerb', img: l5pKerb, depth: 0.82, span: [0.004, 0.965] },
+        // ⚠️ PLANTED IN THE GROUND STRIP, SO IT SITS AT THE GROUND'S DEPTH.
+          // Client, on an earlier build: "the street on the left of that pole,
+          // as you move to the right it separates from the pole." A thing
+          // whose base is IN another card is not at its own depth — it is at
+          // that card's. So the pole takes the verge/kerb's depth rather than
+          // the 1.0 its position in the draw order would suggest.
+          { key: 'pole', img: l5pPole, depth: 0.83, span: [0.055, 0.132] },
       ],
       lights: [
         { x: 0.20, y: 0.56, r: 0.30, rgb: '255,214,140', a: 0.18 },
@@ -883,16 +877,14 @@ const STAGE_DEFS = [
           { key: 'awning', img: l5pDayAwning, depth: 0.63, span: [0.776, 0.898] },
           { key: 'bayright', img: l5pDayBayright, depth: 0.64, span: [0.736, 0.975] },
           { key: 'poster', img: l5pDayPoster, depth: 0.65, span: [0.802, 0.906] },
-          { key: 'kerb', img: l5pDayKerb, depth: 0.82, span: [0.022, 0.971] , rate: 0.30 },
-          // ⚠️ PLANTED ON THE GROUND STRIP, SO IT TRAVELS WITH IT.
-          // The kerb/verge carries an explicit rate: 0.30 with the 400px strip
-          // clamp, while a depth-derived card is clamped at 90 — so a pole
-          // standing ON the kerb could drift 310px away from the pavement it
-          // is planted in. Client: "the street on the left of that pole, as
-          // you move to the right it separates from the pole." A thing whose
-          // base is IN another card is not at its own depth; it is at that
-          // card's rate.
-          { key: 'pole', img: l5pDayPole, depth: 0.96, span: [0.072, 0.149], rate: 0.30 },
+          { key: 'kerb', img: l5pDayKerb, depth: 0.82, span: [0.022, 0.971] },
+          // ⚠️ PLANTED IN THE GROUND STRIP, SO IT SITS AT THE GROUND'S DEPTH.
+          // Client, on an earlier build: "the street on the left of that pole,
+          // as you move to the right it separates from the pole." A thing
+          // whose base is IN another card is not at its own depth — it is at
+          // that card's. So the pole takes the verge/kerb's depth rather than
+          // the 1.0 its position in the draw order would suggest.
+          { key: 'pole', img: l5pDayPole, depth: 0.83, span: [0.072, 0.149] },
         ],
         lights: [],
       },

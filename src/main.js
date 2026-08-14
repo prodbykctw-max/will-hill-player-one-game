@@ -8,12 +8,12 @@ import { createLoop } from './core/loop.js';
 import { createCamera } from './core/camera.js';
 import { createInput } from './core/input.js';
 import { advanceAnim } from './core/animate.js';
-import { createPlayer, stepPlayer, stepKnockedDown, isInvulnerable, grantInvulnerability, trip, CHAMPAGNE_SECONDS, PLAYER_SPRITE } from './entities/player.js';
+import { createPlayer, stepPlayer, stepKnockedDown, isInvulnerable, isChampagne, grantInvulnerability, trip, CHAMPAGNE_SECONDS, PLAYER_SPRITE } from './entities/player.js';
 import { createAudio } from './audio/audio.js';
 import { WALK_SPEED, RUN_SPEED } from './core/physics.js';
 import { ENEMY_SPRITES, updateEnemy, resolveEnemyCollision } from './entities/enemy.js';
 import { beginStompOut, stepStompOut, splitStompers } from './entities/knockdown.js';
-import { overlapsPlayer, PROP_SPRITES, createDroppedBag, BAG_VALUE } from './entities/collectibles.js';
+import { overlapsPlayer, PROP_SPRITES, createDroppedBag, BAG_VALUE, CHAMPAGNE_MULT } from './entities/collectibles.js';
 import { createLevel, buildRunway, genAhead, finishLineX } from './world/generator.js';
 import { STAGES } from './world/stages.js';
 import { T, FLOOR_R, SLAB_R, FALL_DEATH_Y, isSolid } from './world/tilemap.js';
@@ -28,7 +28,7 @@ import { createTitle, TITLE_IMAGES, SRC_W as STILL_W, SRC_H as STILL_H } from '.
 import martaMapArt from './assets/backgrounds/marta-map.webp';
 import { loadImages } from './render/images.js';
 import { createRunLog, lbSubmit, bankLocalRun, isRegistered } from './net/leaderboard.js';
-import { createPanel, soundEnabled } from './ui/panel.js';
+import { createPanel, soundEnabled, setSoundEnabled } from './ui/panel.js';
 import { createHaptics } from './core/haptics.js';
 import { STAGE_SLOTS, MAP_SLOTS, MANIFEST } from './audio/music.js';
 import { isRelay, setRelay } from './core/relay.js';
@@ -168,6 +168,25 @@ const state = {
   resumeTo: 'playing', // what pausing interrupted, so resume goes back to it
   screenT: 0,
   tick: 0,
+  // ── THE FRONT DOOR ───────────────────────────────────────────────────────
+  // The game opens on a black card that says TAP ANYWHERE, and that tap does
+  // three things at once: it lets the browser release the sound, it starts the
+  // theme, and it sets the title card building itself. Client: "I'd rather it
+  // just be a black screen at the beginning that says tap anywhere, and that
+  // initiates the sliding in of all the components and layers, and then that
+  // becomes where I press start — by then the music should already be playing."
+  //
+  // Which is a better design than what it replaces, where the card assembled
+  // itself on load and the tap was a separate thing afterwards. The theme now
+  // comes up WITH the world instead of after it.
+  //
+  // `introTapped` latches once for the session. `introAt` is the tick the
+  // assembly started from, reset on every later return to the title so the card
+  // rebuilds itself each time you come back to it — the black page does not
+  // come back, because by then the sound is already on and it would be a gate
+  // asking for something it already has.
+  introTapped: false,
+  introAt: 0,
   runLog: createRunLog(),
 };
 
@@ -196,6 +215,11 @@ if (import.meta.env.DEV) {
   // frozen loop. Anything that wants stage four gets the same door the game
   // uses.
   window.__startStage = startStage;
+  // The loaded image set. A card whose file failed to resolve is SILENTLY
+  // skipped by the renderer — it simply never appears — so a harness checking
+  // an assembly needs to be able to ask whether the art is actually there
+  // rather than infer it from a screenshot that looks plausible.
+  Object.defineProperty(window, '__images', { get: () => images });
 }
 
 let images = null; // { player, enemy, eav, edgewood, l5p, underground }
@@ -288,49 +312,52 @@ canvas.addEventListener('pointerdown', (e) => {
   if (state.screen === 'title') {
     if (state.screenT <= TITLE_ARM_TICKS) return;
     e.preventDefault();
-    // ── THE FIRST TAP WAKES THE MUSIC. IT DOES NOT START THE RUN. ────────
+    // ── UNLOCK ON ANY INPUT, BUT SWALLOW NOTHING ─────────────────────────
     //
-    // The client: "as soon as I click the icon I wanna hear the home screen
-    // music, because that's what pops up immediately."
+    // A browser will not release sound before a gesture inside the page, and
+    // tapping a home-screen icon is a gesture on the OS, not on us. So every
+    // input here tries the unlock — but it no longer EATS one to do it.
     //
-    // Tapping a home-screen icon is a tap on the OS launcher, not inside the
-    // page, so no browser lets sound out on the strength of it. Measured on a
-    // cold load: the title cue is genuinely PLAYING the whole time — element
-    // unpaused, currentTime climbing 0 -> 0.73 -> 1.53 — but the AudioContext
-    // is suspended, so it runs through a dead bus and makes no sound. Then the
-    // first tap resumes the context AND starts the run in the same gesture, so
-    // 220ms later the cue is stage_01 and the title track was never once
-    // audible.
+    // It used to. There was a black TAP ANYWHERE card whose only job was to
+    // collect that gesture, and when the client cut the card the swallow stayed
+    // behind and quietly ate the first press of anything — including the first
+    // press of the MUSIC box, which is now the control that exists to turn the
+    // sound on. Caught by the harness: tap the box, and `wh_sound` was still
+    // 'off'; tap it again and it finally flipped.
     //
-    // So this tap is spent on the music. It clicks, it ticks under the thumb,
-    // and the beat comes up on the card the player is already looking at; the
-    // next tap starts the game.
+    // Unlocking without returning is free. The gesture is already in hand.
+    if (!audio.ready() && soundEnabled()) audio.unlock();
+
+    // ── THE MUSIC BOX ────────────────────────────────────────────────────
+    // Tested first of the three, because it is the smallest and the lowest and
+    // a near miss on it should not launch a walkthrough run.
     //
-    // AT MOST ONE TAP IS EVER SWALLOWED. If resume() is refused — and it can
-    // be — a condition written purely on `audio.ready()` would eat every tap
-    // and leave the game unstartable. And there is no point spending a tap for
-    // somebody who has turned the sound off.
-    if (!state.audioTapSpent && !audio.ready() && soundEnabled()) {
-      state.audioTapSpent = true;
-      audio.unlock();
+    // THIS TAP IS THE GESTURE. A browser will not release sound without one,
+    // and checking the box IS one — so unlock inside the handler, on the same
+    // touch that sets the preference, and the theme comes up under the finger.
+    // Nothing is swallowed and nothing is deferred; that is the whole point of
+    // the control replacing the black card that used to ask for a bare tap.
+    if (title.hitMusic(state.titleBox, x, y)) {
+      const on = !soundEnabled();
+      setSoundEnabled(on);
+      audio.setMuted(!on);
+      if (on && !audio.ready()) audio.unlock();
+      state.introTapped = true;   // the audio has had its input either way
       press();
       return;
     }
-    // THE SCREEN IS SPLIT, NOT DOTTED WITH BUTTONS. The two controls are
-    // painted 15 rows apart, which is 4.2 screen pixels on a phone — a gap
-    // nobody can aim inside, and the client kept getting START when he meant
-    // OPTIONS. So the whole lower part of the display, including the black
-    // below the card, opens the panel, and everything above it starts the
-    // game. Two enormous targets, one boundary.
-    // CHAMPAGNE RELAY first: it lives inside the lower half, so testing the
-    // catch-all before it would mean the panel swallowed every press of it.
     if (title.hitRelay(state.titleBox, x, y)) {
       setRelay(true);
       commit();
       startRun();
       return;
     }
-    if (title.hitOptions(state.titleBox, y)) { press(); panel.open('board'); return; }
+    // THE WORD, not the half-screen it used to be. Client: "I want those
+    // buttons isolated so only when I tap the button is OPTIONS. If I tap empty
+    // space, that should actually turn the music on." Everything that is not
+    // one of the two controls now falls through to START below — including the
+    // black band, which is where most of those taps land.
+    if (title.hitOptions(state.titleBox, x, y)) { press(); panel.open('board'); return; }
     // The run starting is the biggest commitment on the screen, so it gets the
     // triad rather than the click. And it clears CHAMPAGNE RELAY: without
     // this, one walkthrough run would leave every later run in relay too,
@@ -379,10 +406,16 @@ document.addEventListener('visibilitychange', () => {
 // the tap that ends a run's GAME KNOCKED screen carries straight through the
 // title and into the next run.
 const TITLE_ARM_TICKS = 24;
+// How long the title card spends assembling itself after the front-door tap,
+// with room for the two controls to fade up behind it. Kept a little longer
+// than title.js's own INTRO_END so the last frames of that fade still get the
+// assembling path rather than snapping to the finished menu mid-fade.
+const INTRO_TICKS = 134;
 
 
 function showTitle() {
   state.screen = 'title';
+  state.introAt = 0;
   state.screenT = 0;
   audio.ambience(0);
 }
@@ -534,17 +567,8 @@ function update() {
   if (state.screen === 'title') {
     state.screenT++;
     if (state.screenT > TITLE_ARM_TICKS && confirmPressed()) {
-      // The same one-shot the tap path spends — see the pointer handler. A
-      // desktop player pressing JUMP on the title has the identical problem:
-      // the keypress wakes the context and starts the run in one move, and the
-      // title track never sounds. `audioTapSpent` is shared, so exactly ONE
-      // input is ever spent on the music, whichever way it arrives.
-      if (!state.audioTapSpent && !audio.ready() && soundEnabled()) {
-        state.audioTapSpent = true;
-        audio.unlock();
-        press();
-        return;
-      }
+      // Same as the tap path: try the unlock, swallow nothing. See there.
+      if (!audio.ready() && soundEnabled()) audio.unlock();
       commit();
       startRun();
     }
@@ -583,7 +607,23 @@ function update() {
   // The aura is topped up every tick rather than granted once, so it cannot
   // run out mid-stage however long he spends looking at a fence.
   if (isRelay()) {
-    grantInvulnerability(player, now, CHAMPAGNE_SECONDS);
+    // ⚠️ TOP UP ONLY WHEN IT IS ABOUT TO LAPSE, not every tick.
+    //
+    // Re-granting the full window on every frame pins the remaining time at
+    // its maximum, and the grow ramp is driven by how much has ELAPSED — so
+    // `since` never left zero and the walkthrough build never showed the
+    // transformation at all. Will Hill stayed his normal size for the whole
+    // board with a full aura around him, which is the one combination that
+    // looks like a bug. Found by screenshotting the bags in relay and noticing
+    // that neither they NOR he had grown.
+    //
+    // A single 1.2s-from-lapse top-up lets the ramp run to its settled +30%
+    // and hold there. The cost is that the Mario stutter replays on each
+    // renewal, roughly every eight seconds — a tic, in a build whose whole
+    // purpose is standing still and looking at scenery.
+    if (player.invulnerableUntil - now < 1200) {
+      grantInvulnerability(player, now, CHAMPAGNE_SECONDS);
+    }
     // Remember the last ground he actually stood on. Catching a fall by
     // snapping him back to standing height at his CURRENT x would drop him
     // straight back down the same hole; putting him where he took off from
@@ -693,12 +733,20 @@ function update() {
     if (overlapsPlayer(bag, player, now)) {
       bag.got = true;
       audio.play('coin');
-      state.score += bag.value;
+      // DOUBLE WHILE THE CHAMPAGNE IS LIT. isChampagne, NOT isInvulnerable —
+      // the latter is also true during the i-frames from taking a hit, and
+      // paying a bonus for getting hit rewards the thing the game is asking
+      // you to avoid.
+      const lit = isChampagne(player, now);
+      state.score += bag.value * (lit ? CHAMPAGNE_MULT : 1);
       // Mirror of the loss above: a scattered bag can be worth several bags,
-      // so it logs several `bag` events. Keeps the Worker's recomputed score
-      // identical to the one on screen.
+      // so it logs several events. Keeps the Worker's recomputed score
+      // identical to the one on screen — which is why a boosted bag logs its
+      // OWN event name rather than just logging `bag` twice. Two `bag`s and
+      // one boosted bag are the same number and a different run, and the
+      // Worker has to be able to tell them apart.
       const units = Math.max(1, Math.round(bag.value / BAG_VALUE));
-      for (let i = 0; i < units; i++) state.runLog.record('bag');
+      for (let i = 0; i < units; i++) state.runLog.record(lit ? 'bagx2' : 'bag');
     }
   }
 
@@ -927,7 +975,14 @@ function draw() {
     // Keep where the painting landed — the OPTIONS hit test converts through
     // it, so the button follows the art on any screen instead of living at a
     // guessed screen coordinate.
-    state.titleBox = title.draw(images, state.tick);
+    // NO BLACK CARD. It is gone at the client's call — "we're removing the tap
+    // anywhere blank screen, we'll figure out another way to get the music to
+    // play from the home screen." So the card reveals itself the moment the
+    // game loads, and the first input is still spent on the audio, over his
+    // painting with PRESS START pulsing rather than over an empty screen.
+    const introT = state.screenT - state.introAt;
+    state.titleBox = title.draw(images, state.tick, introT <= INTRO_TICKS, introT,
+      soundEnabled());
     return;
   }
 
@@ -991,7 +1046,18 @@ function draw() {
     // light rather than having it painted over them.
     renderer.lighting.drawGroundPools(camera, stage);
     renderer.drawFinishLine(finishLineX(level), state.tick);
-    for (const bag of level.bags) renderer.drawPickup(bag, images.bag, state.tick, 'rgba(255,206,110,0.30)');
+    // The bags ride Will Hill's own power curve — they swell while they are
+    // paying double and shrink back when that stops. The BOTTLES do not: a
+    // bottle you have not picked up yet is not part of the effect, and growing
+    // the next one while the last is still burning would say it is.
+    // Date.now() here, not the update loop's `now` — that one is local to
+    // stepWorld and this is the draw. Same clock, read again.
+    const champMs = Math.max(0, player.invulnerableUntil - Date.now());
+    // Grown AND blue while the champagne is lit — the two say the same thing,
+    // that these are paying double right now. The glow goes cool with them.
+    const bagImg = champMs > 0 ? images.bagBlue : images.bag;
+    const bagGlow = champMs > 0 ? 'rgba(120,180,255,0.34)' : 'rgba(255,206,110,0.30)';
+    for (const bag of level.bags) renderer.drawPickup(bag, bagImg, state.tick, bagGlow, champMs);
     for (const bottle of level.champagnes) renderer.drawPickup(bottle, images.champagne, state.tick, 'rgba(255,240,170,0.34)');
     for (const hz of level.obstacles) renderer.drawHazard(hz);
     // STOMP-OUT draw order: the enemy in the `back` slot goes down BEFORE the
@@ -1066,6 +1132,7 @@ const loop = createLoop({ update, draw });
 const imageManifest = {
   player: PLAYER_SPRITE.url,
   bag: PROP_SPRITES.bag,
+  bagBlue: PROP_SPRITES.bagBlue,
   champagne: PROP_SPRITES.champagne,
   // The client's stylized MARTA rail map, for the between-stage screen.
   martamap: martaMapArt,

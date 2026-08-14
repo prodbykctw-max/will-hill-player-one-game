@@ -54,6 +54,13 @@ const CONTEST_END = 0;
 // with the client's run-event types (src/net/leaderboard.js createRunLog).
 const SCORE_RULES = {
   bag: 100, // money bag collected
+  // A bag collected while the champagne was lit. It is its OWN event rather
+  // than two `bag`s, because two bags and one doubled bag are the same number
+  // and a different run — and a validator that cannot tell them apart cannot
+  // check the thing that matters, which is whether the player had a bottle up
+  // at the time. Mirrors CHAMPAGNE_MULT in src/entities/collectibles.js; if
+  // these two ever disagree, every boosted run is rejected as fraudulent.
+  bagx2: 200,
   stomp: 50, // enemy defeated by stomp
   champagne: 0, // grants invulnerability, no direct score
   pothole: 0, // tripped in a pothole — costs a heart, never score
