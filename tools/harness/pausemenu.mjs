@@ -67,32 +67,41 @@ const tapRow = async (label) => {
 };
 
 // ── 2 & 3. the switches are independent, and they stick ──────────────────
+// ⚠️ RELATIVE, NOT ABSOLUTE. An earlier version asserted "after this tap
+// MUSIC is off" — which quietly encoded the assumption that MUSIC starts ON.
+// It does not any more (it defaults OFF so that ticking it is the gesture the
+// browser needs; see soundEnabled in ui/panel.js), and four checks failed on
+// a change that was entirely correct. What this actually needs to prove is
+// INDEPENDENCE — that each switch flips itself and leaves the other one
+// alone — and that is true whatever either one starts at.
 const snd = () => p.evaluate(() => ({
-  music: localStorage.getItem('wh_sound') !== 'off',
+  music: localStorage.getItem('wh_sound') === 'on',
   sfx: localStorage.getItem('wh_sfx') !== 'off',
   ...window.__audio.status(),
 }));
 const before = await snd();
+console.log('  start:', JSON.stringify({ muted: before.muted, sfxMuted: before.sfxMuted }));
+
 await tapRow('MUSIC');
-const noMusic = await snd();
-check('turning MUSIC off leaves the EFFECTS on',
-  noMusic.muted === true && noMusic.sfxMuted === false,
-  JSON.stringify({ muted: noMusic.muted, sfxMuted: noMusic.sfxMuted }));
+const t1 = await snd();
+check('tapping MUSIC flips MUSIC and leaves the EFFECTS untouched',
+  t1.muted === !before.muted && t1.sfxMuted === before.sfxMuted,
+  JSON.stringify({ muted: t1.muted, sfxMuted: t1.sfxMuted }));
 
 await tapRow('SOUND EFFECTS');
-const neither = await snd();
-check('and the effects switch works on its own too',
-  neither.muted === true && neither.sfxMuted === true,
-  JSON.stringify({ muted: neither.muted, sfxMuted: neither.sfxMuted }));
+const t2 = await snd();
+check('tapping SOUND EFFECTS flips the effects and leaves MUSIC untouched',
+  t2.sfxMuted === !before.sfxMuted && t2.muted === t1.muted,
+  JSON.stringify({ muted: t2.muted, sfxMuted: t2.sfxMuted }));
 
 await tapRow('MUSIC');
-const musicBack = await snd();
+const t3 = await snd();
 check('MUSIC comes back without bringing the effects with it',
-  musicBack.muted === false && musicBack.sfxMuted === true,
-  JSON.stringify({ muted: musicBack.muted, sfxMuted: musicBack.sfxMuted }));
+  t3.muted === before.muted && t3.sfxMuted === !before.sfxMuted,
+  JSON.stringify({ muted: t3.muted, sfxMuted: t3.sfxMuted }));
 check('both choices are written to storage',
-  musicBack.music === true && musicBack.sfx === false,
-  JSON.stringify({ wh_sound: musicBack.music, wh_sfx: musicBack.sfx }));
+  t3.music === !t3.muted && t3.sfx === !t3.sfxMuted,
+  JSON.stringify({ wh_sound: t3.music, wh_sfx: t3.sfx, muted: t3.muted, sfxMuted: t3.sfxMuted }));
 
 // The OPTIONS panel must show the SAME two settings, not a second copy.
 await p.evaluate(() => { window.__panel.open('settings'); });
@@ -102,7 +111,8 @@ const boxes = await p.evaluate(() => ({
   sfx: document.getElementById('sSfx').checked,
 }));
 check('OPTIONS shows the same two settings the pause menu just set',
-  boxes.music === true && boxes.sfx === false, JSON.stringify(boxes));
+  boxes.music === !t3.muted && boxes.sfx === !t3.sfxMuted,
+  JSON.stringify({ panel: boxes, pause: { music: !t3.muted, sfx: !t3.sfxMuted } }));
 
 // ── 4. the panel scrolls to its own top ──────────────────────────────────
 await p.evaluate(() => { window.__panel.open('board'); });

@@ -142,7 +142,11 @@ export function createMusic(getContext, getMaster) {
     // A media element that fails to load must not take the game with it.
     el.addEventListener('error', () => { nodes.delete(slot); });
 
-    const node = { el, gain: null, cue };
+    // `slot` lives ON the node so that `current` can be the node ITSELF
+    // rather than a copy of it — see play(). Everything that reads `current`
+    // (setMuted, duck, tick, status) then sees the live gain instead of a
+    // snapshot of what the gain was at the moment the cue started.
+    const node = { el, gain: null, cue, slot };
     nodes.set(slot, node);
     graph(node);              // only if the context can actually deliver it
     if (!node.gain) el.volume = 0;
@@ -252,7 +256,31 @@ export function createMusic(getContext, getMaster) {
         stopNode(prev, FADE);
         return;
       }
-      current = { slot, ...node };
+      // ⚠️ THE NODE ITSELF, NEVER `{ ...node }`.
+      //
+      // This one character of syntax made the whole soundtrack silent, on
+      // every platform, and it survived because the harness was asking the
+      // wrong question. A spread COPIES, so `current.gain` froze at whatever
+      // the gain was in this instant — and on a cold load that is `null`,
+      // because the AudioContext has not been unlocked yet and graph() has
+      // not run.
+      //
+      // What then happened, measured end to end: tick() woke the context a
+      // few hundred ms later, graph() built the real GainNode on `node` and
+      // set it from the element's volume — which was 0, because the sound
+      // started muted — and `current.gain` stayed null forever. So every
+      // later ramp (setMuted on the MUSIC tap, duck, the tick recovery) took
+      // the `else` branch and wrote `el.volume`, which does NOTHING once the
+      // element is routed through the graph. The cue played perfectly into a
+      // gain of zero: element advancing, readyState 4, no error, and a master
+      // bus RMS of 0.000000.
+      //
+      // Client: "when I click the button... it still doesn't trigger. It
+      // shows that the speaker is live inside the browser area on my iPhone,
+      // but it doesn't play the music." That is exactly this — the element
+      // IS playing, which is what lights Safari's indicator, and none of it
+      // reaches the speaker.
+      current = node;
       try {
         if (node.cue.startAt && node.el.currentTime < 0.05) {
           node.el.currentTime = node.cue.startAt;
@@ -299,6 +327,19 @@ export function createMusic(getContext, getMaster) {
       else if (current && current.el.paused && !muted) {
         const pr = current.el.play();
         if (pr && pr.catch) pr.catch(() => {});
+      }
+      // A cue that is playing, unmuted, un-ducked and still sitting at zero
+      // gain is the failure above in any of its other possible orderings.
+      // The copy bug is fixed, but the ordering that exposed it — context
+      // waking up mid-cue, between a build and a ramp — is normal and will
+      // keep happening, so this asserts the level rather than trusting that
+      // every path remembered to. Cheap: one comparison a frame, and it only
+      // acts when something is genuinely wrong.
+      if (current && current.gain && !muted && ducking <= 0 && !current.el.paused) {
+        const want = levelOf(current);
+        if (want > 0 && current.gain.gain.value < want * 0.5) {
+          ramp(current, want, 0.25);
+        }
       }
     },
 

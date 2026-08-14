@@ -349,7 +349,7 @@ canvas.addEventListener('pointerdown', (e) => {
     // 'off'; tap it again and it finally flipped.
     //
     // Unlocking without returning is free. The gesture is already in hand.
-    if (!audio.ready() && soundEnabled()) audio.unlock();
+    if (!audio.ready() && (soundEnabled() || sfxEnabled())) audio.unlock();
 
     // ── THE MUSIC BOX ────────────────────────────────────────────────────
     // Tested first of the three, because it is the smallest and the lowest and
@@ -361,6 +361,9 @@ canvas.addEventListener('pointerdown', (e) => {
     // Nothing is swallowed and nothing is deferred; that is the whole point of
     // the control replacing the black card that used to ask for a bare tap.
     if (title.hitMusic(state.titleBox, x, y)) {
+      // Stamp the press BEFORE anything that can throw or block, so the box
+      // acknowledges the touch even if the audio path has a bad day.
+      state.musicPressTick = state.tick;
       const on = !soundEnabled();
       setSoundEnabled(on);
       audio.setMuted(!on);
@@ -603,7 +606,7 @@ function update() {
     state.screenT++;
     if (state.screenT > TITLE_ARM_TICKS && confirmPressed()) {
       // Same as the tap path: try the unlock, swallow nothing. See there.
-      if (!audio.ready() && soundEnabled()) audio.unlock();
+      if (!audio.ready() && (soundEnabled() || sfxEnabled())) audio.unlock();
       commit();
       startRun();
     }
@@ -1089,7 +1092,10 @@ function draw() {
     // painting with PRESS START pulsing rather than over an empty screen.
     const introT = state.screenT - state.introAt;
     state.titleBox = title.draw(images, state.tick, introT <= INTRO_TICKS, introT,
-      soundEnabled());
+      soundEnabled(),
+      // Ticks since the MUSIC box was last pressed, so it can flash back. A
+      // press that has never happened is effectively infinitely old.
+      state.musicPressTick == null ? 1e9 : state.tick - state.musicPressTick);
     return;
   }
 

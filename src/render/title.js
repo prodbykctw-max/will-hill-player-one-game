@@ -281,7 +281,7 @@ const CARD_SPEC = [
 ];
 
 export function createTitle(ctx, canvas, still) {
-  function draw(images, tick, splash, introT, musicOn) {
+  function draw(images, tick, splash, introT, musicOn, musicPressAge) {
     // THE INTRO PAGE. The card assembles itself out of an empty street and a
     // blank sky — see introFx — and that assembly IS the whole page. It has no
     // words of its own; his painting's own PRESS START is the prompt.
@@ -306,7 +306,7 @@ export function createTitle(ctx, canvas, still) {
       ctx.save();
       ctx.globalAlpha = a;
       drawOptions(images.title_options, box, tick);
-      drawMusic(box, musicOn, tick);
+      drawMusic(box, musicOn, tick, musicPressAge);
       ctx.restore();
     }
     return box;
@@ -855,18 +855,59 @@ export function createTitle(ctx, canvas, still) {
     };
   }
 
-  function drawMusic(box, on, tick) {
+  // ── AND IT ACKNOWLEDGES THE PRESS ────────────────────────────────────────
+  //
+  // Client: "I want the music button off, and for it to acknowledge you
+  // clicking it." With the box now starting UNCHECKED (see soundEnabled in
+  // ui/panel.js) this press is the gesture the whole soundtrack waits on, so
+  // it has to look like it landed even in the instant before the theme has
+  // buffered a note — otherwise a slow network reads as a dead button and
+  // gets tapped again.
+  //
+  // `pressAge` is ticks since the last tap, or a big number for "not
+  // recently". The flare is brief and additive: a ring thrown off the box and
+  // a lift in its own brightness, gone inside a third of a second. It is
+  // drawn whichever way the box was toggled — turning music OFF is just as
+  // much a press that deserves an answer as turning it on.
+  const PRESS_FLASH = 20;          // ticks the acknowledgement lasts
+
+  function drawMusic(box, on, tick, pressAge = 1e9) {
     const r = musicRect(box);
     if (!r) return;
     const glow = 0.5 + 0.5 * Math.sin(tick / 52 + 4.2);
     const bx = r.x;
     const by = r.y + (r.h - r.boxSz) / 2;
+    // Cubic ease-out so it snaps in and drains away rather than blinking.
+    const p = Math.max(0, 1 - pressAge / PRESS_FLASH);
+    const flash = p * p * p;
     ctx.save();
+    if (flash > 0.002) {
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.globalAlpha = flash * 0.85;
+      const pad = r.boxSz * (0.30 + 0.55 * (1 - flash));
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(bx - pad, by - pad,
+        r.boxSz + pad * 2, r.boxSz + pad * 2, 6);
+      else ctx.rect(bx - pad, by - pad, r.boxSz + pad * 2, r.boxSz + pad * 2);
+      ctx.strokeStyle = 'rgba(255,226,150,0.95)';
+      ctx.lineWidth = Math.max(1.2, r.boxSz * 0.14);
+      ctx.stroke();
+      ctx.restore();
+    }
     ctx.beginPath();
     if (ctx.roundRect) ctx.roundRect(bx, by, r.boxSz, r.boxSz, 4);
     else ctx.rect(bx, by, r.boxSz, r.boxSz);
     ctx.fillStyle = on ? 'rgba(255,214,110,0.92)' : 'rgba(10,8,16,0.68)';
     ctx.fill();
+    if (flash > 0.002) {
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.globalAlpha = flash * 0.55;
+      ctx.fillStyle = 'rgba(255,226,150,1)';
+      ctx.fill();
+      ctx.restore();
+    }
     ctx.lineWidth = 1.6;
     // Unchecked, it breathes to ask for the tap. Checked, it sits still —
     // nothing left to prompt.

@@ -1321,6 +1321,91 @@ Verified: titlefit 56/56, relaytod 26/26, musicbox 7/7, titleintro 6/6,
 relay 8/8, panelnav 9/9, plus the seam probe above and screenshots at day and
 night confirming PRESS START is uncut and the road reads continuous.
 
+### ⚠️ THE SOUNDTRACK WAS SILENT ON EVERY PLATFORM, AND THE HARNESS SAID FINE
+
+Client: *"when I click the button... it still doesn't trigger. It shows that
+the speaker is live inside the browser area on my iPhone, but it doesn't play
+the music."* It read like an iOS autoplay problem. It was not — it reproduced
+in desktop Chromium immediately, and the cause was one character.
+
+**`current = { slot, ...node }` in `audio/music.js`.** A spread COPIES, so
+`current.gain` froze at whatever the gain was in that instant — and on a cold
+load that is `null`, because the AudioContext has not been unlocked yet and
+`graph()` has not run.
+
+What then happened, measured end to end:
+1. `tick()` woke the context a few hundred ms later and `graph()` built the
+   real `GainNode` **on `node`**, initialising it from the element's volume —
+   which was `0`, because the sound starts muted.
+2. `current.gain` stayed `null` forever.
+3. So every later ramp — `setMuted()` on the MUSIC tap, `duck()`, the `tick()`
+   recovery — took the `else` branch and wrote `el.volume`, which does
+   **nothing** once the element is routed through the graph.
+
+The cue played perfectly into a gain of zero. Measured: element advancing
+(`t=2.49`), `readyState 4`, `err=null`, gain node `0`, **master bus RMS
+`0.000000`**. The element genuinely IS playing, which is what lights Safari's
+audio indicator — and not one sample reaches the speaker.
+
+Fixed by making `current` **be the node** (`slot` now lives on the node) so
+every reader sees the live gain instead of a snapshot. Plus a cheap per-frame
+assertion in `tick()`: a cue that is playing, unmuted, un-ducked and still
+below half its intended gain gets re-ramped. The copy bug is gone, but the
+*ordering* that exposed it — context waking mid-cue, between a build and a
+ramp — is normal and will keep happening.
+
+After: bus RMS **0.005 → 0.164** across the MUSIC tap, a 32× lift.
+
+⚠️ **AND THE REAL LESSON IS THE HARNESS.** `musicbox.mjs` asserted
+`!el.paused` — *"is the media element running"* — which stayed true for weeks
+while the game was completely silent. **That is the wrong question.**
+`audio.level()` (master-bus RMS) already existed for exactly this and was not
+being used. The file now asserts:
+- the bus is quiet before the tap,
+- **the bus is loud after it** (`>0.02` and `>4×` the quiet floor),
+- the cue's gain is not zero,
+- the bus drops back on untick.
+
+Two gotchas when reading `level()`: the analyser is built on FIRST call so the
+first read is always `0` and must be discarded, and it is an instantaneous RMS
+of a waveform, so **take a peak across ~40 frames** — a single sample can land
+on a zero crossing. The harness also runs Chromium with
+`--autoplay-policy=no-user-gesture-required`, which is what lets it observe a
+cue that is "running but silent" at all.
+
+**Never assert audio with `!paused` again.** It cannot distinguish a playing
+song from a playing song at zero volume, and that distinction is the entire
+bug.
+
+### MUSIC now defaults OFF, and the box answers the press
+
+Client: *"I want the music button off, and for it to acknowledge you clicking
+it, and once it is clicked the user gesture should activate the theme song."*
+
+`soundEnabled()` is now `=== 'on'` rather than `!== 'off'`. This is a
+mechanism, not a preference: no browser releases sound before a real gesture
+inside the page, and tapping a home-screen icon is a gesture on the OS, not on
+us — so something here must be touched before the theme can ever start. A box
+that is already ticked invites nobody to touch it, and the resulting silence
+reads as broken. Unticked, the one press that turns music on is the same press
+the browser accepts. Anyone who already chose `on` keeps it.
+
+Because music no longer defaults on, the two unlock sites in `main.js` now
+fire when **either** music or SFX is wanted — gating the unlock on music alone
+would have left the effects dead too.
+
+`drawMusic` takes a `pressAge` and throws a brief additive ring off the box
+(cubic ease-out, ~20 ticks), drawn whichever way the box was toggled. The
+press is stamped in `main.js` **before** any audio work, so the box
+acknowledges the touch even if the audio path has a bad day — which is the
+whole point, since a slow first buffer previously read as a dead button.
+
+⚠️ `pausemenu.mjs` had four checks that quietly encoded "MUSIC starts ON" and
+failed on this entirely-correct change. They are now **relative** — each
+switch must flip itself and leave the other alone — which is what independence
+actually means and is true whatever either one starts at. Prefer relative
+assertions for anything with a default that might move.
+
 ### The pause menu, and splitting MUSIC from SOUND EFFECTS
 
 Client: *"did you finish the pause menu, as well as being able to go back to

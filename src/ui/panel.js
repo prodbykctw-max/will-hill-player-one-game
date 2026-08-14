@@ -394,11 +394,26 @@ export function setSoundEnabled(on) {
   try { localStorage.setItem('wh_sound', on ? 'on' : 'off'); } catch (_e) {}
 }
 
+// ⚠️ MUSIC DEFAULTS **OFF**, AND THAT IS THE POINT — `=== 'on'`, not
+// `!== 'off'`. Client: "I want the music button off, and for it to
+// acknowledge you clicking it, and once it is clicked the user gesture
+// should activate the theme song."
+//
+// It is not a preference so much as a mechanism. No browser releases sound
+// before a real gesture inside the page, and tapping a home-screen icon is a
+// gesture on the OS, not on us — so SOMETHING on this screen has to be
+// touched before the theme can ever start. A box that is already ticked
+// invites nobody to touch it, and then the silence reads as broken. Starting
+// it unticked makes the one press that turns music on the same press the
+// browser accepts, so the theme comes up under the finger.
+//
+// Anyone who has already chosen 'on' keeps it — this only changes the
+// default for a device that has never answered.
 export function soundEnabled() {
   try {
-    return localStorage.getItem('wh_sound') !== 'off';
+    return localStorage.getItem('wh_sound') === 'on';
   } catch (_e) {
-    return true;
+    return false;
   }
 }
 
