@@ -422,6 +422,33 @@ def main():
     for i, w, h, why in report:
         print(f"   fill {w:4d}x{h:3d}  {why}")
 
+    # ── SEAMLESS: make every patch agree with its surroundings EXACTLY ────
+    #
+    # A donor chosen for matching on AVERAGE still meets the real sky along a
+    # line where the two disagree by a few levels, and a few levels along a
+    # line is exactly what the eye picks out. Client marked a dozen of them on
+    # a screenshot: "I've touched up areas that still show edit marks."
+    #
+    # This is the gradient-domain fix, done the cheap way. Take the error
+    # between the pasted result and the real painting AT THE BOUNDARY, spread
+    # that error smoothly across the interior with the same push-pull pyramid
+    # used elsewhere, and subtract it. The boundary error becomes zero by
+    # construction — the patch now MEETS the painting perfectly — while the
+    # donor's own texture is untouched, because only a smooth field was
+    # removed from it. It is Poisson blending without the solver.
+    err_field = np.zeros_like(filled)
+    boundary = ndimage.binary_dilation(fillmask, iterations=2) & ~fillmask
+    err_field[boundary] = filled[boundary] - rgbf[boundary]
+    # Known only on the boundary; the pyramid pushes it into the hole.
+    known = boundary
+    for c in range(3):
+        ch = err_field[..., c].copy()
+        ch[~known] = 0
+        spread = pyramid_inpaint(
+            np.dstack([ch + 128, ch + 128, ch + 128]).clip(0, 255).astype(np.uint8),
+            ~known).astype(np.float32)[..., 0] - 128
+        filled[..., c] -= spread * fillmask
+
     filled = np.clip(filled, 0, 255)
 
     def energy(img, where):

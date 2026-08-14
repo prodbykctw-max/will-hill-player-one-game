@@ -335,7 +335,7 @@ const CARD_SPEC = [
 ];
 
 export function createTitle(ctx, canvas, still) {
-  function draw(images, tick, splash, introT, musicOn, musicPressAge) {
+  function draw(images, tick, splash, introT, musicOn, musicPressAge, mouse) {
     // THE INTRO PAGE. The card assembles itself out of an empty street and a
     // blank sky — see introFx — and that assembly IS the whole page. It has no
     // words of its own; his painting's own PRESS START is the prompt.
@@ -365,6 +365,9 @@ export function createTitle(ctx, canvas, still) {
     // the shimmer reads as the finished screen's own idle life rather than as
     // one more thing competing with the assembly.
     if (!splash) drawGlints(box, tick);
+    // After the hero card has landed, so the pupils sit on the face rather
+    // than on the empty street it flies in over.
+    if (!splash) drawEyes(images.title_base, box, mouse);
     // The one control that is NOT part of the painting comes up with the last
     // layer, so the page finishes as the menu instead of cutting to it.
     const a = splash ? splashControlAlpha(introT || 0) : 1;
@@ -626,6 +629,130 @@ export function createTitle(ctx, canvas, still) {
   // finishes as the menu rather than cutting to it.
   function splashControlAlpha(introT) {
     return at(introT, INTRO_END - 10, INTRO_END + 22);
+  }
+
+  // ── HIS EYES FOLLOW THE MOUSE, ON DESKTOP ────────────────────────────────
+  //
+  // Client: "when I move the mouse on the home screen... I want Will Hill's
+  // eyes to follow the mouse."
+  //
+  // ⚠️ I FIRST SAID THIS WAS IMPOSSIBLE because he was wearing dark glasses
+  // and all I could see were two specular dots. He corrected me — "he's
+  // wearing clear glasses and you see his eyes, they have a white pupil with
+  // slightly white of the eye showing" — and he was right. Measured on the
+  // plate: two bright low-saturation blobs at (388.1, 1019.6) and
+  // (427.5, 1019.2), peak luminance 254, each about 3px across, sitting in an
+  // eye whose interior is essentially black (median RGB 9,7,3 and 5,3,0).
+  // Those are pupils, not glare.
+  //
+  // HOW MUCH ROOM THERE IS, read straight off the luminance across each eye:
+  //   left   10 10 9 8 8 0 |148 254 177| 23 4 4 2 2 2
+  //   right   4 2 3 8 0 19 |173 253 252 170| 11 1 12 37 55
+  // So the left eye has about 6 dark pixels either side of its pupil and the
+  // right has 6 to the left but only 2 to the right before skin. TRAVEL IS
+  // CLAMPED PER EYE for that reason — a pupil that slid onto his cheek would
+  // be worse than one that did not move at all.
+  // ⚠️ THE WHITE OF THE EYE MOVES THE OPPOSITE WAY TO THE PUPIL. Client:
+  // "the weight of the eyes has to be on the opposite side of where the
+  // pupils are for it to be natural — if the pupils are on the left, the
+  // white of the eye should be on the right." That is how an eye works: the
+  // sclera is REVEALED on the side the iris is travelling away from.
+  //
+  // And it is already in his painting. The two vertical streaks I first
+  // dismissed as frame highlights — (378.8, 1022.8) and (417.6, 1021.6),
+  // each a few px wide and sitting about 10px to the LEFT of its pupil — are
+  // the sclera. He has painted Will Hill glancing slightly right: pupils
+  // right, whites showing left. So the two travel as a pair in opposite
+  // directions, which is also what sells the movement at this size.
+  //
+  // `dir` is +1 for something that follows the cursor and -1 for something
+  // the cursor pushes away.
+  const EYES = [
+    // left eye: pupil, then its sclera
+    { px: 0, x: 388.0, y: 1019.6, dir: 1, ink: '#090703',
+      left: 3.2, right: 3.2, up: 1.6, down: 1.6 },
+    { px: 1, x: 379.0, y: 1023.0, dir: -1, ink: '#090703', scale: 0.55,
+      left: 1.8, right: 1.8, up: 1.0, down: 1.0 },
+    // right eye
+    { px: 2, x: 427.5, y: 1019.2, dir: 1, ink: '#050300',
+      left: 3.2, right: 1.6, up: 1.6, down: 1.6 },
+    { px: 3, x: 417.5, y: 1022.0, dir: -1, ink: '#050300', scale: 0.55,
+      left: 1.6, right: 1.6, up: 1.0, down: 1.0 },
+  ];
+  // How far away the cursor has to be before the eyes are looking at it
+  // rather than tracking every twitch, in fractions of the canvas.
+  const EYE_REACH = 0.42;
+
+  // The two pupils, cut out of the plate ONCE into a little strip so each
+  // frame is a single drawImage. Half-width of each square patch, in source
+  // px: big enough to take the pupil and its soft edge, small enough not to
+  // drag the eyelid along with it.
+  const EYE_PATCH = 3;
+  // How much of the dark eye is wiped before each mark is put back down.
+  const EYE_INK = 3.1;
+  let eyePatch = null;
+  let eyePatchFor = null;
+
+  function buildEyePatch(base) {
+    const pw = EYE_PATCH * 2 + 1;
+    const cv = document.createElement('canvas');
+    cv.width = pw * EYES.length;
+    cv.height = pw;
+    const c = cv.getContext('2d');
+    c.imageSmoothingEnabled = false;
+    EYES.forEach((e, i) => {
+      c.drawImage(base, Math.round(e.x) - EYE_PATCH, Math.round(e.y) - EYE_PATCH,
+        pw, pw, i * pw, 0, pw, pw);
+    });
+    return cv;
+  }
+
+  // `mouse` is canvas-space {x,y} or null. Null means no mouse has ever
+  // moved — a phone — and the pupils stay exactly where he painted them.
+  function drawEyes(base, box, mouse) {
+    if (!box || !mouse || !base || !base.width) return;
+    const S = box.dw / SRC_W;
+    if (S <= 0) return;
+    if (eyePatchFor !== base) {
+      eyePatch = buildEyePatch(base);
+      eyePatchFor = base;
+    }
+    for (const e of EYES) {
+      const cx = box.dx + e.x * S;
+      const cy = box.dy + e.y * S;
+      // Direction to the cursor, softened so a cursor right beside his face
+      // does not peg the pupil at full travel.
+      const dx = (mouse.x - cx) / (canvas.width * EYE_REACH);
+      const dy = (mouse.y - cy) / (canvas.height * EYE_REACH);
+      const m = Math.hypot(dx, dy) || 1;
+      const u = Math.min(1, m) / m;              // clamp length, keep angle
+      // `dir` flips the sclera so it slides out on the far side.
+      const k = (e.dir || 1) * (e.scale || 1);
+      const ox = dx * u * (dx < 0 ? e.left : e.right) * k;
+      const oy = dy * u * (dy < 0 ? e.up : e.down) * k;
+      ctx.save();
+      ctx.imageSmoothingEnabled = false;
+      // Paint out the painted pupil with the eye's own ink. The interior is
+      // flat black, so a fill is indistinguishable from the artwork — no
+      // patch to source and nothing to feather.
+      ctx.fillStyle = e.ink;
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, EYE_INK * S, EYE_INK * S, 0, 0, 7);
+      ctx.fill();
+      // ⚠️ AND HIS OWN PUPIL GOES BACK DOWN, not a drawn circle. An ellipse
+      // of the same radius came out visibly dimmer than the painting —
+      // measured 139 against the painted 254 — because a 1.7px shape is
+      // mostly antialiased edge. Blitting the pupil's actual pixels keeps
+      // his lettering-grade detail and carries its own dark surround, which
+      // blends it into the ink for free.
+      if (eyePatch) {
+        const pw = EYE_PATCH * 2 + 1;
+        ctx.drawImage(eyePatch,
+          e.px * pw, 0, pw, pw,
+          cx + (ox - EYE_PATCH) * S, cy + (oy - EYE_PATCH) * S, pw * S, pw * S);
+      }
+      ctx.restore();
+    }
   }
 
   // ── OPTIONS, WHERE HE PAINTED IT ─────────────────────────────────────

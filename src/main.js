@@ -160,6 +160,26 @@ function resize() {
   canvas.height = vv ? Math.round(vv.height) : window.innerHeight;
   camera.resize(canvas.width, canvas.height);
 }
+// ── WHERE THE MOUSE IS, FOR HIS EYES TO FOLLOW ───────────────────────────
+//
+// Client: "when I move the mouse on the home screen... I want Will Hill's
+// eyes to follow the mouse." Desktop only, and it stays null until a real
+// mousemove arrives — a phone never sends one, so the pupils stay exactly
+// where he painted them and nothing about the touch build changes.
+//
+// ⚠️ `pointermove` would ALSO fire for a finger dragging on the glass, which
+// would make the eyes twitch mid-swipe on a phone. `mousemove` from a real
+// mouse is what is wanted, and a touch that synthesises one arrives with
+// no movement history, so the `movementX/Y` guard drops those too.
+let mousePos = null;
+window.addEventListener('mousemove', (e) => {
+  if (!e.movementX && !e.movementY && mousePos) return;
+  const r = canvas.getBoundingClientRect();
+  if (!r.width || !r.height) return;
+  mousePos = { x: (e.clientX - r.left) * (canvas.width / r.width),
+               y: (e.clientY - r.top) * (canvas.height / r.height) };
+}, { passive: true });
+
 window.addEventListener('resize', resize);
 // ⚠️ iOS Safari does not reliably fire `resize` on <window> when its own
 // address bar/toolbar toggles — only on visualViewport. Without this, the
@@ -1095,7 +1115,8 @@ function draw() {
       soundEnabled(),
       // Ticks since the MUSIC box was last pressed, so it can flash back. A
       // press that has never happened is effectively infinitely old.
-      state.musicPressTick == null ? 1e9 : state.tick - state.musicPressTick);
+      state.musicPressTick == null ? 1e9 : state.tick - state.musicPressTick,
+      mousePos);
     return;
   }
 
