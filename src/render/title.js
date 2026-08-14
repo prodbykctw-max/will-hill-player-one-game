@@ -187,17 +187,26 @@ const OPT = (spriteManifest.options || [])[0] || null;
 // below opens the panel. Both targets are enormous and there is exactly one
 // boundary to miss instead of two adjacent edges.
 export const TITLE_ZOOM = 1;
-// How much sky the fit may crop off the top to fill the width instead of
-// letterboxing — see stillscene.fit.
+// THE BAND OF THE PAINTING THAT MUST STAY ON SCREEN, in its own rows.
+// Everything outside it is budget the fit may crop to fill the width instead
+// of letterboxing — see stillscene.fit.
 //
-// MEASURED, AND MEASURED TWICE. The first number came off the letters' bright
-// FACE, row 281, and a 430x800 window duly cropped 257 rows and clipped the top
-// of WILL HILL: — because these glyphs carry a thick black outline the bright
-// key cannot see. Growing the letter mass 16px and keeping the dark pixels it
-// reaches finds the real edge at row 265. 241 leaves 24 rows of margin under
-// that, which covers every window down to about 430x820 and falls back to bars
-// below it.
-export const TITLE_COVER_ROWS = 241;
+// MEASURED THREE TIMES, and the third one is the one to trust. The first came
+// off the letters' bright FACE, row 281. The second grew the letter mass 16px
+// to catch the black outline and got 265. Both were measuring the GOLD line.
+// Scanning for the topmost DARK row inside the text columns puts the top of
+// WILL HILL: — outline and all — at row 165, a hundred rows higher.
+//
+// 1635 is the bottom-most painted UI pixel, the foot of OPTIONS.
+//
+//   165 rows of sky above the title      }
+//   208 rows of wet street below OPTIONS }  373 rows of crop budget
+//
+// The old single number could only be spent off the TOP, so a phone needing
+// 350 rows would have had to eat 185 rows of his name and fell back to black
+// bars instead — which is the thing the client kept photographing. Split
+// across both ends, 350 fits inside 373. See the table in stillscene.fit.
+export const TITLE_SAFE = { top: 165, bottom: 1635 };
 export const TITLE_BIAS = 0;
 // In the painting's own rows: below PRESS START, which ends on row 907. Row
 // 950 used to be the top of OPTIONS; the word has since been lifted out and
@@ -266,7 +275,7 @@ export function createTitle(ctx, canvas, still) {
     // words of its own; his painting's own PRESS START is the prompt.
     const fx = splash ? introFx(introT || 0) : null;
     const box = still.draw(images.title_base, titleCards(images), tick,
-      TITLE_ZOOM, TITLE_BIAS, fx, TITLE_COVER_ROWS);
+      TITLE_ZOOM, TITLE_BIAS, fx, TITLE_SAFE);
     still.pulsePrompt(box, PROMPT, SRC_W, SRC_H, tick);
     // The two controls that are NOT part of the painting come up with the last
     // layer, so the page finishes as the menu instead of cutting to it.
@@ -440,9 +449,47 @@ export function createTitle(ctx, canvas, still) {
   // with his painting.
   const RELAY_LABEL = 'CHAMPAGNE RELAY';
 
+  // ── WHERE THE TWO DRAWN CONTROLS GO WHEN THE ROAD RUNS OUT ───────────────
+  //
+  // Filling the width costs rows. On the client's phone it costs 350 of the
+  // 373 spare, which leaves SEVEN pixels of screen under the painted OPTIONS —
+  // and CHAMPAGNE RELAY plus the MUSIC box need about seventy. Five things do
+  // not fit, and no split of the crop changes that; it is arithmetic, not a
+  // layout bug. Stacked, they drew straight over PRESS START and OPTIONS.
+  //
+  // There is exactly one piece of empty screen left, and it is in the art:
+  // rows 1448-1524, the wet street between Will Hill's shoes (his mask ends at
+  // 1442) and the top of PRESS START (1518). Measured across the middle third
+  // it means 18 of 255 with not one pixel over 110 — bare road, on every
+  // screen, cropped or not.
+  //
+  // So when the bottom is tight the two controls go there, SIDE BY SIDE on one
+  // row instead of stacked, which is what makes them fit in 84 source rows.
+  // When there is room below OPTIONS — a tall phone, no crop — nothing changes
+  // and they stack under the word exactly as before.
+  const STREET_GAP = { top: 1448, bottom: 1524 };
+
+  function streetRow(box) {
+    const S = box.dw / SRC_W;
+    const top = box.dy + STREET_GAP.top * S;
+    const bot = box.dy + STREET_GAP.bottom * S;
+    return { top, bot, h: bot - top };
+  }
+
+  // Compact when the stack cannot clear the bottom of the screen.
+  function isCompact(box) {
+    const o = optionsRect(box);
+    if (!o) return false;
+    const h = Math.max(26, Math.min(44, o.h * 0.62));
+    const need = h + musicHeight(h) + Math.max(12, musicHeight(h) * 0.5)
+      + Math.max(14, h * 0.55) + 8;
+    return o.y + o.h + need > canvas.height;
+  }
+
   function relayRect(box) {
     const o = optionsRect(box);
     if (!o) return null;
+    if (isCompact(box)) return compactRects(box).relay;
     const h = Math.max(26, Math.min(44, o.h * 0.62));
     const pad = h * 0.42;
     ctx.save();
@@ -454,8 +501,19 @@ export function createTitle(ctx, canvas, still) {
     // rows of bare wet street under OPTIONS — 105px on a 430 phone — so the
     // pill sits on painted ground instead of in a letterbox that no longer
     // exists, and still clears the word by a comfortable margin.
+    //
+    // ⚠️ THE STACK IS LAID OUT FROM THE BOTTOM OF THE SCREEN UP, not each
+    // control clamped independently. Both this and the music box used to end
+    // with `Math.min(canvas.height - h - N, ...)`, which is fine while there is
+    // room and turns into a pile-up the moment there is not: on a screen where
+    // the fit crops the road away they both clamped to the same few pixels and
+    // drew CHAMPAGNE RELAY, OPTIONS and MUSIC on top of one another. Reserving
+    // the music box's height first means the two can never collide, whatever
+    // the crop does.
     const gap = Math.max(14, h * 0.55);
-    const y = Math.min(canvas.height - h - 10, o.y + o.h + gap);
+    const reserve = musicHeight(h) + Math.max(12, musicHeight(h) * 0.5);
+    const lowest = canvas.height - reserve - h - 8;
+    const y = Math.min(lowest, o.y + o.h + gap);
     return { x: (canvas.width - w) / 2, y, w, h, pad };
   }
 
@@ -516,18 +574,50 @@ export function createTitle(ctx, canvas, still) {
   // the two can never disagree.
   const MUSIC_LABEL = 'MUSIC';
 
+  // Shared so relayRect can reserve the room this will need before it places
+  // itself — see the note there about the three-way pile-up.
+  const musicHeight = (relayH) => Math.max(22, Math.min(38, relayH * 0.86));
+
+  // Both controls on one row in the empty street. Sized off the gap itself so
+  // it cannot outgrow the road it is standing on.
+  function compactRects(box) {
+    const row = streetRow(box);
+    const h = Math.max(20, Math.min(34, row.h * 0.74));
+    const mh = musicHeight(h);
+    const pad = h * 0.42;
+    ctx.save();
+    ctx.font = `700 ${Math.round(h * 0.40)}px system-ui, sans-serif`;
+    const rw = ctx.measureText(RELAY_LABEL).width;
+    ctx.font = `700 ${Math.round(mh * 0.44)}px system-ui, sans-serif`;
+    const mw = ctx.measureText(MUSIC_LABEL).width;
+    ctx.restore();
+    const boxSz = mh * 0.62;
+    const relayW = rw + h * 0.80 + pad * 2;
+    const musicW = boxSz + mh * 0.42 + mw;
+    const gap = Math.max(14, h * 0.55);
+    const total = Math.min(canvas.width - 16, relayW + gap + musicW);
+    const x0 = (canvas.width - total) / 2;
+    const cy = row.top + row.h / 2;
+    return {
+      relay: { x: x0, y: cy - h / 2, w: total - gap - musicW, h, pad },
+      music: { x: x0 + (total - musicW), y: cy - mh / 2, w: musicW, h: mh, boxSz },
+    };
+  }
+
   function musicRect(box) {
+    if (box && isCompact(box)) return compactRects(box).music;
     const r = relayRect(box);
     if (!r) return null;
-    const h = Math.max(22, Math.min(38, r.h * 0.86));
+    const h = musicHeight(r.h);
     ctx.save();
     ctx.font = `700 ${Math.round(h * 0.44)}px system-ui, sans-serif`;
     const tw = ctx.measureText(MUSIC_LABEL).width;
     ctx.restore();
     const boxSz = h * 0.62;
     const w = boxSz + h * 0.42 + tw;
-    return { x: (canvas.width - w) / 2, y: Math.min(canvas.height - h - 8,
-      r.y + r.h + Math.max(12, h * 0.5)), w, h, boxSz };
+    // Directly under the pill, always — the pill has already left room.
+    return { x: (canvas.width - w) / 2,
+      y: r.y + r.h + Math.max(12, h * 0.5), w, h, boxSz };
   }
 
   function drawMusic(box, on, tick) {

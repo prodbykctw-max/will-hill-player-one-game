@@ -50,29 +50,51 @@ export function createStillScene(ctx, canvas) {
   // down each side. Which is exactly what the client photographed: "needs to be
   // wider and fit the screen."
   //
-  // `coverRows` opts a caller into filling the WIDTH instead, and names its own
-  // budget: how many SOURCE rows may be cropped off the TOP before the fit
-  // gives up and goes back to contain. Off by default, so the ending screen and
-  // anything else keeps the behaviour it has always had.
+  // `safe` opts a caller into filling the WIDTH instead. It is the band of
+  // SOURCE rows that must stay on screen — { top, bottom } — and everything
+  // outside it is the budget the crop may spend.
   //
-  // THE CROP COMES OFF THE TOP AND THE BOTTOM IS ANCHORED, and that ordering is
-  // the whole trick. PRESS START, OPTIONS, the relay pill and the music box all
-  // live in the bottom eighth; the sky above the logo is what can be given
-  // away. Bottom-anchored means the crop can only ever eat sky.
+  // ⚠️ THE CROP IS SPLIT BETWEEN TOP AND BOTTOM. It used to be bottom-anchored,
+  // spending the whole budget on sky, and that is why this never worked on the
+  // phone the client was actually holding. Measured on the title plate:
   //
-  // Measured on the title plate: the topmost logo pixel is row 281 of 1844, so
-  // the budget is 267 and title.js passes that. It covers a 430x800 window
-  // (257 rows) and gives up around 430x760 (336) — bars at the edge of the
-  // frame beat a title with its top sliced off.
-  function fit(img, zoom = 1, bias = 0, coverRows = 0) {
+  //   topmost title ink (black outline and all)   row  165
+  //   bottom-most painted UI (OPTIONS)            row 1635
+  //   spare                                       165 above, 208 below = 373
+  //
+  // A full-width zoom on his screen needs 350 rows. Off the top alone that is
+  // 185 rows into his name — impossible, so it fell back to bars, which is what
+  // he photographed. Split across BOTH ends the same 350 fits inside 373 with
+  // room to spare, and every phone measured clears it:
+  //
+  //   iPhone SE 375x667          327 of 373
+  //   iPhone 12 w/ URL bar       182
+  //   15 Pro Max w/ URL bar      178
+  //   his screenshot ~471x825    350
+  //   12 / 15 Pro Max / Pixel 7  already fill, no crop at all
+  //
+  // Only tablets still bar (an iPad mini wants 545), and nothing is demoed on
+  // one. NO STRETCH AND NO INVENTED PIXELS — the client turned both of those
+  // down and he was right: "I want one solid image, I don't want that blurry
+  // looking shit." This is his painting, whole, zoomed until it fills.
+  //
+  // The split is PROPORTIONAL to the spare at each end, so neither margin runs
+  // out before the other and the framing stays balanced as the window changes.
+  function fit(img, zoom = 1, bias = 0, safe = null) {
     const contain = Math.min(canvas.width / img.width, canvas.height / img.height);
     const cover = canvas.width / img.width;
     const cropRows = (img.height * cover - canvas.height) / cover;
-    const useCover = coverRows > 0 && cover > contain && cropRows <= coverRows;
+    const spareTop = safe ? safe.top : 0;
+    const spareBot = safe ? img.height - safe.bottom : 0;
+    const budget = spareTop + spareBot;
+    const useCover = budget > 0 && cover > contain && cropRows <= budget;
     const s = (useCover ? cover : contain) * zoom;
     const dw = img.width * s;
     const dh = img.height * s;
-    if (useCover) return { s, dw, dh, dx: (canvas.width - dw) / 2, dy: canvas.height - dh };
+    if (useCover) {
+      const offTop = budget > 0 ? cropRows * (spareTop / budget) : cropRows;
+      return { s, dw, dh, dx: (canvas.width - dw) / 2, dy: -offTop * s };
+    }
     const slack = (canvas.height - dh) / 2;
     return { s, dw, dh, dx: (canvas.width - dw) / 2, dy: slack + slack * bias };
   }
@@ -85,7 +107,7 @@ export function createStillScene(ctx, canvas) {
   // point of a multiplane card set is that the layers are separable, so they
   // can arrive separately too. Nothing else passes it, and with it absent this
   // function behaves exactly as it always has.
-  function draw(base, cards, tick, zoom = 1, bias = 0, fx = null, coverRows = 0) {
+  function draw(base, cards, tick, zoom = 1, bias = 0, fx = null, safe = null) {
     const w = canvas.width;
     const h = canvas.height;
     ctx.save();
@@ -94,7 +116,7 @@ export function createStillScene(ctx, canvas) {
     ctx.fillRect(0, 0, w, h);
     if (!base || !base.width) { ctx.restore(); return null; }
 
-    const box = fit(base, zoom, bias, coverRows);
+    const box = fit(base, zoom, bias, safe);
 
     // THE LETTERBOX IS BLACK, and that is the client's call after seeing the
     // alternative. These are 3:2 landscape paintings on a 2.17:1 portrait
