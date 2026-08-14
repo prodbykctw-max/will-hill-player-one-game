@@ -41,7 +41,10 @@ const atTitle = (p) => p.waitForFunction(() => window.__game && window.__game.sc
 // in under the finger.
 const enter = async (p) => {
   await atTitle(p);
-  await p.waitForTimeout(2600);
+  await p.waitForFunction(() => {
+  const t = window.__title, g = window.__game;
+  return t && g && g.screen === 'title' && (g.introT || 0) >= t.settledAt();
+}, null, { timeout: 20000 });
 };
 
 // Walk all four stages: what spawned, is the aura up, does a pit kill him.

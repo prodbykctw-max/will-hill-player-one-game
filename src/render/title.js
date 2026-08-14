@@ -44,6 +44,8 @@
 import titleBase from '../assets/backgrounds/title-portrait.webp';
 // The portrait plate's own cards, SAM-cut. The base is NOT cut — these are
 // drawn over a whole painting, which is the rule everywhere in this game now.
+import tpClouds from '../assets/backgrounds/titlep-clouds.webp';
+import tpWordmark from '../assets/backgrounds/titlep-wordmark.webp';
 import tpLogo from '../assets/backgrounds/titlep-logo.webp';
 import tpSignL from '../assets/backgrounds/titlep-signL.webp';
 import tpSignR from '../assets/backgrounds/titlep-signR.webp';
@@ -109,6 +111,7 @@ export const CLOUD_SPRITES = CLOUD_LIST.map((s, i) => ({
 // Loaded through the same manifest as everything else; see main.js.
 export const TITLE_IMAGES = {
   title_base: titleBase,
+  tp_clouds: tpClouds, tp_wordmark: tpWordmark,
   tp_logo: tpLogo, tp_signL: tpSignL, tp_signR: tpSignR,
   tp_hero: tpHero, tp_pole: tpPole,
   title_options: titleOptions,
@@ -190,14 +193,26 @@ export const TITLE_ZOOM = 1;
 // How much sky the fit may crop off the top to fill the width instead of
 // letterboxing — see stillscene.fit.
 //
-// MEASURED, AND MEASURED TWICE. The first number came off the letters' bright
-// FACE, row 281, and a 430x800 window duly cropped 257 rows and clipped the top
-// of WILL HILL: — because these glyphs carry a thick black outline the bright
-// key cannot see. Growing the letter mass 16px and keeping the dark pixels it
-// reaches finds the real edge at row 265. 241 leaves 24 rows of margin under
-// that, which covers every window down to about 430x820 and falls back to bars
-// below it.
-export const TITLE_COVER_ROWS = 241;
+// MEASURED THREE TIMES NOW, and the third one caught the other two being
+// wrong on a shape real phones actually have.
+//
+// The first number came off the letters' bright FACE, row 281. The second grew
+// the letter mass 16px to find the black outline and got row 265, and 241 was
+// set to leave margin under it. Both were measuring the GOLD line. Scanning
+// for the topmost dark row inside the text columns puts the top of WILL HILL:
+// — outline and all — at row **165**, a hundred rows above where 241 assumed
+// it was.
+//
+// That was not theoretical. cropRows = 1844 - h*853/w, so any viewport between
+// about 0.508 and 0.532 wide-over-tall lands in 165..241, passes the cover
+// test, and slices the top off his name. 390x760 is 0.513 — an iPhone 12 with
+// the Safari bar showing. It was shipping.
+//
+// 150 leaves 15 rows under the outline. Narrower than ~0.505 fills the width;
+// wider than that falls back to bars rather than eating the title. Closing
+// THOSE bars is a different job — the painting is 0.4626 wide-over-tall and no
+// crop can widen it. See docs/HANDOFF.md "The title cannot fill a wide phone".
+export const TITLE_COVER_ROWS = 150;
 export const TITLE_BIAS = 0;
 // In the painting's own rows: below PRESS START, which ends on row 907. Row
 // 950 used to be the top of OPTIONS; the word has since been lifted out and
@@ -235,6 +250,16 @@ export function titleCards(images) {
 // Spans and pivots are read off each card's own emitted bounding box
 // (title-portrait-planes.json), not eyeballed off a screenshot.
 const CARD_SPEC = [
+  // ORDER IS DRAW ORDER, so the sky comes first and the two lines of the
+  // wordmark keep the stacking the painting has — PLAYER ONE's black outline
+  // overlaps the foot of WILL HILL:, so the gold line has to be on top.
+  //
+  // Both of these are colour-keyed, not SAM-cut (tools/cut_title_extras.py).
+  // SAM could not find either: clouds dissolve into the sky instead of ending
+  // at an edge, and the white wordmark went into the sky region with them.
+  { key: 'tp_clouds', depth: 0.02, sway: [{ top: 0.024, pivot: 0.070,
+    ampFrac: 0.0030, freq: 0.35, xRanges: [[0.045, 0.999]] }] },
+  { key: 'tp_wordmark', depth: 0.05 },
   { key: 'tp_logo', depth: 0.05 },
   {
     key: 'tp_signL', depth: 0.44,
@@ -294,9 +319,10 @@ export function createTitle(ctx, canvas, still) {
   // this costs one translate per card and no new art.
   //
   // EACH LAYER COMES FROM WHERE IT BELONGS. Clouds drift in across the sky.
-  // The skyline drops. The signs come in off the kerb they stand on, one from
-  // each side. Will Hill rises from the bottom and lands LAST, because he is
-  // the thing the card is about and the eye should finish on him.
+  // The signs come in off the kerb they stand on, one from each side. Will
+  // Hill rises from the bottom off the street. Then the two lines of the
+  // wordmark drop, his name first and PLAYER ONE last, on its own beat with
+  // nothing else still moving — see the note on INTRO below.
   //
   // ⚠️ THE BACKDROP ARRIVES LAST, AND THAT IS FORCED, NOT A CHOICE.
   //
@@ -324,12 +350,30 @@ export function createTitle(ctx, canvas, still) {
   //
   // Indices are positions in titleCards(). A card added there without a line
   // here simply arrives at rest, which is the safe failure.
+  // THE NAME BEFORE THE TITLE. Client: "his name should appear and PLAYER ONE
+  // appear last than all of that." It used to read backwards, and not by
+  // choice — `tp_logo` is the GOLD line only. Measured: 39,668 of the 39,674
+  // gold pixels are inside the SAM logo mask and only 155 white ones are, so
+  // WILL HILL: was never a card at all. It could not appear until the whole
+  // backdrop faded up, which is AFTER the line beneath it had already landed.
+  //
+  // Cutting the white line (cut_title_extras.py) makes the order a decision
+  // instead of an accident: the street furniture settles, then his name, then
+  // PLAYER ONE on its own beat with nothing else moving.
   const INTRO = [
-    { from: [0.00, -0.34], t0: 24, t1: 78 },   // 0 the title, dropping in
-    { from: [-0.46, 0.05], t0: 8, t1: 56 },    // 1 left gantry, off frame
-    { from: [0.46, 0.05], t0: 14, t1: 62 },    // 2 right gantry
-    { from: [0.00, 0.44], t0: 20, t1: 74 },    // 3 Will Hill, up off the street
-    { from: [0.34, 0.00], t0: 4, t1: 58 },     // 4 the pole, in from the kerb
+    { from: [-0.30, 0.00], t0: 0, t1: 58 },    // 0 clouds, drifting in
+    // The gap between these two is the whole point, so it is sized against a
+    // measurement rather than a feeling: introorder.mjs reads both lines off
+    // the canvas, and a first pass at 34-80 / 54-100 landed them only 10 ticks
+    // (166ms) apart, because a cubic ease-out is inside 2px of home long
+    // before its t1. Pulling the name earlier and pushing PLAYER ONE later
+    // opens the beat to ~24 ticks, which is a pause you see.
+    { from: [0.00, -0.30], t0: 28, t1: 70 },   // 1 WILL HILL:, his name
+    { from: [0.00, -0.34], t0: 60, t1: 104 },  // 2 PLAYER ONE, and it lands LAST
+    { from: [-0.46, 0.05], t0: 8, t1: 56 },    // 3 left gantry, off frame
+    { from: [0.46, 0.05], t0: 12, t1: 60 },    // 4 right gantry
+    { from: [0.00, 0.44], t0: 18, t1: 70 },    // 5 Will Hill, up off the street
+    { from: [0.34, 0.00], t0: 4, t1: 54 },     // 6 the pole, in from the kerb
   ];
   const LAST_LAND = titleCards().length
     ? Math.max(...INTRO.slice(0, titleCards().length).map((c) => c.t1)) : 0;
@@ -619,6 +663,15 @@ export function createTitle(ctx, canvas, still) {
     return x >= r.x - HIT_MARGIN && x <= r.x + r.w + HIT_MARGIN
       && y >= r.y - HIT_MARGIN && y <= r.y + r.h + HIT_MARGIN;
   }
+  // WHEN THE CARD IS FINISHED, IN TICKS. Derived from INTRO, not typed — the
+  // harnesses have to wait out the assembly before they can press anything,
+  // and seven of them were sitting on a hardcoded 2600ms that happened to
+  // clear an intro of the length it was that week. Re-ordering the wordmark
+  // pushed the last landing from tick 78 to 100 and the margin down to 143ms.
+  // Reading it off the animation means the next change cannot silently make
+  // every harness tap into a fade.
+  const settledAt = () => INTRO_END + 22;
+
   return { draw, hitOptions, optionsRect, hitRelay, relayRect,
-    hitMusic, musicRect, drawMusic };
+    hitMusic, musicRect, drawMusic, settledAt };
 }

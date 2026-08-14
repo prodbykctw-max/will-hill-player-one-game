@@ -1226,6 +1226,60 @@ it does decide how hard the identity check needs to be.
 
 ---
 
+## The title cannot fill a wide phone, and no crop will change that
+
+**Client, 2026-08-14, with a screenshot:** *"there is still black on the left
+and right of the intro screen. I want it to fit to screen the wide way."*
+
+**The painting is 853×1844 — 0.4626 wide-over-tall.** Measured across real
+device shapes:
+
+| viewport | plate drawn | bars L/R | rows a cover-fit would crop |
+|---|---|---|---|
+| iPhone 12/13/14 390×844 | 390×843 | **0** | — fills |
+| iPhone 15 Pro Max 430×932 | 430×930 | **0** | — fills |
+| Pixel 7 412×915 | 412×891 | **0** | — fills |
+| iPhone SE 375×667 | 309×667 | 33px | 327 |
+| his screenshot ~471×825 | 382×825 | 45px | 350 |
+| iPad mini 744×1133 | 524×1133 | 110px | 545 |
+
+A viewport at or narrower than 0.4626 fills. Anything wider gets bars, and the
+only way a *crop* closes them is by taking rows off the top — 350 of them on
+his shot. Rows 0–350 hold the sky, the clouds (44–138), WILL HILL: (165–258)
+and most of PLAYER ONE (231–402). **You cannot crop your way to a wide fit
+without deleting the title.** Cropping from the bottom instead deletes PRESS
+START (row 1518) and OPTIONS (1609). The painting simply is not wide enough,
+and that is a property of the artwork, not a bug in the fit.
+
+Real options, none of them free:
+
+1. **Outpaint the plate wider** — extend left and right to ~0.60, sky at the
+   top, skyline and trees in the middle, wet street at the bottom. His painting
+   is untouched; only new margin is generated. Then cover-fit fills every
+   phone with no bars and no crop. **This is the only option that gives him
+   what he asked for, and it changes his artwork, so it needs his say-so.**
+2. **Fill the bars from the plate's own edge columns** — a sampled gradient or
+   a mirrored slice. Free, no risk, ships immediately, and reads as a
+   deliberate frame rather than black. Sky and street mirror invisibly; the
+   skyline band would visibly repeat.
+3. **Leave it.** On the three phones above it already fills edge to edge.
+
+### ⚠️ The bug this uncovered — `TITLE_COVER_ROWS` was clipping his name
+
+Worth reading before touching the fit again. `TITLE_COVER_ROWS` was **241**,
+set from a measurement that had found the title's top edge at row 265. Both
+earlier passes were measuring the GOLD line. Scanning for the topmost dark row
+inside the text columns puts the top of WILL HILL: — black outline and all — at
+**row 165**.
+
+Since `cropRows = 1844 − h·853/w`, any viewport between roughly 0.508 and 0.532
+wide-over-tall lands in 165..241, passes the cover test, and slices the top off
+his name. **390×760 is 0.513 — an iPhone 12 with the Safari bar showing.** It
+was live. Now 150, and `scratchpad/clipcheck.mjs` sweeps the whole danger
+window to prove nothing clips.
+
+---
+
 ## The score ceiling, and why Will Hill sits at 50,000
 
 **Measured 2026-08-14 by `tools/harness/ceiling.mjs`.** Re-run it after any
