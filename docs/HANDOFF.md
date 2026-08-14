@@ -1321,6 +1321,86 @@ Verified: titlefit 56/56, relaytod 26/26, musicbox 7/7, titleintro 6/6,
 relay 8/8, panelnav 9/9, plus the seam probe above and screenshots at day and
 night confirming PRESS START is uncut and the road reads continuous.
 
+### The pause menu, and splitting MUSIC from SOUND EFFECTS
+
+Client: *"did you finish the pause menu, as well as being able to go back to
+the main menu from the options and from the leaderboard?"* — against an
+earlier list of *"checkboxes, no slider"* for music and effects and *"a
+restart button on pause styled like Resume"*. The pause menu had been RESUME
+and nothing else.
+
+Now RESUME / RESTART / MAIN MENU, all the same shape (his instruction, so the
+menu reads as one stack of choices rather than a main action with
+afterthoughts), plus the two switches drawn as checkboxes underneath.
+
+⚠️ **RESTART was removed once at his request and is back at his request** —
+see the note in `drawPauseMenu`. The contest argument that justified removing
+it does **not** actually stand against this version: MAIN MENU → PRESS START
+already begins a fresh run from stage one, so RESTART is a shortcut for
+something reachable in two taps anyway. It **abandons** the run rather than
+scoring it, and nothing unfinished is ever submitted. What *would* break the
+contest is a restart that KEPT the score — `pausemenu.mjs` asserts score 0 and
+stage 0 after it, precisely so nobody later "fixes" it into a score-preserving
+retry.
+
+**The audio split is the risky half of this change.** `audio.setMuted()` used
+to silence *everything*, and `wh_sound` was one master switch. There are now
+two, independent end to end:
+- `muted` / `wh_sound` → the MUSIC (the `<audio>` cues in `audio/music.js`).
+- `sfxMuted` / `wh_sfx` → the effects, the UI cues **and the outdoor bed**.
+  The ambience rides with the effects because it is scenery, not score.
+
+`setMuted()` keeps its name and now only touches the music; `setSfxMuted()`
+is new. Everything that is an effect (`play`, `powerUp`, `powerDown`,
+`uiCue`, `startPending`, the `ambienceTick` early-out) gates on `sfxMuted`.
+The **storage key `wh_sound` was deliberately left alone** — renaming it would
+silently reset the preference of everyone who has already played.
+
+The reasoning the client gave is worth keeping: most people at a party play
+with the song off, and taking the song away should not also take the thump
+that tells you a stomp landed.
+
+The pause switches and the OPTIONS panel are **one setting seen from two
+screens** — same helpers, so they cannot drift. The OPTIONS row formerly
+labelled SOUND is now MUSIC, with SOUND EFFECTS added beside it.
+
+### The leaderboard card was cut off at the top and could not be scrolled to
+
+Client: *"the leaderboard is cut off at the top. Is it not internally
+scrolling or what's going on? ... it's not cut off and it scrolls within
+itself a little bit without a scroll bar."*
+
+Not a sizing problem — a **centred flex item in a scroll container**.
+`#panel` was `display:flex; align-items:center` *and* `overflow-y:auto`. When
+the child grows taller than the container, centring overflows it **equally in
+both directions**; the bottom half is reachable but the top half is not,
+because `scrollTop` cannot go negative. His MARTA card is taller than a
+phone, so the head of it — the `marta` wordmark and ATL 404 — sat above the
+scroll origin with **no way to reach it at all**.
+
+Fixed by moving the centring from the container to the item:
+`align-items: flex-start` on `#panel`, `margin: auto` on `#panelCard`. An
+auto margin still centres the card whenever there IS room and degrades to
+top-aligned-and-fully-scrollable when there is not. Scrollbars hidden
+(`scrollbar-width: none` + a zero-width `::-webkit-scrollbar`) per his "no
+scroll bar".
+
+Asserted in `pausemenu.mjs` rather than eyeballed: with `scrollTop = 0` the
+card's top must be **at or below the panel's own top padding**. It measures
+`cardTop=14` against `padTop=14` — exactly flush. A negative number there is
+the bug returning, and the check also confirms the panel really is
+overflowing (991 vs 732) so the assertion is not passing vacuously on a card
+that happens to fit.
+
+⚠️ **Do not "simplify" `#panel` back to `align-items: center`.** It looks
+equivalent and re-breaks this immediately, silently, and only on short
+phones.
+
+New harness: `tools/harness/pausemenu.mjs` (13 checks) — the three buttons and
+where each goes, the two switches proven INDEPENDENT in both directions,
+persistence, OPTIONS agreeing with the pause menu, and the three scroll
+assertions above.
+
 ### The board had no way out but a small ✕ in the corner
 
 Client: *"when I pulled a leaderboard up, I have no way to get back to the

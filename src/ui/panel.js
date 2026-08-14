@@ -62,7 +62,7 @@ function emailProblem(v) {
 }
 
 export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
-  onHapticsChange, haptics, audio }) {
+  onSfxChange, onHapticsChange, haptics, audio }) {
   const el = $('panel');
   if (!el) return { open() {}, close() {}, get isOpen() { return false; } };
 
@@ -234,12 +234,16 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
   function fillSettings() {
     let tod = 'auto';
     let snd = true;
+    let sfx = true;
     try {
       tod = localStorage.getItem('wh_tod') || 'auto';
       snd = localStorage.getItem('wh_sound') !== 'off';
+      sfx = localStorage.getItem('wh_sfx') !== 'off';
     } catch (_e) {}
     $('sTod').value = tod;
     $('sSound').checked = snd;
+    const sx = $('sSfx');
+    if (sx) sx.checked = sfx;
     const h = $('sHaptics');
     if (h) {
       h.checked = haptics ? haptics.isEnabled() : true;
@@ -303,6 +307,15 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
     // Only on the way ON, and after the mute has lifted — a click confirming
     // that you just turned the sound off would be a contradiction, and it
     // would not play anyway.
+    if (v) feedback.press();
+  });
+  // SFX is its own switch for the same reason MUSIC is — see setSfxEnabled.
+  // Ticking it ON clicks, which is the only honest way to show what it does;
+  // ticking it OFF cannot click, because it has just turned the click off.
+  $('sSfx')?.addEventListener('change', (e) => {
+    const v = e.target.checked;
+    setSfxEnabled(v);
+    onSfxChange?.(v);
     if (v) feedback.press();
   });
   // HAPTICS ARE THEIR OWN SWITCH, not a rider on SOUND. They are the setting
@@ -369,6 +382,14 @@ export function savedTimeOfDay() {
 
 // The title card's MUSIC box writes through here, so the checkbox and the
 // OPTIONS toggle are the same setting and cannot drift apart.
+//
+// ⚠️ `wh_sound` IS THE MUSIC, NOT THE WHOLE SOUND. It used to be one master
+// switch over everything. The client wanted them apart on the pause menu —
+// "checkboxes, no slider" — and they are genuinely different things: most
+// people at a party play with the song off, and taking the song away should
+// not also take the thump that tells you a stomp landed. The KEY is left
+// alone deliberately: renaming it would silently reset the preference of
+// everyone who has already played.
 export function setSoundEnabled(on) {
   try { localStorage.setItem('wh_sound', on ? 'on' : 'off'); } catch (_e) {}
 }
@@ -376,6 +397,21 @@ export function setSoundEnabled(on) {
 export function soundEnabled() {
   try {
     return localStorage.getItem('wh_sound') !== 'off';
+  } catch (_e) {
+    return true;
+  }
+}
+
+// The effects, the UI cues and the outdoor bed. Defaults ON — a game with no
+// sound at all on first load reads as broken, and this is the half that does
+// not need a gesture-collected unlock to work.
+export function setSfxEnabled(on) {
+  try { localStorage.setItem('wh_sfx', on ? 'on' : 'off'); } catch (_e) {}
+}
+
+export function sfxEnabled() {
+  try {
+    return localStorage.getItem('wh_sfx') !== 'off';
   } catch (_e) {
     return true;
   }

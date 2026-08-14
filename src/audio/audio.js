@@ -33,7 +33,15 @@ export function createAudio() {
   let ctx = null;
   let master = null;
   let noise = null;
+  // ⚠️ TWO SWITCHES, NOT ONE. `muted` is the MUSIC, `sfxMuted` is everything
+  // else the game makes — effects, the UI cues and the outdoor bed. Client
+  // wanted them separable on the pause menu ("checkboxes, no slider"), and
+  // they genuinely are different things: most people at a party play with the
+  // song off, and taking the song away should not also take away the thump
+  // that tells you a stomp landed. They start independent and stay that way;
+  // nothing in here re-couples them.
   let muted = false;
+  let sfxMuted = false;
   let punchBus = null;
   let lastPunch = -99;
   let combo = 0;
@@ -419,7 +427,7 @@ export function createAudio() {
   // ambience that had been sitting there silent becomes audible too. Which is
   // exactly the reported symptom: no sound until you pick up a bag.
   function startPending() {
-    if (pendingAmb === null || muted) return;
+    if (pendingAmb === null || sfxMuted) return;
     if (!ctx || ctx.state !== 'running') return;
     const rain = pendingAmb;
     pendingAmb = null;
@@ -529,7 +537,7 @@ export function createAudio() {
   // Run a UI cue against a context that is definitely awake. See the note on
   // click()/confirm()/back() for why the deferral is not paranoia.
   function uiCue(fn) {
-    if (muted) return;
+    if (sfxMuted) return;
     const c = ensure();
     if (!c) return;
     if (c.state === 'running') { startPending(); fn(c); return; }
@@ -592,7 +600,13 @@ export function createAudio() {
     setMuted(v) {
       muted = !!v;
       music.setMuted(muted);
-      if (amb && ctx) amb.out.gain.setTargetAtTime(muted ? 0 : 0.06, ctx.currentTime, 0.2);
+    },
+    // The effects, the UI cues and the outdoor bed — everything that is not
+    // the soundtrack. The bed rides with these rather than with the music
+    // because it is scenery, not score: it belongs to the street.
+    setSfxMuted(v) {
+      sfxMuted = !!v;
+      if (amb && ctx) amb.out.gain.setTargetAtTime(sfxMuted ? 0 : 0.06, ctx.currentTime, 0.2);
     },
 
     // Call once play starts, and again whenever the stage changes so the rain
@@ -617,7 +631,7 @@ export function createAudio() {
       // refused before the first gesture, and a muted player still has to
       // know which slot it should be on when the sound comes back.
       music.tick();
-      if (muted) return;
+      if (sfxMuted) return;
       if (pendingAmb !== null) startPending();
       if (!ctx || !amb) return;
       ambientTick(ctx);
@@ -626,7 +640,7 @@ export function createAudio() {
     // named by FUNCTION so swapping a song is a manifest edit.
     music,
     play(name) {
-      if (muted) return;
+      if (sfxMuted) return;
       const c = ensure();
       if (!c) return;
       if (c.state === 'suspended') c.resume().catch(() => {});
@@ -640,14 +654,14 @@ export function createAudio() {
     // Called when a champagne bottle is picked up, and when the power runs
     // out. See the arpeggio note above for why these are each other's mirror.
     powerUp() {
-      if (muted) return;
+      if (sfxMuted) return;
       const c = ensure();
       if (!c) return;
       if (c.state === 'suspended') c.resume().catch(() => {});
       arpeggio(c, c.currentTime, UP_NOTES, 0.055, 0.16);
     },
     powerDown() {
-      if (muted) return;
+      if (sfxMuted) return;
       const c = ensure();
       if (!c) return;
       if (c.state === 'suspended') c.resume().catch(() => {});
@@ -714,6 +728,7 @@ export function createAudio() {
         ambGain: amb ? +amb.out.gain.value.toFixed(5) : 0,
         pending: pendingAmb,
         muted,
+        sfxMuted,
       };
     },
   };

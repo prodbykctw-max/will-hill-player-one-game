@@ -184,7 +184,17 @@
        what closes it, so there is no open-but-invisible state to leak. */
     #panel {
       position: fixed; inset: 0; z-index: 30;
-      display: flex; align-items: center; justify-content: center;
+      /* ⚠️ align-items MUST NOT BE `center` HERE — see #panelCard's margin.
+         This is a scroll container, and a CENTRED flex item that grows taller
+         than its container overflows EQUALLY in both directions. The bottom
+         half is reachable; the top half is not, because scrollTop cannot go
+         negative. That is the whole of "the leaderboard is cut off at the
+         top": his MARTA card is taller than a phone, so the head of it —
+         the marta wordmark and ATL 404 — sat above the scroll origin with no
+         way to reach it. `flex-start` plus an auto margin still centres the
+         card whenever there IS room, and keeps the top reachable when there
+         is not. */
+      display: flex; align-items: flex-start; justify-content: center;
       background: rgba(6,5,10,0.82);
       padding: calc(14px + env(safe-area-inset-top, 0px)) 14px
                calc(14px + env(safe-area-inset-bottom, 0px));
@@ -192,9 +202,19 @@
          keyboard up the form is taller than what is left of the screen. */
       overflow-y: auto; -webkit-overflow-scrolling: touch;
       touch-action: pan-y;
+      /* Client: "it scrolls within itself a little bit without a scroll bar."
+         The bar is chrome over his artwork and the card is plainly a card —
+         it reads as scrollable without being told. */
+      scrollbar-width: none;
     }
+    #panel::-webkit-scrollbar { width: 0; height: 0; display: none; }
     #panel[hidden] { display: none; }
     #panelCard {
+      /* Centres in both axes when the card fits, and degrades to top-aligned
+         — scrollable all the way up — when it does not. Doing the centring
+         from the ITEM instead of the container is what keeps the overflow
+         symmetrical-but-reachable rather than unreachable. */
+      margin: auto;
       position: relative; width: 100%; max-width: 420px;
       box-sizing: border-box; padding: 18px 18px 16px;
       background: #12101c;
@@ -425,8 +445,14 @@
       </div>
 
       <div id="pvSettings" class="pv" hidden>
-        <label class="row"><span>SOUND</span>
+        <!-- Two switches, not one. See setSfxEnabled in src/ui/panel.js:
+             the song and the effects are separable because most people at a
+             party play with the song off, and losing the song should not
+             also lose the thump that says a stomp landed. -->
+        <label class="row"><span>MUSIC</span>
           <input id="sSound" type="checkbox" checked /></label>
+        <label class="row"><span>SOUND EFFECTS</span>
+          <input id="sSfx" type="checkbox" checked /></label>
         <label class="row"><span>VIBRATION</span>
           <input id="sHaptics" type="checkbox" checked /></label>
         <p class="note" id="hapticsNote" hidden></p>

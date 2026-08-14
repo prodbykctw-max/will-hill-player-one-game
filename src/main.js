@@ -28,7 +28,8 @@ import { createTitle, TITLE_IMAGES, SRC_W as STILL_W, SRC_H as STILL_H } from '.
 import martaMapArt from './assets/backgrounds/marta-map.webp';
 import { loadImages } from './render/images.js';
 import { createRunLog, lbSubmit, bankLocalRun, isRegistered } from './net/leaderboard.js';
-import { createPanel, soundEnabled, setSoundEnabled } from './ui/panel.js';
+import { createPanel, soundEnabled, setSoundEnabled,
+  sfxEnabled, setSfxEnabled } from './ui/panel.js';
 import { createHaptics } from './core/haptics.js';
 import { STAGE_SLOTS, MAP_SLOTS, MANIFEST } from './audio/music.js';
 import { isRelay, setRelay } from './core/relay.js';
@@ -46,7 +47,9 @@ const title = createTitle(ctx, canvas, still);
 const haptics = createHaptics();
 const input = createInput(haptics);
 const audio = createAudio();
+// Two switches, restored independently — see setSfxEnabled in ui/panel.js.
 audio.setMuted(!soundEnabled());
+audio.setSfxMuted(!sfxEnabled());
 
 // PRESSING A THING SHOULD FEEL LIKE PRESSING A THING. One helper rather than
 // two calls at every site, because the two halves are one idea and the way
@@ -66,6 +69,7 @@ function goBack() { audio.back(); haptics.tap(); }
 const panel = createPanel({
   onClose: () => { if (state.screen === 'paused' && state.resumeTo) resume(); },
   onSoundChange: (on) => audio.setMuted(!on),
+  onSfxChange: (on) => audio.setSfxMuted(!on),
   onHapticsChange: (on) => haptics.setEnabled(on),
   // ── TIME OF DAY APPLIES NOW, NOT "NEXT TIME THE GAME LOADS" ──────────
   //
@@ -287,6 +291,16 @@ function confirmPressed() {
 // Menu buttons are rebuilt each frame so they track the canvas size; their
 // rects are what the pointer handler hit-tests against.
 const menuButtons = [];
+// ⚠️ HOOKED HERE, NOT UP WITH THE OTHER DEV HOOKS. `menuButtons` is a `const`
+// declared in this section, so touching it from the block near the top of the
+// file lands in the temporal dead zone and throws before the game ever boots.
+// The pause menu rebuilds its rects every frame, so a harness has to READ
+// them rather than recompute them; the panel needs a door that is not a tap
+// on a canvas coordinate.
+if (import.meta.env.DEV) {
+  window.__menuButtons = menuButtons;
+  window.__panel = panel;
+}
 
 function pause() {
   if (state.screen !== 'playing') return;
@@ -917,16 +931,41 @@ function drawPauseMenu(stage) {
   ctx.fillText(`$${state.score.toLocaleString()}  ·  ${state.hearts}/${state.player.maxHearts} hearts`,
     cx, canvas.height * 0.26 + 48);
 
-  // RESUME ONLY. RESTART STAGE and RESTART RUN were here and the client had
-  // them removed outright.
+  // ── WHAT IS ON THIS MENU, AND WHY RESTART CAME BACK ──────────────────
   //
-  // It is also the right call for a contest build: the leaderboard scores a
-  // RUN (see cloudflare/leaderboard-worker.js and the replay log), and a
-  // pause menu that hands you a free restart lets anyone reroll a bad start
-  // as many times as they like without it ever showing up in the log. The
-  // only way out of a run is now to finish it or to get knocked down.
+  // This was RESUME only for a while: RESTART STAGE and RESTART RUN were
+  // here, the client had them removed outright, and the contest reasoning
+  // agreed with him — the leaderboard scores a RUN (see the replay log and
+  // cloudflare/leaderboard-worker.js), so a free restart would let anyone
+  // reroll a bad start over and over without it ever showing in the log.
+  //
+  // He has since asked for it back, in his own words, "a restart button on
+  // pause styled like Resume", along with a way out to the main menu. Both
+  // are in, and the contest argument above does NOT actually stand against
+  // them: MAIN MENU -> PRESS START already starts a fresh run from stage
+  // one, so RESTART is a shortcut for something the player can do anyway in
+  // two taps. It abandons the run rather than scoring it; nothing
+  // unfinished is ever submitted. What would genuinely break the contest is
+  // a restart that KEPT the score, and neither of these does.
+  //
+  // Both are the same shape as RESUME — his instruction — so the menu reads
+  // as one stack of choices rather than a main action with afterthoughts.
   const items = [
     { label: 'RESUME', action: resume },
+    { label: 'RESTART', action: () => { commit(); startRun(); } },
+    { label: 'MAIN MENU', action: () => { goBack(); showTitle(); } },
+  ];
+
+  // The two switches, as CHECKBOXES and with no slider — his call, and the
+  // right one for a phone: a slider is a drag target on a screen where every
+  // other control is a tap, and nobody balances a mix mid-run. They are the
+  // same two settings the OPTIONS panel shows, read and written through the
+  // same helpers, so the two screens can never disagree.
+  const toggles = [
+    { label: 'MUSIC', on: soundEnabled(),
+      set: (v) => { setSoundEnabled(v); audio.setMuted(!v); if (v) audio.unlock(); } },
+    { label: 'SOUND EFFECTS', on: sfxEnabled(),
+      set: (v) => { setSfxEnabled(v); audio.setSfxMuted(!v); } },
   ];
 
   const bw = Math.min(300, canvas.width * 0.72);
@@ -947,8 +986,55 @@ function drawPauseMenu(stage) {
     ctx.fillText(it.label, cx, by + bh / 2);
     ctx.textBaseline = 'alphabetic';
 
-    menuButtons.push({ x: bx, y: by, w: bw, h: bh, action: it.action });
+    menuButtons.push({ x: bx, y: by, w: bw, h: bh, action: it.action, label: it.label });
     by += bh + gap;
+  }
+
+  // The switches sit under the buttons, narrower and quieter, so they read as
+  // settings rather than as two more things to press on the way out.
+  by += 4;
+  for (const t of toggles) {
+    const rowW = bw;
+    const rowH = 40;
+    const bx = cx - rowW / 2;
+    const boxSz = 22;
+    const boxX = bx + rowW - boxSz - 10;
+    const boxY = by + (rowH - boxSz) / 2;
+
+    ctx.fillStyle = 'rgba(255,255,255,0.86)';
+    ctx.font = '700 14px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(t.label, bx + 10, by + rowH / 2);
+    ctx.textAlign = 'center';
+
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(boxX, boxY, boxSz, boxSz, 4);
+    else ctx.rect(boxX, boxY, boxSz, boxSz);
+    ctx.fillStyle = t.on ? 'rgba(255,214,110,0.92)' : 'rgba(10,8,16,0.68)';
+    ctx.fill();
+    ctx.lineWidth = 1.6;
+    ctx.strokeStyle = t.on ? 'rgba(255,236,190,0.95)' : 'rgba(226,214,236,0.55)';
+    ctx.stroke();
+    if (t.on) {
+      // Drawn, not typed, so it lands on the pixel grid — same tick the
+      // title card's MUSIC box uses.
+      ctx.beginPath();
+      ctx.strokeStyle = 'rgba(18,12,6,0.95)';
+      ctx.lineWidth = Math.max(2, boxSz * 0.16);
+      ctx.lineCap = 'round';
+      ctx.moveTo(boxX + boxSz * 0.24, boxY + boxSz * 0.52);
+      ctx.lineTo(boxX + boxSz * 0.44, boxY + boxSz * 0.72);
+      ctx.lineTo(boxX + boxSz * 0.78, boxY + boxSz * 0.30);
+      ctx.stroke();
+    }
+    ctx.textBaseline = 'alphabetic';
+
+    // The WHOLE ROW is the target, not the 22px box — the box is the
+    // indicator, and a thumb should not have to find it.
+    menuButtons.push({ x: bx, y: by, w: rowW, h: rowH,
+      action: () => t.set(!t.on), label: t.label });
+    by += rowH + 6;
   }
 
   ctx.fillStyle = 'rgba(255,255,255,0.55)';
