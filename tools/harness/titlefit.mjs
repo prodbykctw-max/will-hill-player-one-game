@@ -14,14 +14,18 @@
 // 165 spare rows above the title and 208 below OPTIONS and the worst phone
 // needs 350 of that 373.
 //
-// So there are four things to prove on every shape, and pixel-peeping one
+// So there are five things to prove on every shape, and pixel-peeping one
 // screenshot proves none of them:
 //   1. no black bars at the sides,
 //   2. the top of WILL HILL: is on screen,
 //   3. the foot of OPTIONS is on screen,
-//   4. no two controls overlap — filling the width costs the road CHAMPAGNE
-//      RELAY and MUSIC used to stand on, and the first attempt drew all three
-//      on top of PRESS START.
+//   4. MUSIC does not overlap OPTIONS or run off the frame,
+//   5. MUSIC sits DIRECTLY under OPTIONS, centred on the same x. Client:
+//      "that music button ultimately is going to be under the OPTIONS button,
+//      and that will be stacked perfectly." CHAMPAGNE RELAY came off the card
+//      entirely after this — "that's like a dev/dashboard thing" — so this is
+//      also the file that has to prove it stays gone: `relayRect` must no
+//      longer exist on the title module at all.
 const _pw = await import(process.env.PLAYWRIGHT || 'playwright');
 const chromium = _pw.chromium || _pw.default?.chromium;
 const b = await chromium.launch(process.env.CHROMIUM ? { executablePath: process.env.CHROMIUM } : {});
@@ -69,7 +73,8 @@ for (const [name, w, h] of SHAPES) {
       nameTop: Math.round(row(nameTop)),
       optBottom: Math.round(row(optBottom)),
       ch: cv.height,
-      opt: t.optionsRect(bx), relay: t.relayRect(bx), music: t.musicRect(bx),
+      opt: t.optionsRect(bx), music: t.musicRect(bx),
+      relayGone: typeof t.relayRect === 'undefined' && typeof t.hitRelay === 'undefined',
     };
   }, [NAME_TOP, OPT_BOTTOM]);
 
@@ -78,21 +83,20 @@ for (const [name, w, h] of SHAPES) {
   check(`  the top of WILL HILL: is on screen`, r.nameTop >= 0, `row 165 at y=${r.nameTop}`);
   check(`  the foot of OPTIONS is on screen`, r.optBottom <= r.ch,
     `row 1635 at y=${r.optBottom} of ${r.ch}`);
-  check(`  RELAY and MUSIC do not overlap`, !overlaps(r.relay, r.music),
-    JSON.stringify({ relay: r.relay && Math.round(r.relay.y), music: r.music && Math.round(r.music.y) }));
-  check(`  neither control covers OPTIONS`,
-    !overlaps(r.relay, r.opt) && !overlaps(r.music, r.opt));
-  // Everything drawn has to be inside the frame, or a control is unreachable.
+  check(`  CHAMPAGNE RELAY stays off the title card`, r.relayGone,
+    `relayRect=${typeof r.relayGone}`);
+  check(`  MUSIC does not overlap OPTIONS`, !overlaps(r.music, r.opt));
+  // Everything drawn has to be inside the frame, or MUSIC is unreachable.
   const inside = (x) => !x || (x.y >= 0 && x.y + x.h <= r.ch && x.x >= 0 && x.x + x.w <= 430 + 400);
-  check(`  both controls are inside the frame`, inside(r.relay) && inside(r.music));
-  // Client: "reduced to about the same width as OPTIONS and equal width as
-  // MUSIC." All three now share one literal target width, so this checks it
-  // rather than trusting the geometry — a stray extra pixel of gap or icon
-  // width is exactly the kind of thing that reads fine in the code and wrong
-  // on his phone.
-  check(`  RELAY, OPTIONS and MUSIC are all the same width`,
-    Math.abs(r.relay.w - r.opt.w) <= 1 && Math.abs(r.music.w - r.opt.w) <= 1,
-    `opt=${r.opt.w.toFixed(1)} relay=${r.relay.w.toFixed(1)} music=${r.music.w.toFixed(1)}`);
+  check(`  MUSIC is inside the frame`, inside(r.music));
+  // Client: "that music button ultimately is going to be under the OPTIONS
+  // button... stacked perfectly." Directly under, on the SAME x-centre, is
+  // the literal shape of "stacked perfectly" — checked, not eyeballed.
+  const optCx = r.opt.x + r.opt.w / 2, musicCx = r.music.x + r.music.w / 2;
+  check(`  MUSIC is centred on OPTIONS' own x`, Math.abs(optCx - musicCx) <= 1,
+    `optCx=${optCx.toFixed(1)} musicCx=${musicCx.toFixed(1)}`);
+  check(`  MUSIC sits directly below OPTIONS, not above or beside it`,
+    r.music.y > r.opt.y + r.opt.h, `opt.y=${r.opt.y.toFixed(1)} music.y=${r.music.y.toFixed(1)}`);
 
   await p.screenshot({ path: `${OUT}/titlefit-${name.replace(/[^a-z0-9]+/gi, '_')}.png` });
   await p.context().close();

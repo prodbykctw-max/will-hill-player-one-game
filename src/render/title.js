@@ -294,14 +294,13 @@ export function createTitle(ctx, canvas, still) {
     // the shimmer reads as the finished screen's own idle life rather than as
     // one more thing competing with the assembly.
     if (!splash) drawGlints(box, tick);
-    // The two controls that are NOT part of the painting come up with the last
+    // The one control that is NOT part of the painting comes up with the last
     // layer, so the page finishes as the menu instead of cutting to it.
     const a = splash ? splashControlAlpha(introT || 0) : 1;
     if (a > 0.002) {
       ctx.save();
       ctx.globalAlpha = a;
       drawOptions(images.title_options, box, tick);
-      drawRelay(box, images.champagne, tick);
       drawMusic(box, musicOn, tick);
       ctx.restore();
     }
@@ -545,213 +544,37 @@ export function createTitle(ctx, canvas, still) {
     still.pulseRect(r.x, r.y, r.w, r.h, tick + 57, '150,210,255');
   }
 
-  // ── CHAMPAGNE RELAY ──────────────────────────────────────────────────
+  // ── CHAMPAGNE RELAY IS OFF THE TITLE CARD ────────────────────────────────
   //
-  // The walkthrough build, offered as a choice on the card rather than hidden
-  // behind a URL. The client: "when we go to start game it should be like a
-  // champagne relay button at the bottom with a champagne bottle in it from
-  // the game, for me to choose that version."
+  // Client: "the champagne relay is not going to be there, that's like a
+  // dev/dashboard thing. Nothing's gonna be there but PRESS START, OPTIONS
+  // and MUSIC."
   //
-  // It sits UNDER the OPTIONS word and gets its own hit rect, tested before
-  // the lower-half catch-all — otherwise the whole bottom of the screen
-  // belongs to the panel and this could never be pressed. Drawn small and
-  // quiet on purpose: it is a door for him, not a third headline competing
-  // with his painting.
-  const RELAY_LABEL = 'CHAMPAGNE RELAY';
+  // This is the fourth pass on the pill in three days — a rounded box, then
+  // flanking OPTIONS in a three-column row, then width-matched to it — and
+  // the client's own call in the end is that a player should never have seen
+  // it at all. It was always a walkthrough tool for reviewing the game, not
+  // a thing to ship in front of an audience.
+  //
+  // NOTHING BUT THE DRAWING AND THE TAP TARGET IS GONE. `?relay=1` in the URL
+  // and the `window.__startStage` dev hook (core/relay.js) still put a run
+  // straight into relay mode exactly as before — that is the "dev/dashboard"
+  // door he means, and every harness that drives relay mode through those
+  // still passes unmodified. Only the on-screen pill, and the human path of
+  // tapping it, are removed.
 
-  // ── THE THREE CONTROLS SIT ON ONE ROW, OPTIONS IN THE MIDDLE ─────────────
+  // ── THE MUSIC BOX, STACKED UNDER OPTIONS ─────────────────────────────────
   //
-  // Client: "MUSIC and CHAMPAGNE RELAY should be next to OPTIONS, like on the
-  // left and right of the OPTIONS side" — and nothing above PRESS START.
+  // Client: "that music button ultimately is going to be under the OPTIONS
+  // button, if anything can go under the OPTIONS button, and that will be
+  // stacked perfectly."
   //
-  // This replaces a stack, and the stack had stopped fitting. Filling the
-  // width costs rows: on his phone it leaves SEVEN pixels of screen under the
-  // painted OPTIONS and the two drawn controls need about seventy. Stacked
-  // they drew straight over PRESS START; parked in the empty road above it
-  // they were above PRESS START, which he does not want either.
-  //
-  // Flanking OPTIONS solves it by costing no vertical space at all. The word
-  // is painted centred — source x 342..509 of 853 — so there are 342 source
-  // columns free on its left and 344 on its right, about 190 screen pixels
-  // each on his phone, and CHAMPAGNE RELAY needs roughly 140 of them. The row
-  // is one line high instead of three, it reads as one menu, and it works the
-  // same whatever the crop does, so there is no second layout to keep true.
-  //
-  // Each control is sized to ITS OWN slot rather than to a fixed number, so a
-  // narrow phone shrinks the pill instead of running it off the edge.
-  // ── THREE COLUMNS, OPTIONS IN THE MIDDLE ─────────────────────────────────
-  //
-  // Client: "imagine the OPTIONS button sits in the middle of the row — there
-  // should be two equally displaced columns left and right of it. Centre MUSIC
-  // in its own column, centre CHAMPAGNE RELAY in its own column, and none of
-  // these should be wider or taller than OPTIONS."
-  //
-  // So OPTIONS is the unit everything else is measured in, which is right: it
-  // is painted into the artwork and cannot move, so it is the fixed element.
-  // Measured, it is 167 x 27 source px at x342..509 of 853 — centred to within
-  // a pixel of the plate's own centre line, which is what makes a symmetric
-  // three-column row possible at all.
-  //
-  // The columns are the FREE SPACE either side of the word, and each control
-  // is centred in its own. Taking the midpoint of the free space rather than
-  // thirds of the frame means the two are equally displaced from OPTIONS by
-  // construction, whatever the screen does.
-  //
-  // AND THE PILL IS GONE. It was a rounded box with a border around the words,
-  // which is the one thing on this card that was not his aesthetic — "just
-  // leave the champagne bottle and the text." Now it is the bottle and the
-  // label, nothing drawn behind them, same as OPTIONS itself.
-  const COL_PAD = 8;
-
-  // ── THE WIDTH IS OPTIONS' WIDTH, EXACTLY, NOT "UP TO ITS COLUMN" ─────────
-  //
-  // Client: "the words CHAMPAGNE RELAY are still too wide. They're supposed
-  // to be reduced to about the same width as the OPTIONS button and equal
-  // width as the MUSIC button." An earlier pass let the pill grow to fill its
-  // whole free column (173px on his phone) so the label stayed readable —
-  // that was solving the wrong problem. He does not want it readable at
-  // column width, he wants it the SAME WIDTH as the other two controls, even
-  // if that forces the type down small. So the target is fixed at OPTIONS'
-  // own width and both controls are drawn to fill exactly that, each fitting
-  // its own font size into it independently — CHAMPAGNE RELAY is fifteen
-  // characters and MUSIC is five, so at a shared width the labels land at
-  // very different sizes, and that is correct: equal WIDTH, not equal type.
-  function rowMetrics(box) {
-    const o = optionsRect(box);
-    if (!o) return null;
-    return {
-      o,
-      h: o.h,                       // no taller than OPTIONS
-      w: o.w,                       // no wider OR narrower — the shared target
-      cy: o.y + o.h / 2,
-      leftCx: o.x / 2,
-      rightCx: (o.x + o.w + canvas.width) / 2,
-      // Still guarded against a column that is somehow narrower than OPTIONS
-      // itself — an extreme viewport, not any phone measured, but a control
-      // must never be asked to draw wider than the room it is centred in.
-      leftRoom: Math.max(0, o.x - COL_PAD * 2),
-      rightRoom: Math.max(0, canvas.width - (o.x + o.w) - COL_PAD * 2),
-    };
-  }
-
-  // ── ONE SIZE FOR THE WHOLE ROW ───────────────────────────────────────────
-  //
-  // Client: "make the word CHAMPAGNE RELAY the same height as the champagne
-  // bottle, or equal to the same height as the OPTIONS button" — on top of
-  // "none of these should be wider or taller than OPTIONS."
-  //
-  // Those two cannot both hold at full size, and the arithmetic says so
-  // plainly. OPTIONS is 27 source rows tall, about 15px on his phone. Type
-  // with a 15px cap height is a ~21px font, and CHAMPAGNE RELAY set at 21px
-  // bold measures around 180px — twice OPTIONS' 92px width. Something has to
-  // give, and it is not the width, because he asked for that twice.
-  //
-  // So the row gets ONE size, and it is the largest that fits its tightest
-  // member. CHAMPAGNE RELAY is the long label, so it sets the size; MUSIC uses
-  // the same one and simply takes less room. The bottle and the checkbox are
-  // then drawn at the TYPE'S CAP HEIGHT rather than at the row height, which
-  // is the part he was actually looking at — a 13px bottle beside 9px letters
-  // reads as mismatched no matter how tidily the box is placed.
-  //
-  // Solving it is slightly circular — the icon is as tall as the type, and the
-  // type has to fit around the icon — so it is stepped rather than derived.
-  // MEASURED ON HIS PHONE, because the two constraints fight and the numbers
-  // decide which one bends:
-  //
-  //   OPTIONS                            92 x 15 px
-  //   a column beside it                173 px wide
-  //   "CHAMPAGNE RELAY" in  92px   ->  5.6px cap   unreadable
-  //   "CHAMPAGNE RELAY" in 173px   -> 10.4px cap   fine
-  //   "RELAY"           in  92px   -> 14.9px cap   matches OPTIONS exactly
-  //
-  // So the full label CANNOT be OPTIONS-height at OPTIONS-width; fifteen
-  // characters do not go into ninety-two pixels at any readable size. Width is
-  // ⚠️ SUPERSEDED — kept for the arithmetic, not the conclusion. This measured
-  // what CHAMPAGNE RELAY needs to stay READABLE, and sized the pill to its own
-  // column to get there. The client came back and said that reasoning does not
-  // matter to him: "reduced in size to about the same width as the OPTIONS
-  // button and equal width as the MUSIC button" — he wants the WIDTH matched,
-  // full stop, however small the type has to go to fit it. So the target below
-  // is fixed at OPTIONS' own width (`m.w`) rather than the column, and each
-  // control fits its own font size into that fixed width independently. The
-  // two are not the same font size any more — CHAMPAGNE RELAY is fifteen
-  // characters and MUSIC is five, so at equal WIDTH they land at very
-  // different sizes, which is the correct reading of "equal width", not
-  // "equal type".
-  //
-  //   OPTIONS                            92 x 15 px
-  //   "CHAMPAGNE RELAY" in  92px   ->  5.6px cap   what he asked for
-  //   "MUSIC"           in  92px   -> 14.9px cap   comfortable at that width
-  //
-  // THE BOTTLE IS DRAWN AT ROW HEIGHT, NOT AT THE TYPE'S CAP — unchanged, per
-  // the client's separate, standing instruction: "leave the champagne bottle
-  // the size it was, can't even see what it is."
-  const CAP = 0.72;        // cap height as a fraction of font size, bold system-ui
-  const ICON_H = 0.86;     // bottle and checkbox, as a fraction of row height
-  // The bottle art's OWN aspect ratio (54x168, measured off the file) rather
-  // than a guessed 0.62 — that guess reserved almost twice the width the
-  // bottle actually draws at, which at OPTIONS' own tight width is space the
-  // label needs.
-  const BOTTLE_ASPECT = 54 / 168;
-
-  // Step the font down from `maxPx` (the CAP ceiling — never taller than
-  // OPTIONS) until `label` plus whatever else shares the row (`extra`, a
-  // function of the trial px since a gap scales with type) fits `targetW`.
-  function fitToWidth(label, maxPx, targetW, extra) {
-    ctx.save();
-    let px = maxPx;
-    for (; px > 4; px -= 0.25) {
-      ctx.font = `700 ${px}px system-ui, sans-serif`;
-      if (ctx.measureText(label).width + extra(px) <= targetW) break;
-    }
-    ctx.restore();
-    return px;
-  }
-
-  function relayRect(box) {
-    const m = rowMetrics(box);
-    if (!m) return null;
-    const w = Math.min(m.leftRoom, m.w);           // OPTIONS' own width
-    const ih = m.h * ICON_H;
-    const iconW = ih * BOTTLE_ASPECT;
-    const px = fitToWidth(RELAY_LABEL, m.h / CAP, w, (p) => iconW + p * 0.30);
-    const gap = px * 0.30;
-    return { x: m.leftCx - w / 2, y: m.cy - m.h / 2, w, h: m.h,
-      iconW, ih, gap, fontPx: px };
-  }
-
-  function drawRelay(box, champImg, tick) {
-    const r = relayRect(box);
-    if (!r) return;
-    // NO PILL. It was a bordered rounded box behind the words and it was the
-    // one thing on this card that was not his artwork. Client: "just leave the
-    // champagne bottle and the text." The breath stays, carried on the ink
-    // instead of on a border — slow, and out of phase with both PRESS START
-    // and OPTIONS, so three pressable things never pulse together and read as
-    // one object.
-    const glow = 0.5 + 0.5 * Math.sin(tick / 46 + 2.1);
-    ctx.save();
-    ctx.textBaseline = 'middle';
-    ctx.font = `700 ${r.fontPx}px system-ui, sans-serif`;
-    const ih = r.ih;
-    let x = r.x;
-    if (champImg && champImg.width) {
-      const iw = ih * (champImg.width / champImg.height);
-      ctx.imageSmoothingEnabled = false;
-      ctx.drawImage(champImg, x, r.y + (r.h - ih) / 2, iw, ih);
-      x += iw + r.gap;
-    }
-    // A soft warm halo under the type does what the border used to do — marks
-    // it pressable — without putting a shape on his painting.
-    ctx.shadowColor = `rgba(255,196,90,${0.30 + 0.34 * glow})`;
-    ctx.shadowBlur = r.h * 0.5;
-    ctx.textAlign = 'left';
-    ctx.fillStyle = '#ffd66e';
-    ctx.fillText(RELAY_LABEL, x, r.y + r.h / 2 + 1);
-    ctx.restore();
-  }
-
-  // ── THE MUSIC BOX ────────────────────────────────────────────────────
+  // With the pill gone there is nothing left to share a row with, so this
+  // goes back to being a plain vertical stack: MUSIC directly under OPTIONS,
+  // centred on the SAME x as the word — the painting's own centre line, since
+  // OPTIONS sits there — and the same height, for the uniformity he asked for
+  // earlier when there were three controls to keep level. Its width is its
+  // own now; nothing else needs to fit beside it.
   //
   // Client, after killing the black TAP ANYWHERE card: "on the home screen
   // underneath it should be a question with a check box that says MUSIC, and
@@ -769,16 +592,75 @@ export function createTitle(ctx, canvas, still) {
   // It reads and writes the SAME `wh_sound` setting the OPTIONS panel uses, so
   // the two can never disagree.
   const MUSIC_LABEL = 'MUSIC';
+  const CAP = 0.72;        // cap height as a fraction of font size, bold system-ui
+  const ICON_H = 0.86;     // the checkbox, as a fraction of row height
+  const EDGE_PAD = 10;
+
+  // Step the font down from `maxPx` (the CAP ceiling — never taller than
+  // OPTIONS) until `label` plus whatever else shares the row (`extra`, a
+  // function of the trial px since a gap scales with type) fits `targetW`.
+  function fitToWidth(label, maxPx, targetW, extra) {
+    ctx.save();
+    let px = maxPx;
+    for (; px > 4; px -= 0.25) {
+      ctx.font = `700 ${px}px system-ui, sans-serif`;
+      if (ctx.measureText(label).width + extra(px) <= targetW) break;
+    }
+    ctx.restore();
+    return px;
+  }
 
   function musicRect(box) {
-    const m = rowMetrics(box);
-    if (!m) return null;
-    const w = Math.min(m.rightRoom, m.w);          // the SAME width RELAY uses
-    const boxSz = m.h * ICON_H;                    // the checkbox, unchanged
-    const px = fitToWidth(MUSIC_LABEL, m.h / CAP, w, (p) => boxSz + p * 0.34);
-    const gap = px * 0.34;
-    return { x: m.rightCx - w / 2, y: m.cy - m.h / 2, w, h: m.h, boxSz, gap,
-      fontPx: px };
+    const o = optionsRect(box);
+    if (!o) return null;
+    // ⚠️ MUSIC MUST NEVER RUN OFF THE SCREEN, AND MUST NEVER TOUCH OPTIONS.
+    // The ideal is the same height as OPTIONS, stepped down by a full gap —
+    // but on the two tightest crops measured (iPhone SE, and the client's own
+    // screenshot) there is only 7-9px of road left below OPTIONS before the
+    // frame ends, LESS THAN OPTIONS' OWN HEIGHT. That is not a hypothetical:
+    // his own screenshot is one of the two shapes that hits it, at 6.9px.
+    //
+    // A first pass floored the height at a fixed minimum and clamped the
+    // position separately against the frame edge — on that 6.9px shape the
+    // two floors CONTRADICTED each other (the position clamp wanted MUSIC
+    // higher than the height floor allowed), and it landed a fraction of a
+    // pixel INSIDE Options' own box. The fix is to stop treating "how much
+    // height" and "where it sits" as two separate problems: gap and height
+    // are solved TOGETHER against the one number that actually exists — the
+    // raw room between OPTIONS' foot and the true bottom of the canvas — so
+    // their sum can never exceed what is physically there.
+    //
+    // On every shape with real room — which is every phone at full height,
+    // and most with the browser's own UI showing — none of this engages and
+    // MUSIC comes out at OPTIONS' own height, stacked perfectly underneath.
+    const idealH = o.h;
+    const idealGap = Math.max(14, idealH * 0.65);
+    const room = canvas.height - (o.y + o.h);          // to the TRUE edge, nothing assumed
+    const MIN_GAP = 0.5;                                // never zero — never touching OPTIONS
+    let h = idealH, gap = idealGap;
+    if (gap + h > room) {
+      gap = MIN_GAP;
+      h = Math.max(0, room - gap);                      // whatever is left, however small
+    }
+    const boxSz = h * ICON_H;
+    // Bounded by the SCREEN's width too, not by a neighbour — "MUSIC" alone
+    // under OPTIONS has never needed to shrink on any phone measured, but a
+    // floor this generous still cannot run the label off a genuinely tiny
+    // display.
+    const maxW = Math.max(20, canvas.width - EDGE_PAD * 2);
+    const px = fitToWidth(MUSIC_LABEL, Math.max(4, h / CAP), maxW, (p) => boxSz + p * 0.40);
+    ctx.save();
+    ctx.font = `700 ${px}px system-ui, sans-serif`;
+    const tw = ctx.measureText(MUSIC_LABEL).width;
+    ctx.restore();
+    const w = boxSz + px * 0.40 + tw;
+    return {
+      // y is a DIRECT sum, not a separately-clamped value — by construction
+      // o.y + o.h + gap + h can never exceed canvas.height, because gap and h
+      // were solved against exactly that budget above.
+      x: (o.x + o.w / 2) - w / 2, y: o.y + o.h + gap,
+      w, h, boxSz, gap: px * 0.40, fontPx: px,
+    };
   }
 
   function drawMusic(box, on, tick) {
@@ -826,15 +708,6 @@ export function createTitle(ctx, canvas, still) {
       && y >= r.y - HIT_MARGIN && y <= r.y + r.h + HIT_MARGIN;
   }
 
-  function hitRelay(box, x, y) {
-    const r = relayRect(box);
-    if (!r) return false;
-    // A finger-sized margin: the pill is deliberately small and a near miss
-    // would otherwise open the panel instead, which is a confusing wrong door.
-    const m = 10;
-    return x >= r.x - m && x <= r.x + r.w + m && y >= r.y - m && y <= r.y + r.h + m;
-  }
-
   // Which half of the screen was tapped. Above the line starts the game,
   // at or below it opens the panel — and "below" runs all the way to the
   // bottom of the display, not just to the bottom of the painting, so the
@@ -852,16 +725,14 @@ export function createTitle(ctx, canvas, still) {
   // only when I tap the button is OPTIONS. If I tap empty space, that should
   // actually turn the music on." The reason the catch-all was needed is gone:
   // OPTIONS is no longer thirteen pixels of painting, it is a lifted card with
-  // a measured rect, and CHAMPAGNE RELAY has its own pill under it. Two real
-  // targets do not need half the screen between them.
+  // a measured rect, and MUSIC has its own box under it. Two real targets do
+  // not need half the screen between them.
   //
-  // So: the OPTIONS word is OPTIONS, the pill is the pill, and every other
-  // pixel on this screen — the black band included — is the one big START that
-  // the painting has always advertised. The first of those taps buys the sound.
+  // So: the OPTIONS word is OPTIONS, the box is the box, and every other pixel
+  // on this screen — the black band included — is the one big START that the
+  // painting has always advertised. The first of those taps buys the sound.
   //
-  // MARGIN, because a rect measured off lettering is smaller than a thumb. The
-  // same 10px the relay pill uses, and it is checked AFTER the pill so the two
-  // margins cannot overlap into an ambiguous strip.
+  // MARGIN, because a rect measured off lettering is smaller than a thumb.
   const HIT_MARGIN = 10;
 
   function hitOptions(box, x, y) {
@@ -870,6 +741,6 @@ export function createTitle(ctx, canvas, still) {
     return x >= r.x - HIT_MARGIN && x <= r.x + r.w + HIT_MARGIN
       && y >= r.y - HIT_MARGIN && y <= r.y + r.h + HIT_MARGIN;
   }
-  return { draw, hitOptions, optionsRect, hitRelay, relayRect,
+  return { draw, hitOptions, optionsRect,
     hitMusic, musicRect, drawMusic };
 }

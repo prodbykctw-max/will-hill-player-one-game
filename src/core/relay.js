@@ -19,14 +19,20 @@
 //   2. Falling into a gap puts him back on the last ground he stood on.
 //   3. Invulnerability is topped up every tick, so the aura never drops.
 //
-// IT IS NOT A SEPARATE BUILD. Same deploy, chosen either from the button on
-// the title card or with `?relay=1` in the URL. A second build would be a
-// second thing to keep in step, and the contest version is the one that must
-// not drift.
+// IT IS NOT A SEPARATE BUILD. Same deploy, chosen with `?relay=1` in the URL.
+// A second build would be a second thing to keep in step, and the contest
+// version is the one that must not drift.
 //
-// MUTABLE, NOT A BOOT CONSTANT, because the title card now offers it as a
-// choice — `generator.js` asks at spawn time, so the answer has to be able to
-// change between one run and the next without a reload.
+// ⚠️ THERE IS NO BUTTON FOR IT ANY MORE. Client: "the champagne relay is not
+// going to be there, that's like a dev/dashboard thing" — a player is meant
+// to see PRESS START, OPTIONS and MUSIC and nothing else. This flag, and the
+// `window.__startStage` dev hook, are that dashboard: the door a developer or
+// a harness uses, not one a player is ever shown. `setRelay()` is still
+// exported for exactly that — tooling can still flip it directly.
+//
+// MUTABLE, NOT A BOOT CONSTANT, because `generator.js` asks at spawn time, so
+// the answer has to be able to change between one run and the next without a
+// reload.
 let relay = typeof location !== 'undefined' && /[?&]relay=1\b/.test(location.search);
 
 export function isRelay() { return relay; }

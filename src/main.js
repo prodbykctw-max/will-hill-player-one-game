@@ -346,22 +346,22 @@ canvas.addEventListener('pointerdown', (e) => {
       press();
       return;
     }
-    if (title.hitRelay(state.titleBox, x, y)) {
-      setRelay(true);
-      commit();
-      startRun();
-      return;
-    }
     // THE WORD, not the half-screen it used to be. Client: "I want those
     // buttons isolated so only when I tap the button is OPTIONS. If I tap empty
     // space, that should actually turn the music on." Everything that is not
-    // one of the two controls now falls through to START below — including the
-    // black band, which is where most of those taps land.
+    // MUSIC or OPTIONS now falls through to START below — including the black
+    // band, which is where most of those taps land.
     if (title.hitOptions(state.titleBox, x, y)) { press(); panel.open('board'); return; }
     // The run starting is the biggest commitment on the screen, so it gets the
-    // triad rather than the click. And it clears CHAMPAGNE RELAY: without
-    // this, one walkthrough run would leave every later run in relay too,
-    // with no way back except a reload.
+    // triad rather than the click.
+    //
+    // AND IT ALWAYS CLEARS RELAY. Client: "the champagne relay is not going to
+    // be there, that's like a dev/dashboard thing" — there is no button on this
+    // screen for a player to opt into it any more, only `?relay=1` in the URL
+    // or the dev hooks in core/relay.js, neither of which goes through this
+    // handler. So a human tapping the title card, whatever the URL happened to
+    // carry in, always gets a normal run. Nothing here can put a player into
+    // the walkthrough build by accident.
     setRelay(false);
     commit();
     startRun();
