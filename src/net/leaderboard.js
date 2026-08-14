@@ -107,44 +107,45 @@ export function createRunLog() {
 // showing your own last ten runs.
 const LOCAL_KEY = 'wh_local_runs';
 
-// ── WILL HILL HOLDS FIRST PLACE ──────────────────────────────────────────
+// ── WILL HILL HOLDS FIRST PLACE, AT 50,000 ──────────────────────────────
 //
-// Client: "Will Hill will occupy first place. The total amount of bags that
-// can be gotten in the game is gonna be his high score."
+// Client: "we're gonna put 50,000 points next to Will Hill."
 //
-// COUNTED, NOT INVENTED. Every stage generated to its own stageEnd and the
-// bags tallied off the live level:
+// It began as "the total amount of bags that can be gotten in the game",
+// which counted out at 37,900 — and that turned out to be the wrong shape for
+// the job, because a bag is not the only thing that scores. Anyone clearing
+// every bag and standing on one rat passed him by fifty.
 //
-//   eav 90 · edgewood 97 · underground 90 · l5p 102  =  379 bags
-//   379 x BAG_VALUE 100                              =  37,900
+// 50,000 is a better number than either that or the arithmetic ceiling, for a
+// reason worth writing down: IT IS BEATABLE, BUT ONLY JUST. Every line below
+// is MEASURED off the shipping levels by tools/harness/ceiling.mjs, which
+// walks all four stages, forces every spawn, and counts the bags that actually
+// fall inside each bottle's real 9-second window (2,602px of road at the
+// measured 4.80 px/tick) rather than assuming an average density.
 //
-// ⚠️ AND IT MOVES WHENEVER THE GENERATOR DOES. A bottle claims the slab it
-// lands on and suppresses the bag that would have sat there, so moving the
-// bottles onto slabs took it to 378, and then giving the fallback its own
-// slab to build took it back to 379 by a different route — Underground lost
-// one, L5P gained two. Same number, different game. This is a MEASUREMENT.
-// Recount it, do not reason about it.
+//   379 bags at 100                                       37,900
+//   105 rats at 50                                        +5,250
+//   ── flawless with no bottle at all                      43,150
+//   157 of those bags doubled, bottles where they sit     +15,700
+//   ── PERFECT RUN, as the map is built                    58,850
 //
-// ⚠️ AND IT IS NO LONGER THE CEILING. Bags pay double while the champagne is
-// lit, so the real maximum depends on how many bags a player can reach inside
-// eight 9-second windows — which is a question about routing, not about
-// counting, and the only honest way to answer it is to play it.
+// So he sits at 85% of a perfect run. Note the middle line: before the
+// multiplier the game's hard ceiling was 43,150, so 50,000 WAS NOT REACHABLE
+// AT ALL. The doubler is the only thing that puts him inside the world, which
+// is why the two decisions arrived together.
 //
-// ⚠️ THIS IS BEATABLE BY FIFTY POINTS. Bags are not the only thing that
-// scores — a stomp is worth 50, and there are 106 rats across the four
-// stages. Somebody who clears every bag AND stands on one rat finishes on
-// 37,950 and takes the top slot. A flawless run — every bag, every rat — is
-// 43,200, and THAT is the number nothing can pass. Which one belongs here is
-// his call: 37,900 is what he asked for, 43,200 is what "occupies first
-// place" needs. One constant either way.
+// Reaching him means all eight bottles, all 157 bags inside their windows,
+// every rat, and about 60% of the 222 bags outside the windows — and no
+// enemy touch late, because a touch dumps the whole purse on the pavement.
+// A real target with a real route behind it, which is what the top of a
+// contest board should be — not an unbeatable wall, and not a number the
+// first decent player strolls past.
 //
-// It is pinned rather than banked into localStorage: it is part of the game,
-// not a run somebody did on this phone, so it survives a cleared cache and it
-// shows on a device that has never played. `me` is deliberately absent — the
-// YOUR RANK line belongs to whoever is holding the phone.
+// The card art paints 125,680 next to his name. That was always decoration;
+// no run can approach it.
 export const BAGS_IN_GAME = 379;
-export const PERFECT_RUN = 43200;      // every bag AND every rat
-export const WILL_HILL = Object.freeze({ name: 'WILL HILL', score: 37900, pinned: true });
+export const PERFECT_RUN = 58850;      // measured — tools/harness/ceiling.mjs
+export const WILL_HILL = Object.freeze({ name: 'WILL HILL', score: 50000, pinned: true });
 
 // Merge him into whatever the board is showing, wherever his score puts him.
 // Not spliced at index 0 — if a player ever does beat it, the board has to
