@@ -221,135 +221,126 @@ def main():
 
     # ── the hole ─────────────────────────────────────────────────────────
     #
-    # ⚠️ cv2.inpaint WAS TRIED FIRST AND LEFT VISIBLE GHOSTS. TELEA diffuses
-    # colour inward and produces a SMOOTH blob, and this sky is dithered — so
-    # every lifted cloud left a soft grey smear exactly its own shape. Same
-    # failure the OPTIONS hole had on the road (see retexture() in
-    # cut_still.py): "high-frequency energy 0.80 against the road's 4.35".
+    # ⚠️ THIS SKY IS TEXTURED, NOT SMOOTH, AND THAT IS THE WHOLE PROBLEM.
+    # Fitting a polynomial to the clean sky leaves an RMS residual of 11-18
+    # levels per channel and barely improves past degree 3 — so there is real
+    # painterly structure here, not just a gradient with dither on it.
     #
-    # A sky is an easier and more specific problem than a road, though. It is
-    # a VERTICAL GRADIENT that is essentially constant along each row, so the
-    # right fill is not a diffusion at all — it is that row's own colour.
-    # Taken as the median of the real, untouched sky in the same row, it
-    # carries the gradient exactly and cannot drift the way an offset can.
+    # Every smooth fill therefore SHOWS, however well its colour and its
+    # high-frequency grain are matched. Measured attempts, in order:
+    #   cv2.inpaint          smooth blob, obvious
+    #   row median + grain   right dither, wrong colour (visibly teal)
+    #   pyramid + grain      rim 1.60 levels and STILL visible as a patch —
+    #                        the client: "clouds can be seen moving behind the
+    #                        fill space from cut outs.... not cool"
+    # The common failure is that grain only restores the HIGHEST frequencies
+    # and leaves the middle of the spectrum flat.
     #
-    # Then the grain is BORROWED, not synthesised, for the reason cut_still.py
-    # gives: this plate's dither is an ordered pattern and gaussian noise does
-    # not look like it. The residual of a clean sky block (real sky minus its
-    # own row medians) is tiled over the fill.
+    # So the fill borrows REAL SKY WHOLESALE. For each hole, a donor window of
+    # the same size is taken from the SAME ROWS further along — same rows, so
+    # the vertical gradient matches exactly and nothing has to be corrected
+    # for it — chosen for being genuinely clean and for agreeing with the
+    # hole's own boundary. That carries every frequency the painting has,
+    # because it IS the painting.
     fillmask = ndimage.binary_dilation(take, iterations=DILATE)
     rgbf = rgb.astype(np.float32)
-
     clean = sky & ~cloud & ~protect & ~fillmask
 
-    # ⚠️ THE COLOUR IS A DIFFUSION AND THE GRAIN IS BORROWED — two different
-    # jobs, and trying to do both with one trick failed twice.
-    #
-    #   inpaint alone      -> right colour, NO dither: a smooth grey smear in
-    #                         the shape of every cloud lifted.
-    #   row median alone   -> right dither, WRONG colour: this sky varies
-    #                         horizontally as well as vertically (it lifts
-    #                         toward the horizon and around the light), so one
-    #                         median per row is the average of the whole row
-    #                         and the fills came out visibly teal against the
-    #                         blue they sat in.
-    #
-    # Smooth IS correct for the low frequencies — that is what a gradient is.
-    # So take the colour from the inpaint, which follows both gradients and
-    # matches locally at every edge, and put the plate's own dither back on
-    # top of it. Same split as retexture() in cut_still.py.
-    # pyramid_inpaint (cut_planes.py) rather than cv2.inpaint. TELEA
-    # propagates inward FROM THE HOLE BOUNDARY, so on a hole 235px wide it
-    # drags the cloud's own bright rim into the middle and leaves a mottled
-    # patch. The push-pull pyramid pulls colour down to a coarse level and
-    # pushes it back, which is exactly a smooth gradient and is what this
-    # project already uses for the OPTIONS hole.
-    low = pyramid_inpaint(rgb, fillmask).astype(np.float32)
+    filled = rgbf.copy()
+    hl, hn = ndimage.label(fillmask)
+    hobjs = ndimage.find_objects(hl)
+    report = []
+    for i in range(1, hn + 1):
+        sl = hobjs[i - 1]
+        y0, y1 = sl[0].start, sl[0].stop
+        x0, x1 = sl[1].start, sl[1].stop
+        h, w = y1 - y0, x1 - x0
+        hole = (hl[sl] == i)
+        # The ring just outside this hole is what the donor has to agree with.
+        ring = ndimage.binary_dilation(hole, iterations=4) & ~hole
+        target = rgbf[sl][ring & clean[sl]] if (ring & clean[sl]).any() else None
 
-    # Row medians are still what the GRAIN is measured against — the residual
-    # of real sky about its own row is the dither, with the gradient removed.
-    med = np.zeros((H, 3), np.float32)
-    have = np.zeros(H, bool)
-    for y in range(660):
-        px = rgbf[y][clean[y]]
-        if len(px) >= 12:
-            med[y] = np.median(px, axis=0)
-            have[y] = True
-    idx = np.flatnonzero(have)
-    for c in range(3):
-        med[:660, c] = np.interp(np.arange(660), idx, med[idx, c])
+        # ⚠️ THE DONOR MAY HAVE TO COME FROM HIGHER UP. Searching only the
+        # hole's own rows found nothing for the three lowest clouds, because
+        # those rows are full of skyline — there is no 176px of clean sky left
+        # at y424. So the search runs over a vertical offset too, preferring
+        # to stay level (the gradient is vertical, so dy is what costs) and
+        # correcting whatever difference is left off the boundary ring.
+        best, bestx, besty = None, None, None
+        for dy in range(0, 260, 4):
+            for sgn in ((0,) if dy == 0 else (-1, 1)):
+                yd = y0 + sgn * dy
+                if yd < 0 or yd + h > 660:
+                    continue
+                for xd in range(0, W - w + 1, 3):
+                    if sgn == 0 and abs(xd - x0) < w // 3:
+                        continue                # not its own hole
+                    win = np.s_[yd:yd + h, xd:xd + w]
+                    if clean[win].mean() < 0.97:
+                        continue
+                    if target is None:
+                        best, bestx, besty = 0, xd, yd
+                        break
+                    cand = rgbf[win][ring & clean[sl]]
+                    if len(cand) != len(target):
+                        continue
+                    # dy is penalised so a level donor wins ties.
+                    err = float(np.abs(cand - target).mean()) + dy * 0.02
+                    if best is None or err < best:
+                        best, bestx, besty = err, xd, yd
+                if best is not None and dy == 0 and target is None:
+                    break
+            if best is not None and dy > 60:
+                break                            # good enough, stop widening
+        if bestx is None:
+            report.append((i, w, h, 'NO DONOR — left to the pyramid'))
+            continue
+        donor = rgbf[besty:besty + h, bestx:bestx + w].copy()
+        # Any residual level difference is taken off using the boundary ring,
+        # which is the only place the two are supposed to agree.
+        if target is not None:
+            d_ring = rgbf[besty:besty + h, bestx:bestx + w][ring & clean[sl]]
+            donor += (target.mean(axis=0) - d_ring.mean(axis=0))
+        # Feather so the join is a blend, not a line.
+        wgt = ndimage.gaussian_filter(hole.astype(np.float32), 2.0)
+        wgt = np.clip((wgt - 0.12) / 0.7, 0, 1)
+        wgt[hole] = 1.0
+        blk = filled[sl]
+        filled[sl] = blk * (1 - wgt[..., None]) + donor * wgt[..., None]
+        report.append((i, w, h, f'donor x{bestx} y{besty} (dy {besty-y0:+d}, err {best:.1f})'))
 
-    # Donor grain: the cleanest tall block of sky on the plate.
-    best, bx = -1, 0
-    for x in range(0, W - 120, 40):
-        score = clean[40:620, x:x + 120].sum()
-        if score > best:
-            best, bx = score, x
-    donor = rgbf[40:620, bx:bx + 120] - med[40:620, None, :]
-    dh, dw = donor.shape[:2]
+    # Anything with no clean donor of its own size falls back to the smooth
+    # fill plus grain, which is imperfect but better than a hole.
+    leftover = fillmask.copy()
+    for i in range(1, hn + 1):
+        if 'NO DONOR' not in report[i - 1][3]:
+            leftover[hl == i] = False
+    if leftover.any():
+        low = pyramid_inpaint(rgb, leftover).astype(np.float32)
+        filled[leftover] = low[leftover]
+    for i, w, h, why in report:
+        print(f"   fill {w:4d}x{h:3d}  {why}")
 
-    # ⚠️ AND THE DONOR HAS TO BE LEVELLED, because no 120px column of this
-    # plate is pure sky — whatever block wins still clips a cloud edge or a
-    # spire, and those show up in the residual as huge excursions. Taken raw
-    # the fill came out at 4.50 high-frequency energy against real sky's 2.30,
-    # i.e. twice as grainy as what it was blending into. Outliers are clamped
-    # to the dither's own range and then the whole thing is scaled to match.
-    dclean = clean[40:620, bx:bx + 120]
-    if dclean.sum() < 500:
-        sys.exit("no clean sky to take grain from")
-    # ⚠️ THE GRAIN MUST BE ZERO-MEAN OVER REAL SKY, or it is not grain, it is
-    # a brightness offset wearing grain's clothes. No 120px column of this
-    # plate is pure sky, so the donor block clips clouds — and a cloud's
-    # residual about its row median is hugely POSITIVE. Tiled in, that lifted
-    # every fill: measured rim deltas of +1 to +15 levels, all positive, on a
-    # project whose accepted standard is 0.83. Clamping the magnitude did not
-    # help because the clipped values were still mostly +lim.
-    #
-    # So: drop the grain everywhere the donor is not genuinely sky, and
-    # subtract what is left so it averages to nothing.
-    donor[~dclean] = 0
-    donor -= donor[dclean].mean(axis=0)
-    donor[~dclean] = 0
-    lim = np.percentile(np.abs(donor[dclean]), 97)
-    donor = np.clip(donor, -lim, lim)
+    filled = np.clip(filled, 0, 255)
 
     def energy(img, where):
-        """Mean high-frequency energy — the same measure used to grade the
-        OPTIONS hole, so the numbers are comparable across the project."""
         l = 0.2126 * img[..., 0] + 0.7152 * img[..., 1] + 0.0722 * img[..., 2]
         return float(np.abs(l - ndimage.uniform_filter(l, 5))[where].mean())
-
-    # Calibrate against the FINISHED result rather than a proxy. "Deviation
-    # from the row median" and "what a 5px high-pass sees" are not the same
-    # quantity — matching the first left the fill at 1.01 against real sky's
-    # 2.09, having previously overshot to 4.50 matching nothing at all. So
-    # build it, measure it, and scale once by the ratio.
-    target = energy(rgbf, clean & (np.arange(H)[:, None] < 620))
-
-    def build(scale):
-        out = rgbf.copy()
-        out[ys, xs] = low[ys, xs] + donor[ys % dh, xs % dw] * scale
-        return np.clip(out, 0, 255)
-
-    ys, xs = np.where(fillmask)
-    got = energy(build(1.0), fillmask)
-    grain = 1.0 if got < 1e-6 else min(4.0, target / got)
-
-    filled = build(grain)
-    print(f"  grain x{grain:.2f}: fill {energy(filled, fillmask):.2f} "
-          f"vs real sky {target:.2f}")
+    print(f"  texture: fill {energy(filled, fillmask):.2f} vs real sky "
+          f"{energy(rgbf, clean & (np.arange(H)[:, None] < 620)):.2f}")
     filled = filled.astype(np.uint8)
-    # ⚠️ FEATHER THE PATCH EDGE. A binary alpha means the inpainted sky butts
-    # against the real sky along a hard line, and a hard line is visible even
-    # when the colours either side match to under two levels — it reads as the
-    # cut-out shape of the cloud that used to be there. Softening the boundary
-    # dissolves it, the same fix the OPTIONS band needed.
+
+    # ⚠️ FEATHER THE PATCH EDGE. A binary alpha means the fill butts against
+    # the real sky along a hard line, and a hard line is visible even when the
+    # colours either side match — it reads as the cut-out shape of the cloud
+    # that used to be there.
     falpha = ndimage.gaussian_filter(fillmask.astype(np.float32), 2.0)
     falpha = np.clip((falpha - 0.15) / 0.7, 0, 1)
-    falpha[fillmask] = 1.0                  # never thin the middle of a fill
+    falpha[fillmask] = 1.0
     patch = np.dstack([filled, (falpha * 255).astype(np.uint8)])
+    ys, xs = np.where(fillmask)
     print(f"\nfill patch covers rows {ys.min()}..{ys.max()}, "
-          f"cols {xs.min()}..{xs.max()}  (grain donor at x{bx})")
+          f"cols {xs.min()}..{xs.max()}")
     Image.fromarray(patch, "RGBA").save(BG / "title-portrait-skyfill.webp",
                                         lossless=True)
 
