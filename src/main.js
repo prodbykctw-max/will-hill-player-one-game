@@ -148,11 +148,20 @@ audio.tryAutostart();
 const camera = createCamera();
 
 function resize() {
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
+  // Prefer visualViewport where it exists — on iOS Safari it's the one that
+  // actually tracks the address bar/toolbar showing or hiding; innerWidth/
+  // innerHeight can lag a beat behind it.
+  const vv = window.visualViewport;
+  canvas.width = vv ? Math.round(vv.width) : window.innerWidth;
+  canvas.height = vv ? Math.round(vv.height) : window.innerHeight;
   camera.resize(canvas.width, canvas.height);
 }
 window.addEventListener('resize', resize);
+// ⚠️ iOS Safari does not reliably fire `resize` on <window> when its own
+// address bar/toolbar toggles — only on visualViewport. Without this, the
+// drawing buffer can sit stale one tap behind the CSS box (see the 100dvh
+// comment in index.html for the matching CSS-side half of this fix).
+if (window.visualViewport) window.visualViewport.addEventListener('resize', resize);
 resize();
 
 const RIDE_TICKS = 150; // ~2.5s on the train between neighbourhoods

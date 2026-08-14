@@ -54,8 +54,19 @@
     }
     /* Stronger still on the board itself: no double-tap, no pinch, no pan. */
     #game {
-      display: block; width: 100vw; height: 100vh; image-rendering: pixelated;
+      display: block; width: 100vw; image-rendering: pixelated;
       touch-action: none;
+      /* ⚠️ NOT 100vh ALONE. On iOS Safari `vh` is anchored to the LARGE
+         viewport (address bar + toolbar collapsed) — real screenshot from the
+         client showed PRESS START up but OPTIONS/MUSIC gone, on a device with
+         BOTH Safari bars visible at once. `overflow:hidden` on <body> above
+         means nothing can scroll to reveal the shortfall, so the extra height
+         `vh` claims but the screen doesn't have just clips off the bottom of
+         the card — exactly where OPTIONS/MUSIC draw. `dvh` tracks the bars
+         actually showing; `vh` stays first as the fallback for browsers that
+         don't know `dvh` (CSS ignores a property it can't parse and keeps the
+         last one it understood). */
+      height: 100vh; height: 100dvh;
     }
 
     /* ── ON-SCREEN CONTROLS ───────────────────────────────────────────
