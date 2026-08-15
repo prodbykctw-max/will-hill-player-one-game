@@ -40,6 +40,44 @@ done
 and a harness that defaults to the repo root drops them beside the source.
 Three separate sweeps have had to clean that up; `shots/` is gitignored.
 
+### ⚠️ Six of these do not print a verdict, and that is not a failure
+
+**Graded** — they end in `ALL n PASS` or `FAILED: <checks>`, and a sweep can
+read them mechanically:
+
+`ceiling` · `daylamps` · `endcue` · `idleflex` · `introorder` · `musicbox` ·
+`optionsmenu` · `padlift` · `panelnav` · `pausemenu` · `relaytod` · `share` ·
+`titlefit` · `titleintro`
+
+**Report-only** — they print a table or a contact sheet for a human to read,
+and have no pass/fail line at all:
+
+`daynight` · `graphwire` · `joinshot` · `musiccheck` · `relay` · `seamsweep` ·
+`stagestrip`
+
+The one-liner above reports those as `NO VERDICT`. Do not read that as broken —
+`seamsweep` prints per-stage seam measurements, `stagestrip` stitches the whole
+stage day-above-night for eyeballing, `daynight` prints a difference table.
+They are the eyes-on tools; the graded set is the tripwire.
+
+### Last full-suite result
+
+All fourteen graded harnesses green as of the pad-lift commit, 210 checks:
+
+```
+ceiling     15    daylamps    12    endcue      11    idleflex     8
+introorder   4    musicbox    11    optionsmenu 12    padlift     11
+panelnav    13    pausemenu   13    relaytod    26    share       12
+titlefit    60    titleintro  12
+```
+
+The one failure the sweep surfaced was `ceiling` still demanding WILL HILL
+pinned at 50,000 — a decision the client reversed. The harness was wrong, not
+the game, and both it and `optionsmenu`'s stale comment were corrected. That is
+the point of running the whole thing end to end: a suite nobody runs entire
+drifts into grading last month's product and nobody notices.
+
+
 ### What each one is actually protecting
 
 | harness | the failure it exists to catch |
