@@ -248,10 +248,31 @@
       color: #f2ead8; font: 400 15px/1.45 system-ui, sans-serif;
       box-shadow: 0 18px 60px rgba(0,0,0,0.6);
     }
+    /* ── THE BOARD VIEW HAS NO PANEL ──────────────────────────────────
+       Client, yellow marker drawn right round the outside of the panel:
+       "that's a piece of art... I don't need it to be like leaderboard inside
+       of an empty space inside of a square, I need that whole area to be the
+       leaderboard."
+       So on this one view the panel stops being furniture. No plate, no
+       border, no padding, no shadow and no external heading — the ticket is
+       lettered LEADERBOARD already. Whatever the artwork's own aspect ratio
+       does not cover shows the dimmed game behind it rather than a dark box,
+       because a box is the thing he is objecting to. */
+    #panelCard.bare {
+      background: none; border: 0; box-shadow: none;
+      padding: 0; max-width: none; width: auto;
+    }
+    #panelCard.bare #panelClose {
+      top: 2px; right: 2px;
+      /* Over artwork now rather than over a dark plate, so it needs its own
+         contrast instead of borrowing the panel's. */
+      color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,0.9);
+    }
     #panelTitle {
       margin: 0 0 12px; font: 800 20px/1 system-ui, sans-serif;
       letter-spacing: 0.08em; color: #ffd66e;
     }
+    #panelTitle[hidden] { display: none; }
     #panelClose {
       position: absolute; top: 8px; right: 8px; width: 38px; height: 38px;
       background: none; border: 0; color: rgba(242,234,216,0.6);
@@ -383,12 +404,43 @@
          the note and BACK are left outside, so the reserve is 196 and the
          card takes the difference. */
       position: relative; aspect-ratio: 852 / 1846;
-      height: min(calc(100dvh - 196px), 1846px);
+      /* ⚠️ THE RESERVE IS NOW ZERO, because nothing is stacked outside the
+         card any more. It was 300 when a note, ENTER and BACK sat below the
+         artwork, then 196 when ENTER moved onto the ticket's own footer. With
+         the heading hidden, the note moved onto the ticket and BACK sharing
+         the footer, there is nothing left outside it to reserve for — so the
+         artwork takes the entire panel. Measured on a 430x932 phone: 259px
+         wide before, 336px after, and full-height instead of 561px.
+         The one thing this CANNOT do is fill the last sliver left and right.
+         The ticket is 852x1846 — aspect 0.462 — and the frame it sits in is
+         nearer 0.55, so covering it edge to edge means cropping his artwork,
+         which is not a thing to do to solve a layout problem. Any remaining
+         gap shows the dimmed game, never a plate. If he wants it truly
+         edge-to-edge the ticket needs re-rendering at the frame's shape. */
+      /* The reserve is only the PANEL'S OWN padding now — 14px top and bottom
+         plus whatever the notch and home indicator take. Forgetting it made
+         the card exactly 28px too tall and put the scrollbar straight back. */
+      height: min(calc(100dvh - 28px - env(safe-area-inset-top, 0px)
+                       - env(safe-area-inset-bottom, 0px)), 1846px);
       width: auto; max-width: 100%; margin: 0 auto;
       container-type: inline-size;
       background: center/100% 100% no-repeat;   /* image set in panel.js */
       border-radius: 14px; overflow: hidden;
     }
+    /* The note used to sit under the card and cost it height. It lives on the
+       ticket now, in the dark band just above the cream footer. */
+    /* ⚠️ IN THE GAP BELOW `YOUR RANK`, NOT ON IT. At 79.4% it landed on the
+       0.824 rank row and printed across the label. The rank row runs to about
+       0.842 and the cream footer starts at 0.864, so 0.845 is the strip
+       between them — right-aligned, because the rank line fills from the
+       left and the two must never meet. */
+    #pvBoard .note {
+      position: absolute; left: 6%; right: 6%; top: 84.5%;
+      margin: 0; text-align: right;
+      font: 700 2.6cqw/1 ui-monospace, Menlo, Consolas, monospace;
+      color: rgba(255,214,110,0.85); text-shadow: 0 1px 2px rgba(0,0,0,0.85);
+    }
+    #pvBoard .note:empty { display: none; }
     #board { margin: 0; padding: 0; list-style: none; }
     #board li {
       position: absolute; left: 0; right: 0; height: 4.4cqw;
@@ -538,12 +590,18 @@
                Only ONE of these is ever on screen (see fillBoard: ENTER
                until you are registered, SHARE after), so a single full-width
                bar is all the room the footer has to find. -->
+          <p id="boardNote" class="note"></p>
+          <!-- BACK JOINED THE FOOTER. It was the last thing stacked under the
+               artwork, and every row under the card costs the card screen —
+               that is what made the ticket 259px wide on his phone. Only one
+               of ENTER / SHARE is ever on screen, so the footer always holds
+               exactly two buttons. -->
           <div id="lbActions">
             <button class="btn card" id="btnRegister" type="button">ENTER THE CONTEST</button>
             <button class="btn card" id="btnShare" type="button">SHARE MY SCORE</button>
+            <button class="btn card" id="btnBoardBack" type="button">BACK</button>
           </div>
         </div>
-        <p id="boardNote" class="note"></p>
         <!-- The share sheet is the only route a web page has to Instagram or
              Facebook — see src/ui/share.js for the platform reality and the
              desktop fallback. Primary style, not ghost: posting a score is a
@@ -554,9 +612,8 @@
              costs the artwork screen space. -->
         <!-- Client: "I need to be able to go back one level, and then from
              there back another level... how can I get out of the
-             leaderboard?" This is that step: back to OPTIONS, which is where
-             BACK TO GAME now lives. -->
-        <button class="btn ghost" id="btnBoardBack" type="button">BACK</button>
+             leaderboard?" That step is still here, it just moved ONTO the
+             ticket's footer beside ENTER / SHARE — see #lbActions above. -->
       </div>
 
       <div id="pvForm" class="pv" hidden>

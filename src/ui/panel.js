@@ -111,6 +111,22 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
 
   function show(view) {
     for (const [k, v] of Object.entries(views)) if (v) v.hidden = k !== view;
+    // ── THE BOARD IS THE TICKET, NOT A TICKET INSIDE A BOX ───────────────
+    //
+    // Client, marking up a screenshot in yellow all the way round the panel:
+    // "that's a piece of art. I want it basically to fill out that whole area
+    // as much as you can... I don't need it to be like leaderboard inside of
+    // an empty space inside of a square, I need that whole area to be the
+    // leaderboard."
+    //
+    // Measured on his 430px phone, the ticket was 259px wide inside a 384px
+    // content box, because the panel spent its height on a title, a note and
+    // a BACK button and then sized the artwork with what was left. This class
+    // strips the panel back to nothing on the board view — no padding, no
+    // plate, no border, no external heading — so the artwork gets the whole
+    // frame. Every other view keeps the panel it has always had.
+    $('panelCard').classList.toggle('bare', view === 'board');
+    title.hidden = view === 'board';   // the ticket is lettered LEADERBOARD
     title.textContent = view === 'form' ? 'ENTER THE CONTEST'
       : view === 'settings' ? 'SETTINGS'
         : view === 'menu' ? 'OPTIONS'

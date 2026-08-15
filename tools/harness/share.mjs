@@ -61,7 +61,10 @@ const GAME_URL = 'https://prodbykctw-max.github.io/will-hill-player-one-game/';
   await p.evaluate(() => window.__panel.open('board'));
   await p.waitForTimeout(900);                    // prepareShareCard renders here
   await p.click('#btnShare');
-  await p.waitForTimeout(400);
+  // ⚠️ POLL, DO NOT SLEEP — see the same note on the desktop block below.
+  // Encoding the 852x1846 card to PNG took ~4s on a loaded machine and this
+  // fixed 400ms reported the whole share feature as dead.
+  await p.waitForFunction(() => !!window.__shared, null, { timeout: 30000 }).catch(() => {});
   const s = await p.evaluate(() => window.__shared || null);
   check('share() was called with exactly one file', !!s && s.files === 1, JSON.stringify(s && { files: s.files }));
   check('the file is a real PNG, not a stub', !!s && s.type === 'image/png' && s.size > 50000,
@@ -133,7 +136,15 @@ const GAME_URL = 'https://prodbykctw-max.github.io/will-hill-player-one-game/';
   await p.evaluate(() => window.__panel.open('board'));
   await p.waitForTimeout(900);
   await p.click('#btnShare');
-  await p.waitForTimeout(400);
+  // ⚠️ WAIT FOR THE WORK, NOT FOR A GUESS AT HOW LONG IT TAKES.
+  // This was `waitForTimeout(400)` and it started reporting the desktop
+  // fallback as dead — no download, no clipboard, no error. Measured, the
+  // click lands at 0ms and the file appears at about 4s: the card is an
+  // 852x1846 canvas encoded to a 2.5MB PNG, and how long that takes depends
+  // on what else the machine is doing. 400ms was never a contract, just a
+  // number that used to be enough. Poll the condition instead.
+  await p.waitForFunction(() => window.__downloads.length > 0 && window.__clip,
+    null, { timeout: 30000 }).catch(() => {});
   const first = await p.evaluate(() => ({
     dl: window.__downloads, clip: window.__clip,
     note: document.getElementById('boardNote').textContent,
@@ -169,7 +180,9 @@ const GAME_URL = 'https://prodbykctw-max.github.io/will-hill-player-one-game/';
   await p.evaluate(() => { window.__game.screen = 'title'; window.__panel.open('board'); });
   await p.waitForTimeout(900);
   await p.click('#btnShare');
-  await p.waitForTimeout(400);
+  // Same again — the second card is the same size and the same wait.
+  await p.waitForFunction(() => window.__clip && window.__clip.includes('$'),
+    null, { timeout: 30000 }).catch(() => {});
   const second = await p.evaluate(() => window.__clip);
   check('the next share carries the banked score',
     !!second && second.includes('777'), second || '');
