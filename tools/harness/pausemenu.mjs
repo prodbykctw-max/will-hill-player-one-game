@@ -24,7 +24,12 @@
 const _pw = await import(process.env.PLAYWRIGHT || 'playwright');
 const chromium = _pw.chromium || _pw.default?.chromium;
 const b = await chromium.launch(process.env.CHROMIUM ? { executablePath: process.env.CHROMIUM } : {});
-const OUT = process.env.SEAM_OUT || '.';
+// Screenshots land in `shots/` unless SEAM_OUT says otherwise. It used to
+// default to the repo ROOT, so any run without that variable set dropped
+// untracked PNGs beside the source — which on this project is the exact
+// shape of the accident the CLAUDE.md guardrail is about (harness output
+// riding into a commit unnoticed). `shots/` is already gitignored.
+const OUT = process.env.SEAM_OUT || 'shots';
 const checks = [];
 const check = (what, pass, detail = '') => {
   checks.push([what, pass]);
