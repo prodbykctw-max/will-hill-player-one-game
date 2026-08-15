@@ -80,10 +80,70 @@ export function createStillScene(ctx, canvas) {
   //
   // The split is PROPORTIONAL to the spare at each end, so neither margin runs
   // out before the other and the framing stays balanced as the window changes.
+  // ── THE INSTALLED APP HAS NO STATUS BAR TO SIT UNDER ─────────────────────
+  //
+  // Client, with a screenshot of the PWA: the top of WILL HILL: is cut off
+  // behind the Dynamic Island. In the browser the same build frames
+  // correctly, which is the whole clue — index.html sets
+  // `apple-mobile-web-app-status-bar-style: black-translucent`, so a
+  // home-screen launch puts the canvas UNDER the island and the clock, while
+  // Safari does not. The fit had no idea any of the frame was obscured.
+  //
+  // So the obscured strip is reserved, and ONLY where it is real: in
+  // standalone display mode. Applying it in the browser as well would
+  // double-count an inset Safari has already accounted for and push the
+  // painting down for no reason.
+  //
+  // Cached, because reading env() means creating a node and forcing layout,
+  // and this is called every frame. Invalidated on resize, which is also when
+  // a rotation or a bar appearing would change it.
+  let insetCache = null;
+  let insetFor = -1;
+  function reservedTop() {
+    if (insetFor === window.innerHeight && insetCache != null) return insetCache;
+    let px = 0;
+    try {
+      // A dev override, so the installed-app path can be PROVED in a harness
+      // instead of asserted. Playwright cannot emulate a Dynamic Island or a
+      // home-screen launch, and "it should be fine now" is exactly the kind of
+      // claim this project does not accept.
+      if (typeof window.__safeTopOverride === 'number') {
+        insetCache = window.__safeTopOverride;
+        insetFor = window.innerHeight;
+        return insetCache;
+      }
+      const standalone = (window.matchMedia
+        && window.matchMedia('(display-mode: standalone)').matches)
+        || window.navigator.standalone === true;
+      if (standalone) {
+        const probe = document.createElement('div');
+        probe.style.cssText = 'position:fixed;top:0;left:0;width:0;'
+          + 'height:env(safe-area-inset-top,0px);pointer-events:none;visibility:hidden';
+        document.body.appendChild(probe);
+        px = probe.getBoundingClientRect().height || 0;
+        probe.remove();
+      }
+    } catch (_e) { px = 0; }
+    insetCache = px;
+    insetFor = window.innerHeight;
+    return px;
+  }
+
   function fit(img, zoom = 1, bias = 0, safe = null) {
-    const contain = Math.min(canvas.width / img.width, canvas.height / img.height);
+    // ⚠️ THE RESERVED STRIP IS NOT DRAWABLE AREA — IN EITHER MODE.
+    //
+    // The first attempt only clamped the COVER crop, and the iPhone SE proved
+    // that half-measure wrong: at 375x667 the plate fits the height exactly,
+    // so the code takes the contain path, there is zero slack to give, and
+    // his name still landed at y=59.7 under a 62px bar. Subtracting the
+    // reserve from the available height instead makes it one rule that both
+    // paths obey — cover crops against the smaller box, contain scales to the
+    // smaller box, and everything is offset down past the strip.
+    const reserve = safe ? reservedTop() : 0;
+    const availH = Math.max(1, canvas.height - reserve);
+    const contain = Math.min(canvas.width / img.width, availH / img.height);
     const cover = canvas.width / img.width;
-    const cropRows = (img.height * cover - canvas.height) / cover;
+    const cropRows = (img.height * cover - availH) / cover;
     const spareTop = safe ? safe.top : 0;
     const spareBot = safe ? img.height - safe.bottom : 0;
     const budget = spareTop + spareBot;
@@ -107,10 +167,10 @@ export function createStillScene(ctx, canvas) {
       const leftover = Math.max(0, budget - cropRows);
       const topMargin = leftover * 0.25;
       const offTop = Math.max(0, Math.min(spareTop, cropRows, spareTop - topMargin));
-      return { s, dw, dh, dx: (canvas.width - dw) / 2, dy: -offTop * s };
+      return { s, dw, dh, dx: (canvas.width - dw) / 2, dy: reserve - offTop * s };
     }
-    const slack = (canvas.height - dh) / 2;
-    return { s, dw, dh, dx: (canvas.width - dw) / 2, dy: slack + slack * bias };
+    const slack = (availH - dh) / 2;
+    return { s, dw, dh, dx: (canvas.width - dw) / 2, dy: reserve + slack + slack * bias };
   }
 
   // `cards`: [{ img, sway: [{ top, pivot, amp, freq, xRanges: [[a,b],...] }] }]
@@ -121,7 +181,11 @@ export function createStillScene(ctx, canvas) {
   // point of a multiplane card set is that the layers are separable, so they
   // can arrive separately too. Nothing else passes it, and with it absent this
   // function behaves exactly as it always has.
-  function draw(base, cards, tick, zoom = 1, bias = 0, fx = null, safe = null) {
+  // `underlay` is a full-frame image painted directly ON the base and UNDER
+  // every card. The title's sky-fill needs exactly that slot — see the note
+  // at its call site in render/title.js.
+  function draw(base, cards, tick, zoom = 1, bias = 0, fx = null, safe = null,
+    underlay = null) {
     const w = canvas.width;
     const h = canvas.height;
     ctx.save();
@@ -149,6 +213,9 @@ export function createStillScene(ctx, canvas) {
       ctx.translate(bfx.x, bfx.y);
     }
     ctx.drawImage(base, box.dx, box.dy, box.dw, box.dh);
+    if (underlay && underlay.width) {
+      ctx.drawImage(underlay, box.dx, box.dy, box.dw, box.dh);
+    }
     if (bfx) ctx.restore();
 
     (cards || []).forEach((card, i) => {

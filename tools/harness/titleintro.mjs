@@ -297,6 +297,80 @@ check('a NEAR cloud crossing a tower DOES change it',
   !!occ.near && occ.near.delta > 20,
   occ.near ? `delta ${occ.near.delta} at (${occ.near.x},${occ.near.y})` : 'no near cloud crosses a tower');
 
+// ── AND A CLOUD CROSSING A REPAIRED PATCH OF SKY MUST STILL BE VISIBLE ────
+//
+// Client: "clouds should never pass behind the fill — it looks like there are
+// empty spaces in the sky that clouds are coming in and out of, because the
+// clouds aren't layered over the fill, they're behind it."
+//
+// The sky-fill is the patchwork of repaired sky left where the drifting
+// clouds were lifted out of the plate, and it was being painted AFTER
+// still.draw() — i.e. on top of the cards, so any cloud crossing a patch
+// disappeared into it. The symptom is a pixel inside a patch that NEVER
+// changes; the fix is that same pixel changing as weather goes over it. That
+// is exactly what this measures, with no sprite maths at all.
+{
+  const pg = await (await b.newContext({ viewport: { width: 430, height: 932 }, hasTouch: true })).newPage();
+  pg.on('pageerror', (e) => console.log('  THROWN: ' + e.message));
+  await pg.goto('http://localhost:5199/?tod=night', { waitUntil: 'networkidle' });
+  await pg.waitForFunction(() => window.__game && window.__game.screen === 'title', null, { timeout: 25000 });
+  const r = await pg.evaluate(async () => {
+    const frame = () => new Promise((res) => requestAnimationFrame(() => requestAnimationFrame(res)));
+    const t2 = await import('/src/render/title.js');
+    const g2 = window.__game;
+    g2.screenT = 100000; g2.introAt = 0;          // settled card, no assembly fade
+    await frame();
+    const fill = window.__images.tp_skyfill;
+    if (!fill || !fill.width) return { err: 'no skyfill' };
+    const fc = document.createElement('canvas');
+    fc.width = fill.width; fc.height = fill.height;
+    fc.getContext('2d').drawImage(fill, 0, 0);
+    const fg = fc.getContext('2d');
+    const bx = g2.titleBox;
+    const S = bx.dw / t2.SRC_W;
+    const cv = document.querySelector('canvas');
+    const c2 = cv.getContext('2d');
+    // ⚠️ THE PATCH HAS TO BE ONE A CLOUD ACTUALLY CROSSES. The first version
+    // took the first solid pixel it found scanning downward and landed at
+    // (126,42) — the top-left corner of the sky, where no cloud ever travels
+    // — then reported a swing of 0 and blamed the layering. Clouds keep their
+    // own row and only move in x, so the probe's y must fall inside some
+    // cloud's band for the question to mean anything.
+    const bands = t2.CLOUD_SPRITES.map((s) => [s.y, s.y + s.h]);
+    const inBand = (y) => bands.some(([a, z]) => y >= a + 4 && y <= z - 4);
+    let pt = null;
+    for (let y = 40; y < 620 && !pt; y += 2) {
+      if (!inBand(y)) continue;
+      for (let x = 30; x < t2.SRC_W - 30; x += 2) {
+        let solid = true;
+        for (let dy = -4; dy <= 4 && solid; dy += 2) {
+          for (let dx = -4; dx <= 4; dx += 2) {
+            if (fg.getImageData(x + dx, y + dy, 1, 1).data[3] < 250) { solid = false; break; }
+          }
+        }
+        if (solid) { pt = { x, y }; break; }
+      }
+    }
+    if (!pt) return { err: 'no solid fill patch found' };
+    const sx = Math.round(bx.dx + pt.x * S);
+    const sy = Math.round(bx.dy + pt.y * S);
+    let lo = 1e9, hi = -1e9;
+    for (let k = 0; k < 5200; k += 25) {
+      g2.tick = k;
+      await frame();
+      const d = c2.getImageData(sx, sy, 1, 1).data;
+      const l = 0.2126 * d[0] + 0.7152 * d[1] + 0.0722 * d[2];
+      if (l < lo) lo = l;
+      if (l > hi) hi = l;
+    }
+    return { pt, sx, sy, swing: +(hi - lo).toFixed(1) };
+  });
+  check('weather crosses the repaired sky instead of vanishing behind it',
+    !r.err && r.swing > 6,
+    r.err || `source (${r.pt.x},${r.pt.y}) swings ${r.swing} levels as clouds pass`);
+  await pg.context().close();
+}
+
 console.log('');
 console.log(checks.every(([, ok]) => ok) ? `ALL ${checks.length} PASS`
   : 'FAILED: ' + checks.filter(([, ok]) => !ok).map(([w]) => w).join(', '));

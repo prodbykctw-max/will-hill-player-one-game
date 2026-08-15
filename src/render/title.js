@@ -418,24 +418,27 @@ export function createTitle(ctx, canvas, still) {
     // takes over with the lettering already covered — see BASE_IN.
     const plate = (fx && images.title_bare && images.title_bare.width)
       ? images.title_bare : images.title_base;
+    // ⚠️ THE SKY-FILL GOES IN AS AN UNDERLAY, NOT AFTER THE FACT.
+    //
+    // Client: "clouds should never pass through buildings or inside of
+    // buildings, and they should never pass behind the fill — it looks like
+    // there are empty spaces in the sky that clouds are coming in and out of,
+    // because the clouds aren't layered over the fill, they're behind it."
+    //
+    // Exactly right, and the comment below this call had claimed the opposite
+    // for weeks: the fill was drawn AFTER still.draw(), which has already
+    // painted the base AND every card. So the patches of repaired sky — the
+    // holes left where the drifting clouds were lifted out — were sitting ON
+    // TOP of the clouds, and any cloud crossing one vanished into it and came
+    // back out the other side. still.draw now takes it as an underlay and
+    // paints it on the base, under every card, which is where the comment
+    // always said it belonged.
     const box = still.draw(plate, titleCards(images), tick,
-      TITLE_ZOOM, TITLE_BIAS, fx, TITLE_SAFE);
+      TITLE_ZOOM, TITLE_BIAS, fx, TITLE_SAFE, images.tp_skyfill);
     // His OPTIONS, moved up into the dead road under PRESS START. Straight
     // after the plate and before anything drawn over it, and on EVERY frame
     // including the intro's — see liftOptions for why it needs the fade's
     // own alpha rather than being held back until the fade finishes.
-    // The sky with the drifting clouds taken out of it. Straight after the
-    // plate and BEFORE the cards, so the cloud layer lands on clean sky
-    // rather than on top of the painted copies of itself. Same alpha as the
-    // base so it fades in with it and never flashes.
-    if (images.tp_skyfill && images.tp_skyfill.width) {
-      const S = box.dw / SRC_W;
-      ctx.save();
-      ctx.imageSmoothingEnabled = false;
-      ctx.globalAlpha = fx ? fx.base.a : 1;
-      ctx.drawImage(images.tp_skyfill, box.dx, box.dy, SRC_W * S, SRC_H * S);
-      ctx.restore();
-    }
     liftOptions(images.title_base, box, fx ? fx.base.a : 1);
     still.pulsePrompt(box, PROMPT, SRC_W, SRC_H, tick);
     // Client: "gleam off his chain... glimmer, glisten or glow off the red

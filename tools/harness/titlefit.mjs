@@ -112,6 +112,39 @@ for (const [name, w, h] of SHAPES) {
   await p.context().close();
 }
 
+// ── THE INSTALLED APP: HIS NAME MUST CLEAR THE DYNAMIC ISLAND ─────────────
+//
+// Client, with a PWA screenshot: the top of WILL HILL: is cut off behind the
+// island. index.html asks for a translucent status bar, so a home-screen
+// launch puts the canvas under it while Safari does not — which is why the
+// browser framed correctly and the installed app did not.
+//
+// Playwright cannot emulate an island, so stillscene exposes
+// __safeTopOverride and this asserts the invariant directly: the first row of
+// the SAFE band (row 165, the topmost title ink) must land at or below the
+// reserved strip, at every shape, with the reserve on.
+{
+  const RESERVE = 62;                       // ~iPhone 15 Pro portrait inset
+  for (const [w, h] of [[430, 932], [393, 852], [375, 667], [412, 915]]) {
+    const pg = await (await b.newContext({ viewport: { width: w, height: h }, hasTouch: true })).newPage();
+    await pg.addInitScript((r) => { window.__safeTopOverride = r; }, RESERVE);
+    await pg.goto('http://localhost:5199/?tod=night', { waitUntil: 'networkidle' });
+    await pg.waitForFunction(() => window.__game && window.__game.screen === 'title', null, { timeout: 25000 });
+    await pg.waitForTimeout(300);
+    const r = await pg.evaluate(async () => {
+      const t = await import('/src/render/title.js');
+      const box = window.__game.titleBox;
+      if (!box) return null;
+      const s = box.dw / t.SRC_W;
+      return { inkTop: box.dy + t.TITLE_SAFE.top * s, dy: box.dy, s: +s.toFixed(4) };
+    });
+    check(`[PWA ${w}x${h}] his name clears the island`,
+      !!r && r.inkTop >= RESERVE - 0.5,
+      r ? `title ink starts at y=${r.inkTop.toFixed(1)}, reserve ${RESERVE}` : 'no box');
+    await pg.context().close();
+  }
+}
+
 console.log('');
 console.log(checks.every(([, x]) => x)
   ? `ALL ${checks.length} PASS`
