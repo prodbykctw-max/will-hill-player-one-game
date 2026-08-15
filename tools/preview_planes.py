@@ -19,6 +19,7 @@ Usage:
     python3 tools/preview_planes.py eav
 """
 
+import math
 import os
 import re
 import sys
@@ -43,7 +44,12 @@ def load_depths(stage):
     i = src.index(f"id: '{stage}'")
     j = src.index('cards: [', i)
     k = src.index('\n      ],', j)
-    out = {'base': 0.0}
+    # ⚠️ THE BASE IS AT NEUTRAL DEPTH, 0.5 — NOT 0. The renderer draws the
+    # plate at BASE_DEPTH so the doubling error splits between near and far
+    # cards (backdrop.js). This file had it at 0.0 for a generation, which
+    # made every preview show the base walking away from the whole deck at
+    # the -0.5 rate — a bug the game did not have.
+    out = {'base': 0.5}
     for key, depth in re.findall(r"key: '(\w+)'.*?depth: ([\d.]+)", src[j:k], re.S):
         out[key] = float(depth)
     return out
@@ -52,7 +58,16 @@ def load_depths(stage):
 # DIFFERENCE on top, and that difference is what the eye reads.
 BASE_RATE = 0.10
 DEPTH_SPREAD = 0.010     # nearest minus farthest, in rate
-MAX_SEPARATION = 90      # px, hard ceiling on the differential
+# ⚠️ 16 WITH A TANH EASE, NOT 90 WITH A WALL. These must mirror backdrop.js
+# (MAX_SEPARATION / BASE_DEPTH / cardParallax) or this tool previews a
+# parallax law the game no longer ships — which is exactly what it did: it
+# sat at a hard 90px clamp for a generation after the renderer moved to a
+# 16px tanh ease, so every strip it drew showed separations the player
+# would never see. A verification tool that models the dead law grades its
+# own memory, not the game. (The one term deliberately NOT mirrored is
+# `drift`: it is time-based weather and this preview is a t=0 snapshot, so
+# the drift term is identically zero here.)
+MAX_SEPARATION = 16      # px — the most any card may sit off the base
 
 # WHY IT IS THIS SMALL. Two earlier passes got this wrong in opposite ways.
 # A wide spread (0.02 -> 0.62) does not read as depth, it reads as the picture
@@ -75,7 +90,10 @@ def rate(name, depths):
 def offset(name, cam, depths):
     common = cam * BASE_RATE
     diff = cam * (rate(name, depths) - BASE_RATE)
-    return common + max(-MAX_SEPARATION, min(MAX_SEPARATION, diff))
+    # The tanh EASE, same as cardParallax: cards slow INTO the bound instead
+    # of slamming against it, and near saturation the relative shear between
+    # neighbouring depths compresses instead of accumulating.
+    return common + MAX_SEPARATION * math.tanh(diff / MAX_SEPARATION)
 
 
 def load(stage_id):

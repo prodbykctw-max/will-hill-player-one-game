@@ -874,8 +874,10 @@ not a silent fix.
 
 ### Re-measuring
 
-The two browser harnesses are COMMITTED, in `tools/harness/`, unlike every
-other harness this project has written — because the table above makes numeric
+The browser harnesses are COMMITTED, in `tools/harness/` — ⚠️ all of them
+now, twenty-five and counting, not the two this paragraph was written about;
+docs/TESTING.md is the current index of which are graded and which are
+report-only. The reason stands: the tables in this document make numeric
 claims and a claim nobody can re-run is not a measurement. Playwright is not a
 dependency of this repo (the game ships no test runner), so the import is
 resolved through `$PLAYWRIGHT`; point it at whatever the machine has.
@@ -1691,18 +1693,25 @@ given, so a fake entry wins nothing and costs nothing to allow. Verification
 can be added later without changing the schema. **Do not re-litigate this
 without new information.**
 
-**Storage is split, and the split is the point:**
+**Storage is split, and the split is the point** — ⚠️ and it is **Cloudflare
+D1 now, not KV.** (The KV shape this table used to describe held the whole
+board in one key with no compare-and-swap; two players finishing together lost
+a score. See `cloudflare/schema.sql` and the header of
+`cloudflare/leaderboard-worker.js` for the full reasoning.) Four tables:
 
-| key | contents | who reads it |
+| table | contents | who reads it |
 |---|---|---|
-| `lb:runs` | `{ id, name, score, t }` × CAP, sorted | `/top`, public |
-| `pii:<id>` | `{ phone, email, name, t }`, one key each | **nothing** — read out of the KV dashboard by hand when contacting a winner |
+| `runs` | `id, name, score, updated, created, plays` — **no contact column at all** | `/top`, public — projected to `{id, name, score}` |
+| `entrants` | `id, phone, email, name, created, seen` | **the dashboard worker only** (`cloudflare/dashboard-worker.js`, a separate hostname behind a rotatable token) |
+| `seen_runs` | one row per run id — the replay lock | `/submit`, as a PRIMARY-KEY refusal |
+| `rejects` | every refusal with its reason and time | the dashboard's live abuse feed |
 
 `id` is a truncated SHA-256 of the normalised digits, so nothing leaving the
 Worker walks back to a phone. The old shape kept phone and email inside the
 public array and relied on `/top` remembering to project them away; one
-forgotten field in one response and the entrant list is public. Separate keys
-cannot be leaked by forgetting.
+forgotten field in one response and the entrant list is public. A separate
+table cannot be leaked by forgetting — the column is not in the table the
+public query selects from.
 
 **Where it lives:** the panel (`src/ui/panel.js`, markup in `index.html`),
 reached from **OPTIONS on the title card** — which was painted into the
@@ -1849,10 +1858,13 @@ double the absolute ceiling — and the board draws 50,000 over it.
   instrumentals, not the Will Hill tracks the original sheet named. See "The
   soundtrack" below. The Will Hill songs can still land later: the slots are
   keyed by function, so each swap is one manifest line.
-- **The Worker is still not deployed.** Everything client-side is built and
-  works against the local fallback; `LB_URL` is empty and the KV namespace
-  does not exist. Creating it and running `wrangler deploy` touches the live
-  Cloudflare account and stays a manual, explicitly-confirmed step.
+- **Neither Worker is deployed.** Everything client-side is built and works
+  against the local fallback; `LB_BASE` is empty and the **D1 database** does
+  not exist — ⚠️ it is D1 now, not KV; do not create a KV namespace, nothing
+  reads one. The sequence (create the database, load `schema.sql`, paste the
+  id into BOTH wrangler configs, deploy both workers, set `DASH_TOKEN`) lives
+  in `cloudflare/README.md`, which is the one corrected document. It touches
+  the live Cloudflare account and stays a manual, explicitly-confirmed step.
 - **The iOS haptics path has never run on an iPhone.** One pass on real
   hardware is all it needs: open the game, tap OPTIONS, feel for a tick. If
   nothing happens the fallback is inert rather than broken — the sound still

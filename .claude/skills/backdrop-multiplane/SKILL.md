@@ -38,7 +38,12 @@ disjoint rectangular planes — they work, and they read as hard cuts.
    every card, 10-30 levels off the art, which the client named on sight:
    *"bruises everywhere on the game."* The base stays the whole painting.
 6. **`preview_planes.py <stage>`** — recompose check. Base + every card at zero
-   offset must reproduce the original. Under 0.1% is good.
+   offset must reproduce the original. Under 0.1% is good. ⚠️ Trust it for the
+   RECOMPOSE only unless its parallax constants match the renderer's — this
+   one drifted a whole generation behind (hard 90px wall vs the shipped 16px
+   tanh ease, base at depth 0 vs neutral, no drift) and previewed a law that
+   no longer existed. A verification tool that models the dead law grades its
+   own memory, not the game.
 
 ## Hard-won rules
 
@@ -84,6 +89,20 @@ disjoint rectangular planes — they work, and they read as hard cuts.
   Swifty sign's white frame and escape into the artwork — the flood leaves the
   sky entirely and starts eating the painting. Blue-and-bright-enough only, and
   cloud is a SEED test, never a travel permit.
+- **⚠️ …and blue-only travel is still not enough: ERODE BY 1 BEFORE FLOODING.**
+  Anti-aliased pixels where a sign frame meets both sky and sign face form
+  **1px blue bridges**, and the flood crossed one on the same Swifty sign even
+  after the rule above — the sign face scanned as sky, which is how CAR WASH
+  became seven clouds. Eroding by one cuts every 1px bridge; follow with ONE
+  **constrained** dilation (re-intersected with blue, never a plain dilate),
+  which recovers the true sky rim without re-crossing a barrier — a single
+  step can only re-touch the bridge pixel, not flood a face.
+- **The last line of defence is TONE, not colour.** A frameless sign face
+  meeting open sky gives the flood mask nothing to hold onto — no colour test
+  separates them. What does: compare each candidate blob's ring against the
+  **sky's own median value on that blob's rows**, sampled outside its
+  neighbourhood. A ring reading **≥0.09 darker** is a painted pocket, not sky,
+  and the blob is a letter, not a cloud (`tools/scrub_stage_clouds.py`).
 - **Per-stage colour thresholds, always re-measured.** They do not transfer
   between plates. Score every candidate rule two ways: what fraction of a
   verified sample it catches, AND what fraction of the foreground it wrongly

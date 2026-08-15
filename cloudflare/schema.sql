@@ -2,7 +2,7 @@
 --
 --   wrangler d1 execute will-hill-contest --remote --file=cloudflare/schema.sql
 --
--- ⚠️ THREE TABLES, AND THE SPLIT IS THE POINT. `runs` is what the public board
+-- ⚠️ FOUR TABLES, AND THE SPLIT IS THE POINT. `runs` is what the public board
 -- reads and carries NO contact details of any kind. `entrants` holds the phone
 -- and the email and is only ever read by the dashboard worker. Nothing joins
 -- them on the public path, so the public endpoint cannot leak a phone number
