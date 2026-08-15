@@ -159,15 +159,23 @@ await p.evaluate(async () => {
   // back with a patrolling ninja and no Will Hill in it at all. His own words
   // are the simpler brief anyway: "an image of you standing on it with an X
   // next to it." So he stands on it, still, and the X does the telling.
-  g.level.obstacles.push({ x: g.player.x - 34, y: FLOOR_R * T + 1, w: 150, h: 30 });
-  g.player.vx = 1.6;
-  // A stray patroller wandering into a picture about potholes makes it a
-  // picture about something else. The generator keeps streaming, so this is
-  // cleared again here rather than only in __stage.
+  // ⚠️ CENTRED IN THE HOLE, ON THE REACTION. Client: "the image of the
+  // pothole should show him standing and being hit, basically INSIDE the
+  // pothole, with the reaction that he has." The first cut had him at the
+  // lip, which reads as standing beside it. The hole is centred on his own
+  // middle, and the frame is taken after trip() has pitched him and gravity
+  // has started bringing him back down into it — that descending beat is
+  // where the hit pose actually reads.
+  g.level.obstacles.push({
+    x: g.player.x + g.player.w / 2 - 78, y: FLOOR_R * T + 1, w: 156, h: 30,
+  });
+  g.player.vx = 1.2;
   g.level.enemies = g.level.enemies.filter((e) => Math.abs(e.x - g.player.x) > 900);
-  // Let the hole actually take him — trip() gives the stumble pose, which is
-  // the honest picture of walking into one.
   for (let k = 0; k < 30 && !(g.player.stumble > 0); k++) await window.__frame();
+  // Let the pitch peak and start falling back, so he is over the hole rather
+  // than launched above it.
+  for (let k = 0; k < 8 && g.player.vy < 0; k++) await window.__frame();
+  for (let k = 0; k < 3; k++) await window.__frame();   // down into the mouth
   // ⚠️ THEN KILL THE I-FRAME FLICKER BEFORE CUTTING.
   //
   // renderer.js:643 skips drawing the player entirely on alternating i-frame
@@ -186,10 +194,25 @@ await shoot('pothole-bad', 'standing in it — the X case');
 await p.evaluate(async () => {
   const g = window.__game, { T, FLOOR_R } = window.__hw.tm;
   await window.__stage(2400);
-  g.level.obstacles.push({ x: g.player.x + 30, y: FLOOR_R * T + 1, w: 150, h: 30 });
-  g.player.x += 70; g.player.y -= 96; g.player.vy = 0.6; g.player.vx = 3.0;
-  g.player.onGround = false; g.player.anim = 'jumpStart';
-  for (let k = 0; k < 2; k++) await window.__frame();
+  // ⚠️ CAUGHT ON THE LANDING SIDE, NOT AT THE TOP OF THE ARC. Client: "don't
+  // show them immediately over it because it just looks like they jumped
+  // straight in the air — show them almost landing on the other side, like
+  // they're finishing jumping over it." So the hole sits behind him and he is
+  // on the way down, close to the road, which is the frame that reads as
+  // having cleared something.
+  const hx = g.player.x;
+  g.level.obstacles.push({ x: hx, y: FLOOR_R * T + 1, w: 156, h: 30 });
+  g.player.x = hx + 172;          // just past the far lip
+  // ⚠️ HIGH ENOUGH THAT HE IS STILL IN THE AIR WHEN THE SHUTTER OPENS. At 42px
+  // and two frames he had already touched down and the frame read as walking
+  // past the hole, which is the one thing this picture must not say. ~86px
+  // with a gentle descent and a SINGLE step leaves him clearly airborne and
+  // clearly coming down on the far side.
+  g.player.y -= 86;
+  g.player.vy = 3.0;
+  g.player.vx = 3.4;
+  g.player.onGround = false; g.player.anim = 'jumpLand';
+  await window.__frame();
 });
 await shoot('pothole-good', 'jumped clean over it');
 
@@ -201,9 +224,12 @@ await p.evaluate(async () => {
   await window.__stage(3200);
   const c = Math.floor(g.player.x / T) + 1;
   pit(g.level.map, c, 3, FLOOR_R, LH - 1);
-  g.player.x = (c + 1) * T; g.player.vx = 1.4;
+  g.player.x = (c + 1) * T; g.player.vx = 1.0;
   const y0 = g.player.y;
-  for (let k = 0; k < 40 && g.player.y < y0 + 46; k++) await window.__frame();
+  // Deeper than the first pass: at +46 he was still level with the road and
+  // read as standing on the lid. Down far enough that the mouth is above his
+  // shoulders is the picture of falling through.
+  for (let k = 0; k < 60 && g.player.y < y0 + 96; k++) await window.__frame();
 });
 await shoot('manhole-bad', 'stepped in — falling through');
 
@@ -212,9 +238,13 @@ await p.evaluate(async () => {
   await window.__stage(3200);
   const c = Math.floor(g.player.x / T) + 2;
   pit(g.level.map, c, 3, FLOOR_R, LH - 1);
-  g.player.x = c * T - 26; g.player.y -= 104; g.player.vy = 0.4; g.player.vx = 3.4;
-  g.player.onGround = false; g.player.anim = 'jumpStart';
-  for (let k = 0; k < 2; k++) await window.__frame();
+  // Landing side again, for the same reason as the pothole.
+  g.player.x = (c + 3) * T + 10;
+  g.player.y -= 86;               // see the pothole note — airborne, descending
+  g.player.vy = 3.0;
+  g.player.vx = 3.4;
+  g.player.onGround = false; g.player.anim = 'jumpLand';
+  await window.__frame();
 });
 await shoot('manhole-good', 'jumped it');
 
