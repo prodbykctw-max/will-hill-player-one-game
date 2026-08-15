@@ -5,12 +5,14 @@
 // out of options? How can I get out of the leaderboard? Do you look at that
 // flow in that logic and make sure it is standard?"
 //
-// The board (leaderboard) is the panel's HOME view — OPTIONS opens straight
-// to it — and until now it was the only view with no bottom, thumb-reachable
-// way out: settings has BACK, the form has NOT NOW, the board had nothing
-// but the small ✕ in the corner. This proves the fix (btnBoardClose) closes
-// the panel exactly like ✕ does, and that the existing BACK/NOT NOW paths
-// still land where they always did — one level at a time, never stuck.
+// ⚠️ THE HOME VIEW IS THE MENU NOW, NOT THE BOARD. He later specified the
+// shelf outright — "under options, leaderboard is there, instructions could
+// also be found under the options, the settings button should be found under
+// the options, and then back to the game should be filed under the options" —
+// so OPTIONS opens a four-item menu and the board sits one level inside it.
+// The rule this file exists to defend has not changed: every view has a
+// bottom, thumb-reachable way out, it steps ONE level, and nothing is ever
+// stuck. Only the destinations moved, so the checks moved with them.
 //
 //   PLAYWRIGHT=... CHROMIUM=... node tools/harness/panelnav.mjs
 const _pw = await import(process.env.PLAYWRIGHT || 'playwright');
@@ -44,17 +46,29 @@ const openPanel = async () => {
 
 const shown = () => p.evaluate(() => ({
   open: !document.getElementById('panel').hidden,
-  view: ['pvBoard', 'pvForm', 'pvSettings'].find((id) => !document.getElementById(id).hidden),
+  view: ['pvMenu', 'pvBoard', 'pvHow', 'pvForm', 'pvSettings']
+    .find((id) => !document.getElementById(id).hidden),
   screen: window.__game.screen,
 }));
 
-// ── OPTIONS opens straight to the board ──────────────────────────────────
+// ── OPTIONS opens the shelf ──────────────────────────────────────────────
 await openPanel();
 let s = await shown();
-check('OPTIONS opens the panel on the board', s.open && s.view === 'pvBoard', JSON.stringify(s));
+check('OPTIONS opens the panel on the menu', s.open && s.view === 'pvMenu', JSON.stringify(s));
 
-// ── board -> settings -> BACK -> board (one level at a time) ────────────
-await p.click('#btnSettings');
+await p.click('#btnMenuBoard');
+await p.waitForTimeout(250);
+s = await shown();
+check('LEADERBOARD steps to the board', s.view === 'pvBoard', JSON.stringify(s));
+
+await p.click('#btnBoardBack');
+await p.waitForTimeout(200);
+s = await shown();
+check('BACK from the board lands on OPTIONS, not closed',
+  s.open && s.view === 'pvMenu', JSON.stringify(s));
+
+// ── menu -> settings -> BACK -> menu (one level at a time) ──────────────
+await p.click('#btnMenuSettings');
 await p.waitForTimeout(200);
 s = await shown();
 check('SETTINGS steps to the settings view', s.view === 'pvSettings', JSON.stringify(s));
@@ -62,9 +76,24 @@ check('SETTINGS steps to the settings view', s.view === 'pvSettings', JSON.strin
 await p.click('#btnBack');
 await p.waitForTimeout(200);
 s = await shown();
-check('BACK from settings lands on the board, not closed', s.open && s.view === 'pvBoard', JSON.stringify(s));
+check('BACK from settings lands on OPTIONS, not closed',
+  s.open && s.view === 'pvMenu', JSON.stringify(s));
+
+// ── menu -> how to play -> BACK -> menu ─────────────────────────────────
+await p.click('#btnMenuHow');
+await p.waitForTimeout(200);
+s = await shown();
+check('HOW TO PLAY steps to the instructions', s.view === 'pvHow', JSON.stringify(s));
+
+await p.click('#btnHowBack');
+await p.waitForTimeout(200);
+s = await shown();
+check('BACK from the instructions lands on OPTIONS',
+  s.open && s.view === 'pvMenu', JSON.stringify(s));
 
 // ── board -> form -> NOT NOW -> board ────────────────────────────────────
+await p.click('#btnMenuBoard');
+await p.waitForTimeout(250);
 await p.click('#btnRegister');
 await p.waitForTimeout(200);
 s = await shown();
@@ -75,18 +104,20 @@ await p.waitForTimeout(200);
 s = await shown();
 check('NOT NOW from the form lands on the board, not closed', s.open && s.view === 'pvBoard', JSON.stringify(s));
 
-// ── THE FIX: the board's own way out, same destination as ✕ ─────────────
-const hasExit = await p.evaluate(() => !!document.getElementById('btnBoardClose'));
-check('the board has its own exit button', hasExit);
+// ── BACK TO GAME lives on the shelf, and closes exactly like ✕ ──────────
+await p.click('#btnBoardBack');
+await p.waitForTimeout(200);
+const hasExit = await p.evaluate(() => !!document.getElementById('btnMenuClose'));
+check('OPTIONS carries the way out of the panel', hasExit);
 
-await p.click('#btnBoardClose');
+await p.click('#btnMenuClose');
 await p.waitForTimeout(300);
 s = await shown();
 check('BACK TO GAME closes the panel and returns to the title', !s.open && s.screen === 'title', JSON.stringify(s));
 
 // ── ✕ still works from every depth, including two levels deep ──────────
 await openPanel();
-await p.click('#btnSettings');
+await p.click('#btnMenuSettings');
 await p.waitForTimeout(200);
 await p.click('#panelClose');
 await p.waitForTimeout(300);

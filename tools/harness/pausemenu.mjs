@@ -133,8 +133,18 @@ console.log('  scroll:', JSON.stringify(scroll));
 // unreachable — the bug.
 check('scrolled to the top, the card head is on screen and not clipped',
   scroll.cardTop >= scroll.padTop - 1, `cardTop=${scroll.cardTop} padTop=${scroll.padTop}`);
-check('the panel is a real scroll container when the card overflows',
-  scroll.overflows, JSON.stringify({ h: scroll.scrollHeight, c: scroll.clientHeight }));
+// ⚠️ THIS USED TO ASSERT THE OPPOSITE, AND WAS RIGHT TO. When his MARTA card
+// was sized by WIDTH it was always taller than a phone, so the only thing
+// that could be guaranteed was that the overflow stayed REACHABLE — the top
+// of the card had to be scrollable to, which is the bug this file caught
+// ("the leaderboard is cut off at the top"). The card is now sized by the
+// height the viewport actually has, at the client's request — "change the UX
+// so no scroll needed" — so the stronger promise holds and is what gets
+// checked: there is nothing to scroll at all. The reachability check above
+// stays as-is; it is still the guard if a future view does overflow.
+check('and there is nothing to scroll — the whole card fits',
+  !scroll.overflows,
+  JSON.stringify({ h: scroll.scrollHeight, c: scroll.clientHeight }));
 const bar = await p.evaluate(() => {
   const el = document.getElementById('panel');
   return el.offsetWidth - el.clientWidth;          // 0 when no bar takes space
