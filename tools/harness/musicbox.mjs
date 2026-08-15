@@ -36,7 +36,12 @@ const _pw=await import(process.env.PLAYWRIGHT); const chromium=_pw.chromium||_pw
 // across several frames, never one reading.
 const b=await chromium.launch({ ...(process.env.CHROMIUM ? { executablePath: process.env.CHROMIUM } : {}),
   args:['--autoplay-policy=no-user-gesture-required'] });
-const OUT=process.env.SEAM_OUT||'.';
+// Defaults to `shots/` (gitignored), never the repo root. This one was
+// missed when the other five harnesses were moved off the root, because it is
+// written without spaces and the sweep matched the spaced form — so it kept
+// dropping musicbox.json beside the source. Written out longhand now so the
+// next grep for this pattern finds it.
+const OUT = process.env.SEAM_OUT || 'shots';
 const checks=[]; const check=(w,ok,d='')=>{checks.push([w,ok]);console.log(`  ${ok?'PASS':'FAIL'}  ${w}${d?'   '+d:''}`)};
 const p=await (await b.newContext({viewport:{width:430,height:932},hasTouch:true})).newPage();
 p.on('pageerror',e=>console.log('  THROWN: '+e.message));
@@ -113,7 +118,8 @@ check('the choice survives a reload',
 await p.touchscreen.tap(215,300); await p.waitForTimeout(1700);
 check('open space is still START',
   await p.evaluate(()=>window.__game.screen)==='playing');
-const fs=await import('fs'); fs.writeFileSync(`${OUT}/musicbox.json`,JSON.stringify(shots));
+const fs=await import('fs'); fs.mkdirSync(OUT,{recursive:true});
+fs.writeFileSync(`${OUT}/musicbox.json`,JSON.stringify(shots));
 console.log('');
 console.log(checks.every(([,o])=>o)?`ALL ${checks.length} PASS`:'FAILED: '+checks.filter(([,o])=>!o).map(([w])=>w).join(', '));
 await b.close();
