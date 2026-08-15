@@ -45,9 +45,18 @@ Every card scrolls at one shared base rate. Depth adds only a small
 **difference** on top:
 
 ```
-rate = BASE + (depth - 0.5) * SPREAD      BASE = 0.10, SPREAD = 0.010
-offset = camX * rate, clamped to ±MAX_SEPARATION
+diff   = camX * (depth - BASE_DEPTH) * SPREAD     BASE_DEPTH = 0.5, SPREAD = 0.010
+offset = camX * PLATE + SEP * tanh(diff / SEP)    PLATE = 0.10, SEP = 16
 ```
+
+Two refinements the fence doubling forced (the base plate still carries its
+own copy of every carded item, so every pixel a card moves off that copy
+prints the item twice): the base draws at **neutral depth** so the error
+splits between near and far cards instead of the base walking away from the
+whole deck, and the clamp is a **tanh ease, not a wall** — cards slow into
+the bound, and near saturation the relative shear between neighbours
+compresses instead of accumulating. 16px of double reads as paint thickness;
+34px read as a second fence, and the client photographed it.
 
 A wide spread (0.02 → 0.62 was tried) does **not** read as depth. It reads as
 the set falling over: cards slide off each other and the empty plate shows
@@ -60,18 +69,23 @@ At 0.010 the nearest card stays within ~77px of home across a 7680px stage.
 tilt them. The shift is small enough that nothing distorts, and depth comes
 from *relative* rates, not distance travelled.
 
-`MAX_SEPARATION` is the backstop that makes migration impossible even if
-someone dials the spread up later.
+`SEP` is the backstop that makes migration impossible even if someone dials
+the spread up later.
 
-### The one exception: ground strips
+### ⚠️ There are NO exceptions — the ground-strip one was removed, expensively
 
-A verge, kerb or street band at the bottom of the plate gets a **real** rate
-(0.30 against the plate's 0.10) and a much looser clamp.
-
-The clamp exists to stop a *discrete object* migrating — but that failure
-needs a landmark to be visible on. A featureless full-width band has nothing
-in it to notice having moved. All you see is that it outruns the buildings,
-which is exactly the cue that the street is nearer than the storefronts.
+This section used to teach the opposite: give a verge, kerb or street band a
+real rate (0.30 against the plate's 0.10) and a looser clamp, on the argument
+that a featureless full-width band has no landmark to be seen moving. **Every
+word of that is true except "featureless."** A strip has no landmark inside
+it, but it has a hard edge along the TOP, and things stand on that edge. At
+0.30 the strip saturated its loose clamp ~200px into the stage while the
+fence planted in it travelled 20px — measured at the far end of EAV: verge
++400, fence +20. **380px of shear on a 430px screen; the grass walks out from
+under the fence.** Client: "it moved cool, it's just not visually looking
+right." The control experiment was already in the stage table — the one strip
+that never got the override is the backdrop he called perfect. Depth drives
+every card; no strip rates, no strip clamps.
 
 ### Detail cards buy GLOW, not depth
 

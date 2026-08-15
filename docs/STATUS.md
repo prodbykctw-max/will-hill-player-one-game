@@ -143,15 +143,26 @@ night would be new work, not a fix.
   crossfades the seam. Either an engine change in `music.js` or longer masters
   from him.
 
-### CAT 4 — UX — *one item left*
-- ❌ **HOW TO PLAY is wrong and he has specified the fix.** The images don't
-  match the words: champagne and money carry a green tick with no lesson, and
-  the money shot has no champagne up so the bags are neither blue nor grown
-  (`main.js:1323` — "Grown AND blue while the champagne is lit"). Rebuild as
-  **four swipeable pages** (CSS scroll-snap), each carrying ✕ image, ✓ image,
-  ✕ text, ✓ text in that order. Page 4 re-shot as a real pair with the aura lit.
-- ❌ **SHARE has no spinner.** Encoding the 852×1846 card takes ~4 seconds on a
-  loaded device. It reads as a dead button.
+### CAT 4 — UX ✅ shipped
+- ✅ **HOW TO PLAY is the four-page swipe card he specified** (`4d0bdb6`):
+  ✕ image, ✓ image, ✕ text, ✓ text per page, CSS scroll-snap, dots,
+  tap-paging. The champagne lesson is a real pair now — the ✓ frame shot with
+  the aura lit, bags grown and blue, and BOTH the shooter and `howswipe.mjs`
+  measure the blue difference before it may ship (✕ 9.3 vs ✓ 35.7 in the
+  bluest 1% where the bags are). 10 PASS.
+- ✅ **SHARE says MAKING YOUR CARD… while it encodes** and refuses a second
+  tap; restored in `finally`.
+
+### The Underground "layers gone" question — MEASURED, not a bug
+Per-card parallax over 4000 world px: Underground spread **17.3px**, EAV (his
+reference for "good") **16.4px**, every card at its own rate in correct depth
+order (columns +8.5 … spire −8.3). The multiplane is alive and structurally
+identical to the stage he is happy with. What changed is `4bf6d10`: the
+fence-doubling fix clamped the whole deck 90px → 16px, so the pronounced
+trashcan-era slide he remembers went away as the COST of killing the doubled
+fence he photographed. If he wants more read, the dial is MAX_SEPARATION —
+but 34px was a photographed bug, so that trade needs his eyes, not a quiet
+revert.
 
 ### CAT 5 — Sign-up ✅ shipped
 Offered before a run and after death, asked once, stored forever — and now the

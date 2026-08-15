@@ -45,7 +45,7 @@ Three separate sweeps have had to clean that up; `shots/` is gitignored.
 **Graded** — they end in `ALL n PASS` or `FAILED: <checks>`, and a sweep can
 read them mechanically:
 
-`ceiling` · `cloudseal` · `daylamps` · `endcue` · `entrypaths` · `idleflex` · `introorder` ·
+`ceiling` · `cloudseal` · `daylamps` · `endcue` · `entrypaths` · `howswipe` · `idleflex` · `introorder` ·
 `musicbox` · `optionsmenu` · `padlift` · `panelnav` · `pausemenu` · `relaytod` ·
 `share` · `stageflag` · `titlefit` · `titleintro`
 
@@ -103,6 +103,7 @@ drifts into grading last month's product and nobody notices.
 | `titlefit` | the title card fits every viewport |
 | `cloudseal` | weather passes BEHIND the buildings on all four day stages — and is still visible |
 | `endcue` | each finish line hands to the NEXT scene's music, with no restart |
+| `howswipe` | HOW TO PLAY is four swiped ✕/✓ lessons, and page 4's frames really differ at the bags |
 | `entrypaths` | a run reaches the board whether they enter before OR after it |
 | `padlift` | the movement pads' height, solidity, seam, and that a press still lights them |
 | `stageflag` | `?relay=1` / `?stage=N` work AND a plain URL is still the player's game |
