@@ -185,6 +185,103 @@ ideas that I should have reached first.
 
 ---
 
+## 8. Testing only the easy half of a two-sided flow
+
+The contest could be entered BEFORE a run or AFTER one. Only the before path
+was ever exercised, and the after path — which is how nearly everybody actually
+does it — silently threw the run away. `lbSubmit()` returned early when nobody
+was registered, and the submit fires at the moment of death, before the panel
+has even offered the contest. So: play, die, decide to enter, and the score you
+just set was gone.
+
+Nobody found it because the harness that existed tested the half that worked.
+**The client found it by asking a question**, not by seeing a symptom: *"I just
+wanna make sure that that run is actually added."*
+
+When a flow has an order to it, the orders are separate tests. `entrypaths.mjs`
+now grades both, and asserts the held run is flushed exactly once.
+
+## 9. Choosing a datastore without asking what it has to survive
+
+The leaderboard shipped as one Cloudflare KV key holding the whole board, read
+→ modified → written on every submit. It works perfectly with one player. With
+two finishing at the same moment, both read the old list and the second write
+erases the first — a lost score, in a contest with a real prize. KV also allows
+about one write per second per key, so a launch party is a queue against a
+single key.
+
+None of that is obscure; it is on the first page of KV's documentation. It was
+never checked because the store was picked for the shape of the DATA ("a list
+of scores") rather than the shape of the LOAD. Again, the client asked the
+question that exposed it: *"if a person plays 100 times a day, how can we make
+sure it doesn't break?"*
+
+**Pick storage by the concurrency it has to survive, not by what the data looks
+like.** D1's `MAX(runs.score, excluded.score)` makes the whole race a database
+guarantee instead of application code that happens to run alone.
+
+## 10. Every check ran in Chrome; the client's phone is Safari
+
+The rebuilt leaderboard passed a full green suite and arrived on his phone as a
+blank panel with a lone ✕ floating near the middle of the screen. The ✕
+position was the whole diagnosis: the card had collapsed to zero width, so its
+top-right corner WAS the centre.
+
+`#lbCard` derives its width from its height through `aspect-ratio`, and the
+parent was set to `width: auto` — asking the parent to size itself from that
+child. Chrome resolves the loop. Safari returns zero.
+
+**A CSS layout change is exactly the class of bug a headless-Chrome harness
+cannot see.** Give containers a definite width, and when the change is layout,
+say out loud that the suite passing is not evidence.
+
+## 11. A harness drifting into grading last month's product
+
+Running the whole suite end to end for the first time in a while turned up one
+red: `ceiling.mjs` still demanded WILL HILL pinned at row 1 with 50,000 — a
+benchmark the client had explicitly asked to be REMOVED, and which the code had
+correctly stopped producing. The suite was failing on correct code.
+
+Two more in the same family: `introorder.mjs` called a `__title.settledAt()`
+that had been designed for an unshipped feature and never existed, then hung
+for four minutes polling a `g.introT` that is a local inside `draw()` and reads
+undefined on state. It had never been run.
+
+**A test nobody runs is a comment, and a test that outlives the decision it
+encoded is worse than none** — it costs an investigation and teaches you to
+distrust red.
+
+## 12. A fixed sleep is not a contract
+
+`share.mjs` waited 400ms after tapping SHARE and began reporting the entire
+share feature as dead — no download, no clipboard, no error, nothing. Nothing
+was broken. The card is an 852x1846 canvas encoded to a 2.5MB PNG, and on a
+loaded machine that lands at about four seconds.
+
+The measurement came before the "fix", which is the only reason a working
+feature did not get rewritten to chase a phantom. Same fault in a different
+costume in `endcue.mjs`: reading a value on the same frame the state flips
+returns the previous frame's answer, because `update()` asks for the cue at the
+top and the branch that changes the screen runs below it. Three stages passed
+and one failed in the same run, on identical code — a race, not a bug.
+
+**Poll the condition. Never sleep a number.**
+
+## 13. Two right diagnoses can still both be wrong
+
+The clouds-through-buildings bug took a week and four diagnoses. The first
+three were each defensible and each incomplete: the far/near flag (impossible —
+a card is wholly in front or wholly behind), enclosed holes (real, but half),
+sky-connected gaps (real, still half). The client named the actual cause from a
+screenshot: *"that long shadow strip going down the building is treating that
+like it's something separate."* A building's dark side is painted blue and
+meets the sky at the roofline, so a blue flood pours in at the roof and runs
+the whole strip.
+
+**When a fix reduces a symptom without removing it, the diagnosis is wrong, not
+insufficient.** Three rounds were spent making a partial theory more thorough
+instead of asking what else could produce the same picture.
+
 ## The short version
 
 0. **Touch the thing before you describe it** — including when what you are
@@ -196,3 +293,9 @@ ideas that I should have reached first.
 4. Look at what's missing, not just what's there.
 5. Anchor edits on something unique, then verify the file survived.
 6. Get it correct, then get it big.
+7. Test both orders of a two-sided flow; the untested half is the common one.
+8. Pick storage for the load it must survive, not the shape of the data.
+9. A green suite in Chrome is not evidence about Safari, least of all for layout.
+10. Poll the condition; a fixed sleep is a guess wearing a number.
+11. Run the whole suite sometimes, or it starts grading a product you no longer ship.
+12. If a fix shrinks a symptom without killing it, the theory is wrong — not too small.

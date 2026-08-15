@@ -14,11 +14,29 @@ Architecture and conventions for working on this repo. Read `docs/GDD.md` first 
 
 ## Process this repo follows
 
-This project follows the `game-dev-pipeline` skill (`~/.claude/skills/game-dev-pipeline/SKILL.md`) — a reusable 5-phase process (Concept & Style → Environment/World → Tooling & MCP selection → Repo Scaffold → Asset Pipeline & Deploy) developed alongside this repo's own scaffold and meant to apply to future game projects too.
+This project follows the `game-dev-pipeline` skill (`~/.claude/skills/game-dev-pipeline/SKILL.md`) — a reusable 5-phase process (Concept & Style → Environment/World → Tooling & MCP selection → Repo Scaffold → Asset Pipeline & Deploy) developed alongside this repo's own scaffold and meant to apply to future game projects too. ⚠️ That one lives on the client's own machine, NOT in this repo, so a container cannot read or update it — anything learned that belongs there has to be handed over deliberately.
+
+### Skills this repo owns (`.claude/skills/`, versioned with the code)
+
+Written FROM this project's mistakes, and kept in the repo so they travel with it:
+
+- **`backdrop-multiplane`** — cutting a flat plate into parallax cards, and everything the clouds took a week to teach: why a card is wholly in front or wholly behind, why a blue sky flood runs down a building's shadowed face, how to tell a stone pier from a cloud, and why sealing too much kills the weather.
+- **`game-harness`** — measuring a running game without lying to yourself. Deterministic frame capture, noise floors, master-bus audio (never `!el.paused`), polling instead of sleeping, and how to tell a harness bug from a product bug. Read this BEFORE writing a new check.
+- **`contest-leaderboard`** — a leaderboard with a real prize on it: identity, server-side score validation, why KV lost scores and D1 does not, entry-flow ordering, the anti-abuse layers, and the separate admin dashboard.
+
+When one of these is proved wrong or incomplete by new work, update the skill in the same commit as the fix. A skill that documents a superseded decision is worse than no skill.
 
 ## Leaderboard/backend
 
-The contest leaderboard (`cloudflare/leaderboard-worker.js`) is real, load-bearing scope — see `docs/GDD.md` "Leaderboard & contest" for the full design (replay/event-log score validation, public name+score / private phone+email split, 3-day contest window). Its Cloudflare KV namespace has not been created and it has not been deployed — that's an explicitly-confirmed manual step, not something to run automatically.
+The contest leaderboard is real, load-bearing scope — see `docs/GDD.md` "Leaderboard & contest" for the full design (replay/event-log score validation, public name+score / private phone+email split, 3-day contest window).
+
+**It runs on Cloudflare D1, not KV.** ⚠️ The KV design is gone and should not come back: the whole board lived in one key, read-modified-written per submit, and KV has no compare-and-swap — two players finishing together lost a score, with a prize attached. D1 makes "keep the highest" an atomic upsert. Schema in `cloudflare/schema.sql`.
+
+Two workers, deliberately separate:
+- `cloudflare/leaderboard-worker.js` — public. Serves `/top` (cached 2s) and takes `/submit` (never cached). Origin-locked, replay-protected, honeypotted.
+- `cloudflare/dashboard-worker.js` — the admin view, its own hostname, read-only, reached by a rotatable token in the link. Never fold this into the game worker: that is the endpoint under load and the one an attacker already has a URL for.
+
+Neither is deployed. Creating the D1 database and deploying touches the live Cloudflare account and stays an explicitly-confirmed manual step, not something to run automatically. `LB_BASE` in `src/net/leaderboard.js` is empty until it is.
 
 ## Reference project
 

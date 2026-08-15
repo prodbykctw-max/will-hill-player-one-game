@@ -23,7 +23,7 @@ source says otherwise, and should be credited to him, not to Will Hill.
 Will Hill is on his way to his performance — the run through the game's stages *is* him making his way to the show.
 
 - **Collectible/currency token:** money bags. "Collect the bag" is the core objective/scoring loop.
-- **Power-up:** champagne bottles — grant **30 seconds of invulnerability** on pickup.
+- **Power-up:** champagne bottles — grant **9 seconds** of invulnerability AND a **2x money multiplier** on pickup. (This said 30 seconds for a long time and the code never did: `CHAMPAGNE_SECONDS = 9` in `src/entities/player.js`, `CHAMPAGNE_MULT = 2` in `src/entities/collectibles.js`. While it is lit the bags are drawn **grown and blue** — the two cues say the same thing, and the HOW TO PLAY page has to show it.)
 - **Combat:** none. No sword/melee system.
 - **Core mechanic — Mario-style stomp:** jumping on top of an enemy defeats it. Side/head-on contact damages the player instead.
 - **Platforming:** platforms are asphalt-textured (visually distinct street/road material within the level geometry).
@@ -220,7 +220,36 @@ The leaderboard is a real, load-bearing feature — not a someday-maybe. It runs
 - **Privacy — public/private split:** phone and email are collected for real-world prize contact only. They are stored server-side and **never** exposed on the public-facing leaderboard, which shows name + score only.
 - **Contest window:** 3 days — start/end configured server-side, with a clean way to read off the final standings once the window closes.
 - **UI/UX — mirrors the Jandé game's leaderboard presentation** (same on-screen pattern, not the same backend shape, which differs per the validation/contact-field requirements above): name entered once (persisted locally, not re-asked every run), a top-N list rendered on the end-of-run screen with the current player's row highlighted, and a silent graceful fallback to a local top-10 if the server is unreachable — no error shown to the player. Reference implementation: `once-upon-a-time/index.html` (`#overlay`/`#ovName`/`#ovBoard` markup, and `saveRun`/`lbSubmit`/`lbTop`/`fillGlobalBoard`). Phone/email are captured once via a separate lightweight contest-registration step, not as part of the per-run overlay, keeping that screen uncluttered.
-- **Implementation status:** `cloudflare/leaderboard-worker.js` has real endpoint/validation logic scaffolded. Its KV namespace has **not** been created and it has **not** been deployed — that's a manual, explicitly-confirmed follow-up step (it touches the live Cloudflare account), same split the Jandé project used.
+- **Storage — Cloudflare D1, not KV.** ⚠️ This changed after the KV design was
+  measured against the contest it has to survive. The board was a single KV key
+  read-modified-written on every submit; KV has no compare-and-swap, so two
+  players finishing together lost a score, and its ~1-write-per-second-per-key
+  ceiling made a launch party a queue. D1 makes "keep the highest" a database
+  guarantee — `ON CONFLICT(id) DO UPDATE SET score = MAX(runs.score, excluded.score)`.
+  Schema in `cloudflare/schema.sql`; three tables, and the split is the point:
+  `runs` is public and has no contact column at all, `entrants` holds phone and
+  email, `seen_runs` refuses replays.
+- **Read/write split:** `/top` is cached ~2s at the edge, `/submit` never. Reads
+  are what scale (thousands), writes are not (hundreds).
+- **Entering after a run counts.** The submit fires at the moment of death,
+  before the contest is offered, so an unregistered run is HELD and flushed the
+  instant they enter. It used to be discarded, which silently lost the most
+  common path there is.
+- **Anti-abuse:** origin-locked CORS, per-run replay ids, two honeypots (a hidden
+  form field and a decoy `score` field the real client never sends), plausibility
+  limits above the score recompute, fail-closed errors, and a logged reason for
+  every refusal.
+- **Admin dashboard:** `cloudflare/dashboard-worker.js` — a SEPARATE worker on a
+  separate hostname, read-only on the same database, reached by a rotatable
+  token in the link with no login. Full entrant list with contact details, live,
+  plus CSV export. Deliberately not an `/admin` route on the game worker, which
+  is the thing every phone is hammering and the thing an attacker already has a
+  URL for.
+- **Implementation status:** written and committed, **not deployed**. Creating
+  the D1 database and deploying both workers touches the live Cloudflare
+  account and stays a manual, explicitly-confirmed step. `LB_BASE` in
+  `src/net/leaderboard.js` is empty until then, and the game shows a local
+  board rather than an error.
 
 ## Open items / next steps
 

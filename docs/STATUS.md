@@ -4,31 +4,37 @@
 proposed, everything not done, everything undone, everything on hold.
 
 - Repo: `prodbykctw-max/will-hill-player-one-game`
-- `main` and `claude/last-markdown-game-link-lvk1n6` are both at **`c63a8e8`**
+- `main` and `claude/last-markdown-game-link-lvk1n6` are both at **`0489ce9`**
 - Live: <https://prodbykctw-max.github.io/will-hill-player-one-game/>
-- Live bundle at time of writing: `index-CootSJ06.js` (one commit behind HEAD
-  — `c63a8e8` is pushed but **not yet deployed**, see "Not done")
+- `gh-pages` was rebuilt from `0489ce9`. Live matches main.
 
 ---
 
 ## ⚠️ Read this before touching anything
 
-1. **The container has rolled back FOUR times this session.** Local `HEAD`
-   silently reverts to an older commit and uncommitted work disappears. One
-   whole batch of UX work was lost this way and had to be re-typed.
-   **Origin is the only truth.** Before starting: `git fetch origin main &&
-   git reset --hard origin/main`. Commit and push after *every* completed
-   chunk, never batch two together.
+1. **The container has rolled back FIVE times.** Local `HEAD` silently reverts
+   to an older commit and uncommitted work disappears. The worst one landed
+   mid-session on a tree that predated two finished, pushed commits — running
+   the merge that had been asked for would have overwritten them with an older
+   copy of themselves. **Origin is the only truth.** Before starting:
+   `git fetch origin main && git reset --hard origin/main`, and verify the
+   reset took (`grep -c skystruct src/world/stages.js` must be 8) before
+   trusting the tree. Commit and push after *every* completed chunk.
 2. **Never `git add -A` on the `gh-pages` branch.** A sibling project leaked
    private files that way and its history had to be purged. Use
    `bash tools/deploy.sh`, which stages explicit paths and rebuilds
    `gh-pages` as a fresh orphan.
 3. **Do not edit his artwork to solve a UI problem.** See "Undone" below —
-   this was tried and rightly rejected.
+   tried once and rightly rejected.
 4. **Never claim something works without measuring it.** House rule from the
-   client, and it has caught real bugs: a "playing" audio element that was
-   silent for weeks, a harness that read its own damage flash as backdrop
-   light.
+   client, and it keeps catching real bugs — an audio element that reported
+   "playing" while silent for weeks, a harness reading its own damage flash as
+   backdrop light, a share feature reported dead that was merely slow.
+5. **⚠️ EVERY CHECK HERE RUNS IN CHROME. HIS PHONE IS SAFARI.** The blank
+   leaderboard shipped green through a full suite and was broken on the only
+   device that matters: Chrome resolves a parent sizing itself from a child's
+   `aspect-ratio`, Safari returns zero. When a change is CSS layout, assume the
+   harness cannot see the bug.
 
 ---
 
@@ -38,155 +44,133 @@ proposed, everything not done, everything undone, everything on hold.
 dev server   (nohup npx vite --port 5199 --strictPort > /tmp/vite.log 2>&1 &)
 harness      PLAYWRIGHT=/opt/node22/lib/node_modules/playwright/index.js \
              CHROMIUM=/opt/pw-browsers/chromium-1194/chrome-linux/chrome \
-             node tools/harness/<name>.mjs
-build        npm run build          # verify: grep -c "Client:" dist/... → 0
-deploy       bash tools/deploy.sh   # then poll the CDN for the new hash
+             SEAM_OUT=shots node tools/harness/<name>.mjs
+build        npm run build
+deploy       bash tools/deploy.sh
 ```
 
-Screenshots default to `shots/` (gitignored). Scratch work goes in the
-session scratchpad, never the repo root.
+**Dev URL flags** — URL only, never a button, nothing a player is shown:
+
+| flag | does |
+|---|---|
+| `?relay=1` | CHAMPAGNE RELAY: no enemies, no pit deaths, aura always lit |
+| `?stage=1..4` | start on that stage (one-indexed; out of range → stage 1) |
+| `?tod=day` / `night` | force the time of day |
+| `?lb=<url>` | point the leaderboard client at a stub — **DEV BUILD ONLY**, folded to dead code by Vite in production |
+
+Screenshots default to `shots/` (gitignored). Scratch work goes in the session
+scratchpad, never the repo root.
 
 ---
 
 ## DONE — shipped and live
 
-Newest first. Every one of these was verified by measurement, not by eye.
+### The contest backend (`0489ce9`) — the most load-bearing work here
+- **Moved off Cloudflare KV onto D1.** The board was one KV key doing
+  read-modify-write. KV has no compare-and-swap, so two players finishing at
+  the same moment meant the second write erased the first — a lost score with a
+  prize attached — and KV's ~1 write/sec/key ceiling made a launch party a
+  queue. Now an atomic upsert: `score = MAX(runs.score, excluded.score)`.
+- **Read path split from write path.** `/top` cached 2s at the edge, `/submit`
+  never. A hundred players make a hundred writes and thousands of reads.
+- **⚠️ Fixed: entering the contest AFTER a run used to LOSE that run.**
+  `lbSubmit()` returned early when unregistered and the submit fires at the
+  moment of death, before the panel offers the contest. Held in `pendingRun`
+  now and flushed by `flushPendingRun()` the instant they enter.
+- **Hardening:** CORS pinned (was `*` — any site could enter the contest),
+  replay run-ids with the `seen_runs` primary key as the lock, two honeypots
+  (hidden form field + decoy `score` field), plausibility limits above the
+  score recompute, fail-closed errors (it was returning raw exception text),
+  and every refusal logged with a reason.
+- **Dashboard** — `cloudflare/dashboard-worker.js`, its own worker on its own
+  hostname, read-only on the same database. Rotatable token in the link, no
+  login. Every entrant with score/phone/email/plays, live, top-N isolation,
+  CSV export.
 
-| Commit | What |
-|---|---|
-| `c63a8e8` | **Will Hill off the board**; sharing gated on entering the contest; ENTER/SHARE mutually exclusive; brag copy fixed |
-| `42f0280` | Harness screenshots default to `shots/`, not the repo root |
-| `ea79403` | Navigation harnesses moved onto the OPTIONS shelf |
-| `de5c3f2` | **OPTIONS is a menu**; board no longer scrolls; sign-up asks once; loading screen shows the background |
-| `5aca0cd` | **Intro: background first**, then the lettering falls onto it |
-| `3a817fe` | EAV day: real drifting clouds, sky healed behind them |
-| `4bf6d10` | **The fence glitch** — card separation bound to 16px |
-| `84bf153` | Social share (SHARE MY SCORE → OS share sheet with a real card) |
-| `e54edc8` | **Daytime streetlights killed** on all four stages |
-| `b153516` | Three iOS haptics defects, one of which crashed iOS |
-| `3b7d909` | Seamless cloud fills; his eyes follow the mouse on desktop |
-| `fdcd584` | Antenna pasted into sky fixed; +2 dB music; credits loop |
-| `397186c` | **The silent soundtrack** — `current` was a spread copy, gain stuck at 0 |
-| `add6060` | HTML and inline-CSS comments stripped from the production build |
-| `7fecbb1` | Pause menu finished; MUSIC split from SFX; leaderboard top un-clipped |
+### Backgrounds
+- **Clouds pass behind buildings on all four day stages** (`d6c9a69`) and on
+  the title (`a075648`). Measured in the running game: 0px of cloud on any
+  building, down from 1,259px on the Underground.
+- **`drawFeather` moved after the cards**, so the plate's top crop line
+  dissolves for the whole backdrop instead of the base alone. Improved every
+  stage: day 57.7→2.9, 37.1→1.9, 69.1→2.2, 22.6→1.7; night all under 2.2.
 
-### Detail on the recent ones
+### UX
+- **The leaderboard IS the ticket** (`1e8e894`, fixed `55075d2`). No plate, no
+  border, no padding, no duplicate heading; BACK moved onto the cream footer
+  beside ENTER. 259×561 → 336×904 on a 430px phone, zero overflow.
+- **Movement pads lifted and solidified** (`ae8090c`) — 18→34px, face 0.52→0.80
+  alpha, gold edge 0.34→0.58. Nav pair only; JUMP and DASH untouched.
 
-**Will Hill off the board** (`c63a8e8`). The pinned `WILL HILL 50,000` row is
-gone, removed inside `withWillHill()` in `src/net/leaderboard.js` so the board
-and the share card cannot disagree. `lbEmpty` keeps "NO RUNS YET. BE THE
-FIRST." The share caption used to read *"I took the TOP SPOT off Will Hill
-himself"* — true while his score was pinned, nonsense once it was gone (every
-first player would claim it), so it now only claims the top spot when someone
-is actually below you.
+### Sound
+- **The ending music starts at the last finish line** (`527dc1f`), not at the
+  tap. Cross stage four's line and the credits are already running behind the
+  clear card. Matches the map-music rule already shipped.
 
-**Sharing requires entering** (`c63a8e8`). Client: *"you shouldn't be able to
-share your score until you enter the contest, and the score you share should
-basically be your name on the leaderboard with your score."* Unregistered sees
-ENTER THE CONTEST; registered sees SHARE MY SCORE; never both. This is also
-what makes one full-width button fit on the card.
-
-**OPTIONS is a shelf** (`de5c3f2`). LEADERBOARD / HOW TO PLAY / SETTINGS /
-BACK TO GAME. Every view steps back exactly one level to OPTIONS.
-
-**Board doesn't scroll** (`de5c3f2`). `#lbCard` is sized by *height* against
-the viewport with `aspect-ratio` deriving the width. The 300px reserve is
-measured: 268 left it 17px over on a 430×932 phone; 300 gives 0px.
-
-**Intro order** (`5aca0cd`). Also fixed a real bug: `INTRO_TICKS` was 134 in
-`main.js` while the plate's fade was scheduled at 148–174 in `title.js`, so
-the background *never faded in at all* — the cards flew in over black and the
-painting snapped on at the end. Those are one shared constant now.
-`title-portrait-bare.webp` (lettering removed, sky closed) backs the intro
-only; the real plate takes over the moment the assembly ends.
-
-**Loading screen** (`de5c3f2`). Two findings: `loop.start()` was inside the
-load's `.then()`, so the LOADING screen never rendered — the boot was just the
-page's own black; and everything loaded in one pass. Title art now loads
-first and is painted behind LOADING….
+### Tooling
+- **`docs/TESTING.md`** — the test section he asked for as CAT 6.
+- **New harnesses:** `endcue` `entrypaths` `introorder` `padlift` `stageflag`
+  `stagesweep`.
+- **`stagesweep.mjs`** sweeps every screen of every stage, day and night, at
+  identical camera positions — 27/30/32/34 screens — for background review.
 
 ---
 
 ## NOT DONE — the live queue
 
-Ordered as the client organised it into six categories.
+### CAT 1 — Backgrounds ✅ *freeze lifted, cloud work done*
+Remaining, and **waiting on his markup** of the stage sheets:
+- **Layering blemishes.** He flagged the Underground. Measured: **not** the
+  cloud seal (2,733px accounted for; the rectangles are present with the seal
+  removed). It is the older doubling — the base plate carries its own copy of
+  every building and a card sliding off that copy leaves a faint second edge.
+- **"The layers on the Underground appear to be gone"** — needs verifying, not
+  assuming. All 20 cards are still in the data, so if the parallax has stopped
+  reading that is a different bug. Test: park the camera at two positions and
+  measure each card's movement against the base.
+- **Wrap seams** — every day plate is chopped at its own repeat edge.
 
-### CAT 1 — Backgrounds ⏸️ **ON HOLD, at his instruction**
-> *"Cancel all the potential edits… just present to me all the backgrounds as
-> they are right now."*
+### CAT 2 — Movement ✅ shipped
+Drifting clouds live on the title and all four day stages, verified over a full
+drift period. EAV is the weakest and that is the artwork — its plate is mostly
+tree and Swifty sign. **Night stages have no cloud cards at all**; weather at
+night would be new work, not a fix.
 
-Delivered: an 8-image gallery (4 stages × day/night) plus 4 wrap-seam strips.
-Awaiting his art review. **Do not touch any background file until he says.**
+### CAT 3 — Sound — *partly done*
+- ✅ Ending music starts sooner.
+- ❌ **Loop-seam crossfade.** Cues are cut so their end runs back into their
+  own start (`musiccheck` confirms all ten match their cut plan) but nothing
+  crossfades the seam. Either an engine change in `music.js` or longer masters
+  from him.
 
-Known and unfixed, for when the freeze lifts:
-- **Wrap seams.** Every day plate is chopped at its own repeat edge: EAV cuts
-  a tree, Edgewood cuts its corner tree, L5P slices the CRIMINAL RECORDS
-  frontage mid-sign. Visible every time the background loops.
-- **Cloud scrubs for Edgewood / L5P / Underground** — built, verified, then
-  **reverted** when he called the freeze. `tools/scrub_stage_clouds.py`
-  regenerates them in minutes.
-
-### CAT 2 — Movement
-- Title clouds drift — needs confirming on the **live** build, not dev.
-- Drifting clouds on the other three day stages — blocked by the CAT 1 freeze.
-
-### CAT 3 — Sound
-- **Nothing done.** Stage tracks need longer runtimes or clean loop points:
-  *"the songs need to be longer or we need to find better loop points."*
-- Proposed: measure each track's loop seam, trim MP3 encoder padding, add a
-  ~120ms crossfade at the wrap in `src/audio/music.js`. Genuinely longer
-  tracks need **his** MP3s.
-
-### CAT 4 — UX
-- ✅ OPTIONS shelf, no-scroll board, intro order, loading screen — all shipped.
-- ⬜ **Menu + HOW TO PLAY in the game's style.** See "Undone" for the approach
-  that was rejected and the one to use instead.
-- ⬜ **HOW TO PLAY as images.** Currently eight ✕/✓ text rows, shipped as an
-  explicit placeholder. He wants real staged gameplay: standing on a pothole
-  ✕ / jumping it ✓, manhole ✕/✓, walking into a ninja with money spilling ✕ /
-  head-stomp ✓, champagne, big blue bags. Feasible via Playwright + the dev
-  hooks (`window.__game`, `window.__startStage`); the level exposes
-  `enemies`, `bags`, `champagnes`, `obstacles`.
-- ⬜ **ENTER/SHARE onto the card's bottom band.** His idea. Measured: the dark
-  band is y 1422–1582 (0.770–0.857 of card height), cream footer starts 1586.
-  Moving the buttons on-card drops the `#lbCard` reserve from 300px to ~120px,
-  growing the card from 632px to ~812px tall — making the band ~71px, enough
-  for one full-width 44px button (which is all that's needed now the two are
-  mutually exclusive). Verify at 430×932 **and** 375×667.
+### CAT 4 — UX — *one item left*
+- ❌ **HOW TO PLAY is wrong and he has specified the fix.** The images don't
+  match the words: champagne and money carry a green tick with no lesson, and
+  the money shot has no champagne up so the bags are neither blue nor grown
+  (`main.js:1323` — "Grown AND blue while the champagne is lit"). Rebuild as
+  **four swipeable pages** (CSS scroll-snap), each carrying ✕ image, ✓ image,
+  ✕ text, ✓ text in that order. Page 4 re-shot as a real pair with the aura lit.
+- ❌ **SHARE has no spinner.** Encoding the 852×1846 card takes ~4 seconds on a
+  loaded device. It reads as a dead button.
 
 ### CAT 5 — Sign-up ✅ shipped
-Registration persists in `wh_contest_reg`; the offer latches in
-`wh_signup_asked` so NOT NOW is honoured on later visits. Offered after death
-and before a run — with two guards that cost real regressions to learn:
-without `introDone` a first-timer tapping to *skip the intro* got a contact
-form; without a banked run nobody could reach their first game without
-clearing a form.
+Offered before a run and after death, asked once, stored forever — and now the
+run actually reaches the board either way, which it did not before.
 
-### CAT 6 — Test section
-- **Not started.** Needs: full harness suite green in one run, plus a written
-  device checklist for him (music, haptics, share sheet, sign-up persistence
-  across visits, all 4 stages day/night).
+### CAT 6 — Test section ✅ shipped
+`docs/TESTING.md`. Full suite green: 14 graded harnesses, 210 checks.
 
 ---
 
 ## UNDONE — tried, then removed
-
-**Blanking his MARTA card to reuse as a menu surface.** I built
-`tools/cut_ticket_blank.py` to erase the leaderboard furniture off
-`leaderboard-card.webp` so the menu could sit on his ticket. The inpaint came
-out blurry and patched and he rejected it: *"that blank leaderboard looks
-horrible… stop fucking with everything else."* **Nothing was ever written to
-the repo** — it was a dry-run preview; `leaderboard-card.webp` is byte-identical
-to the committed original (md5 `92c7daa…` both sides). The tool is deleted.
-
-**The correct approach instead:** build the ticket in **CSS** — cream frame,
-blue band, dark body, rainbow stripe, his palette. It renders crisp at any
-size (a resampled bitmap cannot), costs nothing to load, and his artwork is
-never opened. His card keeps backing the leaderboard view only.
-
-**Also removed earlier:** the first `cut_title_bare.py` pass lifted all seven
-title cards and measured badly (23% of the plate, seam 31.65 levels, signs and
-hero returning as dark smears). Scoped down to the lettering only, seam 5.93.
+- **Blanking the MARTA card** to remove Will Hill's pinned score. Rejected:
+  *"that blank leaderboard looks horrible… why can't you just remove his name
+  and stop fucking with everything else."* Correct approach: build the ticket
+  in CSS, never edit his card.
+- **Intro three-beat ordering** (environment → objects → title). Blocked on a
+  clean cut of the signs, hero and pole off the plate; the 23% inpaint came
+  back smeared. `introorder.mjs` grades the ordering that DID ship — his name
+  lands at tick 99, PLAYER ONE at 111.
 
 ---
 
@@ -194,52 +178,77 @@ hero returning as dark smears). Scoped down to the lettering only, seam 5.93.
 
 Nothing on this list can be finished without him:
 
-- **Cloudflare KV namespace + Worker deploy.** Until this ships the leaderboard
-  is genuinely empty — no scores can be submitted or read. Code is written
-  (`cloudflare/leaderboard-worker.js`), deployment is a deliberate manual step.
-- **Contest dates** (still 0), prize, winner contact process.
-- **Longer MP3s** for the stage tracks.
-- **The original artist** — he may want hand-lettered menu art rather than a
-  CSS ticket, and MARTA-card-style pieces generally.
-- **RARƎ + prodbyKCTW logos.**
-- **Real-iPhone checks:** MUSIC actually sounding, VIBRATION actually felt.
-  Haptics had three defects fixed but cannot be verified from here.
-- **Pixel font licence** — resolved for now: Press Start 2P (SIL Open Font
-  License, free commercially) approved this session, not yet installed.
+- **⚠️ D1 database + both worker deploys. NOT a KV namespace any more.**
+  ```
+  wrangler d1 create will-hill-contest
+  wrangler d1 execute will-hill-contest --remote --file=cloudflare/schema.sql
+  # paste the id into wrangler.toml AND wrangler.dashboard.toml
+  wrangler deploy -c cloudflare/wrangler.toml
+  wrangler deploy -c cloudflare/wrangler.dashboard.toml
+  wrangler secret put DASH_TOKEN --name will-hill-dashboard   # openssl rand -hex 24
+  ```
+  Then set `LB_BASE` in `src/net/leaderboard.js` to the deployed worker URL.
+  Until this ships the board is genuinely empty and says so.
+- **Cloudflare rate limiting + Turnstile rules**, and a billing alert.
+- **Contest dates** — `CONTEST_START`/`CONTEST_END` are still `0`, which the
+  worker reads as "not configured, allow everything".
+- **AutoSprite API key** — the fall sprite wears a flannel no other clip has.
+  Re-checked; still returns `Unauthorized`.
+- **The 317MB screen recording** needs "Anyone with the link" sharing.
+- **Longer MP3s**, if he prefers that to an engine crossfade.
+- **RARƎ + prodbyKCTW logos**, and the original artist for menu art.
+- **Real-iPhone checks:** music actually sounding, haptics actually felt, the
+  Dynamic Island fix, and the lifted pads under his own thumb.
+- **Manual top-3 review before paying out.** No amount of code makes a public
+  web game uncheatable; the prize is claimed on a real phone, so eyeball the
+  winners' score against the measured ceiling first.
 
 ---
 
 ## Decisions he made, so they don't get re-litigated
 
 - Buttons go **on the card**, bottom.
-- **Press Start 2P**, self-hosted, for headings and buttons; leaderboard rows
-  stay monospace (matches his card's own figures).
 - Empty board shows **"BE THE FIRST"**, not a blank card.
-- The MARTA card says **MARTYR** and stays that way: *"let the car just say
-  martyr until I'm approached about it."*
-- Champagne relay pill is **off** the title card — dev tool only (`?relay=1`).
+- **Will Hill is NOT pinned** on the leaderboard. The 50,000 benchmark was
+  removed at his instruction; `withWillHill()` filters every pinned row.
+- The MARTA card says **MARTYR** and stays that way.
+- Champagne relay is **off** the title card — dev tool only.
 - Title screen carries **only** PRESS START, OPTIONS, MUSIC.
+- **The dashboard is a separate link**, not attached to the game, shared with
+  whoever he chooses — no login.
+- Contest correctness outranks aesthetics; the only look-and-feel issues that
+  matter up front are ones a developer or a keen-eyed player would call poor
+  quality.
 
 ---
 
 ## Harnesses
 
-`ceiling daylamps daynight graphwire idleflex joinshot musicbox musiccheck
-optionsmenu panelnav pausemenu relay relaytod seamsweep share stagestrip
-titlefit titleintro`
+```
+ceiling daylamps daynight endcue entrypaths graphwire idleflex introorder
+joinshot musicbox musiccheck optionsmenu padlift panelnav pausemenu relay
+relaytod seamsweep share stageflag stagestrip stagesweep titlefit titleintro
+```
 
-Last full green run: `optionsmenu` 12, `share` 12, `panelnav` 13, `pausemenu`
-13, `titleintro` 11, `musicbox` 11, `relaytod` 26, `daylamps` 12.
+**14 graded, 210 checks, all green:** ceiling 15, daylamps 12, endcue 11,
+idleflex 8, introorder 4, musicbox 11, optionsmenu 12, padlift 11, panelnav 13,
+pausemenu 13, relaytod 26, share 12, titlefit 60, titleintro 12.
 
-Two of these are load-bearing beyond what they look like: `titleintro` and
-`musicbox` are the proof that the sign-up offer never eats an intro-skip or a
-first game — if you change that logic and they fail, the logic is wrong, not
-the harness.
+**7 are report-only** — `daynight graphwire joinshot musiccheck relay seamsweep
+stagestrip` print tables and contact sheets for a human and have no pass/fail
+line. A mechanical sweep shows them as NO VERDICT; that is not a failure.
+
+Load-bearing beyond what they look like: `titleintro` and `musicbox` prove the
+sign-up offer never eats an intro-skip or a first game. `entrypaths` proves a
+run reaches the board whichever order someone enters in — the bug it was
+written for was live and silent.
 
 ---
 
 ## Immediate next step
 
-`c63a8e8` is pushed but **not deployed**. Run `npm run build && bash
-tools/deploy.sh`, then poll the CDN until it serves the new hash — that puts
-the Will Hill removal and the share gate on his phone.
+Everything is pushed and deployed. Next in build order:
+
+1. **HOW TO PLAY** as the four-page swipe card, page 4 re-shot with the aura lit.
+2. **His stage markup** → fix the layering blemishes as one batch.
+3. Loop-seam crossfade, and the SHARE spinner.

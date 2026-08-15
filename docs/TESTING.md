@@ -45,15 +45,15 @@ Three separate sweeps have had to clean that up; `shots/` is gitignored.
 **Graded** — they end in `ALL n PASS` or `FAILED: <checks>`, and a sweep can
 read them mechanically:
 
-`ceiling` · `daylamps` · `endcue` · `idleflex` · `introorder` · `musicbox` ·
-`optionsmenu` · `padlift` · `panelnav` · `pausemenu` · `relaytod` · `share` ·
-`titlefit` · `titleintro`
+`ceiling` · `daylamps` · `endcue` · `entrypaths` · `idleflex` · `introorder` ·
+`musicbox` · `optionsmenu` · `padlift` · `panelnav` · `pausemenu` · `relaytod` ·
+`share` · `stageflag` · `titlefit` · `titleintro`
 
 **Report-only** — they print a table or a contact sheet for a human to read,
 and have no pass/fail line at all:
 
 `daynight` · `graphwire` · `joinshot` · `musiccheck` · `relay` · `seamsweep` ·
-`stagestrip`
+`stagestrip` · `stagesweep`
 
 The one-liner above reports those as `NO VERDICT`. Do not read that as broken —
 `seamsweep` prints per-stage seam measurements, `stagestrip` stitches the whole
@@ -101,6 +101,11 @@ drifts into grading last month's product and nobody notices.
 | `graphwire` | the audio graph is connected, not silently bypassed |
 | `joinshot` | plate joins |
 | `titlefit` | the title card fits every viewport |
+| `endcue` | each finish line hands to the NEXT scene's music, with no restart |
+| `entrypaths` | a run reaches the board whether they enter before OR after it |
+| `padlift` | the movement pads' height, solidity, seam, and that a press still lights them |
+| `stageflag` | `?relay=1` / `?stage=N` work AND a plain URL is still the player's game |
+| `stagesweep` | every screen of every stage, day and night, for background review |
 
 ### Two rules learned the hard way
 
@@ -109,6 +114,28 @@ was multiplied by a gain of zero and the game was silent. Read the master bus:
 `window.__audio.level()`, peak across ~40 frames, never a single sample — it is
 an instantaneous RMS and one read can land on a zero crossing. The first call
 builds the analyser and always returns 0; discard it.
+
+**⚠️ NEVER SLEEP A FIXED NUMBER OF MILLISECONDS AND CALL IT A CONTRACT.**
+`share.mjs` waited 400ms after tapping SHARE and started reporting the entire
+share feature as dead — no download, no clipboard, no error. Nothing was
+broken: the card is an 852x1846 canvas encoded to a 2.5MB PNG and on a loaded
+machine that lands at about **four seconds**. 400ms had never been a contract,
+just a number that used to be enough. Poll the condition
+(`page.waitForFunction`) instead. The same fault in a different costume:
+`endcue.mjs` read the music cue on the same frame the screen flipped and got
+the PREVIOUS screen's answer, because `update()` asks for the cue at the top
+and the branch that changes the screen runs below it — three stages passed and
+one failed in the same run, on identical code.
+
+**A harness can be wrong about the product, not just about the timing.**
+`ceiling.mjs` still demanded WILL HILL pinned at row 1 with 50,000 — a
+benchmark the client had asked to be REMOVED. The suite went red on correct
+code. Run the whole suite end to end regularly, or it quietly drifts into
+grading last month's product. And `introorder.mjs` called a
+`__title.settledAt()` that was designed for an unshipped feature and never
+existed, then polled a `g.introT` that is a local inside `draw()` — it threw,
+and once that was fixed it hung for four minutes on a counter pinned at zero.
+A harness nobody has actually run is a comment.
 
 **Never trust `page.screenshot()` for pixel comparison.** The loop increments
 `tick` between it being set and the frame being taken; two identical runs once
