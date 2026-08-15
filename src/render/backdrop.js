@@ -258,21 +258,34 @@ export function createBackdrop(ctx, canvas) {
     }
     g.restore();
 
-    // Dissolve the plate's top edge into the sky. Without this the crop
-    // leaves a hard horizontal line across the frame wherever the building
-    // tops don't reach the top of the source image — very visible on the
-    // low-rise stages, where a 1-storey facade at true scale leaves real sky
-    // above it.
-    const feather = Math.min(drawH * 0.3, Math.max(40, drawH * 0.16));
-    if (by + feather > 0 && by < canvas.height) {
-      const [r, gg, b] = skyAt(stage, Math.max(0, by), groundY);
-      const fg = g.createLinearGradient(0, by, 0, by + feather);
-      fg.addColorStop(0, `rgb(${r},${gg},${b})`);
-      fg.addColorStop(1, `rgba(${r},${gg},${b},0)`);
-      g.fillStyle = fg;
-      g.fillRect(0, by, canvas.width, feather);
-    }
     return { by, drawH, drawW };
+  }
+
+  // Dissolve the backdrop's top edge into the sky. Without this the crop
+  // leaves a hard horizontal line across the frame wherever the building tops
+  // don't reach the top of the source image — very visible on the low-rise
+  // stages, where a 1-storey facade at true scale leaves real sky above it.
+  //
+  // ⚠️ IT RUNS AFTER THE CARDS, NOT INSIDE drawPlate, and that is load-bearing
+  // for the cloud seal. Cards are full-frame images of the same source, so
+  // they are cropped at the same top edge as the plate and can print the same
+  // hard line — fading only the base leaves them standing at full strength
+  // over a faded plate. It showed up the moment tools/seal_stage_clouds.py
+  // started covering the whole cloud band: the seal restored the crop line at
+  // full contrast, and the step across it went 31 -> 66 on the Underground
+  // and 0.9 -> 22.8 on Little 5 Points, where there had been no line at all.
+  // Fading the composite instead of one layer of it costs nothing and is what
+  // the gradient was always for.
+  function drawFeather(g, stage, plate, groundY) {
+    const { by, drawH } = plate;
+    const feather = Math.min(drawH * 0.3, Math.max(40, drawH * 0.16));
+    if (by + feather <= 0 || by >= canvas.height) return;
+    const [r, gg, b] = skyAt(stage, Math.max(0, by), groundY);
+    const fg = g.createLinearGradient(0, by, 0, by + feather);
+    fg.addColorStop(0, `rgb(${r},${gg},${b})`);
+    fg.addColorStop(1, `rgba(${r},${gg},${b},0)`);
+    g.fillStyle = fg;
+    g.fillRect(0, by, canvas.width, feather);
   }
 
   // ── Cards ───────────────────────────────────────────────────────────────
@@ -676,6 +689,7 @@ export function createBackdrop(ctx, canvas) {
       // exposed. Vite folds this out of the build.
       if (import.meta.env.DEV && plate) window.__plate = { ...plate, par: _par, groundY };
       drawCards(bctx, images, stage, camera, tick, plate);
+      if (plate) drawFeather(bctx, stage, plate, groundY);
       // Cards carry their own sway, so the plate-wide wind pass is only for
       // stages that have not been cut into a multiplane set yet.
       if (stage.bg.cards) ctx.drawImage(buf, 0, 0);

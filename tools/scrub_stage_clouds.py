@@ -97,7 +97,18 @@ def sky_and_clouds(rgb, sky_rows):
     """
     s, v = hsv(rgb)
     r, g, b = rgb[..., 0].astype(int), rgb[..., 1].astype(int), rgb[..., 2].astype(int)
-    blue = (b > r + 12) & (b > g + 4) & (v > 0.25)
+    # ⚠️ BRIGHT ENOUGH TO BE SKY, not merely blue. A building's shadowed face
+    # is painted dark blue and meets open sky at its roofline, so a flood that
+    # only asks "is it blue" pours in at the roof and runs the whole height of
+    # the shadow — marking the strip as sky, leaving it out of the structure
+    # overlay, and letting clouds show straight down it. That is the bug the
+    # client found on the title screen ("that long shadow strip going down the
+    # building is treating that like it's something separate"), and this file
+    # shares the flood, so it shares the bug. Measured on the title plate: the
+    # two populations do not overlap — shadow below 0.40, real sky 0.596 to
+    # 0.694 — so 0.50 sits in the gap.
+    SKY_MIN_V = 0.50
+    blue = (b > r + 12) & (b > g + 4) & (v > SKY_MIN_V)
     cloud_strict = (v > 0.80) & (s < 0.16)
     cloud_weak = (v > 0.62) & (s < 0.30)
     zone = np.zeros(v.shape, bool)

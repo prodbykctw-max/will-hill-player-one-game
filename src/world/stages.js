@@ -87,6 +87,7 @@ import eavDayTree from '../assets/backgrounds/eav-day-tree.webp';
 import eavDayPole from '../assets/backgrounds/eav-day-pole.webp';
 import eavDayShrubRight from '../assets/backgrounds/eav-day-shrub_right.webp';
 import edgewoodDayClouds from '../assets/backgrounds/edgewood-day-clouds.webp';
+import edgewoodDaySkystruct from '../assets/backgrounds/edgewood-day-skystruct.webp';
 import edgewoodDayTrees from '../assets/backgrounds/edgewood-day-trees.webp';
 import edgewoodDaySkyline from '../assets/backgrounds/edgewood-day-skyline.webp';
 import edgewoodDayParapet from '../assets/backgrounds/edgewood-day-parapet.webp';
@@ -103,6 +104,7 @@ import edgewoodDayNeonDis from '../assets/backgrounds/edgewood-day-neon_dis.webp
 import edgewoodDayLamps from '../assets/backgrounds/edgewood-day-lamps.webp';
 import edgewoodDayPavement from '../assets/backgrounds/edgewood-day-pavement.webp';
 import l5pDayClouds from '../assets/backgrounds/l5p-day-clouds.webp';
+import l5pDaySkystruct from '../assets/backgrounds/l5p-day-skystruct.webp';
 import l5pDayFarbuild from '../assets/backgrounds/l5p-day-farbuild.webp';
 import l5pDaySign from '../assets/backgrounds/l5p-day-sign.webp';
 import l5pDayLetters from '../assets/backgrounds/l5p-day-letters.webp';
@@ -189,6 +191,7 @@ import ugColumns from '../assets/backgrounds/underground-columns.webp';
 // The DAY set, cut from the day plate by tools/cut_planes.py against SAM
 // masks grouped in tools/sam_groups/underground-day.json.
 import ugdClouds from '../assets/backgrounds/underground-day-clouds.webp';
+import ugdSkystruct from '../assets/backgrounds/underground-day-skystruct.webp';
 import ugdSpire from '../assets/backgrounds/underground-day-spire.webp';
 import ugdTowers from '../assets/backgrounds/underground-day-towers.webp';
 import ugdBackdrop from '../assets/backgrounds/underground-day-backdrop.webp';
@@ -393,7 +396,7 @@ const STAGE_DEFS = [
           // over the drifting puffs so a cloud passes BEHIND them. Depth 0.5
           // is BASE_DEPTH on purpose: at the base's own rate it registers
           // with the base's copy to the pixel, forever.
-          { key: 'skystruct', img: eavDaySkystruct, depth: 0.5, span: [0.082, 1.000] },
+          { key: 'skystruct', img: eavDaySkystruct, depth: 0.5, span: [0.000, 1.000] },
           { key: 'skyline', img: eavDaySkyline, depth: 0.07, span: [0.768, 0.980] },
           { key: 'mcdonalds', img: eavDayMcdonalds, depth: 0.16, span: [0.899, 0.979] },
           { key: 'cars', img: eavDayCars, depth: 0.21, span: [0.772, 0.979] },
@@ -568,7 +571,12 @@ const STAGE_DEFS = [
           // The one card with NO night counterpart: the night plate's sky is a
           // black band with nothing in it to lift. Farthest thing in the
           // picture, so it gets the smallest depth and barely moves.
-          { key: 'clouds', img: edgewoodDayClouds, depth: 0.02, drift: -0.035, span: [0.024, 1.000] },
+          { key: 'clouds', img: edgewoodDayClouds, depth: 0.02, drift: -0.035, span: [0.163, 0.568] },
+          // The sky band's static furniture, repainted over the drifting
+          // clouds so weather passes BEHIND it. depth 0.5 is BASE_DEPTH:
+          // at the base's own rate it registers with the base's copy to
+          // the pixel. tools/seal_stage_clouds.py.
+          { key: 'skystruct', img: edgewoodDaySkystruct, depth: 0.5, span: [0.000, 1.000] },
           // ── THE OVERHANGING TREE ────────────────────────────────────
           // Its own card at last. It was split between `skyline` (25% of the
           // canopy, travelling with the buildings) and the static base (the
@@ -716,7 +724,12 @@ const STAGE_DEFS = [
         // higher and its columns are narrower — so the night cards never
         // registered against this plate.
         cards: [
-          { key: 'clouds', img: ugdClouds, depth: 0.03, drift: -0.035, span: [0.359, 0.999] },
+          { key: 'clouds', img: ugdClouds, depth: 0.03, drift: -0.035, span: [0.672, 0.989] },
+          // The sky band's static furniture, repainted over the drifting
+          // clouds so weather passes BEHIND it. depth 0.5 is BASE_DEPTH:
+          // at the base's own rate it registers with the base's copy to
+          // the pixel. tools/seal_stage_clouds.py.
+          { key: 'skystruct', img: ugdSkystruct, depth: 0.5, span: [0.000, 0.847] },
           { key: 'spire', img: ugdSpire, depth: 0.08, span: [0.758, 0.888] },
           { key: 'towers', img: ugdTowers, depth: 0.12, span: [0.480, 0.999] },
           { key: 'backdrop', img: ugdBackdrop, depth: 0.16, span: [0.299, 0.348] },
@@ -871,7 +884,12 @@ const STAGE_DEFS = [
           // The one card with NO night counterpart: the night plate's sky is a
           // black band with nothing in it to lift. Farthest thing in the
           // picture, so it gets the smallest depth and barely moves.
-          { key: 'clouds', img: l5pDayClouds, depth: 0.02, drift: -0.035, span: [0.000, 1.000] },
+          { key: 'clouds', img: l5pDayClouds, depth: 0.02, drift: -0.035, span: [0.178, 0.764] },
+          // The sky band's static furniture, repainted over the drifting
+          // clouds so weather passes BEHIND it. depth 0.5 is BASE_DEPTH:
+          // at the base's own rate it registers with the base's copy to
+          // the pixel. tools/seal_stage_clouds.py.
+          { key: 'skystruct', img: l5pDaySkystruct, depth: 0.5, span: [0.055, 1.000] },
           { key: 'farbuild', img: l5pDayFarbuild, depth: 0.06, span: [0.021, 0.173] },
           { key: 'sign', img: l5pDaySign, depth: 0.22, span: [0.458, 0.936] },
           { key: 'letters', img: l5pDayLetters, depth: 0.23, span: [0.512, 0.897] },
