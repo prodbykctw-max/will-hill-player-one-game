@@ -44,6 +44,21 @@ disjoint rectangular planes — they work, and they read as hard cuts.
   fast card migrates a whole plate width across a level. The tree that starts
   the stage on the left ends it on the right. The target is the lenticular
   effect: small enough that nothing distorts.
+- **⚠️ SEPARATION IS NOT DRIFT-FROM-HOME, IT IS DOUBLE VISION.** The base plate
+  is the FULL painting — it still carries its own copy of every item the cards
+  re-draw (measured: a card's opaque pixels are 99–100% identical to the base
+  underneath). So every pixel a card moves off its base copy prints the item
+  **twice**. Alpha holes make it worse: the gaps between fence planks show the
+  base's copy of the same fence, offset. Two things keep it under the reading
+  threshold — draw the base at NEUTRAL depth (mid-stack, not 0) so the error
+  splits between near and far cards instead of the base walking away from all
+  of them, and make the clamp a **tanh ease rather than a wall**, so cards slow
+  into the bound and the relative shear between neighbours compresses instead
+  of accumulating. 16px of double reads as paint thickness; 34px reads as a
+  second fence, and the client photographed exactly that.
+- **It only shows in daylight.** The same offsets sat in the night plates for
+  weeks. Dark planks have no contrast to read a double edge against. Do not
+  conclude a layering bug is absent because the night stage looks fine.
 - **Assign masks by CONTAINMENT, not centroid.** 70% of pixels inside the
   region. A centroid rule put the sky on a column card, because the sky's
   centroid happens to land in the column's box.
@@ -77,6 +92,135 @@ disjoint rectangular planes — they work, and they read as hard cuts.
 - **Sway is per-card**, pivoted at the bottom of the moving mass, so trunks
   stay still and only leaves move. Subdivide within each window — shearing a
   whole card about one pivot makes a tree lean like the rigid cutout it is.
+
+## Weather: a card that MOVES ON ITS OWN
+
+Parallax is a function of where the camera is, so a cloud card only slides
+while the player runs — stand still and the sky is a photograph. Give the card
+a `drift` in source px per tick and it moves forever without a seam, because
+the plate is already wrapped.
+
+That one change opens the longest-running bug on this project. The client
+reported it for a week in a row and every one of my first four diagnoses was
+wrong. Read this section before touching drifting weather.
+
+**The symptom:** a cloud passing a tower is visible in front of part of the
+tower and hidden behind the rest. The client's words: *"a cloud that goes
+partially behind the building and partially in front of a building looks like
+it's going through the building, like inside the building."*
+
+**Wrong diagnosis #1 — the far/near flag.** I went looking for clouds assigned
+to the wrong plane. There is no such bug available: a card is drawn either
+before or after the structure card, so it is *wholly* behind or *wholly* in
+front. A flag cannot make one cloud do both. The client corrected me on this
+directly. **Partly-behind-and-partly-in-front always means the SILHOUETTE HAS
+GAPS**, never that the ordering is wrong.
+
+**Wrong diagnosis #2 — enclosed holes.** Filling holes fully surrounded by
+structure (126 of them, 5,390px) is real but is half the problem. A gap that
+reaches open sky is not enclosed, so a hole-filler never sees it, and a cloud
+crossing one emerges mid-face exactly as described.
+
+**Wrong diagnosis #3 — sky-connected gaps.** Better, still wrong, and this is
+where the client out-diagnosed me: *"the dark side of the building, that long
+shadow strip going down the building, is treating that like it's something
+separate."*
+
+He was exactly right, and it is the rule worth carrying to every project:
+
+> **⚠️ A SKY FLOOD RUNS DOWN A BUILDING'S SHADOWED FACE.** The dark side of a
+> building is painted dark BLUE, and it meets open sky at the roofline. A flood
+> that only asks "is this blue" pours in at the roof and marks the whole strip
+> as sky, so it never gets sealed and the weather stays visible all the way
+> down it. **Put a brightness floor on the flood.** Measured on one plate:
+> 30,494px (17.6%) of what the flood called sky was darker than 0.40, while
+> real sky sat at 0.596–0.694. Two clean populations, nothing between the 10th
+> percentile (0.333) and the 25th (0.596) — so a floor of 0.50 lands in the
+> empty gap and cannot cut into real sky. **Measure the gap on your own plate;
+> do not inherit 0.50.**
+
+### Sealing the sky band
+
+The fix is a `skystruct` card: the sky band's structure carrying **the base
+plate's own pixels**, declared at exactly the base's depth so it registers with
+its copy underneath to the pixel, drawn after the weather. No repainting, no
+inpainting, no invention — a hole is filled with the base's pixel at that
+coordinate, so the static picture is bit-for-bit what it was and the only
+difference is that a cloud can no longer be seen through it.
+
+Three more traps, all of which bit:
+
+- **Trust no other card's footprint.** My seal took credit for coverage from
+  every other card in the stage. Cards parallax up to `MAX_SEPARATION` off the
+  base — that is the entire point of the multiplane — so along every card's
+  edge is a strip that its footprint claims and the card does not actually
+  cover. Seal the whole band and trust nothing.
+- **"Bright and unsaturated" is a cloud, and it is also the pale stone pier
+  between two windows.** Excluding it cost 41,406px of one facade, in vertical
+  strips between window bays, which is precisely where the leak was. Tell them
+  apart by **what surrounds the blob**, a blob at a time: the fraction of its
+  3px ring that is open sky, and the fraction that is black keyline. Measured
+  across four plates, clouds ran 0.50–0.76 sky-ring and 0.00–0.10 dark-ring;
+  structure ran 0.00–0.11 and 0.14–0.93. Comic-style art outlines every object
+  in ink and never outlines weather, which is what makes the second test work.
+  **Where the two disagree, SEAL** — a cloud sealed by mistake merely stops
+  drifting; a building freed by mistake is the bug.
+- **Do not over-seal, or you kill the weather.** Sealing everything that is not
+  sky swallows the clouds still painted into the plate, and the drifting ones
+  then hide behind them: one stage went to **9px of moving cloud on screen**.
+  Grade both directions or you will trade one complaint for the opposite one.
+
+### Sealing is visually free — except where the renderer post-processes
+
+The seal draws the base's own pixels at the base's own rate, so it cannot
+double against anything, including a swaying card. I wasted a pass being
+cautious about that.
+
+It is **not** free where the renderer does something to the plate that it does
+not do to the cards. Here that was the top **feather** — the gradient that
+dissolves the plate's crop line into the sky. It faded the base only; cards
+drew over it at full strength, and a fully sealed band restored a hard
+horizontal cut across the frame. **Fade the COMPOSITE, after the cards, not one
+layer of it.** That is what the gradient was always for, and it improved every
+stage, including ones that had shipped:
+
+```
+day    57.7 -> 2.9   37.1 -> 1.9   69.1 -> 2.2   22.6 -> 1.7
+night   8.6 -> 2.2   12.2 -> 2.0    4.0 -> 2.0    3.1 -> 1.9
+```
+
+### How to measure weather occlusion in the running game
+
+Offline arithmetic proves the card covers the structure. It does not prove the
+card is wired, spanned and depthed correctly. Measure the rendered frame:
+
+1. **Draw the frame twice — with the weather card, and with it removed. The
+   difference IS the weather.** No colour-keying, no guessing which pixels are
+   cloud.
+2. **Capture the noise.** Draw the clouds-off state *twice* and subtract what
+   changes between the two — idle animation, a HUD timer, swaying cards. One
+   pair is not enough if anything cycles: take the union across every sample.
+   Skipping this reported a player's own trousers as a cloud (236px, rows
+   508–569 — his sprite box on every stage).
+3. **Scope to where a cloud can be.** Below the lowest sky pixel in the frame
+   there is no weather, and a real crossing always has cloud in open air right
+   beside it.
+4. **⚠️ Do not park the player off-screen to clear the frame.** At y=-40000 he
+   falls, dies, respawns and the camera snaps — forever. Pairs came back
+   279,503px apart at some ticks and 3,000 at others, which is not cloud, it is
+   the phase of a death loop. Leave him at spawn; he stands still and the sky
+   above him is nobody's business.
+5. **Sweep a whole drift period for VISIBILITY too**, not just for leaks. At
+   0.035px/tick against a ~1500px period that is ~43,000 ticks — twelve minutes
+   of play — so a six-sample window near tick 0 tells you almost nothing.
+
+## Determinism, or the measurement is worthless
+
+`page.screenshot()` is not synchronised to the game loop: the tick increments
+between being set and the frame being taken, and **two identical runs differed
+by 12,384px**. Re-pin the tick across three frames and read
+`canvas.toDataURL()` inside ONE `page.evaluate`. Before/after numbers taken any
+other way are noise with a decimal point.
 
 ## NumPy trap that cost real time
 
