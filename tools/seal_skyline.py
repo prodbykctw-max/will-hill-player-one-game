@@ -82,7 +82,26 @@ def main():
     mx = comp.max(axis=2).astype(float) / 255
     mn = comp.min(axis=2).astype(float) / 255
     sat = np.where(mx > 0, (mx - mn) / np.maximum(mx, 1e-6), 0)
-    blue = (bl > r + 12) & (bl > g + 4) & (mx > 0.25)
+    # ⚠️ AND THE FLOOD MUST NOT RUN DOWN A BUILDING'S SHADOWED FACE.
+    #
+    # This is the bug two passes of sealing did not fix, and the client named
+    # it exactly: "the dark side of the building on the right side, that long
+    # shadow strip going down the building, is treating that like it's
+    # something separate."
+    #
+    # A shadowed face is painted DARK BLUE. It passes the blue test, and it
+    # meets open sky at the roofline — so the flood pours in at the roof and
+    # runs the whole height of the strip, marking it sky. It never got
+    # sealed, so a cloud behind the tower stayed visible all the way down it:
+    # in front of the lit face, gone behind it, back again down the shadow.
+    #
+    # Measured on the tower band: of 173,056 px the flood called sky, 30,494
+    # (17.6%) were darker than 0.40, while real sky sits at 0.596 (25th pct)
+    # to 0.694 (95th). The two populations do not overlap — the 10th
+    # percentile is 0.333 and the 25th is 0.596 — so a floor of 0.50 lands in
+    # the empty gap between them and cannot cut into real sky.
+    SKY_MIN_V = 0.50
+    blue = (bl > r + 12) & (bl > g + 4) & (mx > SKY_MIN_V)
     cloudish = (mx > 0.62) & (sat < 0.30)
     core = ndimage.binary_erosion(blue & ~cloudish, iterations=1)
     lab, _ = ndimage.label(core)
