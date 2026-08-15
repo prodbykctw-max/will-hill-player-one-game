@@ -233,6 +233,26 @@
     }
     /* Two across: the wrong way and the right way, side by side, so the
        pair reads as one lesson without a word of explanation. */
+    /* The ticket's cream footer, used as the action bar. Positioned in card
+       fractions like the score rows, so it tracks the artwork at any size —
+       the dark body ends at 0.857 and the cream runs to 0.946. */
+    #lbActions {
+      position: absolute; left: 6%; right: 6%;
+      top: 86.4%; height: 7.4%;
+      display: flex; align-items: stretch;
+    }
+    #lbActions .btn.card {
+      flex: 1; margin: 0; padding: 0;
+      display: flex; align-items: center; justify-content: center;
+      font: 800 3.5cqw/1 system-ui, sans-serif; letter-spacing: 0.06em;
+      color: #f7f1e2; background: #16131f;
+      border: 0.5cqw solid rgba(255,214,110,0.75); border-radius: 2cqw;
+      box-shadow: 0 0.6cqw 0 rgba(0,0,0,0.45);
+      cursor: pointer;
+    }
+    #lbActions .btn.card:active { transform: translateY(0.3cqw); box-shadow: none; }
+    #lbActions .btn.card[hidden] { display: none; }
+
     #howList {
       margin: 0 0 14px; padding: 0; list-style: none;
       display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
@@ -332,9 +352,12 @@
          being fought over. The reserve is MEASURED, not guessed: 268 left the
          card 17px over on a 430x932 phone, so it is 300 — and the note can
          wrap to two lines when a share result comes back, which is where the
-         extra headroom goes. */
+         extra headroom goes. 300 was right while ENTER and BACK were both
+         stacked below; with the action moved onto the ticket only the title,
+         the note and BACK are left outside, so the reserve is 196 and the
+         card takes the difference. */
       position: relative; aspect-ratio: 852 / 1846;
-      height: min(calc(100dvh - 300px), 1846px);
+      height: min(calc(100dvh - 196px), 1846px);
       width: auto; max-width: 100%; margin: 0 auto;
       container-type: inline-size;
       background: center/100% 100% no-repeat;   /* image set in panel.js */
@@ -477,14 +500,26 @@
           <ol id="board"></ol>
           <div id="lbYou" hidden><span class="r"></span><span class="n"></span><span class="s"></span></div>
           <p id="lbEmpty" hidden></p>
+          <!-- ⚠️ THE ACTION LIVES ON THE TICKET, IN ITS OWN FOOTER.
+               Client: "maybe it should be on the card at the bottom so you
+               don't have to scroll it", and later, tapping through to the
+               board: it "kind of feels" small. Both are the same problem —
+               measured, the card was getting 68% of the screen (632px of
+               932, only 292px wide) because a note, ENTER and BACK were
+               stacked underneath it eating 216px.
+               Only ONE of these is ever on screen (see fillBoard: ENTER
+               until you are registered, SHARE after), so a single full-width
+               bar is all the room the footer has to find. -->
+          <div id="lbActions">
+            <button class="btn card" id="btnRegister" type="button">ENTER THE CONTEST</button>
+            <button class="btn card" id="btnShare" type="button">SHARE MY SCORE</button>
+          </div>
         </div>
         <p id="boardNote" class="note"></p>
-        <button class="btn" id="btnRegister" type="button">ENTER THE CONTEST</button>
         <!-- The share sheet is the only route a web page has to Instagram or
              Facebook — see src/ui/share.js for the platform reality and the
              desktop fallback. Primary style, not ghost: posting a score is a
              thing we WANT happening, same weight as entering the contest. -->
-        <button class="btn" id="btnShare" type="button">SHARE MY SCORE</button>
         <!-- SETTINGS used to sit here too. It moved to the OPTIONS menu where
              the client put it, which also buys the board back a button's
              worth of height — see #lbCard on why every row under the card
