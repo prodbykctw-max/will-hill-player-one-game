@@ -442,7 +442,10 @@ export function createRenderer(ctx, canvas) {
     );
   }
 
-  // Champagne aura. Thirty seconds of invulnerability is a long time to leave
+  // Champagne aura. NINE seconds of invulnerability (CHAMPAGNE_SECONDS in
+  // entities/player.js — it was thirty, which is a very long time to be
+  // untouchable in a game whose whole tension is three touches) is still long
+  // enough to leave
   // the player guessing about, and the HUD timer alone is not enough — your
   // eyes are on the character, not the corner of the screen. So the state is
   // drawn ON him: a warm pulsing bloom, a brighter core, and a few motes
@@ -493,7 +496,7 @@ export function createRenderer(ctx, canvas) {
   // CHAMPAGNE AURA — Super Saiyan.
   //
   // The first version was a modest bloom at 0.95 of his height with five
-  // motes drifting around it. Thirty seconds of invulnerability is the
+  // motes drifting around it. The champagne window is the
   // biggest thing that happens in this game and it looked like a warm
   // streetlight. This is the transformation read instead: a tall column of
   // flame licking UPWARD past his head, a hard white core, ground light

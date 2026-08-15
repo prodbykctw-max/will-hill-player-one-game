@@ -152,7 +152,8 @@ export function createRunLog() {
 //
 // Every run is banked on the device whether or not the Worker is up. This is
 // what the board shows while `LB_URL` is empty — which is right now, and will
-// be right up until the KV namespace is created — and it is also the fallback
+// be right up until the D1 database is created and the Worker deployed (it is
+// D1, not KV; see cloudflare/README.md) — and it is also the fallback
 // when a phone is on a bad connection at a party, which is exactly where this
 // game gets played. A board that says "could not load" is worse than a board
 // showing your own last ten runs.

@@ -10,7 +10,7 @@ Architecture and conventions for working on this repo. Read `docs/GDD.md` first 
 
 - **Modular `src/` + Vite build**, not a single hand-maintained HTML file. Chosen specifically to avoid the dead-parked-experiment drift that accumulated in the Jandé repo (a Phaser+Vite scaffold and two Godot projects sat unused alongside its real single-file source). One source tree, one build target (`dist/`).
 - Vite's asset import system content-addresses (hashes) imported assets automatically — this replaces the hand-rolled `externalize_assets.py` content-addressing step the Jandé project needed.
-- `assets/` (raw reference art, 3D source, AutoSprite/Tripo3D exports) is ignored **by default, not by rule**. The point is to stop unwanted *exposure*, not to block recordkeeping — a blanket ban was losing irreplaceable work. The test: **if losing the file means the work cannot be rebuilt, commit it.** Currently kept are prodbyKCTW's voice recording and the four SIDESCROLLER sprite sheets; re-downloadable packs and build scratch stay ignored. See `.gitignore` for the negation pattern (`/assets/*`, not `/assets/` — git will not descend into an excluded directory). Composed game-ready assets live in `src/` and are hashed into `dist/` at build time.
+- `assets/` (raw reference art, 3D source, AutoSprite/Tripo3D exports) is ignored **by default, not by rule**. The point is to stop unwanted *exposure*, not to block recordkeeping — a blanket ban was losing irreplaceable work. The test: **if losing the file means the work cannot be rebuilt, commit it.** Currently kept: **39 tracked files** — nine `will-hill-pixel` sheets (downed, fall, hit, idle, jump, knockback, perform, run, walk), twelve enemy sheets (enemy_a/b/c × defeat/idle/stomp/walk), the brand files and prodbyKCTW's voice recording. Re-downloadable packs and build scratch stay ignored. (This said "the four SIDESCROLLER sprite sheets" long after the reaction clips and every enemy sheet were added — `git ls-files assets/ | wc -l` is the check.) See `.gitignore` for the negation pattern (`/assets/*`, not `/assets/` — git will not descend into an excluded directory). Composed game-ready assets live in `src/` and are hashed into `dist/` at build time.
 
 ## Process this repo follows
 
@@ -37,6 +37,26 @@ Two workers, deliberately separate:
 - `cloudflare/dashboard-worker.js` — the admin view, its own hostname, read-only, reached by a rotatable token in the link. Never fold this into the game worker: that is the endpoint under load and the one an attacker already has a URL for.
 
 Neither is deployed. Creating the D1 database and deploying touches the live Cloudflare account and stays an explicitly-confirmed manual step, not something to run automatically. `LB_BASE` in `src/net/leaderboard.js` is empty until it is.
+
+## Docs, and the dev doors
+
+`docs/` is the written record and each file has one job:
+
+| file | what it is for |
+|---|---|
+| `STATUS.md` | **start here.** Everything shipped, open, undone, on hold, and who is blocked |
+| `TESTING.md` | how to run the harness suite, what each one protects, and the on-device checklist |
+| `GDD.md` | the design — mechanics, scoring, the contest |
+| `LESSONS.md` | mistakes already made here, so they are not made twice |
+| `TECHNIQUES.md` | reusable methods |
+| `HANDOFF.md` | the long-form running log |
+
+**Dev URL flags** — URL only, never a button, nothing a player is ever shown:
+`?relay=1` (CHAMPAGNE RELAY: no enemies, no pit deaths, aura always lit),
+`?stage=1..4` (one-indexed; out of range falls through to stage one),
+`?tod=day|night`, and `?lb=<url>` which is **DEV-build only** and folded to
+dead code by Vite in production. `tools/harness/stageflag.mjs` grades both that
+they work and that a plain URL is still the player's game.
 
 ## Reference project
 

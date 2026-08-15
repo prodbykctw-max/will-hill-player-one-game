@@ -1,39 +1,107 @@
-# Contest leaderboard — deploy (not done yet)
+# The contest backend — deploying it
 
-`leaderboard-worker.js` is real, working code (see its header comment and `docs/GDD.md` "Leaderboard & contest" for the design it implements — replay/event-log score validation, public name+score / private phone+email split, 3-day contest window). **It has not been deployed, and its KV namespace has not been created.** Both touch the live Cloudflare account, so they're a manual, explicitly-confirmed step — mirroring how the Jandé project's leaderboard Worker was handled.
+Two Workers and one **D1 database**. Nothing here is deployed: creating the
+database and pushing the Workers touches the live Cloudflare account, so it
+stays a manual, explicitly-confirmed step.
 
-## Before deploying
+> ⚠️ **THIS USED TO SAY KV. DO NOT CREATE A KV NAMESPACE.**
+> The first design held the whole leaderboard in one KV key and did
+> read-modify-write on every submit. KV has **no compare-and-swap**, so two
+> players finishing at the same moment both read the old list and the second
+> write erases the first — a lost score, in a contest with a real prize. KV
+> also allows roughly **one write per second per key**, which makes a launch
+> party a queue against a single key. D1 makes "keep the highest" an atomic
+> upsert instead. If you find a KV instruction anywhere, it is stale.
 
-1. Set the real contest window: fill in `CONTEST_START` / `CONTEST_END` (ms epoch) in `leaderboard-worker.js`.
-2. Create the KV namespace and put its id in `wrangler.toml` (`TODO_CREATE_KV_NAMESPACE`):
-   ```bash
-   npx wrangler kv namespace create LB
-   ```
+---
 
-## Deploy
+## 1. Create the database and load the schema
 
-```bash
-cd cloudflare
-npx wrangler login          # once, opens the browser
-npx wrangler deploy         # deploys leaderboard-worker.js + binds the KV
+```sh
+wrangler d1 create will-hill-contest
+wrangler d1 execute will-hill-contest --remote --file=cloudflare/schema.sql
 ```
 
-`wrangler deploy` prints the live URL, e.g. `https://will-hill-leaderboard.<your-subdomain>.workers.dev`.
+`wrangler d1 create` prints a `database_id`. Paste the **same id** into both
+config files, replacing `TODO_CREATE_D1_DATABASE`:
 
-## Point the game at it
+- `cloudflare/wrangler.toml` — the public game Worker
+- `cloudflare/wrangler.dashboard.toml` — the admin dashboard
 
-Set `LB_URL` in `src/net/leaderboard.js` to the deployed Worker URL (currently empty — the client silently no-ops the leaderboard until it's set, same graceful-fallback behavior as the Jandé game).
+Four tables (`cloudflare/schema.sql`), and the split is the point:
 
-## Test the API directly
+| table | holds | who reads it |
+|---|---|---|
+| `runs` | id, name, score, plays — **no contact column at all** | the public `/top` |
+| `entrants` | phone, email, name | the dashboard only |
+| `seen_runs` | one row per run id — the replay lock | `/submit` |
+| `rejects` | every refusal with its reason | the dashboard |
 
-```bash
-BASE=https://will-hill-leaderboard.<your-subdomain>.workers.dev
-curl -s "$BASE/top?n=10"
-curl -s -X POST "$BASE/submit" -H 'Content-Type: application/json' \
-  -d '{"name":"TEST","events":[{"t":100,"type":"bag"}],"durationMs":5000,"phone":"","email":""}'
+`runs` has no phone column, so the public endpoint cannot leak one even if
+somebody writes a careless query later. That is structural, not a convention.
+
+## 2. Deploy the public Worker
+
+```sh
+wrangler deploy -c cloudflare/wrangler.toml
 ```
 
-## Endpoints
+Serves `GET /top?n=` (cached ~2s at the edge) and `POST /submit` (never
+cached). Origin-locked, replay-protected, honeypotted, fail-closed.
 
-- `GET /top?n=20` → `{ ok, runs:[{name, score}] }` — public, never includes phone/email.
-- `POST /submit` `{ name, events, durationMs, phone, email }` → `{ ok, rank, score }` — score is recomputed server-side from `events`, never trusted from the client.
+## 3. Deploy the dashboard — separate Worker, separate hostname
+
+```sh
+wrangler deploy -c cloudflare/wrangler.dashboard.toml
+wrangler secret put DASH_TOKEN --name will-hill-dashboard   # openssl rand -hex 24
+```
+
+Then the link is `https://<dashboard-host>/?k=<DASH_TOKEN>`.
+
+⚠️ **Rotating `DASH_TOKEN` is the kill switch.** Re-run the `secret put` with a
+new value and every link ever sent stops working. That is the only thing that
+makes a login-free page showing real phone numbers acceptable — a share link is
+forwardable. **Rotate it the day the contest closes.**
+
+It is a separate Worker on purpose. Folding an `/admin` route into the game
+Worker would be less code, and that is exactly what makes it worse: the game
+Worker is the one every phone is hammering and the one an attacker already has
+a URL for.
+
+## 4. Point the game at it
+
+Set `LB_BASE` in `src/net/leaderboard.js` to the deployed Worker's URL, then
+`npm run build && bash tools/deploy.sh`.
+
+Until that is set, `lbOn()` is false, nothing is submitted, and the board shows
+the player's own local runs rather than an error. That is deliberate — a board
+saying "could not load" is worse than a short local one.
+
+⚠️ Also add the deployed origin to `ALLOWED_ORIGINS` in
+`leaderboard-worker.js` if the game ever moves off
+`https://prodbykctw-max.github.io`.
+
+## 5. Set the contest window
+
+`CONTEST_START` and `CONTEST_END` in `leaderboard-worker.js` are both `0`,
+which the Worker reads as **"not configured — allow everything"**. Set real
+ms-epoch values before launch or the contest never closes.
+
+## 6. In the Cloudflare dashboard, not in code
+
+- **Rate limiting** on `/submit` — per IP, e.g. 10/min and 100/hour. A request
+  rejected at the edge never runs code and never touches D1.
+- **Turnstile** on the contest form, verified inside `/submit`.
+- **A billing alert**, so a hammering costs a notification rather than a bill.
+
+---
+
+## Before paying out
+
+No amount of code makes a public web game uncheatable — the client is
+readable, so a determined person can synthesise an event log that passes every
+check. Every measure above raises the cost; none makes it impossible.
+
+**The prize is claimed on a real phone and a real address.** Review the top few
+by hand first: score against the measured ceiling (`tools/harness/ceiling.mjs`
+computes it), run duration, when they entered. Five minutes on three people.

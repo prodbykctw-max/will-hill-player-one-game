@@ -27,7 +27,7 @@ Will Hill is on his way to his performance — the run through the game's stages
 - **Combat:** none. No sword/melee system.
 - **Core mechanic — Mario-style stomp:** jumping on top of an enemy defeats it. Side/head-on contact damages the player instead.
 - **Platforming:** platforms are asphalt-textured (visually distinct street/road material within the level geometry).
-- **Enemy behavior & physics — confirmed "exactly like Mario":** classic bounded patrol AI (enemies walk back and forth within a range, or off ledges Goomba-style), standard platformer physics (gravity/jump arc, solid ground + floating platforms, pits/gaps as hazards). This is the well-understood Mario ruleset transplanted onto the Atlanta setting — no novel mechanic being invented.
+- **Enemy behavior & physics — confirmed "exactly like Mario":** classic bounded patrol AI (enemies walk back and forth within a range — but ⚠️ they do **not** walk off ledges any more: `canStand()` in `src/entities/enemy.js` probes the leading edge and turns them at the brink, because a patrol that suicides into a pit removes the hazard the player was supposed to deal with), standard platformer physics (gravity/jump arc, solid ground + floating platforms, pits/gaps as hazards). This is the well-understood Mario ruleset transplanted onto the Atlanta setting — no novel mechanic being invented.
 - **Camera:** pulled back further than a typical side-scroller, with extra headroom so the player can see upcoming obstacles, platforms, and enemies before reaching them. Same rationale as a Mario-style camera looking ahead of the player, just pulled back further.
 - **Movement/perspective:** side-scroll, in the same style as the Jandé game's Action RPG mode (`once-upon-a-time` repo) — explicitly **not** a Streets-of-Rage-style brawler (an earlier framing that was corrected) and **not** isometric (an isometric animation set exists but is unused — see Character Asset Pipeline below).
 
@@ -64,7 +64,10 @@ there is no dedicated hit animation, so the *motion* carries the difference:
 
 A pothole is the street tripping you up. An enemy is a person hitting you.
 
-**Power-up.** The champagne bottle grants 30s of invulnerability, and that has
+**Power-up.** The champagne bottle grants **9s** of invulnerability and a **2x
+money multiplier** (`CHAMPAGNE_SECONDS`/`CHAMPAGNE_MULT`). It was 30s, which is
+a very long time to be untouchable in a game whose whole tension is three
+touches. That has
 to be legible on the character rather than only in a HUD timer — your eyes are
 on him, not the corner. He gets a warm pulsing bloom with motes orbiting, and
 it fades over the last two seconds so the power running out is something you
@@ -83,8 +86,8 @@ Four stages, each a real Atlanta neighborhood, rendered as an exact-replica map 
 
 1. **East Atlanta Village (EAV)**
 2. **Edgewood**
-3. **Little 5 Points**
-4. **The Underground (5 Points)**
+3. **The Underground (5 Points)**
+4. **Little 5 Points**
 
 ### Visual style & background references
 
@@ -178,13 +181,15 @@ merely slower. The jump is `driven` — the player picks the frame from `vy`
 (0-1 rising, 2-3 apex, 4-5 falling) so the pose always matches the physics and
 a long fall holds rather than loops.
 
-Frames are trimmed from the 256x256 source cell to a shared 185x251 union
+Frames are trimmed from the 256x256 source cell to a shared **229x251** union
 bounding box and saved as WebP q92 — visually indistinguishable from lossless
 here and far smaller, since this is a photo-rendered character with fine
 shading rather than flat pixel art. Imported in `src/entities/player.js` as
 `PLAYER_SPRITE`.
 
-**Ground contact.** The atlas declares `anchor: "low"` and `sink: 0.014`. The
+**Ground contact.** The atlas declares `anchor: "low"`. (There is no longer a
+`sink` key — ground contact is measured off the sprite instead of declared as a
+constant.) The
 isometric sheets anchor on the midpoint between the two feet, because a 3/4
 projection draws the far foot well above the near one; a true side profile has
 both feet level and anchors on the lowest pixel instead. But the midpoint
@@ -193,16 +198,24 @@ into the pavement for free, and without it Will Hill planted that much higher
 than the enemies standing beside him. `sink` states it explicitly so both
 plant at the same depth.
 
-Nine engine animation keys map onto those four rows. `jog` shares `run`;
+⚠️ **Twelve** engine animation keys now map onto **eight** source clips —
+`idle, walk, jog, run, jumpStart, jumpLand, roll, hit, knockback, fall,
+knockdown, death` (`KEY_MAP` in `tools/compose_player_sheet.py`). The reaction
+clips (hit, downed, knockback, fall) are real captures now, not borrowed rows.
+What follows describes the ORIGINAL four-row export and is kept for history:
+`jog` shares `run`;
 `jumpStart` and `jumpLand` share `jump`; and `roll`, `hit` and `death` borrow
 rows because the export has no clip for them — `roll` reads as a dash on the
 run row, `hit` (now played on a pothole trip) and `death` sit on idle. Proper
 clips for those three are a follow-up.
 
-**Raw source is git-ignored.** `assets/raw-sprites/will-hill-pixel/<clip>/
-spritesheet.png` holds the four sheets; per CLAUDE.md nothing under `assets/`
-is committed, so a fresh clone cannot re-run the compose script until those
-files are put back.
+⚠️ **Raw source is COMMITTED now — this said the opposite.** `git ls-files
+assets/` returns 39 tracked files: nine `will-hill-pixel` sheets (downed, fall,
+hit, idle, jump, knockback, perform, run, walk), twelve enemy sheets, the brand
+files and the voice recording. `.gitignore` uses `/assets/*` plus negations
+rather than a blanket ban, on the rule stated in CLAUDE.md: **if losing the
+file means the work cannot be rebuilt, commit it.** A fresh clone CAN re-run
+the compose script.
 
 **Archived, not wired into the engine:** everything from the earlier 39-clip
 export — the rear-view named animations, the 11 side-view combat clips
