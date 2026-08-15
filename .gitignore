@@ -70,7 +70,13 @@ npm-debug.log*
 .claude/*
 !.claude/skills/
 .claude/skills/*
+# ⚠️ EVERY OWNED SKILL NEEDS ITS OWN LINE HERE. The negation is per-directory,
+# so a new skill written into .claude/skills/ is silently ignored until it is
+# listed — which is exactly what happened to the two below: they were written,
+# `git add`ed, and did not appear in `git status` at all.
 !.claude/skills/backdrop-multiplane/
+!.claude/skills/game-harness/
+!.claude/skills/contest-leaderboard/
 
 # INSTALLED SKILLS ARE NOT PART OF THIS GAME.
 #
