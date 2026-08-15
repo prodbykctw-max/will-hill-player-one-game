@@ -56,6 +56,32 @@ export function contestRegistration() {
   }
 }
 
+// ── ASKED ONCE, EVER ─────────────────────────────────────────────────────
+//
+// Client: "people need to be able to sign up and never have to sign up
+// again — they never should even have to sign in once they go there and
+// start playing, that shit already have their information stored."
+//
+// Registration itself is already permanent on the device (wh_contest_reg
+// below). This is the other half: remembering that the OFFER was made, so
+// somebody who taps NOT NOW is not asked again on their next visit either.
+// localStorage rather than memory for exactly that reason — a session flag
+// would re-ask every time the tab is reopened, which over a three-day
+// contest is the nagging he is describing.
+export function signupOffered() {
+  try {
+    return localStorage.getItem('wh_signup_asked') === '1';
+  } catch (_e) {
+    return false;
+  }
+}
+
+export function markSignupOffered() {
+  try {
+    localStorage.setItem('wh_signup_asked', '1');
+  } catch (_e) { /* private mode: the offer simply repeats */ }
+}
+
 export function isRegistered() {
   const r = contestRegistration();
   return !!(r && phoneDigits(r.phone).length >= 10);

@@ -63,7 +63,7 @@ function emailProblem(v) {
 }
 
 export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
-  onSfxChange, onHapticsChange, haptics, audio }) {
+  onSfxChange, onHapticsChange, haptics, audio, isPendingRun }) {
   const el = $('panel');
   if (!el) return { open() {}, close() {}, get isOpen() { return false; } };
 
@@ -85,14 +85,17 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
 
   const card = $('lbCard');
   if (card) card.style.backgroundImage = `url(${leaderboardCard})`;
-  const views = { board: $('pvBoard'), form: $('pvForm'), settings: $('pvSettings') };
+  const views = { menu: $('pvMenu'), board: $('pvBoard'), how: $('pvHow'),
+    form: $('pvForm'), settings: $('pvSettings') };
   const title = $('panelTitle');
   let open = false;
 
   function show(view) {
     for (const [k, v] of Object.entries(views)) if (v) v.hidden = k !== view;
     title.textContent = view === 'form' ? 'ENTER THE CONTEST'
-      : view === 'settings' ? 'SETTINGS' : 'LEADERBOARD';
+      : view === 'settings' ? 'SETTINGS'
+        : view === 'menu' ? 'OPTIONS'
+          : view === 'how' ? 'HOW TO PLAY' : 'LEADERBOARD';
     if (view === 'board') fillBoard();
     if (view === 'form') fillForm();
     if (view === 'settings') fillSettings();
@@ -152,7 +155,13 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
     if (!runs.length) empty.textContent = 'NO RUNS YET. BE THE FIRST.';
 
     $('boardNote').textContent = note;
-    $('btnRegister').textContent = isRegistered() ? 'EDIT MY DETAILS' : 'ENTER THE CONTEST';
+    // ⚠️ GONE ONCE YOU ARE IN, NOT RELABELLED. Client: "you can sign up for
+    // the contest there if you're not already signed up — if you are already
+    // signed up the button wouldn't appear." It used to turn into EDIT MY
+    // DETAILS, which is a second thing to read and a row of height the card
+    // needs (see #lbCard).
+    $('btnRegister').hidden = isRegistered();
+    $('btnRegister').textContent = 'ENTER THE CONTEST';
   }
 
   function fillBoard() {
@@ -291,7 +300,14 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
   // and settings both already stepped back to the board; this is what was
   // missing from the board's own step, not a new idea.
   on('panelClose', 'back', () => api.close());
-  on('btnBoardClose', 'back', () => api.close());
+  // OPTIONS is the shelf; every other view steps back to it, and it is the
+  // one place BACK TO GAME lives.
+  on('btnMenuBoard', 'press', () => show('board'));
+  on('btnMenuHow', 'press', () => show('how'));
+  on('btnMenuSettings', 'press', () => show('settings'));
+  on('btnMenuClose', 'back', () => api.close());
+  on('btnHowBack', 'back', () => show('menu'));
+  on('btnBoardBack', 'back', () => show('menu'));
   on('btnRegister', 'press', () => show('form'));
   // SHARE decides its own note copy, because the same tap means different
   // things on different machines: a phone opens the OS sheet (nothing to
@@ -307,9 +323,11 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
       $('boardNote').textContent = 'This browser refused every share route.';
     }
   });
-  on('btnSettings', 'press', () => show('settings'));
-  on('btnBack', 'back', () => show('board'));
-  on('btnSkip', 'back', () => show('board'));
+  on('btnBack', 'back', () => show('menu'));
+  // NOT NOW steps back to the board normally — but when a run is queued
+  // behind this form (the pre-run offer), the way on is OUT, not deeper in.
+  // isPendingRun is supplied by main.js, the same way onClose is.
+  on('btnSkip', 'back', () => (isPendingRun && isPendingRun() ? api.close() : show('board')));
   // SAVE decides its own cue, because it has two outcomes. A rejected form
   // that played the happy triad would be lying to you, and on a phone — where
   // the keyboard is covering the error line — the sound may be the first thing

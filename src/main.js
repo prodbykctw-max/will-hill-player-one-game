@@ -28,7 +28,8 @@ import { createTitle, TITLE_IMAGES, INTRO_TICKS as TITLE_INTRO_TICKS,
   SRC_W as STILL_W, SRC_H as STILL_H } from './render/title.js';
 import martaMapArt from './assets/backgrounds/marta-map.webp';
 import { loadImages } from './render/images.js';
-import { createRunLog, lbSubmit, bankLocalRun, isRegistered } from './net/leaderboard.js';
+import { createRunLog, lbSubmit, bankLocalRun, isRegistered, localRuns,
+  signupOffered, markSignupOffered } from './net/leaderboard.js';
 import { createPanel, soundEnabled, setSoundEnabled,
   sfxEnabled, setSfxEnabled } from './ui/panel.js';
 import { createHaptics } from './core/haptics.js';
@@ -68,7 +69,13 @@ function goBack() { audio.back(); haptics.tap(); }
 // run and takes the pads away with it (syncPads only shows them on `playing`),
 // so there is never a frame where you can see controls over a dialog.
 const panel = createPanel({
-  onClose: () => { if (state.screen === 'paused' && state.resumeTo) resume(); },
+  onClose: () => {
+    // A sign-up offered on the way INTO a run must not eat the run. Whether
+    // they entered or tapped NOT NOW, closing the panel is the green light.
+    if (state.pendingRun) { state.pendingRun = false; startRun(); return; }
+    if (state.screen === 'paused' && state.resumeTo) resume();
+  },
+  isPendingRun: () => !!state.pendingRun,
   onSoundChange: (on) => audio.setMuted(!on),
   onSfxChange: (on) => audio.setSfxMuted(!on),
   onHapticsChange: (on) => haptics.setEnabled(on),
@@ -257,6 +264,12 @@ if (import.meta.env.DEV) {
 }
 
 let images = null; // { player, enemy, eav, edgewood, l5p, underground }
+// ⚠️ DECLARED HERE, NOT BESIDE THE LOAD THAT FILLS IT. draw() reads this on
+// its very first frame and the loader lives at the bottom of the file — a
+// `let` down there would put the whole boot inside a temporal dead zone and
+// throw before a pixel appeared. This file has been bitten by exactly that
+// twice (the menuButtons hook, and buildIosSwitch).
+let bootPlate = null;
 
 function startStage(i) {
   const stage = STAGES[i];
@@ -410,7 +423,11 @@ canvas.addEventListener('pointerdown', (e) => {
     // space, that should actually turn the music on." Everything that is not
     // MUSIC or OPTIONS now falls through to START below — including the black
     // band, which is where most of those taps land.
-    if (title.hitOptions(state.titleBox, x, y)) { press(); panel.open('board'); return; }
+    // OPTIONS opens the SHELF, not the board. Client: "under options —
+    // leaderboard is there, instructions could also be found under the
+    // options, the settings button should be found under the options, and
+    // then back to the game should be filed under the options."
+    if (title.hitOptions(state.titleBox, x, y)) { press(); panel.open('menu'); return; }
     // The run starting is the biggest commitment on the screen, so it gets the
     // triad rather than the click.
     //
@@ -423,6 +440,30 @@ canvas.addEventListener('pointerdown', (e) => {
     // the walkthrough build by accident.
     setRelay(false);
     commit();
+    // ── THE OFFER BEFORE A RUN — BUT NEVER THE FIRST ONE ─────────────────
+    //
+    // Client: "an option to sign up should be before run and after death",
+    // and separately: "they never should even have to sign up again." So the
+    // offer is latched in localStorage (not in memory): tap NOT NOW once and
+    // it never returns, on this visit or the next.
+    //
+    // ⚠️ TWO GUARDS, BOTH LEARNED FROM BREAKING SOMETHING. Putting a form in
+    // front of START outright cost more than it bought:
+    //   * THE INTRO SKIP. A tap during the assembly falls through to this
+    //     same path, so a first-time player tapping to skip the intro got a
+    //     contact form instead of the game. `introDone` keeps a skip a skip.
+    //   * THE FIRST GAME. Nobody should have to get past a sign-up to find
+    //     out whether they like it — at a party that is where the phone gets
+    //     handed back. So the offer waits until a run has actually been
+    //     played on this device; before that the way in is OPTIONS →
+    //     LEADERBOARD → ENTER THE CONTEST, one tap from this screen.
+    const introDone = (state.screenT - state.introAt) > INTRO_TICKS;
+    if (introDone && !isRegistered() && !signupOffered() && localRuns().length) {
+      markSignupOffered();
+      state.pendingRun = true;      // whatever they choose, the run follows
+      panel.open('form');
+      return;
+    }
     startRun();
     return;
   }
@@ -524,6 +565,19 @@ function advanceFromScreen() {
   // it lands on the title.
   if (state.screen === 'complete') {
     showTitle();
+    panel.open(isRegistered() ? 'board' : 'form');
+    return;
+  }
+  // ── AND AFTER DEATH ──────────────────────────────────────────────────
+  //
+  // Client: "an option to sign up should be before run and after death."
+  // Finishing the whole game already did this; being knocked out did not,
+  // and being knocked out is how nearly every run actually ends — so the one
+  // moment a score exists and the player cares about it was the moment the
+  // ask was missing. Same rule as everywhere else: only if not already in.
+  if (state.screen === 'gameOver') {
+    showTitle();
+    if (!isRegistered()) markSignupOffered();
     panel.open(isRegistered() ? 'board' : 'form');
     return;
   }
@@ -1104,6 +1158,27 @@ function draw() {
   if (state.screen === 'loading' || !images) {
     ctx.fillStyle = '#0a0810';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // ── THE BACKGROUND LOADS FIRST, AND THE LOADER SHOWS IT ──────────────
+    //
+    // Client: "loading screen transition — background needs to load first."
+    // The boot used to be a black rectangle with LOADING on it until every
+    // image in the game had arrived, which on a phone is the first thing
+    // anybody sees of this and says nothing about what they are waiting for.
+    // The title plate is now fetched in its own first pass (see the two-stage
+    // load at the bottom of this file) and painted here the moment it lands,
+    // so the wait happens ON the artwork and the title screen comes up out of
+    // the same picture instead of cutting to it.
+    if (bootPlate && bootPlate.width) {
+      const cover = Math.max(canvas.width / bootPlate.width,
+        canvas.height / bootPlate.height);
+      const w = bootPlate.width * cover;
+      const h = bootPlate.height * cover;
+      ctx.save();
+      ctx.imageSmoothingEnabled = false;
+      ctx.globalAlpha = 0.55;
+      ctx.drawImage(bootPlate, (canvas.width - w) / 2, (canvas.height - h) / 2, w, h);
+      ctx.restore();
+    }
     drawOverlayText([['LOADING…', 22]]);
     return;
   }
@@ -1290,11 +1365,32 @@ for (const s of STAGES) {
   for (const c of s.bg.cards || []) imageManifest[`${s.id}_${c.key}`] = c.img;
 }
 
-loadImages(imageManifest)
+// ── TWO-STAGE LOAD: THE PICTURE, THEN THE GAME ─────────────────────────
+//
+// Everything used to arrive in one pass, so the first paint of the whole
+// product was a black rectangle for as long as the slowest stage plate took.
+// The title art is a handful of files and it is the only thing anybody looks
+// at during the wait, so it is fetched on its own first and handed to the
+// loading screen (bootPlate) while the remaining plates, cards and sprites
+// come down behind it.
+//
+// The second pass re-lists the title images deliberately: loadImages resolves
+// a whole manifest to one object and `images` has to end up holding every key
+// the renderer asks for. They are in cache by then, so it costs nothing.
+//
+// ⚠️ AND THE LOOP STARTS FIRST OF ALL. It used to be started inside the
+// load's .then(), which meant draw() never ran while loading and the
+// LOADING… screen it carefully painted was never once on screen — the boot
+// was just the page's own black. update() returns early on the loading
+// screen, so running the loop this early is free.
+loop.start();
+loadImages({ ...TITLE_IMAGES })
+  .then((first) => { bootPlate = first.title_base || null; })
+  .catch(() => { /* the loader just stays black — not worth failing boot for */ })
+  .then(() => loadImages(imageManifest))
   .then((loaded) => {
     images = loaded;
     showTitle();
-    loop.start();
     // Coming back from the TIME OF DAY reload — see onTimeOfDayChange. Read
     // and cleared in one go, so a plain refresh never reopens it.
     let reopen = null;

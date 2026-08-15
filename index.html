@@ -231,6 +231,18 @@
       background: none; border: 0; color: rgba(242,234,216,0.6);
       font-size: 19px; cursor: pointer;
     }
+    #howList {
+      margin: 0 0 14px; padding: 0; list-style: none;
+      display: grid; gap: 9px;
+    }
+    #howList li {
+      display: grid; grid-template-columns: 30px 1fr; align-items: center;
+      gap: 10px; font-size: 14px; line-height: 1.35;
+    }
+    #howList .mark { font: 800 21px/1 system-ui, sans-serif; text-align: center; }
+    #howList .bad { color: #ff6b5e; }
+    #howList .good { color: #6bd88a; }
+    #howList b { color: #ffd66e; font-weight: 700; }
     #panel .note { margin: 10px 0; font-size: 13px; color: rgba(242,234,216,0.72); }
     #panel .note b { color: #ffd66e; font-weight: 700; }
     #panel .err { margin: 8px 0 0; font-size: 13px; color: #ff8f7a; }
@@ -299,7 +311,22 @@
        has to scale WITH the card, and vw would scale with the window
        instead and drift off the rows on a wide one. */
     #lbCard {
-      position: relative; width: 100%; aspect-ratio: 852 / 1846;
+      /* ⚠️ SIZED BY HEIGHT, NOT WIDTH — that is what stops the scrolling.
+         Client: "change the UX so no scroll needed."
+         At width:100% his card is 852x1846, so on a 430px phone it came out
+         ~849px tall before the title, the note and the buttons were added —
+         taller than the screen, every time, on every phone. Driving the
+         HEIGHT from what is left of the viewport and letting aspect-ratio
+         derive the width means the whole card is always on screen; on a tall
+         phone it still reaches its natural size and the cap never engages.
+         100dvh, not 100vh, because Safari's toolbars are exactly the pixels
+         being fought over. The reserve is MEASURED, not guessed: 268 left the
+         card 17px over on a 430x932 phone, so it is 300 — and the note can
+         wrap to two lines when a share result comes back, which is where the
+         extra headroom goes. */
+      position: relative; aspect-ratio: 852 / 1846;
+      height: min(calc(100dvh - 300px), 1846px);
+      width: auto; max-width: 100%; margin: 0 auto;
       container-type: inline-size;
       background: center/100% 100% no-repeat;   /* image set in panel.js */
       border-radius: 14px; overflow: hidden;
@@ -392,6 +419,45 @@
       <button id="panelClose" type="button" aria-label="Close">✕</button>
       <h2 id="panelTitle">LEADERBOARD</h2>
 
+      <!-- ── OPTIONS IS A MENU NOW ────────────────────────────────────────
+           Client, spelling out the shelf: "under options — leaderboard is
+           there. Instructions could also be found under the options. The
+           settings button should be found under the options, and then back
+           to the game should be filed under the options."
+
+           So OPTIONS no longer drops the player straight onto the board. The
+           board is one of four things behind it, and it gets what he asked
+           for twice: "the leaderboard should have his own button that says
+           leaderboard." -->
+      <div id="pvMenu" class="pv" hidden>
+        <button class="btn" id="btnMenuBoard" type="button">LEADERBOARD</button>
+        <button class="btn" id="btnMenuHow" type="button">HOW TO PLAY</button>
+        <button class="btn ghost" id="btnMenuSettings" type="button">SETTINGS</button>
+        <button class="btn ghost" id="btnMenuClose" type="button">BACK TO GAME</button>
+      </div>
+
+      <div id="pvHow" class="pv" hidden>
+        <!-- ⚠️ THIS IS THE LAYOUT, NOT THE FINISHED PAGE. The client wants it
+             carried by pictures: "it don't have to be words just an image" —
+             him standing on a pothole with an X, him clearing it with a tick,
+             the ninja collision spilling money against the head-stomp, the
+             champagne, the big bags. Those have to be staged in the real game
+             and composed, which is its own job; until they land, the same
+             lessons are here in the same order and the same wrong/right
+             pairing, so the page is useful rather than absent. -->
+        <ul id="howList">
+          <li><span class="mark bad">✕</span><span>Run into a <b>pothole</b> and you go down.</span></li>
+          <li><span class="mark good">✓</span><span><b>Jump</b> it — tap JUMP before the edge.</span></li>
+          <li><span class="mark bad">✕</span><span>Step on an open <b>manhole</b> and you fall through.</span></li>
+          <li><span class="mark good">✓</span><span><b>Jump</b> the manhole the same way.</span></li>
+          <li><span class="mark bad">✕</span><span>Walk into a <b>ninja</b> and your money spills everywhere.</span></li>
+          <li><span class="mark good">✓</span><span>Land <b>on his head</b> and he is gone.</span></li>
+          <li><span class="mark good">✓</span><span>Grab the <b>champagne</b> for a burst of speed and power.</span></li>
+          <li><span class="mark good">✓</span><span>The <b>big blue bags</b> are worth the most — go get them.</span></li>
+        </ul>
+        <button class="btn ghost" id="btnHowBack" type="button">BACK</button>
+      </div>
+
       <div id="pvBoard" class="pv">
         <div id="lbCard">
           <ol id="board"></ol>
@@ -405,17 +471,15 @@
              desktop fallback. Primary style, not ghost: posting a score is a
              thing we WANT happening, same weight as entering the contest. -->
         <button class="btn" id="btnShare" type="button">SHARE MY SCORE</button>
-        <button class="btn ghost" id="btnSettings" type="button">SETTINGS</button>
-        <!-- The board is the panel's HOME view (OPTIONS opens straight to it),
-             and until now the only way out of it was the small ✕ in the
-             corner — every OTHER view had its own bottom, thumb-reachable
-             ghost button (NOT NOW, BACK) and this one did not. Client: "I
-             need to be able to go back one level, and then from there back
-             another level... how can I get out of the leaderboard?" Same
-             shape as the other two, so the exit is never a hunt: BACK TO
-             GAME closes the panel exactly like ✕ does, just where a thumb
-             already expects to find it. -->
-        <button class="btn ghost" id="btnBoardClose" type="button">BACK TO GAME</button>
+        <!-- SETTINGS used to sit here too. It moved to the OPTIONS menu where
+             the client put it, which also buys the board back a button's
+             worth of height — see #lbCard on why every row under the card
+             costs the artwork screen space. -->
+        <!-- Client: "I need to be able to go back one level, and then from
+             there back another level... how can I get out of the
+             leaderboard?" This is that step: back to OPTIONS, which is where
+             BACK TO GAME now lives. -->
+        <button class="btn ghost" id="btnBoardBack" type="button">BACK</button>
       </div>
 
       <div id="pvForm" class="pv" hidden>
