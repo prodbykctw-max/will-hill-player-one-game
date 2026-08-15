@@ -34,14 +34,18 @@ import howManholeBad from '../assets/howto/manhole-bad.webp';
 import howManholeGood from '../assets/howto/manhole-good.webp';
 import howNinjaBad from '../assets/howto/ninja-bad.webp';
 import howNinjaGood from '../assets/howto/ninja-good.webp';
-import howChampagne from '../assets/howto/champagne.webp';
-import howMoney from '../assets/howto/money.webp';
+// The champagne lesson is a real ✕/✓ pair now — the ✓ shot with the aura lit
+// so the bags are visibly grown and blue, which the old lone `money` frame
+// never showed. tools/shoot_howto.mjs refuses to write the pair unless the ✓
+// frame measures bluer AT THE BAGS than the ✕.
+import howChampagneBad from '../assets/howto/champagne-bad.webp';
+import howChampagneGood from '../assets/howto/champagne-good.webp';
 
 const HOW_SHOTS = {
   'pothole-bad': howPotholeBad, 'pothole-good': howPotholeGood,
   'manhole-bad': howManholeBad, 'manhole-good': howManholeGood,
   'ninja-bad': howNinjaBad, 'ninja-good': howNinjaGood,
-  champagne: howChampagne, money: howMoney,
+  'champagne-bad': howChampagneBad, 'champagne-good': howChampagneGood,
 };
 import { prepareShareCard, shareScore } from './share.js';
 
@@ -213,13 +217,46 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
   // the page is free.
   let howFilled = false;
   function fillHow() {
+    // Every open starts on lesson one. 'auto', not smooth — this is a reset,
+    // not a scroll the player should watch happen.
+    const pager = $('howPager');
+    if (pager) pager.scrollTo({ left: 0, behavior: 'auto' });
+    syncHowDots();
     if (howFilled) return;
-    for (const img of document.querySelectorAll('#howList .howShot')) {
+    for (const img of document.querySelectorAll('#howPager .howShot')) {
       const src = HOW_SHOTS[img.dataset.shot];
       if (src) img.src = src;
     }
     howFilled = true;
   }
+
+  // Which page is under the viewport, from scroll position — the dots are
+  // derived state, never separately tracked, so they cannot drift.
+  function howPage() {
+    const pager = $('howPager');
+    if (!pager || pager.clientWidth === 0) return 0;
+    return Math.max(0, Math.min(3, Math.round(pager.scrollLeft / pager.clientWidth)));
+  }
+
+  function syncHowDots() {
+    const dots = document.querySelectorAll('#howDots i');
+    const cur = howPage();
+    dots.forEach((d, i) => d.classList.toggle('on', i === cur));
+  }
+
+  $('howPager')?.addEventListener('scroll', syncHowDots, { passive: true });
+  // A tap in the outer fifths pages — for desktops, and for anyone who does
+  // not think to swipe. The middle stays inert so the pictures can be looked
+  // at without the page jumping.
+  $('howPager')?.addEventListener('click', (e) => {
+    const pager = $('howPager');
+    const x = (e.clientX - pager.getBoundingClientRect().left) / pager.clientWidth;
+    const cur = howPage();
+    const next = x < 0.2 ? cur - 1 : x > 0.8 ? cur + 1 : cur;
+    if (next === cur || next < 0 || next > 3) return;
+    feedback.press();
+    pager.scrollTo({ left: next * pager.clientWidth, behavior: 'smooth' });
+  });
 
   function fillBoard() {
     // The share card is drawn NOW, while the board is opening, so the File

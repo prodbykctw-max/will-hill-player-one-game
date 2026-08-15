@@ -135,6 +135,48 @@ await p.evaluate(async () => {
       inside: cx - sx > 30 && cx - sx < sw - 30 && cy - sy > 20 && cy - sy < sh - 20,
     };
   };
+
+  // The champagne pair's own proof. Sample the canvas at each live bag's own
+  // screen position and return the mean blue-minus-red there, plus whether
+  // the aura is actually lit. The ✓ frame must read strongly bluer AT THE
+  // BAGS than the ✕ frame — measured off the rendered pixels, because the
+  // whole point of the pair is that the player can SEE the difference, and a
+  // picture that does not carry it teaches nothing.
+  window.__bagTint = () => {
+    const g = window.__game, cam = window.__camera;
+    const cv = document.querySelector('canvas');
+    const c2 = cv.getContext('2d');
+    const dpr = cv.width / cv.clientWidth;
+    const vals = [];
+    for (const bag of g.level.bags) {
+      if (bag.got) continue;
+      const sx = (bag.x + bag.w / 2 - cam.x) * cam.zoom * dpr;
+      const sy = (bag.y + bag.h / 2 - cam.y) * cam.zoom * dpr;
+      if (sx < 12 || sy < 12 || sx > cv.width - 12 || sy > cv.height - 12) continue;
+      // ⚠️ SAMPLE THE WHOLE BAG BOX AND KEEP THE BLUEST DECILE. A 20px box
+      // at the bag's centre reported the pair as identical (-58.6 vs -53.1)
+      // while the ✓ frame was VISIBLY blue — because the blue lives in the
+      // money wad at the TOP of the bag and the centre lands on tan leather
+      // either way. The claim is "there is blue here", so the statistic is
+      // the bluest pixels in the box, not the average of mostly-leather.
+      const bw = Math.round(bag.w * cam.zoom * dpr);
+      const bh = Math.round(bag.h * cam.zoom * dpr * 1.4); // grown bags reach higher
+      const x0 = Math.max(0, Math.round(sx - bw / 2));
+      const y0 = Math.max(0, Math.round(sy - bh * 0.75));
+      const d = c2.getImageData(x0, y0, Math.min(bw, cv.width - x0),
+        Math.min(bh, cv.height - y0)).data;
+      const br = [];
+      for (let i = 0; i < d.length; i += 4) br.push(d[i + 2] - d[i]);
+      br.sort((x, y) => y - x);
+      const top = br.slice(0, Math.max(1, Math.floor(br.length / 10)));
+      vals.push(top.reduce((x, y) => x + y, 0) / top.length);
+    }
+    return {
+      bags: vals.length,
+      meanBminusR: vals.length ? +(vals.reduce((x, y) => x + y, 0) / vals.length).toFixed(1) : null,
+      lit: g.player.invulnerableUntil > performance.now(),
+    };
+  };
 });
 
 const shots = [];
@@ -280,34 +322,68 @@ await p.evaluate(async () => {
 });
 await shoot('ninja-good', 'landed on his head');
 
-// ── 7. THE CHAMPAGNE ──────────────────────────────────────────────────────
-// Caught just as it is taken, so the aura is up.
-await p.evaluate(async () => {
-  const g = window.__game, { T, FLOOR_R, champagneTopFor } = window.__hw.tm;
+// ── 7/8. THE CHAMPAGNE PAIR — and the money lesson folded into it ─────────
+// Client, on the old page: "there is no image showing you jumping to get the
+// bottle and it still has a green check next to it, and the money isn't blue
+// showing that it gets bigger." He is right twice: the champagne and money
+// shots were two orphans wearing ✓s with no ✕ to answer, and the money frame
+// was taken with no aura up, so the bags in it were plain — the one thing the
+// picture existed to show, missing.
+//
+// One lesson now, two frames, SAME four bags at the SAME offsets in both:
+//   ✕  running past the bottle on the ground — bags plain
+//   ✓  mid-air for the bottle, aura lit — the same bags grown and blue
+//
+// ⚠️ THE DIFFERENCE IS MEASURED, NOT ASSERTED. Each staging samples the
+// canvas at the bags' own screen positions (window.__bagTint) inside the
+// stage evaluate, and the run REFUSES to write if the ✓ frame does not read
+// markedly bluer at the bags than the ✕ frame. A pair that fails that gate
+// is restaged, not shipped — the picture IS the claim.
+const tintBad = await p.evaluate(async () => {
+  const g = window.__game, { T, FLOOR_R } = window.__hw.tm;
   await window.__stage(5200);
-  const { createChampagneBottle } = window.__hw.col;
+  const { createMoneyBag, createChampagneBottle } = window.__hw.col;
+  const gy = FLOOR_R * T;
+  // The bottle he is passing up: ahead, above head height — plainly there,
+  // plainly not being jumped for.
+  g.level.champagnes.push(createChampagneBottle(g.player.x + 150, gy - 150));
+  for (let i = 0; i < 4; i++) {
+    g.level.bags.push(createMoneyBag(g.player.x + 60 + i * 64, gy - 46));
+  }
+  g.player.vx = 1.6;
+  for (let k = 0; k < 6; k++) await window.__frame();
+  return window.__bagTint();
+});
+console.log('        ✕ bags:', JSON.stringify(tintBad));
+await shoot('champagne-bad', 'ran past the bottle — the bags stay plain');
+
+const tintGood = await p.evaluate(async () => {
+  const g = window.__game, { T, FLOOR_R } = window.__hw.tm;
+  await window.__stage(6400);
+  const { createMoneyBag, createChampagneBottle } = window.__hw.col;
   const gy = FLOOR_R * T;
   g.level.champagnes.push(createChampagneBottle(g.player.x + 40, gy - 150));
+  for (let i = 0; i < 4; i++) {
+    g.level.bags.push(createMoneyBag(g.player.x + 90 + i * 64, gy - 46));
+  }
+  // Mid-air FOR the bottle — the client's missing frame. Caught the moment
+  // the aura state proves the take, while he is still off the ground.
   g.player.y -= 96; g.player.vy = 0.2; g.player.vx = 2.2; g.player.onGround = false;
   for (let k = 0; k < 40 && !(g.player.invulnerableUntil > performance.now()); k++) {
     await window.__frame();
   }
+  return window.__bagTint();
 });
-await shoot('champagne', 'taken — the power is up');
+console.log('        ✓ bags:', JSON.stringify(tintGood));
+await shoot('champagne-good', 'jumped for it — the same bags, grown and blue');
 
-// ── 8. THE MONEY ──────────────────────────────────────────────────────────
-await p.evaluate(async () => {
-  const g = window.__game, { T, FLOOR_R } = window.__hw.tm;
-  await window.__stage(5800);
-  const { createMoneyBag } = window.__hw.col;
-  const gy = FLOOR_R * T;
-  for (let i = 0; i < 4; i++) {
-    g.level.bags.push(createMoneyBag(g.player.x + 40 + i * 64, gy - 46));
-  }
-  g.player.vx = 1.6;
-  for (let k = 0; k < 6; k++) await window.__frame();
-});
-await shoot('money', 'the bags are the score');
+// The gate. Numbers first (they print above), then the refusal.
+if (!tintGood.lit || tintGood.bags < 2 || tintBad.bags < 2
+  || !(tintGood.meanBminusR - tintBad.meanBminusR >= 15)) {
+  console.log(`\n  ⚠️  the ✓ frame does not read bluer at the bags than the ✕ `
+    + `(✕ ${tintBad.meanBminusR}, ✓ ${tintGood.meanBminusR}, lit=${tintGood.lit}) — restage, do not write.`);
+  failed++;
+}
 
 await ctx.close();
 await b.close();

@@ -320,25 +320,60 @@
       width: 1px; height: 1px; overflow: hidden;
     }
 
-    #howList {
-      margin: 0 0 14px; padding: 0; list-style: none;
-      display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+    /* ── HOW TO PLAY: a four-page swipe, one lesson a page ─────────────
+       CSS scroll-snap, no gesture library: a horizontal scroller with
+       mandatory snap gives real native swipe with momentum on iOS for a
+       handful of lines. Dots below show where you are; panel.js also pages
+       on a tap in the outer fifths, for desktops and anyone who does not
+       think to swipe. */
+    #howPager {
+      display: flex; overflow-x: auto; overscroll-behavior-x: contain;
+      scroll-snap-type: x mandatory;
+      -webkit-overflow-scrolling: touch;
+      /* ⚠️ THE PAGE KILLS TOUCH GESTURES GLOBALLY (html has touch-action:
+         none, the panel allows pan-y). Without pan-x HERE, a swipe on the
+         pager does nothing at all and the feature simply is not there on
+         the one kind of device it was built for. */
+      touch-action: pan-x;
+      margin: 0 -18px 8px;              /* bleed across the panel's padding */
+      scrollbar-width: none;
     }
-    #howList li {
+    #howPager::-webkit-scrollbar { width: 0; height: 0; display: none; }
+    .howPage {
+      flex: 0 0 100%; box-sizing: border-box;
+      scroll-snap-align: center; scroll-snap-stop: always;
+      padding: 0 18px;
+    }
+    .howShots { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .howShots figure {
       position: relative; margin: 0; border-radius: 8px; overflow: hidden;
       border: 2px solid rgba(255,214,110,0.28);
       background: #0b0912; line-height: 0;
     }
-    #howList .howShot { display: block; width: 100%; height: auto; }
+    .howShots .howShot { display: block; width: 100%; height: auto; }
     /* The verdict sits ON the picture, bottom-left, where it cannot be
        mistaken for belonging to the panel next door. */
-    #howList .mark {
+    .howShots .mark {
       position: absolute; left: 6px; bottom: 5px;
       font: 800 20px/1 system-ui, sans-serif;
       text-shadow: 0 0 4px #000, 0 2px 3px #000;
     }
-    #howList .bad { color: #ff5f52; }
-    #howList .good { color: #57e08a; }
+    .howShots .bad { color: #ff5f52; }
+    .howShots .good { color: #57e08a; }
+    /* ✕ line first, then ✓ — same order as the pictures, his order. */
+    .howText {
+      margin: 10px 0 0; font-size: 14px; line-height: 1.45;
+      color: rgba(242,234,216,0.88);
+    }
+    .howText b { font-weight: 800; margin-right: 6px; }
+    .howText.bad b { color: #ff5f52; }
+    .howText.good b { color: #57e08a; }
+    #howDots { display: flex; justify-content: center; gap: 7px; margin: 10px 0 12px; }
+    #howDots i {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: rgba(242,234,216,0.22);
+    }
+    #howDots i.on { background: #ffd66e; }
     #panel .note { margin: 10px 0; font-size: 13px; color: rgba(242,234,216,0.72); }
     #panel .note b { color: #ffd66e; font-weight: 700; }
     #panel .err { margin: 8px 0 0; font-size: 13px; color: #ff8f7a; }
@@ -582,16 +617,55 @@
              sources are assigned in panel.js from bundler imports, because a
              literal path here resolves in dev and 404s under the Pages
              subpath. -->
-        <ul id="howList">
-          <li><img class="howShot" data-shot="pothole-bad" alt="" /><span class="mark bad">✕</span></li>
-          <li><img class="howShot" data-shot="pothole-good" alt="" /><span class="mark good">✓</span></li>
-          <li><img class="howShot" data-shot="manhole-bad" alt="" /><span class="mark bad">✕</span></li>
-          <li><img class="howShot" data-shot="manhole-good" alt="" /><span class="mark good">✓</span></li>
-          <li><img class="howShot" data-shot="ninja-bad" alt="" /><span class="mark bad">✕</span></li>
-          <li><img class="howShot" data-shot="ninja-good" alt="" /><span class="mark good">✓</span></li>
-          <li><img class="howShot" data-shot="champagne" alt="" /><span class="mark good">✓</span></li>
-          <li><img class="howShot" data-shot="money" alt="" /><span class="mark good">✓</span></li>
-        </ul>
+        <!-- ⚠️ FOUR PAGES, SWIPED, ONE LESSON EACH — his spec, close to
+             verbatim: "maybe four pages and swipe left or right... it should
+             be two images and then the text instructions... the X and then
+             it's the check, so the text should be what not to do and then
+             what you should do." So every page is exactly that, in that
+             order: ✕ image, ✓ image, ✕ line, ✓ line. The old page was eight
+             loose images in a grid — three real pairs and two orphans
+             (champagne, money) wearing ✓s with no lesson attached, which he
+             called out image by image.
+
+             Copy is written from the CONSTANTS, not remembered: BAG_VALUE
+             100, stomp 50, CHAMPAGNE_SECONDS 9, CHAMPAGNE_MULT 2. If a
+             number here disagrees with the code, the code wins and this is
+             the bug. -->
+        <div id="howPager">
+          <section class="howPage">
+            <div class="howShots">
+              <figure><img class="howShot" data-shot="pothole-bad" alt="" /><span class="mark bad">✕</span></figure>
+              <figure><img class="howShot" data-shot="pothole-good" alt="" /><span class="mark good">✓</span></figure>
+            </div>
+            <p class="howText bad"><b>✕</b> Step in a pothole and you trip. It costs a heart.</p>
+            <p class="howText good"><b>✓</b> Jump it. Clean over, nothing lost.</p>
+          </section>
+          <section class="howPage">
+            <div class="howShots">
+              <figure><img class="howShot" data-shot="manhole-bad" alt="" /><span class="mark bad">✕</span></figure>
+              <figure><img class="howShot" data-shot="manhole-good" alt="" /><span class="mark good">✓</span></figure>
+            </div>
+            <p class="howText bad"><b>✕</b> Fall through an open manhole and the run ends there.</p>
+            <p class="howText good"><b>✓</b> Jump it. The dark ones are holes, not street.</p>
+          </section>
+          <section class="howPage">
+            <div class="howShots">
+              <figure><img class="howShot" data-shot="ninja-bad" alt="" /><span class="mark bad">✕</span></figure>
+              <figure><img class="howShot" data-shot="ninja-good" alt="" /><span class="mark good">✓</span></figure>
+            </div>
+            <p class="howText bad"><b>✕</b> Walk into a street ninja and he knocks every bag out of you.</p>
+            <p class="howText good"><b>✓</b> Land on his head. +50, and he's gone.</p>
+          </section>
+          <section class="howPage">
+            <div class="howShots">
+              <figure><img class="howShot" data-shot="champagne-bad" alt="" /><span class="mark bad">✕</span></figure>
+              <figure><img class="howShot" data-shot="champagne-good" alt="" /><span class="mark good">✓</span></figure>
+            </div>
+            <p class="howText bad"><b>✕</b> Run past the champagne and every bag stays worth 100.</p>
+            <p class="howText good"><b>✓</b> Jump for the bottle. For 9 seconds the bags turn blue, grow, and pay double.</p>
+          </section>
+        </div>
+        <div id="howDots" aria-hidden="true"><i class="on"></i><i></i><i></i><i></i></div>
         <button class="btn ghost" id="btnHowBack" type="button">BACK</button>
       </div>
 
