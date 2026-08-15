@@ -30,7 +30,13 @@ disjoint rectangular planes — they work, and they read as hard cuts.
    region.
 4. **`sam_segment.py <stage> --emit`** — freezes the chosen masks as committed
    1-bit PNGs (a few kB each).
-5. **`cut_planes.py <stage>`** — cuts the cards, inpaints the base plate.
+5. **`cut_planes.py <stage>`** — cuts the cards. ⚠️ **It does NOT touch the
+   base.** Items used to be erased from the plate and the hole inpainted, on
+   the theory that an item otherwise appears twice once its rate diverges.
+   That is only true if it diverges FAR, and it does not — 72px at most across
+   a whole stage. What the fill actually bought was a blurred grey patch behind
+   every card, 10-30 levels off the art, which the client named on sight:
+   *"bruises everywhere on the game."* The base stays the whole painting.
 6. **`preview_planes.py <stage>`** — recompose check. Base + every card at zero
    offset must reproduce the original. Under 0.1% is good.
 
@@ -62,11 +68,22 @@ disjoint rectangular planes — they work, and they read as hard cuts.
 - **Assign masks by CONTAINMENT, not centroid.** 70% of pixels inside the
   region. A centroid rule put the sky on a column card, because the sky's
   centroid happens to land in the column's box.
+- **Repeat the plate straight, never mirrored.** Mirroring is the classic way
+  to hide a seam on a non-tiling image, and it is wrong for real streetscapes:
+  a flipped copy renders every sign backwards. Repeating the block instead is
+  the old cartoon running-past-the-same-background gag and keeps the signage
+  readable.
 - **The sky is never a card.** It is the background every silhouette is cut
   against, and it is already the base plate.
-- **Seed the sky flood-fill a few px in from the frame edge.** Plates often
-  vignette to black, which fails any blue-dominance test, and seeding from
-  row 0 then finds no sky at all.
+- **Seed the sky flood from the top FOUR rows, not row 0.** The reason is
+  mechanical, not artistic: erosion treats the image border as background, so
+  row 0 of the eroded core is always empty and a single-row seed finds no sky
+  at all. Take a band.
+- **⚠️ The flood must not be allowed to travel through cloud-ish pixels.**
+  Letting it pass anything pale as well as anything blue let it cross the EAV
+  Swifty sign's white frame and escape into the artwork — the flood leaves the
+  sky entirely and starts eating the painting. Blue-and-bright-enough only, and
+  cloud is a SEED test, never a travel permit.
 - **Per-stage colour thresholds, always re-measured.** They do not transfer
   between plates. Score every candidate rule two ways: what fraction of a
   verified sample it catches, AND what fraction of the foreground it wrongly
@@ -80,6 +97,10 @@ disjoint rectangular planes — they work, and they read as hard cuts.
   letter immediately. So the low thresholds are the DEFAULT
   (`pred_iou 0.68`, `stability 0.80`, `min_region 60`, area floor 80px) and
   a `--coarse` flag opts out for a quick structural pass, never the reverse.
+  ⚠️ In practice the default is a **two-pass cascade** — a structural pass and
+  a fine pass merged — not one run at low thresholds. Quoting the numbers
+  without the cascade will send someone chasing a single-pass config that never
+  finds the letters.
   Raising the sampling grid is not the fix and will fool you into thinking it
   is: 28 -> 48 moved coverage 85.0% -> 86.0% while the letters stayed gone.
   Lowering the area floor and the confidence bar is what finds them.
@@ -89,6 +110,20 @@ disjoint rectangular planes — they work, and they read as hard cuts.
   disk for the lighting pass.
 - **Things that hold each other up must stay close in depth.** Columns
   supporting an arch shear apart otherwise.
+- **⚠️ A GROUND STRIP IS NOT FEATURELESS, AND GIVING IT ITS OWN RATE COST MORE
+  THAN ANY OTHER MISTAKE HERE.** The argument for the exception went: the clamp
+  exists to stop a discrete OBJECT migrating, and a verge or a kerb is a
+  continuous band with no landmark inside it, so slide it 300px and there is
+  nothing to notice having moved. Every word of that is true except
+  "featureless" — a strip has no landmark inside it but it has **a hard edge
+  along the top, and things stand on that edge**. At rate 0.30 against the
+  plate's 0.10 the strip saturated its 400px clamp about 200px into the stage
+  while the fence planted in it, depth-derived, had travelled 20px. Measured at
+  the far end: verge +400, fence +20. **380px of shear on a 430px screen — the
+  grass walks out from under the fence.** The control experiment was already in
+  the table: the one ground strip that never got an override is the backdrop
+  the client called perfect. No strip rates, no strip clamps; depth drives
+  every card.
 - **Sway is per-card**, pivoted at the bottom of the moving mass, so trunks
   stay still and only leaves move. Subdivide within each window — shearing a
   whole card about one pivot makes a tree lean like the rigid cutout it is.
@@ -97,8 +132,9 @@ disjoint rectangular planes — they work, and they read as hard cuts.
 
 Parallax is a function of where the camera is, so a cloud card only slides
 while the player runs — stand still and the sky is a photograph. Give the card
-a `drift` in source px per tick and it moves forever without a seam, because
-the plate is already wrapped.
+a `drift` in **screen** px per tick — not source px; the two differ by the
+plate's zoom and everything in `cardParallax` is screen space — and it moves
+forever without a seam, because the plate is already wrapped.
 
 That one change opens the longest-running bug on this project. The client
 reported it for a week in a row and every one of my first four diagnoses was
@@ -139,11 +175,37 @@ He was exactly right, and it is the rule worth carrying to every project:
 > empty gap and cannot cut into real sky. **Measure the gap on your own plate;
 > do not inherit 0.50.**
 
+### The three tools, by name
+
+The technique above is spread across three scripts and the skill described it
+without naming any of them:
+
+- **`scrub_stage_clouds.py`** — lifts the clouds OFF the base onto their own
+  card and repaints sky behind them.
+- **`seal_stage_clouds.py`** — writes `<stage>-skystruct.webp`, the sky band's
+  structure in the base's own pixels.
+- **`seal_skyline.py`** — the same job for the title plate, whose card is one
+  skyline silhouette rather than a band.
+
+⚠️ **And the FIRST failure came before any of them.** The day cloud cards were
+originally cut as *a band of sky with clouds in it* rather than the clouds
+alone. A rectangle of sky drifting over a plate does two visible things the
+client reported immediately: it drags a slab of slightly-wrong blue across the
+real sky, and its edges wipe over whatever they cross. **Cut the weather, not
+the region the weather is in.**
+
 ### Sealing the sky band
 
 The fix is a `skystruct` card: the sky band's structure carrying **the base
 plate's own pixels**, declared at exactly the base's depth so it registers with
-its copy underneath to the pixel, drawn after the weather. No repainting, no
+its copy underneath to the pixel, drawn after the weather.
+
+> ⚠️ **DRAW ORDER IS ARRAY ORDER, NOT DEPTH.** `drawCards` iterates the card
+> list in the order it is written; `depth` only sets the RATE. A reader will
+> reasonably assume the stack sorts itself by depth and it does not — the seal
+> works because `skystruct` is listed AFTER `clouds`, and moving the line moves
+> the fix. Depth 0.5 buys registration with the base; the array position buys
+> occlusion. Two different jobs from two different fields. No repainting, no
 inpainting, no invention — a hole is filled with the base's pixel at that
 coordinate, so the static picture is bit-for-bit what it was and the only
 difference is that a cloud can no longer be seen through it.
@@ -191,6 +253,12 @@ night   8.6 -> 2.2   12.2 -> 2.0    4.0 -> 2.0    3.1 -> 1.9
 
 ### How to measure weather occlusion in the running game
 
+> **Reference implementation: `tools/harness/cloudseal.mjs`.** The method below
+> lived only in prose for a while, which meant the most expensive bug on the
+> project had no regression test. It is a graded harness now, and it carries a
+> `CLOUDSEAL_BREAK=1` self-test that strips the seal back out to prove the
+> check can actually fail.
+
 Offline arithmetic proves the card covers the structure. It does not prove the
 card is wired, spanned and depthed correctly. Measure the rendered frame:
 
@@ -205,11 +273,14 @@ card is wired, spanned and depthed correctly. Measure the rendered frame:
 3. **Scope to where a cloud can be.** Below the lowest sky pixel in the frame
    there is no weather, and a real crossing always has cloud in open air right
    beside it.
-4. **⚠️ Do not park the player off-screen to clear the frame.** At y=-40000 he
+4. **⚠️ Parking the player off-screen starts a death loop.** At y=-40000 he
    falls, dies, respawns and the camera snaps — forever. Pairs came back
    279,503px apart at some ticks and 3,000 at others, which is not cloud, it is
-   the phase of a death loop. Leave him at spawn; he stands still and the sky
-   above him is nobody's business.
+   the phase of that loop. For a weather measurement just leave him at spawn:
+   he stands still and the sky above him is nobody's business. Where a harness
+   genuinely must walk him across a whole stage, the loop has to be defeated on
+   purpose — re-state `hearts` and `screen` on EVERY step, which is what
+   `stagesweep.mjs` does. It is a pattern, not a prohibition.
 5. **Sweep a whole drift period for VISIBILITY too**, not just for leaks. At
    0.035px/tick against a ~1500px period that is ~43,000 ticks — twelve minutes
    of play — so a six-sample window near tick 0 tells you almost nothing.

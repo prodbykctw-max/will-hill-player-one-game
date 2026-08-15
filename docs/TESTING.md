@@ -45,7 +45,7 @@ Three separate sweeps have had to clean that up; `shots/` is gitignored.
 **Graded** — they end in `ALL n PASS` or `FAILED: <checks>`, and a sweep can
 read them mechanically:
 
-`ceiling` · `daylamps` · `endcue` · `entrypaths` · `idleflex` · `introorder` ·
+`ceiling` · `cloudseal` · `daylamps` · `endcue` · `entrypaths` · `idleflex` · `introorder` ·
 `musicbox` · `optionsmenu` · `padlift` · `panelnav` · `pausemenu` · `relaytod` ·
 `share` · `stageflag` · `titlefit` · `titleintro`
 
@@ -101,6 +101,7 @@ drifts into grading last month's product and nobody notices.
 | `graphwire` | the audio graph is connected, not silently bypassed |
 | `joinshot` | plate joins |
 | `titlefit` | the title card fits every viewport |
+| `cloudseal` | weather passes BEHIND the buildings on all four day stages — and is still visible |
 | `endcue` | each finish line hands to the NEXT scene's music, with no restart |
 | `entrypaths` | a run reaches the board whether they enter before OR after it |
 | `padlift` | the movement pads' height, solidity, seam, and that a press still lights them |

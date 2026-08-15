@@ -126,9 +126,16 @@ const BASE_DEPTH = 0.5;
 // the clouds are moving too… every daytime stage where you can see the sky and
 // clouds, we need clouds moving."
 //
-// `drift` is source pixels per tick added on top of the parallax, and because
-// the plate is already mirror-tiled and wrapped by `pmod` at the draw site, a
-// card can drift forever without a seam — the same property the title screen's
+// ⚠️ `drift` IS SCREEN PIXELS PER TICK, NOT SOURCE PIXELS. This comment said
+// source for a long time and it is worth being exact, because the two differ
+// by the plate's zoom and anyone converting a drift rate from source
+// measurements will be wrong by that factor. It is added to a return value
+// that is already screen space (`camX` is `camera.x * camera.zoom`), and the
+// caller wraps it with `pmod(par, period)` where `period` is `plate.drawW` —
+// the plate's SCREEN width. Everything in this function is screen space.
+//
+// Because the plate is already tiled and wrapped at the draw site, a card can
+// drift forever without a seam — the same property the title screen's
 // travelling clouds rely on. Kept SLOW: these read as weather at a distance,
 // not as a screensaver, and a cloud that visibly races the buildings breaks
 // the depth the rest of the multiplane set is buying.

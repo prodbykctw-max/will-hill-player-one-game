@@ -57,8 +57,12 @@ The obvious way to get a clean shot is to shove the character out of view.
 > Pairs came back **279,503 px apart** at some ticks and 3,000 at others. That
 > is not the thing being measured, it is the phase of a death loop.
 
-Leave him at spawn. He stands still. If you must move him, re-state `hearts`
-and `screen` every step and prove the frames settled before trusting them.
+Leave him at spawn. He stands still.
+
+If a harness genuinely must walk him across a whole stage, the loop has to be
+defeated on purpose: re-state `hearts` and `screen` on **every** step, and
+prove the frames settled before trusting them. That is a real pattern, not a
+prohibition — `stagesweep.mjs` sweeps 27-34 screens per stage that way.
 
 ## Isolate a layer by DRAWING IT TWICE, not by colour-keying
 
