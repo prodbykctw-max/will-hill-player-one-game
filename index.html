@@ -161,9 +161,35 @@
        movement pads is kept and input.js still hit-tests them with 26px of
        slop, so the REACHABLE area barely changes even though the drawn button
        is smaller — which is the point of shrinking them. */
-    #tL, #tR { bottom: calc(18px + env(safe-area-inset-bottom, 0px)); width: 70px; height: 70px; }
+    /* ── THE MOVEMENT PAIR SITS HIGHER, AND READS SOLIDER ────────────────
+       Client: "the left and right buttons need to come up slightly, the ones
+       at the bottom left of the screen... and I want them to appear a little
+       more solid."
+       Only this pair. JUMP and DASH keep their own height and their own
+       translucency — he named the navigation buttons specifically, and these
+       are the two that sit over the busiest part of the plate (the kerb and
+       the wet street), which is why they were the ones washing out.
+       18 -> 34px of lift. src/core/input.js hit-tests off
+       getBoundingClientRect, so the touch targets travel with them and the
+       26px of slop between ◀ and ▶ is untouched. */
+    #tL, #tR { bottom: calc(34px + env(safe-area-inset-bottom, 0px)); width: 70px; height: 70px; }
     #tL { left: calc(16px + env(safe-area-inset-left, 0px)); }
     #tR { left: calc(90px + env(safe-area-inset-left, 0px)); }
+    /* ⚠️ `:not(.on)`, and it is doing real work. `#touch .pad.on` is one id
+       and two classes; a plain `#tL, #tR` is one id and NO class, so the base
+       `#touch .pad` would out-rank it and none of this would apply — while
+       `#touch #tL` would out-rank the PRESSED state and the buttons would
+       stop lighting up under a thumb. Scoping to the unpressed state sits
+       clear of both and cannot fight the press. */
+    #touch .pad.move:not(.on) {
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.16) 0%,
+                                rgba(255,255,255,0.04) 42%,
+                                rgba(0,0,0,0.20) 100%),
+        rgba(18,14,28,0.80);
+      border-color: rgba(255,214,110,0.58);
+      color: rgba(255,255,255,0.96);
+    }
 
     #tJump, #tDash { right: calc(16px + env(safe-area-inset-right, 0px)); }
     #tJump {
@@ -403,7 +429,9 @@
     /* Landscape on a phone is short: shrink and tuck the pads in so they
        never eat the play area. */
     @media (orientation: landscape) and (max-height: 560px) {
-      #tL, #tR { width: 64px; height: 64px; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); }
+      /* Lifted here too, proportionally — 10 -> 20px. Landscape has less
+         height to give away than portrait, so the pair rises half as far. */
+      #tL, #tR { width: 64px; height: 64px; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); }
       #tR { left: calc(84px + env(safe-area-inset-left, 0px)); }
       #tJump { width: 78px; height: 78px; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); }
       #tDash { width: 62px; height: 62px; bottom: calc(96px + env(safe-area-inset-bottom, 0px)); }
@@ -429,8 +457,8 @@
     padding-left: env(safe-area-inset-left, 0px);"></div>
 
   <div id="touch" aria-hidden="true">
-    <div class="pad" id="tL" data-act="left">◀</div>
-    <div class="pad" id="tR" data-act="right">▶</div>
+    <div class="pad move" id="tL" data-act="left">◀</div>
+    <div class="pad move" id="tR" data-act="right">▶</div>
     <div class="pad" id="tDash" data-act="dash">DASH</div>
     <div class="pad" id="tJump" data-act="jump">JUMP</div>
   </div>

@@ -73,9 +73,10 @@ const board = await p.evaluate(() => {
 });
 check('the board fits with NO scrolling', board.scrollable <= 1,
   `card ${board.cardH}px in ${board.viewH}px, overflow ${board.scrollable}px`);
-// Until the Worker is deployed the only row is the pinned WILL HILL 50,000 —
-// nobody's practice runs are dressed up as a ranking.
-check('the board is empty until the contest is live', board.rows.length <= 1,
+// Nobody's practice runs are dressed up as a ranking, and since the client
+// asked for the pinned WILL HILL 50,000 benchmark off the board there is not
+// even a placeholder — it is genuinely empty until the Worker is deployed.
+check('the board is empty until the contest is live', board.rows.length === 0,
   JSON.stringify(board.rows));
 check('an unregistered player is offered the contest', board.register);
 // The other half of the same rule: sharing belongs to entrants, so the two

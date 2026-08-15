@@ -166,15 +166,28 @@ check('the doubler is what closes the gap',
   totalBags * BAG_VALUE + totalEnemies * STOMP < 50000 && realCeil > 50000,
   `no-doubler flawless ${flawless}`);
 
-// ── 2. the board actually shows him at 50,000 ────────────────────────────
+// ── 2. and the board does NOT dress that ceiling up as a ranking ─────────
+//
+// ⚠️ THIS SECTION USED TO ASSERT THE OPPOSITE, and it is worth saying why.
+// The board once shipped with WILL HILL pinned at 50,000 as a benchmark to
+// beat, and this file graded that. The client then asked for him off it —
+// "it never needed artwork because I had your ass ad and adjuster score with
+// his name" — and `withWillHill` in src/net/leaderboard.js now filters every
+// pinned row. So the check is inverted: the board must be EMPTY until real
+// entrants arrive, and a harness still demanding the pin is grading a
+// decision that was reversed on purpose.
 console.log('=== THE BOARD ===');
 await p.evaluate(() => localStorage.removeItem('wh_local_runs'));
 await p.reload({ waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__game && window.__game.screen === 'title', null, { timeout: 25000 });
 await p.waitForTimeout(2600);
+// OPTIONS is a SHELF now, not the board — it opens LEADERBOARD / HOW TO PLAY
+// / SETTINGS / BACK TO GAME, and the board is one step in from there.
 const opt = await p.evaluate(() => window.__title.optionsRect(window.__game.titleBox));
 await p.touchscreen.tap(opt.x + opt.w / 2, opt.y + opt.h / 2);
-await p.waitForTimeout(900);
+await p.waitForTimeout(700);
+await p.click('#btnMenuBoard');
+await p.waitForTimeout(700);
 const board = await p.evaluate(() => {
   const rows = [...document.querySelectorAll('#board li')].map((li) => ({
     r: li.querySelector('.r').textContent,
@@ -188,11 +201,11 @@ console.log('  ' + JSON.stringify(board.rows));
 console.log('  note: ' + board.note);
 await p.screenshot({ path: `${OUT}/board-50k.png` });
 check('the panel opened on the board', board.open);
-check('row 1 is WILL HILL at 50,000',
-  board.rows[0] && board.rows[0].n === 'WILL HILL' && board.rows[0].s === '50,000',
-  JSON.stringify(board.rows[0]));
-check('only Will Hill is listed — the other slots are empty until live',
-  board.rows.length === 1, `${board.rows.length} rows`);
+check('WILL HILL is NOT pinned on the board any more',
+  !board.rows.some((r) => (r.n || '').toUpperCase().includes('WILL HILL')),
+  JSON.stringify(board.rows));
+check('the board is empty until real entrants arrive',
+  board.rows.length === 0, `${board.rows.length} rows`);
 
 console.log('');
 console.log(checks.every(([, x]) => x)
