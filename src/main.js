@@ -314,7 +314,34 @@ function startRun() {
   state.distanceM = 0;
   state.runLog = createRunLog();
   state.runLog.start();
-  startStage(0);
+  startStage(startStageIndex());
+}
+
+// ── ?stage=1..4 — START WHERE YOU NEED TO LOOK ───────────────────────────
+//
+// Client, wanting to inspect the backgrounds rather than play them: "add me
+// to champagne relay back so I can look at them that way, and I guess I'll
+// screenshot any locations." CHAMPAGNE RELAY (core/relay.js, `?relay=1`)
+// already takes the enemies and the pits out of his way — but he still had to
+// walk stages one, two and three to reach the Underground, which is where he
+// found the thing he wanted to photograph.
+//
+// Same rule as `?relay=1`: URL only, no button, nothing a player is ever
+// shown. It is one-INDEXED because it is typed by a human on a phone — the
+// Underground is stage 3 on his list, not stage 2. Out-of-range or missing
+// falls through to the real beginning, so a typo costs a normal run and not
+// a broken one.
+function startStageIndex() {
+  if (typeof location === 'undefined') return 0;
+  const m = /[?&]stage=([1-9])\b/.exec(location.search);
+  if (!m) return 0;
+  const n = +m[1];
+  // ⚠️ OUT OF RANGE FALLS THROUGH TO STAGE ONE, IT DOES NOT CLAMP. Clamping
+  // was the first version and it silently answered `?stage=9` with Little 5
+  // Points — a fat-fingered 9 would have dropped him at the last stage
+  // wondering why the URL lied. Landing at the ordinary beginning is a typo
+  // he can see.
+  return n >= 1 && n <= STAGES.length ? n - 1 : 0;
 }
 
 function confirmPressed() {
