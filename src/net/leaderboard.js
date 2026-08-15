@@ -184,13 +184,20 @@ const LOCAL_KEY = 'wh_local_runs';
 // no run can approach it.
 export const BAGS_IN_GAME = 400;
 export const PERFECT_RUN = 61650;      // measured — tools/harness/ceiling.mjs
-export const WILL_HILL = Object.freeze({ name: 'WILL HILL', score: 50000, pinned: true });
-
-// Merge him into whatever the board is showing, wherever his score puts him.
-// Not spliced at index 0 — if a player ever does beat it, the board has to
-// show that honestly rather than pretend otherwise.
+// ⚠️ WILL HILL IS NO LONGER PINNED TO THE BOARD.
+//
+// He used to sit at rank 1 with 50,000 as the benchmark to beat. The client,
+// looking at the live build: "the leaderboard still has Will Hill at number
+// one — you said that removing that was done." He had asked for the board to
+// be empty until the contest is live, and he meant EMPTY: no benchmark, no
+// placeholder, nothing but real entrants.
+//
+// The function stays, and stays the single place the board's rows are
+// composed, because the board and the SHARE card both call it and the two
+// must never be able to disagree about what the board says. It now only
+// sorts and strips any pinned row that might arrive from elsewhere.
 export function withWillHill(runs) {
-  const list = (runs || []).filter((r) => !r.pinned).concat([WILL_HILL]);
+  const list = (runs || []).filter((r) => !r.pinned);
   list.sort((a, b) => b.score - a.score || (a.t || 0) - (b.t || 0));
   return list;
 }

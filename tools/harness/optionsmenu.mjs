@@ -67,6 +67,7 @@ const board = await p.evaluate(() => {
     cardH: Math.round(card.getBoundingClientRect().height),
     viewH: window.innerHeight,
     register: !document.getElementById('btnRegister').hidden,
+    share: !document.getElementById('btnShare').hidden,
     rows: [...document.querySelectorAll('#board li')].map((li) => li.textContent),
   };
 });
@@ -77,6 +78,10 @@ check('the board fits with NO scrolling', board.scrollable <= 1,
 check('the board is empty until the contest is live', board.rows.length <= 1,
   JSON.stringify(board.rows));
 check('an unregistered player is offered the contest', board.register);
+// The other half of the same rule: sharing belongs to entrants, so the two
+// buttons are mutually exclusive and only ever one is on the card.
+check('and cannot share until they enter', !board.share,
+  JSON.stringify({ register: board.register, share: board.share }));
 await p.screenshot({ path: `${OUT}/ux-board.png` });
 
 await p.click('#btnBoardBack');

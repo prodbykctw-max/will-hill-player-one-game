@@ -160,8 +160,17 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
     // signed up the button wouldn't appear." It used to turn into EDIT MY
     // DETAILS, which is a second thing to read and a row of height the card
     // needs (see #lbCard).
+    // ── ONE BUTTON, AND WHICH ONE DEPENDS ON WHETHER YOU ARE IN ──────────
+    //
+    // Client: "you can sign up for the contest there if you're not already
+    // signed up — if you are already signed up the button wouldn't appear",
+    // and "you shouldn't be able to share your score until you enter the
+    // contest." Together those make ENTER and SHARE mutually exclusive, which
+    // is also what lets both live ON the card: there is only ever one of them
+    // to place, so it gets the full width of the band.
     $('btnRegister').hidden = isRegistered();
     $('btnRegister').textContent = 'ENTER THE CONTEST';
+    $('btnShare').hidden = !isRegistered();
   }
 
   function fillBoard() {
@@ -313,7 +322,14 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
   // things on different machines: a phone opens the OS sheet (nothing to
   // say), a desktop silently saves the card and copies the caption — which
   // NEEDS saying, or the button looks like it did nothing.
+  // ⚠️ SHARE IS GATED ON ENTERING. Client: "you shouldn't be able to share
+  // your score until you enter the contest." An unregistered tap is not a
+  // dead end though — it goes where it was always going to have to go.
   on('btnShare', 'press', async () => {
+    if (!isRegistered()) {
+      show('form');
+      return;
+    }
     const how = await shareScore();
     if (how === 'downloaded') {
       $('boardNote').textContent = 'Card saved and caption copied — post it anywhere.';

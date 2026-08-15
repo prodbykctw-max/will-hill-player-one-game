@@ -37,6 +37,12 @@ const GAME_URL = 'https://prodbykctw-max.github.io/will-hill-player-one-game/';
       localStorage.setItem('wh_local_runs',
         JSON.stringify([{ name: 'TESTER', score: 12345, t: 1, me: true }]));
       localStorage.setItem('wh_name', 'TESTER');
+      // ⚠️ REGISTERED, NOW REQUIRED. Sharing is gated on entering the contest
+      // — "you shouldn't be able to share your score until you enter the
+      // contest" — so an unregistered profile no longer even shows the
+      // button. The card this harness checks is an entrant's card.
+      localStorage.setItem('wh_contest_reg',
+        JSON.stringify({ phone: '4045550123', email: 'tester@example.com' }));
     } catch (_e) { /* */ }
     navigator.canShare = (d) => !!(d && d.files && d.files.length);
     navigator.share = (d) => {
@@ -107,6 +113,8 @@ const GAME_URL = 'https://prodbykctw-max.github.io/will-hill-player-one-game/';
   await p.addInitScript(() => {
     delete Navigator.prototype.share;
     delete Navigator.prototype.canShare;
+    localStorage.setItem('wh_contest_reg',
+      JSON.stringify({ phone: '4045550123', email: 'tester@example.com' }));
     window.__downloads = [];
     const origClick = HTMLAnchorElement.prototype.click;
     HTMLAnchorElement.prototype.click = function () {

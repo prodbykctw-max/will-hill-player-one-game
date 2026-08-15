@@ -57,14 +57,23 @@ function loadCard() {
   return cardImg;
 }
 
-// What goes on the card and into the share text. The board is honest even
-// here: the run is merged against the pinned WILL HILL 50,000 by the same
-// withWillHill() the live board uses, so a player who beats him is shown
-// beating him and nobody is handed a fake #1.
+// What goes on the card and into the share text.
+//
+// ⚠️ SHARING IS FOR ENTRANTS. Client: "once you're presented with entering
+// the contest, you shouldn't be able to share your score until you enter the
+// contest, and the score you share should basically be your name on the
+// leaderboard with your score." Which is right on both counts — a shared
+// card is an advert for the contest, so it should carry a real entrant's
+// real board name, not an anonymous number from a device nobody can
+// identify. The gate itself lives on the button (panel.js); this function
+// is what makes the second half true, by naming the row from the
+// registration rather than from whatever nickname is lying around.
 function shareData() {
   const runs = localRuns();
   const best = runs.length ? runs.reduce((m, r) => (r.score > m.score ? r : m)) : null;
   const mine = best ? { name: lbName(), score: Number(best.score) || 0, me: true } : null;
+  // Same composer the live board uses, so the card can never claim a
+  // placing the board does not show.
   const rows = withWillHill(mine ? [mine] : []);
   const rank = mine ? rows.findIndex((r) => r.me) + 1 : 0;
   return { mine, rows, rank };
@@ -123,10 +132,17 @@ async function buildFile() {
 }
 
 function shareText() {
-  const { mine, rank } = shareData();
+  const { mine, rank, rows } = shareData();
   if (!mine) return `WILL HILL: PLAYER ONE — run the streets of Atlanta. ${GAME_URL}`;
-  const brag = rank === 1
-    ? `I took the TOP SPOT off Will Hill himself with $${mine.score.toLocaleString()}`
+  // ⚠️ NO MORE "I TOOK THE TOP SPOT OFF WILL HILL." That line was true while
+  // his 50,000 was pinned to the board and you had to pass it to reach rank
+  // one. With the pin removed, rank one on an empty board is any score at
+  // all, so the same sentence would have every first player claiming they
+  // beat him — caught in the harness output, reading "took the TOP SPOT off
+  // Will Hill himself with $777". Topping the board is only worth saying
+  // when there is somebody under you.
+  const brag = rank === 1 && rows.length > 1
+    ? `I'm #1 on the board with $${mine.score.toLocaleString()}`
     : `I ran up $${mine.score.toLocaleString()}`;
   return `${brag} in WILL HILL: PLAYER ONE. Think you can beat me? ${GAME_URL}`;
 }
