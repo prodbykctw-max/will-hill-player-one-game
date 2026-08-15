@@ -24,6 +24,25 @@ import {
 // Through the bundler, so the URL is the content-hashed one. A literal path in
 // the stylesheet resolves in dev and 404s in dist.
 import leaderboardCard from '../assets/backgrounds/leaderboard-card.webp';
+// HOW TO PLAY, in real frames from the running game — see
+// tools/shoot_howto.mjs. Imported rather than written into index.html for the
+// same reason the card above is: the bundler content-hashes these, and a
+// literal path resolves in dev and 404s under the Pages subpath.
+import howPotholeBad from '../assets/howto/pothole-bad.webp';
+import howPotholeGood from '../assets/howto/pothole-good.webp';
+import howManholeBad from '../assets/howto/manhole-bad.webp';
+import howManholeGood from '../assets/howto/manhole-good.webp';
+import howNinjaBad from '../assets/howto/ninja-bad.webp';
+import howNinjaGood from '../assets/howto/ninja-good.webp';
+import howChampagne from '../assets/howto/champagne.webp';
+import howMoney from '../assets/howto/money.webp';
+
+const HOW_SHOTS = {
+  'pothole-bad': howPotholeBad, 'pothole-good': howPotholeGood,
+  'manhole-bad': howManholeBad, 'manhole-good': howManholeGood,
+  'ninja-bad': howNinjaBad, 'ninja-good': howNinjaGood,
+  champagne: howChampagne, money: howMoney,
+};
 import { prepareShareCard, shareScore } from './share.js';
 
 const $ = (id) => document.getElementById(id);
@@ -96,6 +115,7 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
       : view === 'settings' ? 'SETTINGS'
         : view === 'menu' ? 'OPTIONS'
           : view === 'how' ? 'HOW TO PLAY' : 'LEADERBOARD';
+    if (view === 'how') fillHow();
     if (view === 'board') fillBoard();
     if (view === 'form') fillForm();
     if (view === 'settings') fillSettings();
@@ -171,6 +191,18 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
     $('btnRegister').hidden = isRegistered();
     $('btnRegister').textContent = 'ENTER THE CONTEST';
     $('btnShare').hidden = !isRegistered();
+  }
+
+  // Assign once and leave them; the browser caches the decode, so reopening
+  // the page is free.
+  let howFilled = false;
+  function fillHow() {
+    if (howFilled) return;
+    for (const img of document.querySelectorAll('#howList .howShot')) {
+      const src = HOW_SHOTS[img.dataset.shot];
+      if (src) img.src = src;
+    }
+    howFilled = true;
   }
 
   function fillBoard() {

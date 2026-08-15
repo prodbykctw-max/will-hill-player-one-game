@@ -652,11 +652,29 @@ function cueForScreen() {
       // ARRIVING AT THE SHOW. The one cue that plays start to finish.
       return 'credits';
     case 'stageClear':
-      // Hold whatever the stage was playing — the card is a beat, not a
-      // scene, and cutting the track for two seconds reads as a glitch. Which
-      // means it has to resolve the same day/night slot `playing` did, or the
-      // card would cross-fade to the other half's track for one beat.
-      return todSlot(STAGE_SLOTS[st.stageIndex]);
+      // ── THE RIDE STARTS AT THE FINISH LINE, NOT AT THE NEXT TAP ─────────
+      //
+      // Client: "as soon as you cross the finish line on the stage I want the
+      // map travel music to come in — instead of finishing the stage and
+      // having to press jump, as soon as you cross the finish line the music
+      // for the transition map should already start."
+      //
+      // This used to hold the stage's own track on the clear card, on the
+      // reasoning that the card is a beat rather than a scene. His point is
+      // better: the card is where the stage ENDS, so the journey should
+      // already be under way behind it, and the player taps into a ride whose
+      // music is running rather than triggering it.
+      //
+      // Returning the SAME cue `riding` will ask for means the tap changes
+      // nothing at all in the audio — no restart, no cross-fade, no seam. The
+      // track simply keeps playing across the screen change.
+      //
+      // ⚠️ THE LAST STAGE HAS NO MAP AFTER IT. MAP_SLOTS holds the three
+      // BRIDGES (01_02, 02_03, 03_04), so on the final clear the lookup is
+      // undefined and returning it would hand the mixer null — silence, on
+      // the biggest clear in the game. There the stage track holds as before,
+      // and `complete` takes it into the credits a moment later.
+      return MAP_SLOTS[st.stageIndex] || todSlot(STAGE_SLOTS[st.stageIndex]);
     case 'gameOver':
       return null;
     default:

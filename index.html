@@ -231,18 +231,27 @@
       background: none; border: 0; color: rgba(242,234,216,0.6);
       font-size: 19px; cursor: pointer;
     }
+    /* Two across: the wrong way and the right way, side by side, so the
+       pair reads as one lesson without a word of explanation. */
     #howList {
       margin: 0 0 14px; padding: 0; list-style: none;
-      display: grid; gap: 9px;
+      display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
     }
     #howList li {
-      display: grid; grid-template-columns: 30px 1fr; align-items: center;
-      gap: 10px; font-size: 14px; line-height: 1.35;
+      position: relative; margin: 0; border-radius: 8px; overflow: hidden;
+      border: 2px solid rgba(255,214,110,0.28);
+      background: #0b0912; line-height: 0;
     }
-    #howList .mark { font: 800 21px/1 system-ui, sans-serif; text-align: center; }
-    #howList .bad { color: #ff6b5e; }
-    #howList .good { color: #6bd88a; }
-    #howList b { color: #ffd66e; font-weight: 700; }
+    #howList .howShot { display: block; width: 100%; height: auto; }
+    /* The verdict sits ON the picture, bottom-left, where it cannot be
+       mistaken for belonging to the panel next door. */
+    #howList .mark {
+      position: absolute; left: 6px; bottom: 5px;
+      font: 800 20px/1 system-ui, sans-serif;
+      text-shadow: 0 0 4px #000, 0 2px 3px #000;
+    }
+    #howList .bad { color: #ff5f52; }
+    #howList .good { color: #57e08a; }
     #panel .note { margin: 10px 0; font-size: 13px; color: rgba(242,234,216,0.72); }
     #panel .note b { color: #ffd66e; font-weight: 700; }
     #panel .err { margin: 8px 0 0; font-size: 13px; color: #ff8f7a; }
@@ -437,23 +446,28 @@
       </div>
 
       <div id="pvHow" class="pv" hidden>
-        <!-- ⚠️ THIS IS THE LAYOUT, NOT THE FINISHED PAGE. The client wants it
-             carried by pictures: "it don't have to be words just an image" —
-             him standing on a pothole with an X, him clearing it with a tick,
-             the ninja collision spilling money against the head-stomp, the
-             champagne, the big bags. Those have to be staged in the real game
-             and composed, which is its own job; until they land, the same
-             lessons are here in the same order and the same wrong/right
-             pairing, so the page is useful rather than absent. -->
+        <!-- ⚠️ EVERY PICTURE HERE IS THE REAL GAME. Client: "an image of you
+             standing on it with an X next to it, an image of you jumping over
+             the pothole... walking into the ninja and all your money falling
+             out, and then jumping on the ninja's head... it don't have to be
+             words just an image."
+
+             tools/shoot_howto.mjs stages each moment inside a running build
+             and cuts the frame the instant the game state proves it happened,
+             so these are his own art, his own lighting and the actual sprite
+             poses — not drawings of what the game supposedly does. The <img>
+             sources are assigned in panel.js from bundler imports, because a
+             literal path here resolves in dev and 404s under the Pages
+             subpath. -->
         <ul id="howList">
-          <li><span class="mark bad">✕</span><span>Run into a <b>pothole</b> and you go down.</span></li>
-          <li><span class="mark good">✓</span><span><b>Jump</b> it — tap JUMP before the edge.</span></li>
-          <li><span class="mark bad">✕</span><span>Step on an open <b>manhole</b> and you fall through.</span></li>
-          <li><span class="mark good">✓</span><span><b>Jump</b> the manhole the same way.</span></li>
-          <li><span class="mark bad">✕</span><span>Walk into a <b>ninja</b> and your money spills everywhere.</span></li>
-          <li><span class="mark good">✓</span><span>Land <b>on his head</b> and he is gone.</span></li>
-          <li><span class="mark good">✓</span><span>Grab the <b>champagne</b> for a burst of speed and power.</span></li>
-          <li><span class="mark good">✓</span><span>The <b>big blue bags</b> are worth the most — go get them.</span></li>
+          <li><img class="howShot" data-shot="pothole-bad" alt="" /><span class="mark bad">✕</span></li>
+          <li><img class="howShot" data-shot="pothole-good" alt="" /><span class="mark good">✓</span></li>
+          <li><img class="howShot" data-shot="manhole-bad" alt="" /><span class="mark bad">✕</span></li>
+          <li><img class="howShot" data-shot="manhole-good" alt="" /><span class="mark good">✓</span></li>
+          <li><img class="howShot" data-shot="ninja-bad" alt="" /><span class="mark bad">✕</span></li>
+          <li><img class="howShot" data-shot="ninja-good" alt="" /><span class="mark good">✓</span></li>
+          <li><img class="howShot" data-shot="champagne" alt="" /><span class="mark good">✓</span></li>
+          <li><img class="howShot" data-shot="money" alt="" /><span class="mark good">✓</span></li>
         </ul>
         <button class="btn ghost" id="btnHowBack" type="button">BACK</button>
       </div>
