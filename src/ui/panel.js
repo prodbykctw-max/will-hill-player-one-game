@@ -421,7 +421,23 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
       show('form');
       return;
     }
-    const how = await shareScore();
+    // ⚠️ THE BUTTON SAYS WHAT IT IS DOING, because for a measured ~4 seconds
+    // on a loaded phone it is doing something invisible: encoding the
+    // 852x1846 card to a ~2.5MB PNG. share.mjs proved a silent button here
+    // reads as a dead one — the harness itself once declared the whole
+    // feature broken over exactly this window. Disabled too, so a second
+    // impatient tap cannot start a second encode over the first.
+    const btn = $('btnShare');
+    const label = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'MAKING YOUR CARD…';
+    let how;
+    try {
+      how = await shareScore();
+    } finally {
+      btn.disabled = false;
+      btn.textContent = label;
+    }
     if (how === 'downloaded') {
       $('boardNote').textContent = 'Card saved and caption copied — post it anywhere.';
     } else if (how === 'text') {
