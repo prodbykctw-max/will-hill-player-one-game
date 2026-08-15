@@ -671,10 +671,14 @@ function cueForScreen() {
       //
       // ⚠️ THE LAST STAGE HAS NO MAP AFTER IT. MAP_SLOTS holds the three
       // BRIDGES (01_02, 02_03, 03_04), so on the final clear the lookup is
-      // undefined and returning it would hand the mixer null — silence, on
-      // the biggest clear in the game. There the stage track holds as before,
-      // and `complete` takes it into the credits a moment later.
-      return MAP_SLOTS[st.stageIndex] || todSlot(STAGE_SLOTS[st.stageIndex]);
+      // undefined — and what belongs there is the ENDING's cue, not the
+      // stage's. This first held the stage track and let `complete` start the
+      // credits at the tap; client, having heard it: "the music from the
+      // ending scene should start sooner." Same principle as the maps, applied
+      // to the last scene there is — the show the player is arriving at should
+      // already be playing behind its clear card, and the tap into the results
+      // changes nothing in the audio.
+      return MAP_SLOTS[st.stageIndex] || 'credits';
     case 'gameOver':
       return null;
     default:
