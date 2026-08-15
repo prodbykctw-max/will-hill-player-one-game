@@ -258,9 +258,19 @@
        lettered LEADERBOARD already. Whatever the artwork's own aspect ratio
        does not cover shows the dimmed game behind it rather than a dark box,
        because a box is the thing he is objecting to. */
+    /* ⚠️ `width: 100%`, NEVER `width: auto`. This shipped as `auto` and the
+       whole board came up BLANK on his iPhone — nothing but the ✕, sitting
+       near the middle of the screen, which is the tell: the card had collapsed
+       to zero width and its top-right corner was the centre.
+       The cause is a circular sizing chain. `#lbCard` takes its WIDTH from its
+       height through `aspect-ratio`; `width: auto` on the parent then asks the
+       parent to size itself from that child. Chrome resolves it, Safari gives
+       up and returns zero. A definite width breaks the circle — the panel is
+       transparent here anyway, so filling the frame costs nothing and the
+       artwork still centres itself inside it. */
     #panelCard.bare {
       background: none; border: 0; box-shadow: none;
-      padding: 0; max-width: none; width: auto;
+      padding: 0; max-width: none; width: 100%;
     }
     #panelCard.bare #panelClose {
       top: 2px; right: 2px;
