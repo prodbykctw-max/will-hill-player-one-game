@@ -41,6 +41,7 @@ ROOT = Path(__file__).resolve().parent.parent
 BG = ROOT / 'src' / 'assets' / 'backgrounds'
 CARD = 'title-portrait-skyline.webp'
 BASE = 'title-portrait.webp'
+SKYFILL = 'title-portrait-skyfill.webp'
 
 
 def main():
@@ -55,11 +56,47 @@ def main():
     b = np.array(base)
     alpha = a[..., 3]
 
+    # ⚠️ ENCLOSED HOLES WERE ONLY HALF OF IT.
+    #
+    # The first pass filled holes fully surrounded by tower and the client,
+    # looking at my own before/after, said clouds were STILL "coming out or
+    # reappearing from the center of the building face". He was right: a gap
+    # that reaches the sky is not enclosed, so fill_holes never saw it, and a
+    # cloud crossing one emerges mid-face exactly as he described. Measured
+    # after the first pass: 6,859 px of building still uncovered, the worst a
+    # 1,734 px notch at x503-546 y472-579 — dead in the cloud band.
+    #
+    # So the question is no longer "is this hole enclosed" but "is this
+    # BUILDING". Sky is found by flooding blue from the top of the plate
+    # (with the drifting clouds patched out by the sky-fill first, or the
+    # baked ones would read as structure); anything in the card's own row
+    # band that is neither sky nor cloud is building and must be opaque.
+    # Genuine sky between two towers is reachable by that flood, so it stays
+    # transparent and clouds still cross real gaps.
+    fillimg = Image.open(BG / SKYFILL).convert('RGBA')
+    comp = b.copy()
+    fm = np.array(fillimg)[..., 3] > 8
+    comp[fm] = np.array(fillimg)[..., :3][fm]
+    r, g, bl = (comp[..., 0].astype(int), comp[..., 1].astype(int),
+                comp[..., 2].astype(int))
+    mx = comp.max(axis=2).astype(float) / 255
+    mn = comp.min(axis=2).astype(float) / 255
+    sat = np.where(mx > 0, (mx - mn) / np.maximum(mx, 1e-6), 0)
+    blue = (bl > r + 12) & (bl > g + 4) & (mx > 0.25)
+    cloudish = (mx > 0.62) & (sat < 0.30)
+    core = ndimage.binary_erosion(blue & ~cloudish, iterations=1)
+    lab, _ = ndimage.label(core)
+    seeds = np.unique(lab[0:4][lab[0:4] > 0])
+    sky = ndimage.binary_dilation(np.isin(lab, seeds), iterations=1) & blue
+
     solid = alpha > 128
-    filled = ndimage.binary_fill_holes(solid)
-    holes = filled & ~solid
+    ys_c, _xs_c = np.where(solid)
+    band = np.zeros(solid.shape, bool)
+    band[ys_c.min():ys_c.max() + 1] = True
+    building = band & ~sky & ~cloudish
+    holes = building & ~solid
     lbl, n = ndimage.label(holes)
-    print(f'{CARD}: {n} enclosed holes, {int(holes.sum())} px')
+    print(f'{CARD}: {n} gaps, {int(holes.sum())} px of building left uncovered')
     if n:
         sizes = ndimage.sum(holes, lbl, range(1, n + 1))
         for k in np.argsort(sizes)[::-1][:6]:
@@ -76,9 +113,9 @@ def main():
     # Prove it: no enclosed hole survives, and nothing that was already opaque
     # moved a single level.
     na = out[..., 3] > 128
-    left = int((ndimage.binary_fill_holes(na) & ~na).sum())
+    left = int((building & ~na).sum())
     untouched = np.array_equal(out[solid][:, 0:3], a[solid][:, 0:3])
-    print(f'  after: {left} enclosed holes left; '
+    print(f'  after: {left} building px still uncovered; '
           f'existing opaque pixels unchanged: {untouched}')
 
     if write:
