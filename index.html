@@ -310,6 +310,16 @@
     #lbActions .btn.card:active { transform: translateY(0.3cqw); box-shadow: none; }
     #lbActions .btn.card[hidden] { display: none; }
 
+    /* ⚠️ THE HONEYPOT MUST BE INVISIBLE BUT NOT `display:none`. A capable bot
+       skips hidden fields, so the trap has to be in the layout and merely out
+       of sight. It is also aria-hidden and tabindex=-1 in the markup, so a
+       screen reader and the keyboard both walk straight past it — a honeypot
+       that traps a blind user is a broken form, not a security measure. */
+    .hp {
+      position: absolute; left: -9999px; top: auto;
+      width: 1px; height: 1px; overflow: hidden;
+    }
+
     #howList {
       margin: 0 0 14px; padding: 0; list-style: none;
       display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
@@ -652,6 +662,19 @@
                  autocomplete="email" enterkeyhint="done"
                  placeholder="Backup contact, never shown" />
         </label>
+        <!-- ⚠️ HONEYPOT. Not a real field and never shown to anybody: no
+             human can see it, tab to it or type in it, so any value arriving
+             here came from an automated form-filler. The Worker drops that
+             entry and answers as though it succeeded, so a bot cannot tell it
+             failed and come back with something different.
+             `aria-hidden` and `tabindex=-1` keep it away from screen readers
+             and the keyboard — a honeypot that traps a blind user is just a
+             broken form. -->
+        <div class="hp" aria-hidden="true">
+          <label>Website
+            <input id="fWebsite" type="text" tabindex="-1" autocomplete="off" />
+          </label>
+        </div>
         <p id="formErr" class="err" hidden></p>
         <button class="btn" id="btnSave" type="button">SAVE &amp; ENTER</button>
         <button class="btn ghost" id="btnSkip" type="button">NOT NOW</button>

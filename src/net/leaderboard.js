@@ -15,7 +15,20 @@
 //     registration step, not on this per-run overlay, and is never returned
 //     by the public /top endpoint — only name + score are public.
 
-const LB_URL = ''; // TODO: set once the Worker is deployed (see cloudflare/README.md)
+const LB_BASE = ''; // TODO: set once the Worker is deployed (see cloudflare/README.md)
+
+// ⚠️ `?lb=` IS DEV-ONLY, AND THE GUARD IS THE POINT. Until the Worker is
+// deployed LB_BASE is empty, `lbOn()` is false and nothing is ever sent — which
+// also meant the submit path could not be tested AT ALL, and that is precisely
+// how the "entering after a run loses the run" bug survived. This lets a
+// harness point the client at a stub.
+//
+// `import.meta.env.DEV` is folded to `false` by Vite in the production build,
+// so the whole branch is dead code in what ships: nobody can aim the live game
+// at a leaderboard of their own with a query string.
+const LB_URL = (import.meta.env && import.meta.env.DEV
+  && typeof location !== 'undefined'
+  && new URLSearchParams(location.search).get('lb')) || LB_BASE;
 
 function lbOn() {
   return !!LB_URL;
@@ -109,16 +122,28 @@ export function setContestRegistration({ phone, email }) {
 export function createRunLog() {
   const events = [];
   let startedAt = 0;
+  let runId = '';
   return {
     start() {
       startedAt = performance.now();
       events.length = 0;
+      // ⚠️ A UUID PER RUN, MINTED AT THE START, AND THE SERVER REFUSES A
+      // REPEAT. Without it a finished event log can simply be posted twice —
+      // or worse, somebody else's good log posted under your own phone
+      // number, which is the cheapest way to cheat this contest and takes no
+      // skill at all. The Worker's `seen_runs` primary key is the lock.
+      runId = (crypto.randomUUID && crypto.randomUUID())
+        || `${Date.now().toString(16)}-${Math.floor(Math.random() * 1e16).toString(16)}`;
     },
     record(type) {
       events.push({ t: Math.round(performance.now() - startedAt), type });
     },
     finish() {
-      return { events: events.slice(), durationMs: Math.round(performance.now() - startedAt) };
+      return {
+        runId,
+        events: events.slice(),
+        durationMs: Math.round(performance.now() - startedAt),
+      };
     },
   };
 }
@@ -222,27 +247,61 @@ export function bankLocalRun(score) {
 }
 
 // ── submit + fetch top ──
+//
+// ⚠️ AN UNREGISTERED RUN IS HELD, NOT DISCARDED. This is the bug the client
+// caught by asking the right question — "when they enter after the run, I just
+// wanna make sure that that run is actually added."
+//
+// It was not. `lbSubmit` returned early when nobody was registered, and the
+// submit fires at the MOMENT OF DEATH — before the panel has offered them the
+// contest. So the common path (play, die, then decide to enter) threw the run
+// away: they entered, and the score they had just set was gone. Entering
+// beforehand worked, which is exactly why it survived testing.
+//
+// The finished log is parked here instead, and `flushPendingRun()` sends it
+// the instant registration completes.
+let pendingRun = null;
+
 export function lbSubmit(runLogResult) {
   if (!runLogResult) return;
+  if (!isRegistered()) {
+    pendingRun = runLogResult;   // held for flushPendingRun()
+    return;
+  }
   if (!lbOn()) return;
-  // No contact details means no contest entry — the Worker rejects it too,
-  // and sending it anyway just burns a request on a phone's data.
-  if (!isRegistered()) return;
   const reg = contestRegistration();
   try {
     fetch(LB_URL + '/submit', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        runId: runLogResult.runId,
         name: lbName(),
         events: runLogResult.events,
         durationMs: runLogResult.durationMs,
         phone: reg?.phone || '',
         email: reg?.email || '',
+        // The hidden honeypot field, always empty from the real client. The
+        // Worker treats any value here as a bot and drops the entry while
+        // answering as though it succeeded.
+        website: '',
       }),
     }).catch(() => {});
   } catch (_e) {}
 }
+
+// Called the moment someone enters the contest. Sends the run they had just
+// finished, if there was one. Safe to call at any time: no held run, no-op.
+export function flushPendingRun() {
+  if (!pendingRun) return false;
+  const run = pendingRun;
+  pendingRun = null;
+  lbSubmit(run);
+  return true;
+}
+
+// Test seam — the harness needs to see whether a run is being held.
+export function hasPendingRun() { return !!pendingRun; }
 
 export function lbTop(n, cb) {
   if (!lbOn()) {

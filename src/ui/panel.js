@@ -19,7 +19,7 @@
 
 import {
   lbName, setLbName, contestRegistration, setContestRegistration,
-  isRegistered, phoneDigits, lbTop, localRuns, withWillHill,
+  isRegistered, phoneDigits, lbTop, localRuns, withWillHill, flushPendingRun,
 } from '../net/leaderboard.js';
 // Through the bundler, so the URL is the content-hashed one. A literal path in
 // the stylesheet resolves in dev and 404s in dist.
@@ -304,6 +304,12 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
     }
     setLbName($('fName').value);
     setContestRegistration({ phone: $('fPhone').value, email: $('fEmail').value });
+    // ⚠️ AND SEND THE RUN THEY JUST PLAYED. Client: "when they enter after the
+    // run, I just wanna make sure that that run is actually added." It was not
+    // — the submit fires at the moment of death, before this form has even
+    // been offered, and used to be dropped outright when nobody was
+    // registered. leaderboard.js parks it instead; this is where it goes.
+    flushPendingRun();
     feedback.commit();
     show('board');
   }

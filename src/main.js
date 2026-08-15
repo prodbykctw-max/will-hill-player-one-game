@@ -28,7 +28,7 @@ import { createTitle, TITLE_IMAGES, INTRO_TICKS as TITLE_INTRO_TICKS,
   SRC_W as STILL_W, SRC_H as STILL_H } from './render/title.js';
 import martaMapArt from './assets/backgrounds/marta-map.webp';
 import { loadImages } from './render/images.js';
-import { createRunLog, lbSubmit, bankLocalRun, isRegistered, localRuns,
+import { createRunLog, lbSubmit, bankLocalRun, isRegistered, localRuns, hasPendingRun,
   signupOffered, markSignupOffered } from './net/leaderboard.js';
 import { createPanel, soundEnabled, setSoundEnabled,
   sfxEnabled, setSfxEnabled } from './ui/panel.js';
@@ -244,6 +244,13 @@ const state = {
 // actually being compared.
 if (import.meta.env.DEV) {
   window.__game = state; window.__camera = camera; window.__audio = audio;
+  // ⚠️ THE HELD RUN, EXPOSED FROM HERE AND NOT RE-IMPORTED. A harness that
+  // does `await import('/src/net/leaderboard.js')` gets a SECOND instance of
+  // the module under Vite dev — the app's copy is fetched with an HMR
+  // timestamp on the URL and a bare specifier is a different URL — so it reads
+  // a `pendingRun` that is always null and reports the held run as lost. This
+  // hook hands out the app's own copy.
+  window.__lb = { hasPendingRun };
   // The title's controls are geometry, not constants — the OPTIONS word's
   // placement is three caps against the live window — so the harness asks the
   // screen where it put things rather than re-deriving it and grading its own

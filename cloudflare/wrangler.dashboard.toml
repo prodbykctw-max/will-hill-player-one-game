@@ -1,0 +1,22 @@
+# THE DASHBOARD. Its own worker, its own hostname, share-by-link.
+#
+#   wrangler deploy -c cloudflare/wrangler.dashboard.toml
+#   wrangler secret put DASH_TOKEN --name will-hill-dashboard
+#
+# ⚠️ ROTATING THE TOKEN IS THE KILL SWITCH. Re-running the `secret put` above
+# with a new value invalidates every link ever sent, which is the only thing
+# that makes a login-free page showing phone numbers acceptable. Do it the day
+# the contest closes.
+#
+# Generate one that cannot be guessed:
+#   openssl rand -hex 24
+name = "will-hill-dashboard"
+main = "dashboard-worker.js"
+compatibility_date = "2026-08-10"
+
+# The SAME database the game worker writes to, read-only by convention here —
+# this worker only ever SELECTs. Paste the same id.
+[[d1_databases]]
+binding = "DB"
+database_name = "will-hill-contest"
+database_id = "TODO_CREATE_D1_DATABASE"

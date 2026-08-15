@@ -1,76 +1,105 @@
 /**
- * Will Hill: Player One — 3-day contest leaderboard Worker.
+ * WILL HILL: PLAYER ONE — the contest leaderboard.
  *
  * Unlike the Jandé project's leaderboard (a promo high-score board with no
  * real stakes), this backs a real contest: the top score wins a real-world
- * prize from Will Hill and his team. See docs/GDD.md "Leaderboard & contest"
- * for the full design this implements.
+ * prize, so a wrong number here costs the client money and credibility.
  *
- * Endpoints (CORS open):
- *   POST /submit  { name, events:[{t,type}], durationMs, phone, email }
- *     -> { ok, rank, score }
- *     Score is NOT trusted from the client — it's recomputed here from the
- *     event log (see scoreFromEvents). phone/email are stored but never
- *     returned by /top.
+ *   POST /submit  { runId, name, phone, email, events[], durationMs, ts }
+ *     -> { ok, rank, score, best, total }
+ *     Score is RECOMPUTED here from the event log. The client never gets to
+ *     assert a number. phone/email are stored but never returned by anything.
  *   GET  /top?n=20
- *     -> { ok, runs:[{name, score}] }   -- PUBLIC. Never includes phone/email.
+ *     -> { ok, runs:[{id, name, score}] }   PUBLIC. No phone, no email, ever.
  *
- * STORAGE IS SPLIT, AND THAT SPLIT IS THE POINT.
+ * ── WHY D1 AND NOT KV ────────────────────────────────────────────────────
  *
- *   "lb:runs"   PUBLIC. A JSON array of { id, name, score, t } sorted by
- *               score, one entry per person, capped at CAP. No phone, no
- *               email — this blob could leak and cost nobody anything.
- *   "pii:<id>"  PRIVATE. One key per entrant, { phone, email, name, t }.
- *               Written by /submit, read by NOTHING. There is deliberately no
- *               endpoint that returns or lists these; the contest organiser
- *               reads them out of the KV dashboard when it is time to contact
- *               a winner.
+ * This ran on a single KV key (`lb:runs`) holding the whole board, read →
+ * modified → written on every submit. That is broken for a contest and the
+ * client asked the right question about it — "if a person plays 100 times a
+ * day, how can we make sure it doesn't break":
  *
- * The old shape kept phone and email inside the public array and relied on
- * /top remembering to project them away. One forgotten field in one response
- * and the whole entrant list is public. Separate keys cannot be leaked by
- * forgetting something.
+ *   * KV has NO COMPARE-AND-SWAP. Two people finishing at the same moment both
+ *     read the old list, and the second write silently erases the first. A
+ *     lost score, with a prize attached to it.
+ *   * KV allows roughly ONE WRITE PER SECOND PER KEY. A launch party is a
+ *     burst against exactly one key.
  *
- * Bind the KV namespace as `LB` (see wrangler.toml).
+ * D1 turns the whole race into one statement — see `upsert` below. "Keep the
+ * highest" becomes a database guarantee instead of application code that
+ * happens to run alone.
  *
- * NOT YET DEPLOYED. See cloudflare/README.md — creating the KV namespace and
- * running `wrangler deploy` is a manual, explicitly-confirmed step (it
- * touches the live Cloudflare account), same split the Jandé project used.
+ * ── AND THE READ PATH IS CACHED, THE WRITE PATH NEVER ────────────────────
+ *
+ * A hundred players generate a hundred writes across an evening and thousands
+ * of reads — everyone sitting on the leaderboard screen. So `/top` is cached
+ * at the edge for TOP_TTL seconds and `/submit` is never cached at all. Note
+ * this is the exact inverse of the old design's mistake, which used the
+ * eventually-consistent store for the thing that needs consistency and cached
+ * nothing that didn't.
+ *
+ * Bind D1 as `DB` (see wrangler.toml). Schema in schema.sql.
  */
 
-const CORS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
-  'Access-Control-Max-Age': '86400',
-};
-const CAP = 500;
+const CAP = 500;          // rows the public board will ever return
+const TOP_TTL = 2;        // seconds /top may be served from cache
+const MAX_BODY = 256 * 1024;
+const MAX_EVENTS = 5000;
 
 // TODO: set the real 3-day contest window before launch.
-const CONTEST_START = 0; // Date.now()-style ms epoch
+const CONTEST_START = 0;  // Date.now()-style ms epoch
 const CONTEST_END = 0;
+
+// ⚠️ WHO MAY POST TO THIS. It was `*` — any page on the internet could enter
+// the contest from anywhere. The game is served from GitHub Pages, so that is
+// the only origin that has any business here. Localhost stays for development
+// and is harmless: an attacker cannot make a victim's browser claim it.
+const ALLOWED_ORIGINS = [
+  'https://prodbykctw-max.github.io',
+  'http://localhost:5199',
+  'http://127.0.0.1:5199',
+];
+
+function corsFor(req) {
+  const origin = req.headers.get('Origin') || '';
+  const ok = ALLOWED_ORIGINS.includes(origin);
+  return {
+    'Access-Control-Allow-Origin': ok ? origin : ALLOWED_ORIGINS[0],
+    'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Max-Age': '86400',
+    Vary: 'Origin',
+    _ok: ok,
+  };
+}
 
 // Scoring rules the server applies to a submitted event log — keep in sync
 // with the client's run-event types (src/net/leaderboard.js createRunLog).
 const SCORE_RULES = {
-  bag: 100, // money bag collected
+  bag: 100,
   // A bag collected while the champagne was lit. It is its OWN event rather
   // than two `bag`s, because two bags and one doubled bag are the same number
   // and a different run — and a validator that cannot tell them apart cannot
   // check the thing that matters, which is whether the player had a bottle up
-  // at the time. Mirrors CHAMPAGNE_MULT in src/entities/collectibles.js; if
-  // these two ever disagree, every boosted run is rejected as fraudulent.
+  // at the time. Mirrors CHAMPAGNE_MULT in src/entities/collectibles.js.
   bagx2: 200,
-  stomp: 50, // enemy defeated by stomp
-  champagne: 0, // grants invulnerability, no direct score
-  pothole: 0, // tripped in a pothole — costs a heart, never score
-  // An enemy knocking money loose. One event per bag knocked out, so the
-  // arithmetic mirrors `bag` exactly and a recovered bag scores again.
+  stomp: 50,
+  champagne: 0,
+  pothole: 0,
   bagLost: -100,
 };
 
-const json = (o, status = 200) =>
-  new Response(JSON.stringify(o), { status, headers: { ...CORS, 'Content-Type': 'application/json' } });
+// ⚠️ THE CEILING IS MEASURED, NOT GUESSED. tools/harness/ceiling.mjs walks the
+// shipping levels and counts every bag, every enemy and every bottle at its
+// real position: 400 bags (40,000), plus stomps, plus what the champagne
+// windows can actually double. Nothing legitimate can exceed this, so anything
+// that does is a synthesised log however well-formed it looks.
+const MAX_LEGIT_SCORE = 70000;
+// Four stages at a measured 4.80px/tick cannot be crossed in under about two
+// minutes, and a run that claims more points than seconds by a wide margin is
+// not a run. Generous on purpose — this catches fabrication, not skill.
+const MIN_RUN_MS = 60 * 1000;
+const MAX_SCORE_PER_SECOND = 400;
 
 const cleanName = (n) => {
   const s = String(n == null ? '' : n)
@@ -82,6 +111,9 @@ const cleanName = (n) => {
 
 const cleanContact = (v, max) => String(v == null ? '' : v).trim().slice(0, max);
 
+// Digits only, so +1 (404) 555-0100 and 4045550100 are one person.
+const phoneKey = (v) => String(v == null ? '' : v).replace(/\D/g, '').replace(/^1(?=\d{10}$)/, '');
+
 // ── WHO SOMEBODY IS, FOR CONTEST PURPOSES ────────────────────────────────
 //
 // THE PHONE NUMBER IS THE IDENTITY. Not the display name — two people called
@@ -90,126 +122,230 @@ const cleanContact = (v, max) => String(v == null ? '' : v).trim().slice(0, max)
 // than filling the board.
 //
 // WHY THERE IS NO SMS VERIFICATION. The client decided against it, and the
-// reasoning holds: a web page cannot stop someone typing a made-up number,
-// and the usual answers (device fingerprinting, localStorage) are both weak
-// and clearable. What actually protects a contest is that the PRIZE is
-// claimed on the number and address given. A fake entry wins nothing, so it
-// costs nothing to allow. Verification can be added later if real abuse shows
-// up; the schema does not change if it is.
-//
-// Digits only, so +1 (404) 555-0100 and 4045550100 are one person.
-const phoneKey = (v) => String(v == null ? '' : v).replace(/\D/g, '').replace(/^1(?=\d{10}$)/, '');
-
-// A short, stable id derived from the number. The PUBLIC board is keyed by
-// this and never by the number itself, so nothing that leaves the Worker can
-// be walked back to a phone.
+// reasoning holds: a web page cannot stop someone typing a made-up number, and
+// the usual answers (fingerprinting, localStorage) are weak and clearable.
+// What protects a contest is that the PRIZE is claimed on the number given. A
+// fake entry wins nothing, so it costs nothing to allow.
 async function idFor(digits) {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('whp1:' + digits));
   return [...new Uint8Array(buf).slice(0, 10)].map((x) => x.toString(16).padStart(2, '0')).join('');
 }
 
 function inContestWindow(now) {
-  if (!CONTEST_START || !CONTEST_END) return true; // window not configured yet — allow (dev/testing)
+  if (!CONTEST_START || !CONTEST_END) return true; // not configured — dev/testing
   return now >= CONTEST_START && now <= CONTEST_END;
 }
 
-// Recompute score server-side from the submitted event log — this is the
-// anti-cheat measure: the client never gets to just assert a score.
 function scoreFromEvents(events, durationMs) {
   if (!Array.isArray(events)) return 0;
   let score = 0;
   let lastT = -1;
-  for (const ev of events.slice(0, 5000)) {
+  for (const ev of events.slice(0, MAX_EVENTS)) {
     if (!ev || typeof ev.t !== 'number' || typeof ev.type !== 'string') continue;
-    if (ev.t < lastT || ev.t > (durationMs || 0) + 1000) continue; // out-of-order or beyond run length
+    if (ev.t < lastT || ev.t > (durationMs || 0) + 1000) continue; // out of order / past the end
     lastT = ev.t;
     score += SCORE_RULES[ev.type] || 0;
   }
   return score;
 }
 
-const sortRuns = (a, b) => b.score - a.score || a.t - b.t;
-
-// One entry per PERSON, keeping their best. Was keyed on the lowercased
-// display name, which is wrong in both directions: it merged two different
-// people who picked the same name, and it let one person hold several places
-// by changing theirs between runs.
-function dedupeTrim(list) {
-  const seen = new Set();
-  const out = [];
-  for (const r of list) {
-    if (seen.has(r.id)) continue;
-    seen.add(r.id);
-    out.push(r);
-    if (out.length >= CAP) break;
-  }
-  return out;
+// Every refusal is recorded with its reason so the dashboard can show abuse
+// as it happens. Never allowed to break a request: a logging failure must not
+// turn a clean rejection into a 500.
+async function reject(env, req, reason, detail, status = 400) {
+  try {
+    await env.DB.prepare('INSERT INTO rejects (t, reason, detail, ip) VALUES (?, ?, ?, ?)')
+      .bind(Date.now(), reason, String(detail || '').slice(0, 200),
+        req.headers.get('CF-Connecting-IP') || '')
+      .run();
+  } catch (_e) { /* never let logging break the response */ }
+  return { reason, status };
 }
 
-const getList = async (env) => {
-  const s = await env.LB.get('lb:runs');
-  return s ? JSON.parse(s) : [];
-};
-const putList = (env, list) => env.LB.put('lb:runs', JSON.stringify(list.slice(0, CAP)));
-
 export default {
-  async fetch(req, env) {
-    if (req.method === 'OPTIONS') return new Response(null, { headers: CORS });
+  async fetch(req, env, ctx) {
+    const CORS = corsFor(req);
+    const cors = { ...CORS };
+    delete cors._ok;
+    const json = (o, status = 200, extra = {}) => new Response(JSON.stringify(o), {
+      status,
+      headers: { ...cors, 'Content-Type': 'application/json', ...extra },
+    });
+
+    if (req.method === 'OPTIONS') return new Response(null, { headers: cors });
     const url = new URL(req.url);
+
     try {
+      // ── PUBLIC BOARD ─────────────────────────────────────────────────
       if (url.pathname === '/top' && req.method === 'GET') {
         const n = Math.max(1, Math.min(50, Math.floor(Number(url.searchParams.get('n')) || 20)));
-        const list = await getList(env);
-        // PUBLIC projection only — name + score, never phone/email.
-        // PUBLIC projection: name + score, and the opaque id so the client
-        // can highlight the viewer's own row without the board ever carrying
-        // anything that identifies them to anyone else.
-        const runs = list.slice(0, n).map((r) => ({ id: r.id, name: r.name, score: r.score }));
-        return json({ ok: true, runs });
+        // Edge cache keyed on n. Two seconds is invisible to a person reading
+        // a board and removes essentially all read load from the database.
+        const cache = caches.default;
+        const ckey = new Request(`${url.origin}/top?n=${n}`, { method: 'GET' });
+        const hit = await cache.match(ckey);
+        if (hit) {
+          const body = await hit.text();
+          return new Response(body, {
+            headers: { ...cors, 'Content-Type': 'application/json', 'X-Cache': 'HIT' },
+          });
+        }
+        // SELECTS FROM `runs` ONLY. The contact details are in another table
+        // entirely, so this query has no phone column available to leak.
+        const { results } = await env.DB
+          .prepare('SELECT id, name, score FROM runs ORDER BY score DESC, updated ASC LIMIT ?')
+          .bind(Math.min(n, CAP))
+          .all();
+        const body = JSON.stringify({ ok: true, runs: results || [] });
+        const res = new Response(body, {
+          headers: {
+            ...cors,
+            'Content-Type': 'application/json',
+            'Cache-Control': `public, max-age=${TOP_TTL}`,
+            'X-Cache': 'MISS',
+          },
+        });
+        ctx.waitUntil(cache.put(ckey, res.clone()));
+        return res;
       }
 
+      // ── SUBMIT A RUN ─────────────────────────────────────────────────
       if (url.pathname === '/submit' && req.method === 'POST') {
         const now = Date.now();
+
+        if (!CORS._ok) {
+          const r = await reject(env, req, 'origin', req.headers.get('Origin'), 403);
+          return json({ ok: false, err: 'forbidden' }, r.status);
+        }
         if (!inContestWindow(now)) {
           return json({ ok: false, err: 'contest window closed' }, 403);
         }
 
-        const b = await req.json().catch(() => ({}));
+        const raw = await req.text();
+        if (raw.length > MAX_BODY) {
+          const r = await reject(env, req, 'body-too-large', raw.length, 413);
+          return json({ ok: false, err: 'too large' }, r.status);
+        }
+        let b;
+        try { b = JSON.parse(raw); } catch (_e) { b = null; }
+        if (!b || typeof b !== 'object') {
+          await reject(env, req, 'bad-json', '');
+          return json({ ok: false, err: 'bad request' }, 400);
+        }
+
+        // ⚠️ HONEYPOT 1 — THE DECOY SCORE. The real client never sends a
+        // score; the server computes it from the events. So a payload that
+        // carries one was written by somebody poking at the API, by
+        // definition. Logged and dropped, and deliberately answered with the
+        // same shape as success so a prober learns nothing from the reply.
+        if ('score' in b) {
+          await reject(env, req, 'honeypot-score', JSON.stringify(b.score));
+          return json({ ok: true, rank: 0, score: 0, best: 0, total: 0 });
+        }
+        // ⚠️ HONEYPOT 2 — THE HIDDEN FORM FIELD. `website` is rendered
+        // off-screen with tabindex=-1 and autocomplete=off, so no human ever
+        // types in it and an automated form-filler always does.
+        if (b.website) {
+          await reject(env, req, 'honeypot-field', String(b.website).slice(0, 60));
+          return json({ ok: true, rank: 0, score: 0, best: 0, total: 0 });
+        }
+
         const digits = phoneKey(b.phone);
-        // A contest entry with no way to reach the winner is not an entry.
-        // Ten digits because this is a US phone contest; the client asks for
-        // the same thing and says so on the form.
-        if (digits.length < 10) return json({ ok: false, err: 'phone required' }, 400);
+        if (digits.length < 10) {
+          await reject(env, req, 'phone', String(digits.length));
+          return json({ ok: false, err: 'phone required' }, 400);
+        }
+
+        const runId = String(b.runId || '').slice(0, 64);
+        if (!/^[0-9a-f-]{16,64}$/i.test(runId)) {
+          await reject(env, req, 'run-id', runId);
+          return json({ ok: false, err: 'bad run' }, 400);
+        }
 
         const durationMs = Math.max(0, Math.min(3600000, Math.floor(Number(b.durationMs) || 0)));
+        if (!Array.isArray(b.events) || b.events.length > MAX_EVENTS) {
+          await reject(env, req, 'events', Array.isArray(b.events) ? b.events.length : 'not-array');
+          return json({ ok: false, err: 'bad run' }, 400);
+        }
+
         const score = scoreFromEvents(b.events, durationMs);
         if (score <= 0) return json({ ok: false, err: 'empty run' }, 400);
+
+        // Plausibility. The recompute already defeats naive tampering; these
+        // are what catch a log somebody BUILT rather than played.
+        if (score > MAX_LEGIT_SCORE) {
+          await reject(env, req, 'over-ceiling', String(score));
+          return json({ ok: false, err: 'invalid run' }, 400);
+        }
+        if (durationMs < MIN_RUN_MS || score / (durationMs / 1000) > MAX_SCORE_PER_SECOND) {
+          await reject(env, req, 'implausible-rate', `${score}/${durationMs}ms`);
+          return json({ ok: false, err: 'invalid run' }, 400);
+        }
 
         const id = await idFor(digits);
         const name = cleanName(b.name);
 
-        // PRIVATE, its own key, never returned by anything.
-        await env.LB.put(`pii:${id}`, JSON.stringify({
-          phone: digits, email: cleanContact(b.email, 128), name, t: now,
-        }));
+        // ⚠️ REPLAY: THE PRIMARY KEY IS THE LOCK. A duplicate run id fails to
+        // insert and the submit is refused — which stops the same log being
+        // posted twice, and stops somebody else's good run being posted under
+        // a different phone number. No read-then-check, so there is no window
+        // between the two for a second request to slip through.
+        try {
+          await env.DB.prepare('INSERT INTO seen_runs (run_id, id, t) VALUES (?, ?, ?)')
+            .bind(runId, id, now).run();
+        } catch (_e) {
+          await reject(env, req, 'replay', runId, 409);
+          return json({ ok: false, err: 'already submitted' }, 409);
+        }
 
-        // PUBLIC. Their previous entry is dropped first, so a worse replay
-        // cannot knock a player down and a better one simply replaces it —
-        // one line per person, always their best.
-        const prev = (await getList(env)).filter((r) => r.id !== id);
-        const best = Math.max(score, ...(await getList(env))
-          .filter((r) => r.id === id).map((r) => r.score), 0);
-        const run = { id, name, score: best, t: now };
-        const list = dedupeTrim([...prev, run].sort(sortRuns));
-        await putList(env, list);
+        // PRIVATE — its own table, never joined on the public path.
+        await env.DB.prepare(
+          `INSERT INTO entrants (id, phone, email, name, created, seen)
+           VALUES (?, ?, ?, ?, ?, ?)
+           ON CONFLICT(id) DO UPDATE SET
+             email = excluded.email, name = excluded.name, seen = excluded.seen`,
+        ).bind(id, digits, cleanContact(b.email, 128), name, now, now).run();
 
-        const rank = list.findIndex((r) => r.id === id) + 1;
-        return json({ ok: true, rank, score, best, total: list.length });
+        // PUBLIC — one row per person, always their best. The whole race the
+        // KV version had lives inside MAX() now, where the database owns it.
+        await env.DB.prepare(
+          `INSERT INTO runs (id, name, score, updated, created, plays)
+           VALUES (?, ?, ?, ?, ?, 1)
+           ON CONFLICT(id) DO UPDATE SET
+             name    = excluded.name,
+             plays   = runs.plays + 1,
+             updated = CASE WHEN excluded.score > runs.score
+                            THEN excluded.updated ELSE runs.updated END,
+             score   = MAX(runs.score, excluded.score)`,
+        ).bind(id, name, score, now, now).run();
+
+        const row = await env.DB.prepare('SELECT score FROM runs WHERE id = ?').bind(id).first();
+        const best = row ? row.score : score;
+        const rankRow = await env.DB.prepare(
+          'SELECT COUNT(*) AS n FROM runs WHERE score > ? OR (score = ? AND updated < ?)',
+        ).bind(best, best, now).first();
+        const totalRow = await env.DB.prepare('SELECT COUNT(*) AS n FROM runs').first();
+
+        return json({
+          ok: true,
+          rank: (rankRow ? rankRow.n : 0) + 1,
+          score,
+          best,
+          total: totalRow ? totalRow.n : 0,
+        });
       }
 
       return json({ ok: false, err: 'not found' }, 404);
     } catch (e) {
-      return json({ ok: false, err: String((e && e.message) || e) }, 500);
+      // ⚠️ FAIL CLOSED. This used to return String(e.message) to the caller,
+      // which hands an attacker a free map of the internals one malformed
+      // request at a time. Log it, say nothing.
+      try {
+        await env.DB.prepare('INSERT INTO rejects (t, reason, detail, ip) VALUES (?, ?, ?, ?)')
+          .bind(Date.now(), 'exception', String((e && e.message) || e).slice(0, 200),
+            req.headers.get('CF-Connecting-IP') || '').run();
+      } catch (_e2) { /* */ }
+      return json({ ok: false, err: 'server error' }, 500);
     }
   },
 };

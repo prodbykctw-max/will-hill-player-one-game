@@ -1,9 +1,21 @@
+# THE PUBLIC GAME WORKER. Serves /top and takes /submit. Nothing here can
+# read a phone number: the contact details live in the `entrants` table and
+# this worker's public path never selects from it.
 name = "will-hill-leaderboard"
 main = "leaderboard-worker.js"
 compatibility_date = "2026-08-10"
 
-# TODO: create the KV namespace and fill in its id before deploying —
-# see README.md. Not created yet (manual, explicitly-confirmed step).
-[[kv_namespaces]]
-binding = "LB"
-id = "TODO_CREATE_KV_NAMESPACE"
+# ⚠️ D1, NOT KV — and the reason is in leaderboard-worker.js's header. The KV
+# version held the whole board in ONE key and did read-modify-write with no
+# compare-and-swap, so two players finishing at the same moment lost a score,
+# and KV's ~1-write-per-second-per-key ceiling made a launch party a queue.
+# D1 turns the whole thing into one atomic upsert.
+#
+# TODO before deploying:
+#   wrangler d1 create will-hill-contest
+#   wrangler d1 execute will-hill-contest --remote --file=cloudflare/schema.sql
+# then paste the id below.
+[[d1_databases]]
+binding = "DB"
+database_name = "will-hill-contest"
+database_id = "TODO_CREATE_D1_DATABASE"
