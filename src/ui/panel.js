@@ -175,6 +175,10 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
     const inCabinet = view === 'menu';
     $('panelCard').classList.toggle('cabinet', inCabinet);
     $('panelCard').classList.toggle('cabinet-menu', view === 'menu');
+    // The cabinet is full-bleed, so the SCROLLER has to stop padding and
+    // start clipping. On the element rather than the card, because it is the
+    // container's own padding and overflow that leave the gap.
+    el.classList.toggle('cabinetView', inCabinet);
     title.hidden = view === 'board';   // the ticket is lettered LEADERBOARD
     title.textContent = view === 'form' ? 'ENTER THE CONTEST'
       : view === 'settings' ? 'SETTINGS'

@@ -350,6 +350,24 @@
        would need 1250 in the options opening, which has 1002. Only one of
        the two holds both. */
     #panelScreen { display: contents; }
+    /* ── THE CABINET FILLS THE SCREEN, EDGE TO EDGE ────────────────────
+       Client: "CAN IT BE ZOOMED IN ON TO FILL THE GAPS AROUND IT?" It sat in
+       the panel's normal 420px column with night sky showing all round it.
+
+       ⚠️ SIZED TO COVER, NOT STRETCHED TO FIT, and that distinction is the
+       whole trick. `background-size: cover` on a viewport-sized box would
+       crop the plate against its own element, and every offset below is a
+       fraction OF THE PLATE — the screen opening would drift off the glass as
+       soon as a phone's aspect ratio differed from the artwork's. Instead the
+       CARD keeps the plate's exact aspect ratio and is grown until it covers
+       the viewport on both axes, so the plate is never cropped relative to
+       the card and never distorted. The overflow is clipped by #panel.
+       It barely overflows on the device that matters: the plate is
+       852/1846 = 0.4615 and his phone is 430/932 = 0.4614.
+       The `+ env(safe-area-inset-bottom)` matches how #game computes its own
+       height — in a standalone PWA, 100dvh stops at the home-indicator line
+       and leaves the same strip of bare page the client reported once
+       already. */
     #panelCard.cabinet {
       background-image: var(--cabinet-plate);
       background-position: center; background-size: 100% 100%;
@@ -357,6 +375,27 @@
       aspect-ratio: 852 / 1846;
       border: 0; box-shadow: none; padding: 0;
       container-type: inline-size;
+      margin: 0; max-width: none;
+      width: max(100dvw, calc((100dvh + env(safe-area-inset-bottom, 0px))
+                              * 852 / 1846));
+      /* ⚠️ Without this the cover width is undone. #panel is a flex row and a
+         flex item defaults to `flex-shrink: 1`, so an item deliberately grown
+         WIDER than the line gets squeezed straight back to it. Measured: at a
+         320px viewport the card wanted 430 and rendered 320x693 inside a 932
+         tall screen — not covering at all. It only looked right at 430,
+         where the wanted width happened to equal the line. */
+      flex: none;
+    }
+    /* ⚠️ `overflow: hidden` HERE, AND ONLY IN THIS STATE. #panel is normally
+       a scroll container, and the comment on it explains why it must not
+       centre its item while scrollable — a centred item taller than the
+       container overflows equally in both directions and the top half becomes
+       unreachable, which is what once hid the head of his MARTA card. In the
+       cabinet state that symmetric overflow is exactly what is wanted: it is
+       the crop. Clipping it instead of scrolling is what makes it a crop
+       rather than a bug. */
+    #panel.cabinetView {
+      padding: 0; overflow: hidden; align-items: center;
     }
     /* His painted panel, laid into the housing's opening. Width and offsets
        are fractions of the housing; the HEIGHT comes from the plate's own
