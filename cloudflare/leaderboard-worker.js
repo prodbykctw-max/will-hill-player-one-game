@@ -376,16 +376,30 @@ export default {
         // number is not worth failing a submission over.
         try {
           const st = statsFromEvents(b.events, durationMs);
+          // WHERE FROM — Cloudflare has already resolved it on the way in, so
+          // this costs nothing and asks the player for nothing. Coarse by
+          // nature (see schema.sql), stored on the opaque-id side, never
+          // beside a phone number. `latitude`/`longitude` arrive as strings.
+          const cf = req.cf || {};
+          const num = (v) => {
+            const n = Number(v);
+            return Number.isFinite(n) ? n : null;
+          };
+          const txt = (v) => (v == null ? null : String(v).slice(0, 64));
           await env.DB.prepare(
             `INSERT OR IGNORE INTO run_stats
                (run_id, id, t, score, duration, bags, bags_x2, bags_lost,
                 kills, bottles, potholes, continues, deaths, death_enemy,
-                death_pothole, death_fall, stages, best_stage)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                death_pothole, death_fall, stages, best_stage,
+                city, region, country, lat, lon)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                     ?, ?, ?, ?, ?)`,
           ).bind(runId, id, now, score, durationMs, st.bags, st.bags_x2,
             st.bags_lost, st.kills, st.bottles, st.potholes, st.continues,
             st.deaths, st.death_enemy, st.death_pothole, st.death_fall,
-            st.stages, st.best_stage).run();
+            st.stages, st.best_stage,
+            txt(cf.city), txt(cf.region), txt(cf.country),
+            num(cf.latitude), num(cf.longitude)).run();
         } catch (_e) { /* stats are never load-bearing */ }
 
         const row = await env.DB.prepare('SELECT score FROM runs WHERE id = ?').bind(id).first();

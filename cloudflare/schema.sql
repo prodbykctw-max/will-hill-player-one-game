@@ -101,8 +101,30 @@ CREATE TABLE IF NOT EXISTS run_stats (
   death_pothole INTEGER NOT NULL DEFAULT 0,
   death_fall    INTEGER NOT NULL DEFAULT 0,
   stages     INTEGER NOT NULL DEFAULT 0,  -- stages cleared in this run
-  best_stage INTEGER NOT NULL DEFAULT 0   -- furthest stage reached (1-4)
+  best_stage INTEGER NOT NULL DEFAULT 0,  -- furthest stage reached (1-4)
+  -- ── WHERE THE RUN CAME FROM ────────────────────────────────────────────
+  --
+  -- Client: "I want a world map that zooms in to city level and I wanna be
+  -- able to see what city each contestant is playing from."
+  --
+  -- Cloudflare hands every request a `cf` object with this already resolved —
+  -- no lookup, no third party, no extra round trip, and nothing asked of the
+  -- player. It is recorded HERE, on the opaque-id side of the wall, and
+  -- deliberately NOT on `entrants` beside the phone number: if this table
+  -- ever leaked it says "somebody played from Decatur", not who.
+  --
+  -- ⚠️ EDGE GEO IS NOT GPS, AND THE DASHBOARD SAYS SO. It resolves the
+  -- network, not the person: a player on cellular frequently lands on their
+  -- carrier's hub city, and a VPN reports wherever it exits. Good for "the
+  -- Southeast is lit up"; not evidence of where anybody lives.
+  city       TEXT,
+  region     TEXT,
+  country    TEXT,
+  lat        REAL,
+  lon        REAL
 );
+-- The map groups by city; this is the index that makes that cheap.
+CREATE INDEX IF NOT EXISTS run_stats_city ON run_stats (country, region, city);
 -- The dashboard reads these two ways: newest first, and grouped per player.
 CREATE INDEX IF NOT EXISTS run_stats_t ON run_stats (t DESC);
 CREATE INDEX IF NOT EXISTS run_stats_id ON run_stats (id);
