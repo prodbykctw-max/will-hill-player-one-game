@@ -28,10 +28,14 @@ import {
 // copy of the timezone maths living in the interface layer.
 import { atlantaHour } from '../world/stages.js';
 import leaderboardCard from '../assets/backgrounds/leaderboard-card.webp';
-// The MARTA cabinet OPTIONS and SETTINGS are drawn inside. His concept art,
-// blanked to an empty housing by tools/cut_cabinet.py. Imported for the same
-// reason the card above is — a literal path 404s under the Pages subpath.
+// ⚠️ THE CLIENT'S ARTWORK IS THE SCREEN. Two painted layers, cut by
+// tools/cut_cabinet.py: the MARTA housing with its screen emptied, and his
+// painted OPTIONS panel that lays into the opening. The painted buttons are
+// made live by transparent hit targets — nothing here draws a control.
+// Imported for the same reason the card above is: a literal path 404s under
+// the Pages subpath.
 import cabinetPlate from '../assets/ui/cabinet.webp';
+import panelOptionsPlate from '../assets/ui/panel-options.webp';
 // HOW TO PLAY, in real frames from the running game — see
 // tools/shoot_howto.mjs. Imported rather than written into index.html for the
 // same reason the card above is: the bundler content-hashes these, and a
@@ -123,7 +127,10 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
   // the single thing that decides whether the housing shows — and the URL is
   // assigned once, so switching views never re-decodes it.
   const panelCard = $('panelCard');
-  if (panelCard) panelCard.style.setProperty('--cabinet-plate', `url(${cabinetPlate})`);
+  if (panelCard) {
+    panelCard.style.setProperty('--cabinet-plate', `url(${cabinetPlate})`);
+    panelCard.style.setProperty('--panel-options', `url(${panelOptionsPlate})`);
+  }
   const views = { menu: $('pvMenu'), board: $('pvBoard'), how: $('pvHow'),
     form: $('pvForm'), settings: $('pvSettings') };
   const title = $('panelTitle');
@@ -146,14 +153,28 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
     // plate, no border, no external heading — so the artwork gets the whole
     // frame. Every other view keeps the panel it has always had.
     $('panelCard').classList.toggle('bare', view === 'board');
-    // ── OPTIONS AND SETTINGS ARE THE MARTA CABINET ───────────────────────
+    // ── OPTIONS IS THE MARTA CABINET ─────────────────────────────────────
     //
-    // Only these two. The board has its own artwork (the breeze card), and
-    // HOW TO PLAY and the sign-up form both need more height than the glass
-    // has — a four-page swipe pager and a three-field form inside a cabinet
-    // opening would either scroll inside a scroller or shrink the pictures to
-    // nothing. They keep the plain panel.
-    $('panelCard').classList.toggle('cabinet', view === 'menu' || view === 'settings');
+    // Only OPTIONS, for now. It is the one screen with NO STATE — four
+    // painted buttons and a painted ✕, nothing that has to show on/off — so
+    // his painting works as-is and every visible pixel is his.
+    //
+    // SETTINGS joins it once he delivers the pieces a painting cannot carry:
+    // the switch in its OFF state, and the TIME OF DAY box in its other three
+    // values. He asked to draw those himself rather than have them
+    // composited — "I CAN LITERALLY EDIT THE IMAGE TO EXACTLY AS NEEDED" —
+    // and tools/cut_cabinet.py already cuts panel-settings.webp with those
+    // four sockets blanked, ready for them. Until then SETTINGS keeps the
+    // plain panel, because a cabinet whose switches are invisible is worse
+    // than one that has not arrived.
+    //
+    // The board keeps his breeze card. HOW TO PLAY and the sign-up form keep
+    // the plain panel too: a four-page swipe pager and a three-field form
+    // inside a cabinet opening either scroll within a scroller or shrink the
+    // pictures to nothing.
+    const inCabinet = view === 'menu';
+    $('panelCard').classList.toggle('cabinet', inCabinet);
+    $('panelCard').classList.toggle('cabinet-menu', view === 'menu');
     title.hidden = view === 'board';   // the ticket is lettered LEADERBOARD
     title.textContent = view === 'form' ? 'ENTER THE CONTEST'
       : view === 'settings' ? 'SETTINGS'

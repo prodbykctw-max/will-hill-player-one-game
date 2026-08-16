@@ -324,167 +324,104 @@
     }
     #panelTitle[hidden] { display: none; }
 
-    /* ── OPTIONS AND SETTINGS LIVE IN THE MARTA CABINET ─────────────────
-       His concept art, cut to a plate by tools/cut_cabinet.py. The housing
-       is the picture; the controls inside the glass are real DOM, so they
-       stay tappable, focusable and readable by a screen reader.
+    /* ── OPTIONS LIVES INSIDE HIS MARTA CABINET ────────────────────────
+       ⚠️ HIS ARTWORK IS THE SCREEN. NOTHING HERE DRAWS A CONTROL.
 
-       ⚠️ ONE HOUSING FOR BOTH VIEWS, DELIBERATELY. He commissioned OPTIONS
-       and SETTINGS as separate images and the two cabinets are not the same
-       painting — 48% of the housing pixels differ by more than 30, with the
-       wordmark, joystick and lamps at different heights. Using both would
-       make the cabinet jump on OPTIONS -> SETTINGS. See the README beside
-       assets/ui-concept/. */
+       An earlier pass kept only the metal housing and re-drew the heading,
+       the four buttons, the switches and the select in CSS. He rejected it:
+       "I never asked you to layer any of your art style on top of this
+       shit... I want the artwork that I've just generated in ChatGPT to be
+       the actual option setting and dashboard" — and then described the
+       build he wanted: "taking a larger cabinet and using it for both and
+       then layering the ChatGPT artwork and just making those active
+       buttons, making everything active."
+
+       So there are two painted layers and a set of invisible hit targets.
+       The mechanism is the one his MARTA breeze card already uses (#lbCard
+       above): artwork as a background at its own aspect-ratio,
+       `container-type: inline-size`, everything over it placed at measured
+       FRACTIONS. Both plates and every fraction below come from
+       tools/cut_cabinet.py, which prints them.
+
+       ⚠️ THE HOUSING IS THE ONE FROM settings.png, AND THAT IS ARITHMETIC,
+       NOT TASTE. His two concepts are different paintings, so one had to go.
+       The options panel is 546x1002 and drops into the settings opening at
+       919 tall against 1147 available. The settings panel is 501x1147 and
+       would need 1250 in the options opening, which has 1002. Only one of
+       the two holds both. */
     #panelScreen { display: contents; }
-    /* ⚠️ NO `url()` HERE. The image is assigned from panel.js off a bundler
-       import, the same as #lbCard — a literal path in this stylesheet
-       resolves in dev and 404s under the Pages subpath, because Vite only
-       rewrites asset URLs it can see through the module graph. */
     #panelCard.cabinet {
       background-image: var(--cabinet-plate);
       background-position: center; background-size: 100% 100%;
       background-repeat: no-repeat; background-color: transparent;
-      /* ⚠️ EVERYTHING INSIDE THE GLASS IS SIZED IN `cqw`, NOT PIXELS.
-         The housing scales with the viewport and the opening is a fixed
-         FRACTION of it, so fixed-pixel type inside drifts out of the frame as
-         the phone gets narrower. Measured, before this: the TIME OF DAY
-         select overflowed the glass by 13px at 430 wide, 37px at 390 and
-         78px at 320, and at 320 the settings pane scrolled as well. One
-         container, one unit, and the whole panel shrinks with its own
-         cabinet instead of against it. */
-      container-type: inline-size;
-      /* Locked to the plate so the measured opening below stays true at every
-         width. The panel is already a scroll container that handles a card
-         taller than the phone — that is how his leaderboard ticket works. */
       aspect-ratio: 852 / 1846;
       border: 0; box-shadow: none; padding: 0;
+      container-type: inline-size;
     }
-    /* The screen opening, as fractions of the plate. Measured off the
-       artwork by tools/cut_cabinet.py, which prints these numbers. */
+    /* His painted panel, laid into the housing's opening. Width and offsets
+       are fractions of the housing; the HEIGHT comes from the plate's own
+       aspect ratio, so the artwork can never be stretched. */
     #panelCard.cabinet #panelScreen {
-      display: flex; flex-direction: column;
+      /* ⚠️ `display: block` IS LOad-BEARING. The base rule above is
+         `display: contents`, which this selector does not otherwise touch —
+         and an element with `display: contents` generates NO BOX, so the
+         plate never paints and its rect is 0x0. The hit targets then position
+         against #panelCard instead and come out ~70% oversized, while
+         elementFromPoint still returns them because they are on top of
+         nothing. Measured that way first: 349px wide against a 402px card,
+         where the plate is 236px. */
+      display: block;
       position: absolute;
-      left: 12.91%; top: 11.21%; width: 64.08%; height: 54.28%;
-      box-sizing: border-box; padding: 4.5% 5.5%;
-      /* Long content scrolls inside the glass rather than spilling over the
-         metal — there is no arrangement of these controls that can overflow
-         a cabinet and still look like a cabinet. */
-      overflow-y: auto; scrollbar-width: none;
+      left: 16.784%; top: 12.784%; width: 58.803%;
+      background-position: top center; background-size: 100% 100%;
+      background-repeat: no-repeat;
     }
-    #panelCard.cabinet #panelScreen::-webkit-scrollbar { width: 0; display: none; }
-    /* The heading sits inside the glass, the way it is painted. */
-    #panelCard.cabinet #panelTitle {
-      /* 10%, not 6% — the buttons below are spread with space-between, which
-         pins the first one to the top of what is left. At 6% it sat tight
-         under the heading while the gaps between the buttons were twice as
-         big; his concept has the heading standing clear of the stack. */
-      margin: 0 0 10%; font-size: 5.6cqw; letter-spacing: 0.10em;
-      color: #f0a83a;
+    #panelCard.cabinet-menu #panelScreen {
+      background-image: var(--panel-options);
+      aspect-ratio: 546 / 1002;
     }
-    /* ✕ moves into the glass's top-right corner, where the concept draws it.
-       It stays a real button — the client kept BACK TO GAME *and* the ✕. */
+    /* The heading is PAINTED into the plate, so the DOM one would be a second
+       copy of the same word sitting on top of his. */
+    #panelCard.cabinet #panelTitle { display: none; }
+    /* ── THE PAINTED BUTTONS ARE THE BUTTONS ───────────────────────────
+       Transparent boxes over his artwork, at the rects his buttons actually
+       occupy. They keep their original IDs, so every handler in panel.js and
+       every harness that clicks by ID works untouched.
+       `color: transparent` rather than empty text: the label has to stay in
+       the DOM or a screen reader finds an unnamed button, since the words
+       here live in a painting. */
+    #panelCard.cabinet .pv .btn {
+      position: absolute; margin: 0; padding: 0;
+      background: none; border: 0; border-radius: 1.6cqw;
+      color: transparent; font-size: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+    #panelCard.cabinet .pv .btn:active { background: rgba(240,168,58,0.16); }
+    #panelCard.cabinet #pvMenu:not([hidden]) { display: contents; }
+    #panelCard.cabinet #btnMenuBoard {
+      left: 6.59%; top: 21.06%; width: 86.81%; height: 14.77%;
+    }
+    #panelCard.cabinet #btnMenuHow {
+      left: 6.59%; top: 40.52%; width: 86.81%; height: 14.57%;
+    }
+    #panelCard.cabinet #btnMenuSettings {
+      left: 6.59%; top: 59.78%; width: 86.81%; height: 14.37%;
+    }
+    #panelCard.cabinet #btnMenuClose {
+      left: 6.59%; top: 78.84%; width: 86.81%; height: 14.17%;
+    }
+    /* The ✕ is painted at the top-right of his panel, so the button moves
+       onto it. Its rect is a fraction of the PLATE, which is itself inset in
+       the housing — hence the compounded offsets.
+       ⚠️ z-index, or the tap is eaten. #panelScreen is positioned and comes
+       later in the DOM than this button, so without it the plate covers its
+       own sibling. panelnav.mjs caught exactly that. */
     #panelCard.cabinet #panelClose {
-      top: 11.5%; right: 24%; color: rgba(242,234,216,0.62);
-      /* ⚠️ WITHOUT THIS THE ✕ IS UNTAPPABLE. #panelScreen is positioned and
-         comes AFTER this button in the DOM, so in the same stacking context
-         it paints over its own sibling — and the heading, which sits at
-         exactly this height, eats the tap. panelnav.mjs caught it:
-         "<h2 id=panelTitle>SETTINGS</h2> ... intercepts pointer events". */
-      z-index: 2;
+      position: absolute; z-index: 2;
+      left: 68.68%; top: 14.57%; width: 6.89%; height: 5.41%;
+      color: transparent; font-size: 0; background: none; border: 0;
     }
-    /* Amber outline buttons, evenly spread down the glass. */
-    #panelCard.cabinet .btn,
-    #panelCard.cabinet .btn.ghost {
-      background: none; color: #f0a83a;
-      border: 1px solid rgba(240,168,58,0.55); border-radius: 8px;
-      padding: 6.5% 4%; margin-top: 5%;
-      font: 700 3.8cqw/1 ui-monospace, SFMono-Regular, Menlo, monospace;
-      letter-spacing: 0.12em;
-    }
-    #panelCard.cabinet .btn:active { background: rgba(240,168,58,0.14); }
-    /* ── THE FOUR BUTTONS RUN THE HEIGHT OF THE GLASS ──────────────────
-       In his concept they span from 21% to 93% of the panel. Left to their
-       natural height they stack under the title and leave the bottom 40% of
-       the screen empty, which reads as a cabinet with a half-used display
-       rather than the artwork he approved. `:not([hidden])` matters — a bare
-       `display: flex` here would beat the UA's `[hidden] { display: none }`
-       and OPTIONS would show through on every other view.
-       SETTINGS is deliberately NOT spread: his concept leaves space under
-       BACK too, and stretching four unlike controls to fill would be a
-       different design, not the same one. */
-    #panelCard.cabinet #pvMenu:not([hidden]) {
-      flex: 1; display: flex; flex-direction: column;
-      justify-content: space-between; padding-bottom: 4%;
-    }
-    #panelCard.cabinet #pvMenu .btn { margin-top: 0; }
-    #panelCard.cabinet label.row {
-      margin-top: 7%; color: #e8dfcb; gap: 3%;
-      font: 700 3.0cqw/1 ui-monospace, SFMono-Regular, Menlo, monospace;
-      letter-spacing: 0.08em;
-    }
-    #panelCard.cabinet label.row > span { white-space: nowrap; }
-    /* ── TIME OF DAY IS THE ONE ROW THAT STACKS ────────────────────────
-       His concept draws the label and the select side by side, and at a real
-       phone width they do not both fit. Measured inside the glass at 430
-       CSS px: the row is 213px, the label takes 90, and the select needs 139
-       to show "My local time" — 229 into 213. Forcing it side by side either
-       clips the option text (it rendered as "Atlanta ti") or drops the type
-       to about 10px, and this is the control that explains the whole
-       Atlanta-time feature. So the label goes above its select and the select
-       takes the full width. The three switches above are unaffected and stay
-       exactly as drawn. */
-    #panelCard.cabinet label.row.tod {
-      display: block; margin-top: 8%;
-    }
-    #panelCard.cabinet label.row.tod select {
-      display: block; width: 100%; margin-top: 2.5%;
-    }
-    #panelCard.cabinet label.row select {
-      color: #f0a83a; background: #0b0913;
-      border-color: rgba(240,168,58,0.55);
-      font: 700 3.1cqw/1 ui-monospace, SFMono-Regular, Menlo, monospace;
-      padding: 2.2cqw 2.4cqw;
-      /* Without min-width a select refuses to shrink below the width of its
-         longest option, which is what pushed TIME OF DAY through the frame. */
-      min-width: 0; flex: 0 1 auto;
-    }
-    #panelCard.cabinet .note { font-size: 2.8cqw; margin: 6% 0 0; }
-    /* ⚠️ THE SWITCHES ARE DRAWN AS THE PILLS HE APPROVED, and they are still
-       real <input type=checkbox> underneath — the concept shows an ON pill
-       with a knob, which `accent-color` on a native box cannot be. Hiding the
-       box and drawing the pill on the label would cost the free tap target,
-       the focus ring and the screen-reader role, so the input keeps all of
-       that and only its PAINT changes. */
-    #panelCard.cabinet label.row input[type=checkbox] {
-      appearance: none; -webkit-appearance: none;
-      position: relative; width: 13cqw; height: 6.5cqw; flex: none;
-      border: 1px solid rgba(240,168,58,0.55); border-radius: 3.25cqw;
-      background: #0b0913; cursor: pointer;
-    }
-    #panelCard.cabinet label.row input[type=checkbox]::after {
-      content: 'OFF';
-      position: absolute; inset: 0;
-      display: flex; align-items: center; justify-content: flex-end;
-      padding-right: 1.7cqw;
-      font: 700 2.3cqw/1 ui-monospace, SFMono-Regular, Menlo, monospace;
-      letter-spacing: 0.08em; color: rgba(242,234,216,0.45);
-    }
-    #panelCard.cabinet label.row input[type=checkbox]::before {
-      content: ''; position: absolute; top: 0.75cqw; left: 0.75cqw;
-      width: 4.5cqw; height: 4.5cqw; border-radius: 50%;
-      background: rgba(242,234,216,0.35);
-      transition: transform 0.12s ease, background 0.12s ease;
-    }
-    #panelCard.cabinet label.row input[type=checkbox]:checked::after {
-      content: 'ON'; justify-content: flex-start;
-      padding-right: 0; padding-left: 2cqw; color: #f0a83a;
-    }
-    #panelCard.cabinet label.row input[type=checkbox]:checked::before {
-      transform: translateX(6.5cqw); background: #f0a83a;
-    }
-    #panelCard.cabinet label.row input[type=checkbox]:disabled {
-      opacity: 0.45; cursor: default;
-    }
+
     #panelClose {
       position: absolute; top: 8px; right: 8px; width: 38px; height: 38px;
       background: none; border: 0; color: rgba(242,234,216,0.6);
@@ -787,11 +724,10 @@
     <div id="panelCard" role="dialog" aria-modal="true" aria-labelledby="panelTitle">
       <button id="panelClose" type="button" aria-label="Close">✕</button>
       <!-- ⚠️ `display: contents` BY DEFAULT — this wrapper does NOTHING to
-           layout on every view except the two cabinet ones. It exists so that
-           OPTIONS and SETTINGS can position their whole contents inside the
-           screen opening of the MARTA housing (see #panelCard.cabinet) with
-           one absolutely-positioned box, instead of every child needing to
-           know where the glass is. -->
+           layout on any view except OPTIONS. There it becomes the client's
+           PAINTED PANEL, positioned into the cabinet's screen opening, with
+           the painted buttons made live by transparent hit targets over
+           them. See #panelCard.cabinet. -->
       <div id="panelScreen">
       <h2 id="panelTitle">LEADERBOARD</h2>
 
@@ -975,7 +911,7 @@
         <label class="row"><span>VIBRATION</span>
           <input id="sHaptics" type="checkbox" checked /></label>
         <p class="note" id="hapticsNote" hidden></p>
-        <label class="row tod"><span>TIME OF DAY</span>
+        <label class="row"><span>TIME OF DAY</span>
           <!-- ⚠️ ATLANTA IS THE DEFAULT, AND THAT IS THE POINT OF THE GAME.
                Client: "the goal was to bring Atlanta to the world… if I'm in
                Australia and I'm playing this game, the time it is in Atlanta
