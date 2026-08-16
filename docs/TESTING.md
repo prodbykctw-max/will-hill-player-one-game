@@ -45,8 +45,8 @@ Three separate sweeps have had to clean that up; `shots/` is gitignored.
 **Graded** — they end in `ALL n PASS` or `FAILED: <checks>`, and a sweep can
 read them mechanically:
 
-`ceiling` · `cloudseal` · `daylamps` · `endcue` · `entrypaths` · `howswipe` · `idleflex` · `introorder` · `loopseam` ·
-`musicbox` · `optionsmenu` · `padlift` · `panelnav` · `pausemenu` · `relaytod` ·
+`barescars` · `ceiling` · `cloudseal` · `daylamps` · `endcue` · `entrypaths` · `howswipe` · `idleflex` · `introorder` ·
+`loopseam` · `musicbox` · `optionsmenu` · `padlift` · `panelnav` · `pausemenu` · `relaytod` ·
 `share` · `stageflag` · `titlefit` · `titleintro`
 
 **Report-only** — they print a table or a contact sheet for a human to read,
@@ -70,6 +70,21 @@ introorder   4    musicbox    11    optionsmenu 12    padlift     11
 panelnav    13    pausemenu   13    relaytod    26    share       12
 titlefit    60    titleintro  12
 ```
+
+**Re-run after the title work** (bare-plate refill + the full-bleed canvas),
+eleven harnesses, all green — the canvas change touches every screen, so the
+gameplay and panel ones are the point of running them:
+
+```
+titlefit    76    titleintro  12    introorder   4    barescars    8
+relaytod    26    pausemenu   13    panelnav    13    musicbox    11
+padlift     11    optionsmenu 12    relay   report-only
+```
+
+`titlefit` grew 60 → 76: five shapes day and night asserting the box spans the
+viewport, the plate reaches both edges, and no row at either end is the clear
+colour — plus a break-test that shortens the box by 34px and proves the band
+comes back, since Chromium cannot launch as an installed iOS app.
 
 The one failure the sweep surfaced was `ceiling` still demanding WILL HILL
 pinned at 50,000 — a decision the client reversed. The harness was wrong, not
@@ -100,7 +115,8 @@ drifts into grading last month's product and nobody notices.
 | `idleflex` | the idle animation |
 | `graphwire` | the audio graph is connected, not silently bypassed |
 | `joinshot` | plate joins |
-| `titlefit` | the title card fits every viewport |
+| `titlefit` | the title card fits every viewport — and reaches the head AND foot of it, with no background row at either end (the installed-app band) |
+| `barescars` | the intro's sky is clean where the lettering will land: as textured as the belt beside it, with no letter-shaped ghost |
 | `cloudseal` | weather passes BEHIND the buildings on all four day stages — and is still visible |
 | `endcue` | each finish line hands to the NEXT scene's music, with no restart |
 | `howswipe` | HOW TO PLAY is four swiped ✕/✓ lessons, and page 4's frames really differ at the bags |

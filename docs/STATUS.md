@@ -4,15 +4,15 @@
 proposed, everything not done, everything undone, everything on hold.
 
 - Repo: `prodbykctw-max/will-hill-player-one-game`
-- `main` and `claude/last-markdown-game-link-lvk1n6` are both at **`0489ce9`**
+- `main` and `claude/last-markdown-game-link-lvk1n6` are both at **`eceb8b1`**
 - Live: <https://prodbykctw-max.github.io/will-hill-player-one-game/>
-- `gh-pages` was rebuilt from `0489ce9`. Live matches main.
+- `gh-pages` was rebuilt from `eceb8b1`. Live matches main (bundle `index-Dtt-NBXC.js` confirmed on the CDN).
 
 ---
 
 ## ⚠️ Read this before touching anything
 
-1. **The container has rolled back FIVE times.** Local `HEAD` silently reverts
+1. **The container has rolled back NINE times.** (Twice in the title-screen session alone — the second one ate an uncommitted tool rewrite AND the plan file, which is why the rule below is now *push after every file write*, not after every chunk.) Local `HEAD` silently reverts
    to an older commit and uncommitted work disappears. The worst one landed
    mid-session on a tree that predated two finished, pushed commits — running
    the merge that had been asked for would have overwritten them with an older
@@ -64,6 +64,44 @@ scratchpad, never the repo root.
 ---
 
 ## DONE — shipped and live
+
+### The title screen, twice over (`2bb29ef`, `eceb8b1`) — both from live photos
+
+- **The intro's sky scars are gone.** He caught the beat before the lettering
+  lands: *"can we do something about the scars and the sky before the text for
+  Will Hill falls in place."* It was `title-portrait-bare.webp`, the
+  intro-only plate — its letter-shaped holes were filled with per-row strips
+  and then blurred, in a sky `cut_title_clouds.py` had already proved is
+  textured. Two defects, both measured: the fill carried **half** the
+  painting's texture (0.436 against 0.885–0.916 beside it) and the mask left
+  the letters' shadow behind — the ring 2px outside it is **7.69 levels darker
+  than the same row's sky**, a letter-shaped ghost in its own right.
+  `tools/cut_title_bare.py` now takes the halo with the letters (`HALO_GROW`
+  5, gated to stay in open sky) and fills with 24px band donors from open sky
+  only — **zero** pyramid pixels. Written asset: seam **0.75** where untouched
+  sky neighbours differ by 0.86, texture **0.975** of clean sky. Also fixed a
+  `gradient_fix()` that had been a **no-op since it was written** (it measured
+  its error on pixels the fill never wrote). Five gates now refuse `--write`,
+  and `--measure` re-scores the shipped asset: the old one FAILS, this one
+  passes.
+- **The painting reaches the bottom of the installed app.** *"There is a black
+  space at the bottom of the pwa… can we bring the image down some to cover
+  that?"* Moving the image could never have covered it — the ~33px strip is
+  the home-indicator inset, and it was OUTSIDE the canvas: `#game` was an
+  in-flow `100dvh` block whose box stops at the safe-area line, so what showed
+  was `body`'s own background. Three changes that only work together: the
+  canvas is fixed and full-bleed at `calc(100dvh + env(safe-area-inset-bottom))`;
+  `resize()` sizes the bitmap from the element's box, not `visualViewport` (or
+  the painting would stretch 4%); and the cover fit scales on **both** axes
+  with `dy` clamped so no canvas row sits above the plate's top or below its
+  bottom — width-anchored cover drew 929.6px on a 932px canvas, which would
+  have moved his band from the foot to the crown.
+- **Verification.** `barescars` (new, 8) grades the running page at intro ticks
+  30 and 90 on two metrics, because energy alone cannot see a ghost — the old
+  plate scored 2.0× the belt's energy on the wordmark and passed. `titlefit`
+  grew 60 → 76 with head/foot checks and a break-test that reopens the band.
+  Both break-tested red against the previous build. Eleven harnesses re-run
+  green, since the canvas change touches every screen.
 
 ### The contest backend (`0489ce9`) — the most load-bearing work here
 - **Moved off Cloudflare KV onto D1.** The board was one KV key doing

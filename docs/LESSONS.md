@@ -282,6 +282,48 @@ the whole strip.
 insufficient.** Three rounds were spent making a partial theory more thorough
 instead of asking what else could produce the same picture.
 
+## 14. A correction nobody measured had never run at all
+
+The bare title plate's fill had a `gradient_fix()` whose docstring described
+exactly the right thing — sample the error where the patch meets the painting,
+diffuse it inward so the seam does not step. It had been a NO-OP since the day
+it was written. It measured `orig[rim] - filled[rim]` on pixels *outside* the
+hole, and the fill only ever wrote *inside* the hole, so the error was
+identically zero, the diffusion spread zero, and nothing was ever corrected.
+
+It survived because nothing downstream tested it. The tool printed a seam
+number, that number was ~4.6 levels on a sky whose own neighbouring pixels
+differ by 0.86, and 4.6 was quietly accepted as "how it is" instead of read as
+"the correction you believe is running is not running." A function that cannot
+tell you it did something is a comment with a call signature.
+
+Two habits come out of it. **Give every correction a before/after of its own
+metric** — had the tool printed the seam pre-fix and post-fix, the two
+identical numbers would have exposed it in one run. And **when a measured value
+sits stubbornly at the wrong level, suspect the code that claims to fix it
+before tuning anything upstream**; two rounds went into better donors while the
+thing that was supposed to close the gap was doing nothing.
+
+## 15. "It is only on screen for a second" is not a quality budget
+
+The same fill filled letter-shaped holes with per-row strips, blurred the
+interior to hide the row-joins, and justified it in its own header: the plate
+is only up for about a second before the lettering lands on top of it. The
+client photographed that second. *"Can we do something about the scars and the
+sky before the text for Will Hill falls in place."*
+
+Worse, the answer was already in the repo. `cut_title_clouds.py` had measured
+this exact sky and written the law down — it is textured, not smooth, so every
+smooth fill shows — and the newer tool re-derived the opposite by reasoning
+about how long the frame is visible instead of what is in the frame. The
+mask's one-pixel margin left the letters' own shadow behind as a second,
+independent ghost, which the same "brief" logic had waved through.
+
+**A duration is not a defect budget, and a lesson learned in one tool does not
+apply itself to the next one.** When two tools touch the same material, the
+second one should be reading the first one's measurements, not its own
+intuition about how much anyone will notice.
+
 ## The short version
 
 0. **Touch the thing before you describe it** — including when what you are
@@ -298,4 +340,8 @@ instead of asking what else could produce the same picture.
 9. A green suite in Chrome is not evidence about Safari, least of all for layout.
 10. Poll the condition; a fixed sleep is a guess wearing a number.
 11. Run the whole suite sometimes, or it starts grading a product you no longer ship.
+12. Print a correction's metric before AND after itself, or you cannot tell it
+    from a comment. A number stuck at the wrong level indicts the fix, not the input.
+13. A short exposure is not a defect budget — and the lesson another tool
+    already measured on the same material does not port itself.
 12. If a fix shrinks a symptom without killing it, the theory is wrong — not too small.
