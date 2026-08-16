@@ -406,51 +406,124 @@ export function recordRunStats(log, score) {
 // bound; the cap drops the LOWEST-scoring held run rather than the oldest,
 // because the one that matters to a contest is the best one.
 const PENDING_CAP = 12;
-let pendingRuns = [];
+
+// ⚠️ AND THE QUEUE LIVES ON THE DEVICE, NOT IN A VARIABLE.
+//
+// Client: "I don't want any login. Anytime a person downloads this it has on
+// their phone, they never have to login again. It tracks everything… it keeps
+// up with all the scores, it doesn't make any errors… before they answer the
+// contest it should keep all of this shit on local storage."
+//
+// It was `let pendingRuns = []` and nothing else. Every held run existed only
+// for as long as that JavaScript context did, so: play three runs, set a
+// personal best, switch apps or let iOS evict the tab, come back, register —
+// and there was nothing to send. The queue had already fixed the case where a
+// second run overwrote the first (see above, it cost a real 25,800). This is
+// the same class of loss one level out, and on a phone at a party it is the
+// LIKELIER one, because backgrounding a web page is not an unusual event.
+//
+// ── IT IS AN OUTBOX NOW, NOT A WAITING ROOM ─────────────────────────────
+// The old model was "runs waiting for registration". That left a second hole:
+// once registered, a run was fetched straight out with `.catch(() => {})`, and
+// `sentRunIds.add()` ran BEFORE the request. So a submit that failed — bad
+// signal at a party, which is exactly where this gets played — was discarded
+// AND marked as sent, and nothing ever retried it.
+//
+// So every finished run goes into a persisted outbox and leaves it only when
+// the Worker has actually accepted it. Not registered yet, offline, Worker
+// down, request failed: it stays, and it goes on the next opportunity —
+// registration, the next run, the browser coming back online, or the next
+// visit. A score is only ever forgotten after a 2xx.
+const PENDING_KEY = 'wh_pending_runs';
+const SENT_KEY = 'wh_sent_runs';
+const SENT_CAP = 200;
+
+function readList(key) {
+  try {
+    const v = JSON.parse(localStorage.getItem(key) || '[]');
+    return Array.isArray(v) ? v : [];
+  } catch (_e) {
+    return [];
+  }
+}
+let pendingRuns = readList(PENDING_KEY);
+function savePending() {
+  try { localStorage.setItem(PENDING_KEY, JSON.stringify(pendingRuns)); } catch (_e) {}
+}
 
 // Runs already accepted by the Worker. The server refuses a repeat by run id
 // — that is the replay protection working — but it should never be ASKED
 // twice: his dashboard logged two `replay` rejections against runs that had
 // already scored, which is noise in the abuse log where a real attack would
-// otherwise stand out.
-const sentRunIds = new Set();
+// otherwise stand out. Persisted for the same reason as the outbox: in memory
+// it forgot everything on reload and re-sent accepted runs on the next visit.
+const sentRunIds = new Set(readList(SENT_KEY));
+function saveSent() {
+  try {
+    localStorage.setItem(SENT_KEY, JSON.stringify([...sentRunIds].slice(-SENT_CAP)));
+  } catch (_e) {}
+}
 
-export function lbSubmit(runLogResult) {
-  if (!runLogResult) return;
-  if (runLogResult.runId && sentRunIds.has(runLogResult.runId)) return;
-  if (!isRegistered()) {
-    // Same run twice (a re-offered form, a second flush) must not queue twice.
-    if (runLogResult.runId
-        && pendingRuns.some((r) => r.runId === runLogResult.runId)) return;
-    pendingRuns.push(runLogResult);
-    if (pendingRuns.length > PENDING_CAP) {
-      const scoreOf = (r) => (r.events || []).reduce((n, ev) => n
-        + (ev && ev.type === 'bag' ? 100 : 0)
-        + (ev && ev.type === 'bagx2' ? 200 : 0)
-        + (ev && ev.type === 'stomp' ? 50 : 0)
-        - (ev && ev.type === 'bagLost' ? 100 : 0), 0);
-      let worst = 0;
-      for (let i = 1; i < pendingRuns.length; i++) {
-        if (scoreOf(pendingRuns[i]) < scoreOf(pendingRuns[worst])) worst = i;
-      }
-      pendingRuns.splice(worst, 1);
+// In-flight ids. Without this, a flush racing a fresh death could put the same
+// run on the wire twice — the id is only added to sentRunIds on SUCCESS now,
+// so it is no longer doing double duty as a "do not send again" flag.
+const inFlight = new Set();
+
+function scoreOf(r) {
+  return (r.events || []).reduce((n, ev) => n
+    + (ev && ev.type === 'bag' ? 100 : 0)
+    + (ev && ev.type === 'bagx2' ? 200 : 0)
+    + (ev && ev.type === 'stomp' ? 50 : 0)
+    - (ev && ev.type === 'bagLost' ? 100 : 0), 0);
+}
+
+function queue(run) {
+  if (!run) return;
+  if (run.runId && sentRunIds.has(run.runId)) return;
+  if (run.runId && pendingRuns.some((r) => r.runId === run.runId)) return;
+  pendingRuns.push(run);
+  // Capped so a marathon session cannot grow without bound; drops the
+  // LOWEST-scoring held run rather than the oldest, because the one that
+  // matters to a contest is the best one.
+  while (pendingRuns.length > PENDING_CAP) {
+    let worst = 0;
+    for (let i = 1; i < pendingRuns.length; i++) {
+      if (scoreOf(pendingRuns[i]) < scoreOf(pendingRuns[worst])) worst = i;
     }
-    return;
+    pendingRuns.splice(worst, 1);
   }
-  if (!lbOn()) return;
-  if (runLogResult.runId) sentRunIds.add(runLogResult.runId);
+  savePending();
+}
+
+function drop(runId) {
+  if (!runId) return;
+  const n = pendingRuns.length;
+  pendingRuns = pendingRuns.filter((r) => r.runId !== runId);
+  if (pendingRuns.length !== n) savePending();
+}
+
+function send(run) {
+  const id = run.runId;
+  if (id && (sentRunIds.has(id) || inFlight.has(id))) return;
+  if (id) inFlight.add(id);
   const reg = contestRegistration();
+  const settle = (ok) => {
+    if (id) inFlight.delete(id);
+    if (!ok) return;                 // stays in the outbox for the next try
+    if (id) { sentRunIds.add(id); saveSent(); }
+    drop(id);
+  };
   try {
     fetch(LB_URL + '/submit', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        runId: runLogResult.runId,
+        runId: run.runId,
         // Present only on a run that was continued — see createRunLog.renew.
-        supersedes: runLogResult.supersedes || '',
+        supersedes: run.supersedes || '',
         name: lbName(),
-        events: runLogResult.events,
-        durationMs: runLogResult.durationMs,
+        events: run.events,
+        durationMs: run.durationMs,
         phone: reg?.phone || '',
         email: reg?.email || '',
         // The hidden honeypot field, always empty from the real client. The
@@ -458,19 +531,25 @@ export function lbSubmit(runLogResult) {
         // answering as though it succeeded.
         website: '',
       }),
-    }).catch(() => {});
-  } catch (_e) {}
+    }).then((res) => settle(!!res && res.ok)).catch(() => settle(false));
+  } catch (_e) {
+    settle(false);
+  }
 }
 
-// Called the moment someone enters the contest. Sends the run they had just
-// finished, if there was one. Safe to call at any time: no held run, no-op.
+export function lbSubmit(runLogResult) {
+  if (!runLogResult) return;
+  queue(runLogResult);
+  flushPendingRun();
+}
+
+// Called the moment someone enters the contest — and at boot, on reconnect,
+// and after every run. Safe to call at any time: nothing to send, no-op.
 export function flushPendingRun() {
   if (!pendingRuns.length) return false;
-  // Taken first, so a submit that somehow re-enters cannot see the same runs
-  // still queued and send them a second time.
-  const runs = pendingRuns;
-  pendingRuns = [];
-  for (const run of runs) lbSubmit(run);
+  if (!isRegistered() || !lbOn()) return false;
+  // A copy, because send() removes from pendingRuns on success.
+  for (const run of pendingRuns.slice()) send(run);
   return true;
 }
 
@@ -479,6 +558,15 @@ export function flushPendingRun() {
 // quietly replaced the first.
 export function hasPendingRun() { return pendingRuns.length > 0; }
 export function pendingRunCount() { return pendingRuns.length; }
+
+// The outbox drains itself whenever a chance appears: on the next visit (this
+// runs at import), and the moment the browser says the network is back. Both
+// matter for a game played on a phone at a party — the run that failed to
+// send on bad signal should not need the player to do anything about it.
+if (typeof window !== 'undefined') {
+  window.addEventListener('online', () => { flushPendingRun(); });
+  setTimeout(() => { flushPendingRun(); }, 0);
+}
 
 export function lbTop(n, cb) {
   if (!lbOn()) {

@@ -29,7 +29,7 @@ import { createTitle, TITLE_IMAGES, INTRO_TICKS as TITLE_INTRO_TICKS,
 import martaMapArt from './assets/backgrounds/marta-map.webp';
 import { loadImages } from './render/images.js';
 import { createRunLog, lbSubmit, bankLocalRun, isRegistered, localRuns, hasPendingRun,
-  signupOffered, markSignupOffered, recordRunStats, pendingRunCount } from './net/leaderboard.js';
+  signupOffered, markSignupOffered, recordRunStats, pendingRunCount, flushPendingRun } from './net/leaderboard.js';
 import { createPanel, soundEnabled, setSoundEnabled,
   sfxEnabled, setSfxEnabled } from './ui/panel.js';
 import { createHaptics } from './core/haptics.js';
@@ -289,7 +289,12 @@ if (import.meta.env.DEV) {
   // dropped a 25,800 run was invisible to a boolean — one run was held right
   // up until a second one silently replaced it, and "true" was the honest
   // answer both times. A harness can only catch that by counting.
-  window.__lb = { hasPendingRun, pendingRunCount };
+  // lbSubmit and flushPendingRun go through the door too, so the OUTBOX can
+  // be graded without playing four stages to reach a death. Handing out the
+  // app's own copy is the whole point — `await import()` under Vite dev gives
+  // a SECOND module instance whose queue is always empty, which once had a
+  // harness reporting a held run as lost when it was fine.
+  window.__lb = { hasPendingRun, pendingRunCount, lbSubmit, flushPendingRun };
   // The title's controls are geometry, not constants — the OPTIONS word's
   // placement is three caps against the live window — so the harness asks the
   // screen where it put things rather than re-deriving it and grading its own
