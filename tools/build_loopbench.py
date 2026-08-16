@@ -13,9 +13,23 @@ tracks in it: open one URL, tap a stage, trim, send the numbers.
 
 ── THREE DECISIONS WORTH KNOWING ─────────────────────────────────────────
 
-**Each bench file starts exactly at its hook.** So bench time IS loop time:
-the END marker reads out the new loop length directly, with no offset to add
-and no chance of a number being interpreted against the wrong origin. That
+**The bench serves the loops the game already ships, not the masters.** The
+first design rendered fresh clips from his original tracks, which would have
+put 96-148s of each unreleased instrumental on a public URL — against 66-102s
+already there. The shipped cuts are the same bytes the CDN is already serving,
+so this publishes nothing new, and what he hears is exactly what the game
+plays rather than a cleaner render that flatters the join.
+
+The price, and it is a real one: a shipped loop can be trimmed but not
+extended, because there is no audio past its end. `masterAvailable` in the
+manifest records how much longer each cue COULD run, and the interface says so
+per cue, so the limit is visible rather than discovered. Re-rendering a cue
+from the master is a deliberate step — see MASTERS below.
+
+**Each bench file starts exactly at its hook.** cut_loop.py cuts them that way
+so the native loop is correct, and it means bench time IS loop time: the END
+marker reads out the new loop length directly, with no offset to add and no
+chance of a number being interpreted against the wrong origin. That
 mistranslation is the only way this tool could quietly produce a wrong cut,
 so it is designed out rather than documented around.
 
@@ -26,27 +40,31 @@ plugin runs through `transformIndexHtml`, which never sees files copied from
 `public/` — so the same removal is done here, by the same reasoning. The
 source file keeps every note.
 
-**public/bench/ is generated, not committed.** It is ~12MB of his instrumental
-masters. Committing that puts it in the repository's history permanently, for
-a tool that exists for about a week; generating it at deploy time leaves
-nothing behind. `.gitignore` has the entry.
+**public/bench/ is generated, not committed.** It is a 6MB copy of files the
+repo already holds. Committing it would put a second copy of every soundtrack
+cue in the history permanently, for a tool that exists for about a week;
+generating it at deploy time leaves nothing behind. `.gitignore` has the entry.
 
-⚠️ THIS PUBLISHES MORE OF HIS MUSIC THAN THE GAME DOES. The game ships 66-102s
-of each instrumental; the bench ships from the hook to the end of the usable
-material, up to `BENCH_MAX`. It is his music and his call — but it is a real
-change in exposure, it goes on a public URL, and he needs to be told so
-plainly rather than have it noted in a commit message. Removing it later is
-one line: delete public/bench and redeploy.
+── MASTERS ───────────────────────────────────────────────────────────────
+If a cue turns out to want a LONGER loop than it ships, that one cue has to be
+re-rendered from his original track — `--master <slot>` does it, reading
+tracks_dir out of the cue sheet. It is opt-in and per-cue on purpose: each one
+puts a longer stretch of an unreleased instrumental on a public URL, which is
+his call to make and worth making one at a time rather than by default.
+
+Taking it down again is `rm -rf public/bench && bash tools/deploy.sh`, typed
+deliberately. This script does not delete anything — a recursive delete living
+inside a build script is how a directory gets eaten by accident, and this repo
+already carries one scar from that class of mistake.
 
 Usage:
-    python3 tools/build_loopbench.py            # build public/bench/
-    python3 tools/build_loopbench.py --clean    # remove it again
+    python3 tools/build_loopbench.py                    # build public/bench/
+    python3 tools/build_loopbench.py --master stage_03  # that cue, longer
 """
 
 import argparse
 import json
 import re
-import shutil
 import sys
 from pathlib import Path
 
@@ -79,10 +97,30 @@ KNOWN_BPM = {
     'mar_10_26': 145.0,
 }
 
+# What is already known about each cue, shown next to it so he is not starting
+# from nothing. The stage-one line is the measurement that started this: it is
+# the specific claim his ear is being asked to confirm or throw out.
+NOTES = {
+    'stage_01':
+        'The one you reported. The first 1.5s comes back at 62.895s — '
+        'correlation 0.889 — so the last 3.312s look like a repeat of the '
+        'opening, which is the stutter you described. 38 bars would be 62.897s.',
+    'stage_02':
+        'Cut before the tempo work, so its length is not a whole number of '
+        'bars at any tempo.',
+    'stage_03':
+        'The most material left in the original of any cue — this is the one '
+        'that could reach the 120s you asked for.',
+    'stage_04':
+        'The other one you reported. Currently 52 bars at 174.',
+    'title':
+        'Cut before the tempo work.',
+}
+
 # The longest loop worth auditioning. He asked for "at least 120 secs"; the
 # longest cut currently in the game is 102s. Past ~125s there is nothing to
-# decide, and every second past it is a second of his masters on a public URL
-# for no benefit.
+# decide, and every second past it is a second of an unreleased master on a
+# public URL for no benefit.
 BENCH_MAX = 125.0
 
 # Matches the shipped cuts, so what he hears in the bench is what the game
@@ -122,14 +160,25 @@ def strip_comments(html):
     return html
 
 
-def build():
+def ratio_traps(bpm):
+    """The wrong answers a tempo detector actually gives.
+
+    Not arbitrary neighbours: a detector locks onto whichever pulse is
+    strongest, so it misses by a RATIO — halves, doubles, and the two-thirds
+    that caught this project twice. Offering exactly those as one tap each is
+    the difference between a useful guess and a number to be fought with.
+    """
+    out = []
+    for r in (1.5, 2 / 3, 2.0, 0.5):
+        b = bpm * r
+        if 70 <= b <= 200 and abs(b - bpm) > 1:
+            out.append(round(b, 2))
+    return out[:2]
+
+
+def build(masters=()):
     cue = json.loads((ROOT / 'tools' / 'cue_sheet.json').read_text())
-    tracks_dir = Path(cue['tracks_dir'])
-    if not tracks_dir.is_dir():
-        print(f'Source tracks not found at {tracks_dir}.', file=sys.stderr)
-        print('These are his masters and live outside the repo — point '
-              'cue_sheet.json "tracks_dir" at them.', file=sys.stderr)
-        return 1
+    tracks_dir = Path(cue.get('tracks_dir', ''))
 
     OUT.mkdir(parents=True, exist_ok=True)
     (OUT / 'tracks').mkdir(exist_ok=True)
@@ -137,23 +186,40 @@ def build():
 
     for slot, label in SLOTS:
         c = cue['cues'][slot]
-        src = tracks_dir / f"{c['track']}.mp3"
-        if not src.exists():
-            print(f'  {slot:9} MISSING {src.name}', file=sys.stderr)
+        ship = SHIPPED / f'{slot}.mp3'
+        if not ship.exists():
+            print(f'  {slot:9} MISSING {ship}', file=sys.stderr)
             continue
-
-        y, sr = sf.read(str(src), always_2d=True)
-        hook = float(c['hook'])
-        a = int(round(hook * sr))
-        b = min(len(y), a + int(round(BENCH_MAX * sr)))
-        clip = y[a:b]
-
+        shipped = sf.info(str(ship)).duration
         dst = OUT / 'tracks' / f'{slot}.mp3'
-        sf.write(str(dst), clip, sr, format='MP3', compression_level=COMPRESSION)
 
-        shipped = sf.info(str(SHIPPED / f'{slot}.mp3')).duration
+        # How much longer this cue COULD run, read from the master when it is
+        # reachable. It is only a number for the interface — no audio is taken
+        # from the master unless --master names this slot.
+        master = tracks_dir / f"{c['track']}.mp3" if tracks_dir.is_dir() else None
+        hook = float(c['hook'])
+        room = (sf.info(str(master)).duration - hook) if master and master.exists() else shipped
+
+        if slot in masters:
+            if not (master and master.exists()):
+                print(f'  {slot:9} cannot re-render: {c["track"]}.mp3 not found', file=sys.stderr)
+                continue
+            y, sr = sf.read(str(master), always_2d=True)
+            a = int(round(hook * sr))
+            b = min(len(y), a + int(round(BENCH_MAX * sr)))
+            sf.write(str(dst), y[a:b], sr, format='MP3', compression_level=COMPRESSION)
+            available = (b - a) / sr
+            how = 'from the master'
+        else:
+            # A copy, not a re-encode: these bytes are already on the CDN as a
+            # hashed asset, so serving them again publishes nothing new — and a
+            # second encode would not be what the game plays.
+            dst.write_bytes(ship.read_bytes())
+            available = shipped
+            how = 'shipped loop'
+
         bpm = KNOWN_BPM.get(c['track'])
-        entries.append({
+        e = {
             'slot': slot,
             'label': label,
             'track': c['track'],
@@ -162,17 +228,24 @@ def build():
             # it to do arithmetic — the clip starts AT the hook — but it goes
             # into the copied numbers so cut_loop.py gets an unambiguous cue.
             'hook': round(hook, 3),
-            'available': round(len(clip) / sr, 3),
+            'available': round(available, 3),
             'currentLoop': round(shipped, 3),
-            'bpm': bpm if bpm else estimate_bpm(clip[:, 0], sr),
+            'masterAvailable': round(room, 3),
+            'bpm': bpm if bpm else estimate_bpm(sf.read(str(ship), always_2d=True)[0][:, 0],
+                                                sf.info(str(ship)).samplerate),
             'bpmKnown': bpm is not None,
-        })
-        print(f'  {slot:9} {label:34} {len(clip)/sr:7.2f}s  '
-              f'(now {shipped:6.2f}s)  {dst.stat().st_size/1e6:.1f}MB')
+        }
+        if not e['bpmKnown']:
+            e['bpmAlternates'] = ratio_traps(e['bpm'])
+        if slot in NOTES:
+            e['note'] = NOTES[slot]
+        entries.append(e)
+        print(f'  {slot:9} {label:34} {available:7.2f}s  '
+              f'({how}, master has {room:6.2f}s)  {dst.stat().st_size/1e6:.1f}MB')
 
     (OUT / 'manifest.json').write_text(json.dumps({'cues': entries}, indent=2))
-    html = (ROOT / 'tools' / 'loopbench.html').read_text()
-    (OUT / 'index.html').write_text(strip_comments(html))
+    (OUT / 'index.html').write_text(
+        strip_comments((ROOT / 'tools' / 'loopbench.html').read_text()))
 
     total = sum(f.stat().st_size for f in OUT.rglob('*') if f.is_file())
     print(f'\npublic/bench/ built — {total/1e6:.1f}MB, {len(entries)} cues.')
@@ -180,16 +253,9 @@ def build():
     return 0
 
 
-def clean():
-    if OUT.exists():
-        shutil.rmtree(OUT)
-        print('Removed public/bench/. Redeploy to take it off the live site.')
-    else:
-        print('public/bench/ is not there.')
-    return 0
-
-
 if __name__ == '__main__':
     ap = argparse.ArgumentParser()
-    ap.add_argument('--clean', action='store_true')
-    sys.exit(clean() if ap.parse_args().clean else build())
+    ap.add_argument('--master', action='append', default=[], metavar='SLOT',
+                    help='re-render this cue from the original track so a '
+                         'LONGER loop can be auditioned (repeatable)')
+    sys.exit(build(tuple(ap.parse_args().master)))

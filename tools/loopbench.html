@@ -28,12 +28,17 @@
   would skip all of that.
 
   ── BENCH TIME IS LOOP TIME ─────────────────────────────────────────────
-  Each track served by tools/build_loopbench.py STARTS AT ITS HOOK, so zero on
-  this page is the loop point. The END marker therefore reads out the new loop
-  length directly — no offset to add, no origin to confuse. That mistranslation
-  is the one way this tool could quietly cause a wrong cut, so it is designed
-  out rather than documented around. A file dropped in by hand has no hook
-  attached, so it reports its own start as well.
+  The cues served by tools/build_loopbench.py are THE LOOPS THE GAME ALREADY
+  SHIPS — the same bytes that are on the CDN, so this page publishes nothing
+  new of his music. cut_loop.py cuts those so the hook IS the start, which
+  means zero on this page is the loop point and the END marker reads out the
+  new loop length directly. No offset to add, no origin to confuse. That
+  mistranslation is the one way this tool could quietly cause a wrong cut, so
+  it is designed out rather than documented around.
+
+  The cost of that choice, stated in the interface as well as here: a shipped
+  loop can be TRIMMED but not EXTENDED, because there is no audio past its end.
+  Going longer means re-rendering that cue from the master first.
 
   ── THE CROSSFADE IS THE REAL ONE ───────────────────────────────────────
   Ticked (the default, because it is what the game plays), the join is built
@@ -42,6 +47,12 @@
   own head. Not head-into-head — that was the first version there and it made
   the join eleven times worse, because the clip then ended on a sample 15ms
   deep into its own start. Untick it to hear the bare splice.
+
+  One honest caveat, since the source is the shipped file: its first 15ms
+  ALREADY carries the blend from the original cut, so a preview of a trimmed
+  loop re-blends over that. The error lives entirely inside 15ms and cannot
+  affect the judgement being made here — whether a phrase comes round twice —
+  and the real cut is made from the master by cut_loop.py regardless.
 
   HOW TO USE IT
     1. Pick a stage, or drop in a file.
@@ -105,6 +116,7 @@
   <div id="cues"></div>
   <div id="drop">drop a track here — or click to choose<br><span class="hint">only needed for something not listed above</span></div>
   <div class="row" id="fileinfo" hidden><span class="val" id="fname"></span><span class="hint" id="fmeta"></span></div>
+  <p class="hint" id="cueNote" hidden></p>
 </div>
 
 <div class="panel" id="work" hidden>
@@ -114,10 +126,12 @@
   <div class="row">
     <label>BPM</label><input type="number" id="bpm" value="145" min="40" max="240" step="0.01">
     <button id="detect">detect</button>
+    <span class="nudge" id="bpmAlts"></span>
     <label><input type="checkbox" id="snap" checked> snap to</label>
     <select id="snapUnit"><option value="bar">bars</option><option value="beat">beats</option><option value="half">½ bars</option></select>
     <span class="hint" id="barlen"></span>
   </div>
+  <p class="hint" id="bpmWarn" hidden></p>
 
   <div class="row">
     <label style="width:64px">START</label>
@@ -214,10 +228,31 @@ async function pick(c, btn) {
   buf = await ctx.decodeAudioData(data);
   cue = c; name = c.slot;
   $('bpm').value = c.bpm;
-  // The clip starts at the hook, so the loop starts at zero and the END lands
-  // where the game currently wraps — the change is always measured from what
-  // he is hearing now, not from an arbitrary place in the file.
+  // The clip starts at the hook — cut_loop.py cuts it that way so the native
+  // loop is correct — so the loop starts at zero and the END lands where the
+  // game currently wraps. The change is always measured from what he is
+  // hearing now, not from an arbitrary place in the file.
   startS = 0; endS = Math.min(c.currentLoop, buf.duration);
+
+  // A tempo he gave by hand is fact. A detected one is a guess, and the
+  // guesses fail in a specific way: this estimator read 114.84 on the track he
+  // says is 174 — exactly two thirds. So the ratio traps are offered as one
+  // tap each rather than left for him to work out.
+  const alts = $('bpmAlts');
+  alts.textContent = '';
+  if (!c.bpmKnown) {
+    for (const a of (c.bpmAlternates || [])) {
+      const b = document.createElement('button');
+      b.textContent = a.toFixed(2);
+      b.onclick = () => { $('bpm').value = a; syncInputs(); drawAll(); };
+      alts.appendChild(b);
+    }
+  }
+  $('bpmWarn').hidden = c.bpmKnown;
+  $('bpmWarn').textContent = c.bpmKnown ? ''
+    : 'This tempo is DETECTED, not known — and detectors miss by a ratio, not '
+      + 'a little. If you know what you made it at, type it in; the snapping is '
+      + 'only as good as this number.';
   ready(`${c.label} · ${c.track}.mp3`);
 }
 
@@ -250,6 +285,22 @@ function ready(title) {
   $('fname').textContent = title;
   $('fmeta').textContent = `${buf.duration.toFixed(3)}s · ${buf.sampleRate}Hz · ${buf.numberOfChannels}ch`
     + (cue ? ` · starts at ${cue.hook}s of the original` : '');
+  // ⚠️ WHAT THIS BENCH CANNOT DO, SAID OUT LOUD. The audio here IS the loop the
+  // game ships, so it can be trimmed but not extended: there is no material
+  // past the end because the end is where the file stops. Going longer means
+  // re-rendering that cue from the master, which is a deliberate step. Better
+  // he reads that here than discovers the slider will not move.
+  if (cue) {
+    const room = (cue.masterAvailable || cue.available) - cue.currentLoop;
+    $('cueNote').hidden = false;
+    $('cueNote').innerHTML = (cue.note ? cue.note + '<br>' : '')
+      + `This is the ${cue.currentLoop.toFixed(2)}s loop the game plays right now, so you can `
+      + `trim it shorter here. ` + (room > 1
+        ? `Going LONGER is possible — there is ${room.toFixed(0)}s more in the original — but it needs a re-render; say the word.`
+        : 'There is almost nothing left in the original past this, so shorter is the only direction.');
+  } else {
+    $('cueNote').hidden = true;
+  }
   for (const el of ['startR', 'endR']) { $(el).min = 0; $(el).max = Math.round(buf.duration * 1000); }
   syncInputs(); drawAll();
 }
