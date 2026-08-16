@@ -136,6 +136,81 @@ check('with __lapOff the lap does NOT engage (native wrap only)',
   off.laps === 0 && off.wrapped, `laps=${off.laps} wrapped=${off.wrapped}`);
 console.log(`  for the record: native-wrap bus floor min=${off.min} p05=${off.p05} vs lap ${on.min}/${on.p05}`);
 
+// ── THE STAGE CUES, AND THE PHONE THAT WILL NOT PLAY TWO ELEMENTS ────────
+//
+// ⚠️ EVERYTHING ABOVE TESTS `title` AND ONLY `title`. That gap shipped a bug
+// straight to the client: "EAV's music stops early and so the criminal
+// records during my run… there was a silence at the end and then it started
+// up after a minute of silence." Both are STAGE cues, and no check had ever
+// crossed a stage cue's seam.
+//
+// It stayed hidden on desktop because it is not a bug on desktop. The lap
+// runs two HTMLAudioElements; iOS Safari refuses `play()` on the second one
+// outside a user gesture, and that rejection used to be swallowed — the front
+// was faded out and paused in favour of a spare that never started. So the
+// break-test here is not a flag, it is the platform: refuse every play() that
+// happens AFTER the cue is already running, which is exactly and only the
+// spare, and require the music to survive it.
+//
+// Measured on the code this replaced: level 0.1109 -> 0.0033 across the wrap
+// with the front element paused. Measured on the fix: 0.1118 -> 0.1268, front
+// still playing, lap.failed === 'play-refused', native loop carrying the wrap.
+async function stageSeam(slot, stageIndex, refuseSpare) {
+  const pg = await (await b.newContext({ viewport: { width: 430, height: 932 }, hasTouch: true })).newPage();
+  await pg.goto('http://localhost:5199/?tod=day', { waitUntil: 'networkidle' });
+  await pg.evaluate(() => { try { localStorage.setItem('wh_sound', 'on'); } catch (e) { /* */ } });
+  await pg.reload({ waitUntil: 'networkidle' });
+  await pg.waitForFunction(() => window.__game && window.__startStage, null, { timeout: 25000 });
+  await pg.evaluate(() => window.__audio.level());
+  await pg.evaluate((i) => window.__startStage(i), stageIndex);
+  await pg.waitForFunction((s) => {
+    const st = window.__audio.music.status();
+    return st.playing === s && st.el && !st.el.paused && st.el.dur > 0 && window.__audio.level() > 0.01;
+  }, slot, { timeout: 30000 });
+  const out = await pg.evaluate(async (refuse) => {
+    const raf = () => new Promise((res) => requestAnimationFrame(res));
+    const m = window.__audio.music;
+    if (refuse) {
+      HTMLMediaElement.prototype.play = function () {
+        return Promise.reject(new DOMException('NotAllowedError'));
+      };
+    }
+    const dur = m.status().el.dur;
+    m.seek(dur - 3);
+    const before = [], after = [];
+    for (let i = 0; i < 540; i++) {
+      const t = m.status().el.t;
+      const lv = window.__audio.level();
+      if (t > dur - 3.2 && t < dur - 0.2) before.push(lv);
+      else if (i > 240) after.push(lv);
+      await raf();
+    }
+    const mean = (a) => (a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0);
+    const st = m.status();
+    return { before: +mean(before).toFixed(4), after: +mean(after).toFixed(4),
+      laps: st.lap.laps, failed: st.lap.failed, playing: !st.el.paused };
+  }, refuseSpare);
+  await pg.context().close();
+  return out;
+}
+
+for (const [slot, idx] of [['stage_01', 0], ['stage_04', 3]]) {
+  const ok = await stageSeam(slot, idx, false);
+  console.log(`  ${slot} normal   `, JSON.stringify(ok));
+  check(`${slot} crosses its own seam with no dropout`,
+    ok.after > ok.before * 0.4 && ok.playing,
+    `level ${ok.before} -> ${ok.after}, laps ${ok.laps}`);
+
+  const ios = await stageSeam(slot, idx, true);
+  console.log(`  ${slot} spare refused`, JSON.stringify(ios));
+  check(`${slot} survives a phone that refuses the second element`,
+    ios.after > ios.before * 0.4 && ios.playing,
+    `level ${ios.before} -> ${ios.after}, failed=${ios.failed}`);
+  check(`${slot} reports WHY the lap gave up instead of failing silently`,
+    ios.failed === 'play-refused' || ios.failed === 'spare-stalled',
+    `lap.failed=${ios.failed}`);
+}
+
 console.log('');
 console.log(checks.every(([, o]) => o) ? `ALL ${checks.length} PASS`
   : 'FAILED: ' + checks.filter(([, o]) => !o).map(([w]) => w).join(', '));

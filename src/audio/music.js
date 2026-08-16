@@ -302,6 +302,46 @@ export function createMusic(getContext, getMaster) {
   }
 
   // Runs once a frame for the current cue. Arms the lap, drives the swap.
+  // ── WHEN THE SECOND ELEMENT WILL NOT PLAY, KEEP THE FIRST ONE ───────────
+  //
+  // Client, on his phone: "EAV's music stops early and so the criminal
+  // records during my run… there was a silence at the end and then it started
+  // up after a minute of silence."
+  //
+  // The lap crossfades between two HTMLAudioElements. iOS Safari frequently
+  // refuses `play()` on a second element outside a user gesture — and the
+  // rejection was being swallowed by a bare `.catch(() => {})`, after which
+  // the crossfade carried on regardless: the front ramped to zero, the spare
+  // that never started ramped "up", and at the deadline the front was paused
+  // and swapped out. Both elements silent, until play()'s stuck-paused retry
+  // eventually re-fired — which is the minute he heard.
+  //
+  // Aborting restores the front's gain and leaves it playing. Every cue has
+  // `loop = true` on the element itself as a safety net, so the wrap still
+  // happens; it just happens natively, with a small seam instead of a
+  // crossfade. A seam is a detail. A minute of silence is a broken game.
+  //
+  // Once a node has failed a lap it stops attempting them for the session:
+  // the failure is a property of the platform, not of that moment, and
+  // retrying every wrap would re-mute the music every wrap.
+  function abortLap(node, why) {
+    node.lapFailed = why || 'failed';
+    node.lapEndsAt = 0;
+    const ctx = getContext();
+    if (ctx) {
+      const now = ctx.currentTime;
+      if (node.gain) {
+        node.gain.gain.cancelScheduledValues(now);
+        node.gain.gain.setValueAtTime(levelOf(node), now);
+      }
+      if (node.spareGain) {
+        node.spareGain.gain.cancelScheduledValues(now);
+        node.spareGain.gain.setValueAtTime(0, now);
+      }
+    }
+    try { if (node.spare) node.spare.pause(); } catch (_e) { /* */ }
+  }
+
   function lapTick(node) {
     // Harness door: setting window.__lapOff reverts to the bare native loop,
     // which is how tools/harness/loopseam.mjs proves the lap is what carries
@@ -310,6 +350,9 @@ export function createMusic(getContext, getMaster) {
     // Crossfading needs BOTH sides on the graph — without it the native
     // loop already does everything this function would.
     if (!node || !node.gain || !node.cue.loop || muted) return;
+    // A cue whose spare has already been refused once uses the native loop
+    // from here on — see abortLap.
+    if (node.lapFailed) return;
     const el = node.el;
     const dur = el.duration;
     if (!Number.isFinite(dur) || dur <= LAP * 3) return;
@@ -318,6 +361,16 @@ export function createMusic(getContext, getMaster) {
     // Mid-lap: wait for the deadline, then retire the old front and swap.
     if (node.lapEndsAt) {
       if (ctx.currentTime < node.lapEndsAt) return;
+      // ⚠️ NEVER RETIRE THE FRONT UNTIL THE SPARE IS PROVABLY AUDIBLE.
+      // Retiring first is precisely what turns a refused play() into silence:
+      // by the time anything notices, the only element that was making sound
+      // has been paused. A spare that is still paused, or still sitting at
+      // zero after a full crossfade, has not started.
+      const sp = node.spare;
+      if (!sp || sp.paused || !(sp.currentTime > 0.05)) {
+        abortLap(node, 'spare-stalled');
+        return;
+      }
       try { el.pause(); } catch (_e) { /* */ }
       if (node.gain) node.gain.gain.value = 0;
       const oldEl = node.el; const oldGain = node.gain;
@@ -340,8 +393,11 @@ export function createMusic(getContext, getMaster) {
     try {
       node.spare.currentTime = 0;
       const pr = node.spare.play();
-      if (pr && pr.catch) pr.catch(() => {});
-    } catch (_e) { return; }
+      // ⚠️ THE REJECTION IS THE WHOLE BUG. This used to be `.catch(() => {})`
+      // — the one line that turned "iOS declined to start the second
+      // element" into a silent stage.
+      if (pr && pr.catch) pr.catch(() => abortLap(node, 'play-refused'));
+    } catch (_e) { abortLap(node, 'play-threw'); return; }
     const now = ctx.currentTime;
     node.spareGain.gain.cancelScheduledValues(now);
     node.spareGain.gain.setValueAtTime(0, now);
@@ -556,7 +612,12 @@ export function createMusic(getContext, getMaster) {
         ducking: ducking > 0,
         // The loop-seam crossfade, for tools/harness/loopseam.mjs: how many
         // laps this cue has completed and whether one is in flight.
-        lap: current ? { laps: current.laps, active: !!current.lapEndsAt } : null,
+        lap: current ? { laps: current.laps, active: !!current.lapEndsAt,
+          // Why the crossfade gave up, if it did — 'play-refused' on an iOS
+          // that would not start the second element, 'spare-stalled' if it
+          // accepted play() and then never advanced. Null means the lap is
+          // healthy. The cue keeps playing either way, on its own loop.
+          failed: current.lapFailed || null } : null,
         el: !el ? null : {
           paused: el.paused,
           t: +el.currentTime.toFixed(2),
