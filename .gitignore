@@ -107,3 +107,8 @@ shots/
 # Cloudflare
 .wrangler/
 cloudflare/.wrangler/
+
+# The loop bench is generated for a deploy, never committed: it is ~12MB of
+# his instrumental masters and the tool exists for about a week. See
+# tools/build_loopbench.py.
+/public/bench/

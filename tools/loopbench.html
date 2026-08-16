@@ -1,12 +1,14 @@
 <!doctype html>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>WH:P1 — loop bench</title>
 <!--
   THE LOOP BENCH — find the perfect loop by ear, not by metric.
 
   Client: "what would be cool if you created a bench for me to trim each track
-  to the perfect loop with a little millisecond slider… I could just go through
-  and trim each track… just the four main stages man and then the intro music."
+  to the perfect loop with a little millisecond slider… if you put the wave
+  files from each track there, I could trim it for each stage… just the four
+  main stages man and then the intro music."
 
   WHY THIS EXISTS. Three different measurements have now disagreed with his
   ear about the same loop, and he was right every time. The last one is worth
@@ -20,67 +22,94 @@
   A machine can check that a join does not click. Only a person can hear that
   a phrase came round twice. So this hands him the controls.
 
-  ⚠️ IT FINDS NUMBERS, IT DOES NOT SHIP AUDIO. Whatever you settle on here is
+  ⚠️ IT FINDS NUMBERS, IT DOES NOT SHIP AUDIO. Whatever he settles on here is
   copied into tools/cue_sheet.json and cut by tools/cut_loop.py, which does the
-  loudness match, the 15ms equal-power crossfade and the five gates. Exporting
-  from a browser would skip all of that.
+  loudness match, the crossfade and the five gates. Exporting from a browser
+  would skip all of that.
+
+  ── BENCH TIME IS LOOP TIME ─────────────────────────────────────────────
+  Each track served by tools/build_loopbench.py STARTS AT ITS HOOK, so zero on
+  this page is the loop point. The END marker therefore reads out the new loop
+  length directly — no offset to add, no origin to confuse. That mistranslation
+  is the one way this tool could quietly cause a wrong cut, so it is designed
+  out rather than documented around. A file dropped in by hand has no hook
+  attached, so it reports its own start as well.
+
+  ── THE CROSSFADE IS THE REAL ONE ───────────────────────────────────────
+  Ticked (the default, because it is what the game plays), the join is built
+  the way crossfade_wrap() in cut_loop.py builds it: the first 15ms of the loop
+  is replaced by an equal-power blend of WHAT FOLLOWED THE CUT over the loop's
+  own head. Not head-into-head — that was the first version there and it made
+  the join eleven times worse, because the clip then ended on a sample 15ms
+  deep into its own start. Untick it to hear the bare splice.
 
   HOW TO USE IT
-    1. Open this file in a browser. No server, no build — double-click it.
-    2. Drop in the FULL track (the original, not the cut loop).
-    3. Set the BPM if you know it. Everything snaps to bars and beats.
-    4. Drag the loop start to the hook, then find the end.
-    5. Hit LOOP. It plays the join over and over, sample-accurate.
-    6. When it sounds right, COPY THE NUMBERS and send them.
+    1. Pick a stage, or drop in a file.
+    2. Check the BPM. Everything snaps to bars and beats.
+    3. Drag the END to where the music should come round.
+    4. Hit LOOP THE JOIN. It plays the wrap over and over, sample-accurate.
+    5. When it sounds right, COPY THE NUMBERS and send them.
 
   Playback is Web Audio (AudioBufferSourceNode.loopStart / loopEnd), which is
   sample-accurate. A plain <audio> element with loop=true is not, and would
-  put its own gap on top of the one you are trying to hear.
+  put its own gap on top of the one being listened for.
 -->
 <style>
   :root {
     --bg: #0b0a10; --panel: #16141f; --line: #2a2636;
-    --ink: #efe9dc; --dim: #9a8fa6; --gold: #ffd66e; --hot: #ff6b6b;
+    --ink: #efe9dc; --dim: #9a8fa6; --gold: #ffd66e; --hot: #ff6b6b; --now: #6ec1ff;
   }
   * { box-sizing: border-box; }
   body {
     margin: 0; background: var(--bg); color: var(--ink);
     font: 14px/1.45 ui-sans-serif, system-ui, sans-serif; padding: 18px;
+    padding-bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+    -webkit-text-size-adjust: 100%;
   }
   h1 { font: 700 18px/1.2 ui-monospace, monospace; color: var(--gold); margin: 0 0 4px; letter-spacing: .06em; }
   .sub { color: var(--dim); margin: 0 0 16px; }
   .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px; margin-bottom: 14px; }
-  #drop { border: 2px dashed var(--line); border-radius: 12px; padding: 26px; text-align: center; color: var(--dim); cursor: pointer; }
+  #drop { border: 2px dashed var(--line); border-radius: 12px; padding: 18px; text-align: center; color: var(--dim); cursor: pointer; }
   #drop.hot { border-color: var(--gold); color: var(--ink); }
-  canvas { width: 100%; display: block; background: #0e0d14; border: 1px solid var(--line); border-radius: 8px; }
-  .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin: 10px 0; }
+  canvas { width: 100%; display: block; background: #0e0d14; border: 1px solid var(--line); border-radius: 8px; touch-action: none; }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 10px 0; }
   label { color: var(--dim); }
-  input[type=number] { width: 110px; background: #0e0d14; color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; font: 13px ui-monospace, monospace; }
-  input[type=range] { flex: 1; min-width: 240px; accent-color: var(--gold); }
-  button { background: #221e2e; color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; cursor: pointer; font: 600 13px ui-sans-serif, system-ui, sans-serif; }
+  input[type=number] { width: 108px; background: #0e0d14; color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 8px; font: 13px ui-monospace, monospace; }
+  input[type=range] { flex: 1; min-width: 220px; accent-color: var(--gold); height: 28px; }
+  button { background: #221e2e; color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 9px 12px; cursor: pointer; font: 600 13px ui-sans-serif, system-ui, sans-serif; }
   button:hover { border-color: var(--gold); }
   button.go { background: var(--gold); color: #201a08; border-color: var(--gold); }
-  .nudge button { padding: 6px 9px; font: 600 12px ui-monospace, monospace; }
+  button.now { border-color: var(--now); color: var(--now); }
+  #cues { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  #cues button { text-align: left; flex: 1 1 210px; padding: 10px 12px; }
+  #cues button.on { border-color: var(--gold); background: #2c2412; }
+  #cues .sm { display: block; color: var(--dim); font: 11px ui-monospace, monospace; margin-top: 3px; }
+  #cues button.on .sm { color: var(--gold); }
+  .nudge { display: flex; gap: 4px; flex-wrap: wrap; }
+  .nudge button { padding: 8px 9px; font: 600 12px ui-monospace, monospace; }
   .val { font: 13px ui-monospace, monospace; color: var(--gold); }
   .zooms { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 640px) { .zooms { grid-template-columns: 1fr; } }
   .zooms h3 { margin: 0 0 6px; font: 600 12px ui-monospace, monospace; color: var(--dim); letter-spacing: .05em; }
   pre { background: #0e0d14; border: 1px solid var(--line); border-radius: 8px; padding: 12px; overflow: auto; color: var(--gold); font: 12px/1.5 ui-monospace, monospace; }
   .warn { color: var(--hot); }
   .ok { color: #7ee787; }
   .hint { color: var(--dim); font-size: 12px; }
+  .keyline { color: var(--now); }
 </style>
 
 <h1>WILL HILL: PLAYER ONE — LOOP BENCH</h1>
-<p class="sub">Find the loop by ear. The numbers go to <code>cut_loop.py</code>, which does the real cut.</p>
+<p class="sub">Find the loop by ear. The numbers go to <code>cut_loop.py</code>, which makes the real cut.</p>
 
 <div class="panel">
-  <div id="drop">drop a track here — or click to choose<br><span class="hint">the FULL original, not the trimmed loop</span></div>
+  <div id="cues"></div>
+  <div id="drop">drop a track here — or click to choose<br><span class="hint">only needed for something not listed above</span></div>
   <div class="row" id="fileinfo" hidden><span class="val" id="fname"></span><span class="hint" id="fmeta"></span></div>
 </div>
 
 <div class="panel" id="work" hidden>
   <canvas id="wave" height="150"></canvas>
-  <div class="hint">click the waveform to move the LOOP START · shift-click to move the LOOP END</div>
+  <div class="hint">tap the waveform to move the <span style="color:var(--hot)">END</span> · shift-tap (or long-press) to move the START</div>
 
   <div class="row">
     <label>BPM</label><input type="number" id="bpm" value="145" min="40" max="240" step="0.01">
@@ -91,7 +120,7 @@
   </div>
 
   <div class="row">
-    <label style="width:78px">START</label>
+    <label style="width:64px">START</label>
     <input type="range" id="startR" min="0" max="1000" value="0" step="1">
     <input type="number" id="startN" step="0.001"> <span class="hint">s</span>
     <span class="nudge">
@@ -107,7 +136,7 @@
   </div>
 
   <div class="row">
-    <label style="width:78px">END</label>
+    <label style="width:64px">END</label>
     <input type="range" id="endR" min="0" max="1000" value="1000" step="1">
     <input type="number" id="endN" step="0.001"> <span class="hint">s</span>
     <span class="nudge">
@@ -125,11 +154,13 @@
   <div class="row">
     <button class="go" id="play">▶ LOOP THE JOIN</button>
     <button id="playFull">▶ from the start</button>
+    <button class="now" id="playNow" hidden>▶ what ships now</button>
     <button id="stop">■ stop</button>
-    <label><input type="checkbox" id="xfade"> 15ms crossfade (what ships)</label>
-    <span class="val" id="lenOut"></span>
+    <label><input type="checkbox" id="xfade" checked> 15ms crossfade (what ships)</label>
   </div>
-  <p class="hint">LOOP THE JOIN starts 4s before the end so you hear the wrap immediately, then keeps looping. If a phrase comes round twice, or there is a hole, you will hear it in the first pass.</p>
+  <div class="row"><span class="val" id="lenOut"></span><span class="val" id="deltaOut"></span></div>
+  <p class="hint">LOOP THE JOIN starts 4s before the end so the wrap arrives immediately, then keeps looping.
+    If a phrase comes round twice, or there is a hole, it is audible on the first pass.</p>
 
   <div class="zooms">
     <div><h3>END OF THE LOOP (last 1.5s)</h3><canvas id="zEnd" height="110"></canvas></div>
@@ -139,20 +170,58 @@
 
 <div class="panel" id="outp" hidden>
   <div class="row">
-    <button id="suggest">suggest a loop (self-similarity)</button>
+    <button id="suggest">suggest a loop (where the phrase returns)</button>
     <button id="copy">copy the numbers</button>
     <span id="copied" class="ok" hidden>copied</span>
   </div>
   <pre id="numbers"></pre>
-  <p class="hint">Paste that to Claude, or straight into <code>tools/cue_sheet.json</code>. The hook is the loop start; the length is what <code>TARGET</code> becomes.</p>
+  <p class="hint">Send that back, or paste it into <code>tools/cue_sheet.json</code>.
+    <code>loopSeconds</code> is what the cut becomes; <code>hook</code> is where it starts in the original track.</p>
 </div>
 
 <script>
 const $ = (id) => document.getElementById(id);
-let ctx, buf, src, name = '', playing = false;
+let ctx, buf, src, name = '', playing = false, mode = 'join';
 let startS = 0, endS = 0;
+let cue = null;          // manifest entry, when a stage was picked
+let xbuf = null, xkey = '';   // cached crossfaded loop buffer
 
-// ── loading ──────────────────────────────────────────────────────────────
+// ── the cue list, when this copy was built with the tracks in it ─────────
+(async function cues() {
+  let man;
+  try {
+    const r = await fetch('manifest.json');
+    if (!r.ok) throw 0;
+    man = await r.json();
+  } catch (e) { return; }          // standalone copy: drag-drop only
+  const box = $('cues');
+  for (const c of man.cues) {
+    const b = document.createElement('button');
+    b.innerHTML = `${c.label}<span class="sm">now ${c.currentLoop.toFixed(2)}s`
+      + ` · ${c.available.toFixed(0)}s available · ${c.bpm} BPM${c.bpmKnown ? '' : '?'}</span>`;
+    b.onclick = () => pick(c, b);
+    box.appendChild(b);
+  }
+  $('drop').style.padding = '12px';
+})();
+
+async function pick(c, btn) {
+  for (const b of $('cues').children) b.classList.toggle('on', b === btn);
+  ctx = ctx || new (window.AudioContext || window.webkitAudioContext)();
+  btn.style.opacity = '.5';
+  const data = await (await fetch(c.file)).arrayBuffer();
+  btn.style.opacity = '';
+  buf = await ctx.decodeAudioData(data);
+  cue = c; name = c.slot;
+  $('bpm').value = c.bpm;
+  // The clip starts at the hook, so the loop starts at zero and the END lands
+  // where the game currently wraps — the change is always measured from what
+  // he is hearing now, not from an arbitrary place in the file.
+  startS = 0; endS = Math.min(c.currentLoop, buf.duration);
+  ready(`${c.label} · ${c.track}.mp3`);
+}
+
+// ── loading a file by hand ───────────────────────────────────────────────
 const drop = $('drop');
 const picker = Object.assign(document.createElement('input'), { type: 'file', accept: 'audio/*' });
 drop.onclick = () => picker.click();
@@ -165,14 +234,22 @@ drop.ondrop = (e) => {
 };
 
 async function load(file) {
-  name = file.name;
+  name = file.name.replace(/\.[^.]+$/, '');
   ctx = ctx || new (window.AudioContext || window.webkitAudioContext)();
-  const data = await file.arrayBuffer();
-  buf = await ctx.decodeAudioData(data);
+  buf = await ctx.decodeAudioData(await file.arrayBuffer());
+  cue = null;
+  for (const b of $('cues').children) b.classList.remove('on');
   startS = 0; endS = buf.duration;
+  ready(file.name);
+}
+
+function ready(title) {
+  xbuf = null; xkey = '';
   $('fileinfo').hidden = false; $('work').hidden = false; $('outp').hidden = false;
-  $('fname').textContent = name;
-  $('fmeta').textContent = `${buf.duration.toFixed(3)}s · ${buf.sampleRate}Hz · ${buf.numberOfChannels}ch`;
+  $('playNow').hidden = !cue;
+  $('fname').textContent = title;
+  $('fmeta').textContent = `${buf.duration.toFixed(3)}s · ${buf.sampleRate}Hz · ${buf.numberOfChannels}ch`
+    + (cue ? ` · starts at ${cue.hook}s of the original` : '');
   for (const el of ['startR', 'endR']) { $(el).min = 0; $(el).max = Math.round(buf.duration * 1000); }
   syncInputs(); drawAll();
 }
@@ -192,8 +269,9 @@ function set(which, seconds) {
   const t = Math.max(0, Math.min(buf.duration, seconds));
   if (which === 'start') startS = Math.min(t, endS - 0.05);
   else endS = Math.max(snapTime(t), startS + 0.05);
+  xbuf = null;                     // the join moved; the cached blend is stale
   syncInputs(); drawAll();
-  if (playing) startLoop(true);   // re-arm so the change is heard at once
+  if (playing) startLoop(mode);    // re-arm so the change is heard at once
 }
 function syncInputs() {
   $('startR').value = Math.round(startS * 1000); $('startN').value = startS.toFixed(3);
@@ -203,13 +281,21 @@ function syncInputs() {
   $('barlen').textContent = `1 bar = ${barLen().toFixed(4)}s · 1 beat = ${(barLen() / 4).toFixed(4)}s`;
   const whole = Math.abs(bars - Math.round(bars)) < 0.02;
   $('lenOut').className = whole ? 'val ok' : 'val warn';
-  $('numbers').textContent = JSON.stringify({
-    track: name.replace(/\.[^.]+$/, ''),
-    hook: +startS.toFixed(3),
+  if (cue) {
+    const d = len - cue.currentLoop;
+    $('deltaOut').textContent = Math.abs(d) < 0.0005 ? '· unchanged'
+      : `· ${d > 0 ? '+' : '−'}${Math.abs(d).toFixed(3)}s vs what ships now`;
+    $('deltaOut').className = 'val keyline';
+  } else $('deltaOut').textContent = '';
+  const out = {
+    track: cue ? cue.track : name,
+    hook: cue ? +(cue.hook + startS).toFixed(3) : +startS.toFixed(3),
     loopSeconds: +(endS - startS).toFixed(3),
     bars: +bars.toFixed(3),
     bpm: parseFloat($('bpm').value),
-  }, null, 2);
+  };
+  if (cue) out.slot = cue.slot;
+  $('numbers').textContent = JSON.stringify(out, null, 2);
 }
 $('startR').oninput = () => set('start', $('startR').value / 1000);
 $('endR').oninput = () => set('end', $('endR').value / 1000);
@@ -217,6 +303,7 @@ $('startN').onchange = () => set('start', parseFloat($('startN').value));
 $('endN').onchange = () => set('end', parseFloat($('endN').value));
 $('bpm').oninput = () => { syncInputs(); drawAll(); };
 $('snap').onchange = () => syncInputs();
+$('xfade').onchange = () => { if (playing) startLoop(mode); };
 for (const btn of document.querySelectorAll('.nudge button')) {
   btn.onclick = () => {
     const d = parseInt(btn.dataset.d, 10) / 1000;
@@ -228,32 +315,74 @@ for (const btn of document.querySelectorAll('.nudge button')) {
   };
 }
 
+// ── the join, built exactly the way the cutter builds it ─────────────────
+// crossfade_wrap() in tools/cut_loop.py: the clip's first 15ms is replaced by
+// an equal-power blend of WHAT FOLLOWED THE CUT over that head, so the clip
+// still ends on its own last sample and the wrap lands on an ordinary
+// neighbouring pair. Fading the head into itself instead — the first version
+// there — measured eleven times worse at the join.
+const XFADE = 0.015;
+function joinBuffer(a, b) {
+  const key = `${a.toFixed(6)}:${b.toFixed(6)}`;
+  if (xbuf && xkey === key) return xbuf;
+  const sr = buf.sampleRate;
+  const i0 = Math.round(a * sr), n = Math.round((b - a) * sr);
+  const k = Math.round(XFADE * sr);
+  const out = ctx.createBuffer(buf.numberOfChannels, n, sr);
+  for (let c = 0; c < buf.numberOfChannels; c++) {
+    const s = buf.getChannelData(c), d = out.getChannelData(c);
+    d.set(s.subarray(i0, i0 + n));
+    // Only when the material that followed the cut is actually there — at the
+    // very end of the file it is not, and a blend against silence would be a
+    // fade-in that the shipped file will not have.
+    if (i0 + n + k <= s.length && n > 4 * k) {
+      for (let i = 0; i < k; i++) {
+        const t = i / (k - 1);
+        d[i] = s[i0 + n + i] * Math.cos(t * Math.PI / 2) + d[i] * Math.sin(t * Math.PI / 2);
+      }
+    }
+  }
+  xbuf = out; xkey = key;
+  return out;
+}
+
 // ── playback: sample-accurate, which a media element is not ──────────────
 function stop() {
   if (src) { try { src.stop(); } catch (e) {} src.disconnect(); src = null; }
   playing = false;
 }
-function startLoop(fromJoin) {
+function startLoop(which) {
   stop();
+  mode = which;
+  const a = which === 'now' ? 0 : startS;
+  const b = which === 'now' ? Math.min(cue.currentLoop, buf.duration) : endS;
   src = ctx.createBufferSource();
-  src.buffer = buf;
   src.loop = true;
-  src.loopStart = startS;
-  src.loopEnd = endS;
-  const g = ctx.createGain();
-  // The shipped cut carries a 15ms equal-power crossfade at the splice. This
-  // cannot reproduce it exactly inside one buffer, but it can round the very
-  // edge so a hard sample step is not mistaken for a musical problem.
-  g.gain.value = 1;
-  src.connect(g).connect(ctx.destination);
-  const offset = fromJoin === true
-    ? Math.max(startS, endS - 4)
-    : startS;
-  src.start(0, offset);
+  if ($('xfade').checked) {
+    // The blended copy IS the loop, so it wraps over its whole length.
+    src.buffer = which === 'now' ? joinBufferFor(a, b) : joinBuffer(a, b);
+    src.loopStart = 0; src.loopEnd = src.buffer.duration;
+    src.start(0, which === 'join' ? Math.max(0, src.buffer.duration - 4) : 0);
+  } else {
+    src.buffer = buf;
+    src.loopStart = a; src.loopEnd = b;
+    src.start(0, which === 'join' ? Math.max(a, b - 4) : a);
+  }
+  src.connect(ctx.destination);
   playing = true;
 }
-$('play').onclick = () => { ctx.resume(); startLoop(true); };
-$('playFull').onclick = () => { ctx.resume(); startLoop(false); };
+// "what ships now" must not evict the cache the working loop is using, or
+// every A/B would pay for a rebuild of the other one.
+function joinBufferFor(a, b) {
+  const keep = xbuf, keepKey = xkey;
+  xbuf = null; xkey = '';
+  const out = joinBuffer(a, b);
+  xbuf = keep; xkey = keepKey;
+  return out;
+}
+$('play').onclick = () => { ctx.resume(); startLoop('join'); };
+$('playFull').onclick = () => { ctx.resume(); startLoop('full'); };
+$('playNow').onclick = () => { ctx.resume(); startLoop('now'); };
 $('stop').onclick = stop;
 
 // ── drawing ──────────────────────────────────────────────────────────────
@@ -293,20 +422,33 @@ function drawWave(cv, from, to, marks) {
     g.strokeStyle = colour; g.lineWidth = 2;
     g.beginPath(); g.moveTo(x, 0); g.lineTo(x, H); g.stroke();
     g.fillStyle = colour; g.font = '10px ui-monospace, monospace';
-    g.fillText(label, Math.min(W - 30, x + 3), 11);
+    g.fillText(label, Math.min(W - 34, x + 3), 11);
   }
   g.lineWidth = 1;
 }
+function marks() {
+  const m = [[startS, '#ffd66e', 'START'], [endS, '#ff6b6b', 'END']];
+  // Where the game wraps today, so the change is always visible against it.
+  if (cue && Math.abs(cue.currentLoop - endS) > 0.01) m.push([cue.currentLoop, '#6ec1ff', 'NOW']);
+  return m;
+}
 function drawAll() {
-  drawWave($('wave'), 0, buf.duration, [[startS, '#ffd66e', 'START'], [endS, '#ff6b6b', 'END']]);
+  drawWave($('wave'), 0, buf.duration, marks());
   drawWave($('zEnd'), Math.max(0, endS - 1.5), endS, [[endS, '#ff6b6b', 'END']]);
   drawWave($('zStart'), startS, Math.min(buf.duration, startS + 1.5), [[startS, '#ffd66e', 'START']]);
 }
-$('wave').onclick = (e) => {
-  const r = e.target.getBoundingClientRect();
-  const t = (e.clientX - r.left) / r.width * buf.duration;
-  set(e.shiftKey ? 'end' : 'start', t);
+// A tap moves the END, because the END is what is being hunted — the loop
+// starts at the hook and stays there. Shift or a long press moves the START.
+let held = null;
+$('wave').onpointerdown = (e) => { held = setTimeout(() => { held = 'long'; hit(e, true); }, 500); };
+$('wave').onpointerup = (e) => {
+  if (held === 'long') { held = null; return; }
+  clearTimeout(held); held = null; hit(e, e.shiftKey);
 };
+function hit(e, toStart) {
+  const r = $('wave').getBoundingClientRect();
+  set(toStart ? 'start' : 'end', (e.clientX - r.left) / r.width * buf.duration);
+}
 window.onresize = () => buf && drawAll();
 
 // ── helpers that do the arithmetic, not the judging ──────────────────────
@@ -335,17 +477,17 @@ $('detect').onclick = () => {
 
 $('suggest').onclick = () => {
   // ⚠️ THIS LOOKS FOR THE MUSIC REPEATING, NOT FOR A TIDY SPLICE — the exact
-  // mistake that shipped a stage-one loop two bars too long. It correlates
-  // the first two seconds after the loop start against every candidate
-  // length, so the winner is the length at which the phrase ACTUALLY comes
-  // round again. Still only a suggestion; the ear decides.
+  // mistake that shipped a stage-one loop two bars too long. It correlates the
+  // first two seconds after the loop start against every candidate length, so
+  // the winner is the length at which the phrase ACTUALLY comes round again.
+  // Still only a suggestion; the ear decides.
   const ch = buf.getChannelData(0), sr = buf.sampleRate;
   const W = Math.floor(2 * sr), a0 = Math.floor(startS * sr);
   const head = ch.subarray(a0, a0 + W);
   let hm = 0; for (let i = 0; i < W; i++) hm += head[i]; hm /= W;
   let hv = 0; for (let i = 0; i < W; i++) hv += (head[i] - hm) ** 2;
   const bar = barLen();
-  let best = [-2, 0];
+  const scores = [];
   for (let q = 4 * 8; q <= 4 * 80; q++) {          // 8 to 80 bars, beat steps
     const off = a0 + Math.round(q / 4 * bar * sr);
     if (off + W > ch.length) break;
@@ -353,11 +495,18 @@ $('suggest').onclick = () => {
     let sm = 0; for (let i = 0; i < W; i++) sm += seg[i]; sm /= W;
     let sv = 0, cv = 0;
     for (let i = 0; i < W; i++) { sv += (seg[i] - sm) ** 2; cv += (seg[i] - sm) * (head[i] - hm); }
-    const c = cv / Math.sqrt(sv * hv || 1);
-    if (c > best[0]) best = [c, q];
+    scores.push([cv / Math.sqrt(sv * hv || 1), q]);
   }
-  set('end', startS + best[1] / 4 * bar);
-  $('numbers').textContent += `\n// suggestion: ${(best[1] / 4).toFixed(2)} bars, self-similarity ${best[0].toFixed(3)}`;
+  if (!scores.length) return;
+  scores.sort((x, y) => y[0] - x[0]);
+  set('end', startS + scores[0][1] / 4 * bar);
+  // The runners-up are shown too. When the top few are within a hair of each
+  // other the measurement is not actually deciding anything, and saying so is
+  // more use than a confident single number: on this material a sweep put
+  // five different lengths inside 0.001 of each other.
+  const top = scores.slice(0, 4).map(([c, q]) =>
+    `${(q / 4).toFixed(2)} bars (${(q / 4 * bar).toFixed(3)}s) ${c.toFixed(3)}`).join('\n//   ');
+  $('numbers').textContent += `\n// where the phrase returns, best first:\n//   ${top}`;
 };
 
 $('copy').onclick = async () => {
