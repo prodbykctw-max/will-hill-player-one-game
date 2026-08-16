@@ -15,7 +15,16 @@
 //     registration step, not on this per-run overlay, and is never returned
 //     by the public /top endpoint — only name + score are public.
 
-const LB_BASE = ''; // TODO: set once the Worker is deployed (see cloudflare/README.md)
+// ✅ LIVE. Deployed 2026-08-16 from his own machine, bound to the D1 database
+// `will-hill-contest`. Verified from here before this line was set: GET /top
+// answers {"ok":true,"runs":[]}, the CORS preflight is 200, and a submit from
+// the wrong origin is refused with `forbidden` rather than crashing.
+//
+// ⚠️ SETTING THIS TURNS THE BOARD ON FOR EVERY PLAYER. Until now `lbOn()` was
+// false and nothing was ever sent, which is why the game has been safe to ship
+// unconfigured. From here, a finished run with a registered phone POSTs to the
+// Worker, which recomputes the score from the event log and writes the row.
+const LB_BASE = 'https://will-hill-leaderboard.prodbykctw.workers.dev';
 
 // ⚠️ `?lb=` IS DEV-ONLY, AND THE GUARD IS THE POINT. Until the Worker is
 // deployed LB_BASE is empty, `lbOn()` is false and nothing is ever sent — which
