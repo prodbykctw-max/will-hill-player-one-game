@@ -291,25 +291,55 @@ await p.evaluate(async () => {
 await shoot('manhole-good', 'jumped it');
 
 // ── 5/6. THE NINJA ────────────────────────────────────────────────────────
-// Walked into: he has to be carrying money for any to come out, so the run is
-// given a purse first. Captured when dropped bags actually appear.
+// ⚠️ THE ✕ FRAME IS COMPOSED, NOT COLLIDED — from real game pieces.
+//
+// Letting the collision actually run staged the WRONG PICTURE twice over:
+// the robbery drops the enemy into the knockdown system's snatch sequence on
+// the very tick the bags appear, so every cut showed a flat body on the
+// pavement — and flat-on-the-ground is the ✓ frame's job. Client, image by
+// image: "it should show him walking into an enemy and all his money flying
+// out on the FIRST one, and then the enemy laying out should be the SECOND
+// one." A screenshot tool has no business re-litigating the knockdown state
+// machine to get a composition; the pothole ✕ learned the same lesson
+// ("staged standing, not mid-stumble").
+//
+// So: an upright ninja at contact distance, Will in his hit reaction, and
+// the burst built from createDroppedBag — the same objects a real robbery
+// scatters, with the same physics moving them on the cut frame.
 await p.evaluate(async () => {
   const g = window.__game, { T, FLOOR_R } = window.__hw.tm;
   await window.__stage(4000);
+  const { createDroppedBag } = window.__hw.col;
+  const gy = FLOOR_R * T;
   g.score = 6000;
-  const before = g.level.bags.length;
   g.level.enemies.push(window.__hw.en.createEnemy(
-    g.player.x + 54, FLOOR_R * T - 56, 0, 'a'));
-  g.player.vx = 2.4;
-  for (let k = 0; k < 60 && g.level.bags.length <= before + 2; k++) await window.__frame();
-  // Three frames, not eight: the bags need to have left him, but any longer
-  // and he has finished going down and the picture is a body on the pavement
-  // rather than the moment of being robbed.
-  for (let k = 0; k < 3; k++) await window.__frame();
+    g.player.x + 44, gy - 56, 0, 'a'));
+  const now = performance.now();
+  // The scatter arcs up and back over his shoulder, the way the real loss
+  // throws them (MAX_SCATTER burst in main.js) — four is enough to read.
+  // ⚠️ IN OPEN AIR, ABOVE AND BEHIND HIM. The first placement put them at
+  // torso height between the two figures, and characters draw OVER pickups —
+  // the whole burst vanished behind the sprites and the frame showed a
+  // perfectly calm robbery. Money nobody can see teaches nothing.
+  g.level.bags.push(
+    createDroppedBag(g.player.x - 34, g.player.y - 34, -2.6, -3.0, now),
+    createDroppedBag(g.player.x - 6, g.player.y - 52, -1.2, -4.5, now),
+    createDroppedBag(g.player.x - 52, g.player.y - 6, -3.8, -2.0, now),
+    createDroppedBag(g.player.x + 16, g.player.y - 66, 0.8, -5.0, now),
+  );
+  g.player.anim = 'hit';
+  g.player.inv = 0;
+  await window.__frame();
 });
 await shoot('ninja-bad', 'walked into him — the money goes');
 
-// Stomped: dropped onto his head, captured on the score tick the stomp pays.
+// Stomped. Client, on the first cut of this frame: "the enemy laying out
+// should be the second one, you jumping on his head." The old staging waited
+// for the score tick and then shot — and by then he had already bounced off
+// and out of the story, so the ✓ frame was a laid-out ninja with nobody on
+// him. The score tick still proves the stomp landed; then he is PLACED back
+// mid-bounce over the laid-out enemy, which is the exact instant the client
+// described, held still long enough to photograph.
 await p.evaluate(async () => {
   const g = window.__game, { T, FLOOR_R } = window.__hw.tm;
   await window.__stage(4600);
@@ -319,8 +349,15 @@ await p.evaluate(async () => {
   g.player.y -= 92; g.player.vy = 5.0; g.player.onGround = false;
   g.player.anim = 'jumpLand';
   for (let k = 0; k < 40 && g.score < 50; k++) await window.__frame();
+  g.player.x = e.x + (e.w - g.player.w) / 2;
+  g.player.y = e.y - g.player.h - 14;   // just off his head, clearly airborne
+  g.player.vy = 0.6;
+  g.player.onGround = false;
+  g.player.anim = 'jumpLand';
+  g.player.inv = 0;
+  await window.__frame();
 });
-await shoot('ninja-good', 'landed on his head');
+await shoot('ninja-good', 'over the laid-out ninja — the head bounce');
 
 // ── 7/8. THE CHAMPAGNE PAIR — and the money lesson folded into it ─────────
 // Client, on the old page: "there is no image showing you jumping to get the
