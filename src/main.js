@@ -15,7 +15,7 @@ import { ENEMY_SPRITES, updateEnemy, resolveEnemyCollision } from './entities/en
 import { beginStompOut, stepStompOut, splitStompers } from './entities/knockdown.js';
 import { overlapsPlayer, PROP_SPRITES, createDroppedBag, BAG_VALUE, CHAMPAGNE_MULT } from './entities/collectibles.js';
 import { createLevel, buildRunway, genAhead, finishLineX } from './world/generator.js';
-import { STAGES } from './world/stages.js';
+import { STAGES, resolveStages, timeOfDay } from './world/stages.js';
 import { T, FLOOR_R, SLAB_R, FALL_DEATH_Y, isSolid } from './world/tilemap.js';
 import { createRenderer } from './render/renderer.js';
 import { createBackdrop } from './render/backdrop.js';
@@ -79,40 +79,32 @@ const panel = createPanel({
   onSoundChange: (on) => audio.setMuted(!on),
   onSfxChange: (on) => audio.setSfxMuted(!on),
   onHapticsChange: (on) => haptics.setEnabled(on),
-  // ── TIME OF DAY APPLIES NOW, NOT "NEXT TIME THE GAME LOADS" ──────────
+  // ── TIME OF DAY APPLIES NOW, LIVE, WITHOUT RESTARTING ANYTHING ───────
   //
-  // The setting always SAVED correctly and always worked after a reload —
-  // verified: pick "Always day", reload, and the stage reports tod=day. What
-  // it did not do was anything you could see, because `STAGES` is resolved
-  // once at module load and this callback was never even passed to the panel.
-  // The note said "takes effect next time the game loads", which on a phone —
-  // where there is no visible reload — reads as a broken switch. The client:
-  // "when I select always day from settings it doesn't change."
+  // ⚠️ THIS USED TO CALL location.reload() AND THAT WAS WRONG. The comment
+  // that lived here argued a reload "is not a cop-out" because re-resolving
+  // eight plates, ~60 multiplane cards, the sky, the lighting rig and the rain
+  // live is a lot of machinery for one setting. All true, and all beside the
+  // point. The client: "setting the time and settings shouldn't restart the
+  // whole damn game man, it shouldn't reset everything, it shouldn't stop the
+  // music. Nothing, no changes or edits in the game should restart the whole
+  // game." A reload stops the music, drops the audio graph he had to gesture
+  // to unlock, empties the panel and blinks the screen — to change a sky.
   //
-  // A RELOAD IS THE FIX, and it is not a cop-out. Changing the time of day
-  // changes which of eight background plates and which ~60 multiplane cards
-  // the image manifest has to hold, plus the sky gradient, the lighting rig
-  // and the rain. Re-resolving all of that live is a large amount of
-  // machinery to get one setting applied, and every bit of it is already
-  // correct on a cold boot. The choice is in localStorage before the reload
-  // happens, so the new page comes up in the half he asked for.
+  // IT TURNED OUT TO BE SMALL. Nothing outside this file imports STAGES, and
+  // nothing anywhere imports TIME_OF_DAY: every renderer reads `stage.tod` off
+  // the stage object it is handed, freshly, per frame. So the whole switch is
+  // "swap the four stage objects and have the images for them ready".
   //
-  // MID-RUN IS THE EXCEPTION. Reloading would throw the run away, so the
-  // panel is told to say so instead and the change lands at the next boot.
-  // Nothing opens the panel mid-run today — OPTIONS on the title and the end
-  // of a finished run are the only two doors — but a reload that eats a run
-  // is bad enough that the guard is worth having before the third one exists.
-  //
-  // AND IT COMES BACK TO THE SAME PANE. A settings switch that dumps you out
-  // to the title is its own small broken thing: you flip one row and lose the
-  // other three. The flag below is read once at boot, so the blink lands you
-  // back on SETTINGS with the value you just picked already showing.
-  onTimeOfDayChange: () => {
+  // LOADED FIRST, SWAPPED SECOND, so there is never an in-between. The other
+  // half's plates are fetched while the current ones stay live and playable;
+  // only once they have all decoded do STAGES and `images` change, in the same
+  // tick. Hit START in the middle of that and you get the half you were
+  // already in, correctly, rather than a stage with holes in it.
+  onTimeOfDayChange: (choice) => {
     const midRun = ['playing', 'paused', 'riding', 'stageClear'].includes(state.screen);
     if (midRun) return false;      // panel keeps the "next run" note
-    try { sessionStorage.setItem('wh_reopen', 'settings'); } catch (_e) {}
-    location.reload();
-    return true;
+    return applyTimeOfDay(choice);
   },
   haptics,
   audio,
@@ -315,6 +307,13 @@ if (import.meta.env.DEV) {
   // an assembly needs to be able to ask whether the art is actually there
   // rather than infer it from a screenshot that looks plausible.
   Object.defineProperty(window, '__images', { get: () => images });
+  // THE LIVE TIME-OF-DAY SWAP, graded through these two. `__tod` is the half
+  // the stage objects are ACTUALLY in this instant — not what localStorage
+  // says, which was true the whole time the setting appeared broken — and
+  // `__panel` lets a harness prove the panel survived the switch, the entire
+  // point being that nothing restarts and nothing is thrown away.
+  Object.defineProperty(window, '__tod', { get: () => (STAGES[0] ? STAGES[0].tod : null) });
+  window.__panel = panel;
 }
 
 let images = null; // { player, enemy, eav, edgewood, l5p, underground }
@@ -1524,9 +1523,49 @@ const imageManifest = {
   ...ENDING_IMAGES,
 };
 for (const [v, sp] of Object.entries(ENEMY_SPRITES)) imageManifest['enemy_' + v] = sp.url;
-for (const s of STAGES) {
-  imageManifest[s.id] = s.bg.img;
-  for (const c of s.bg.cards || []) imageManifest[`${s.id}_${c.key}`] = c.img;
+const stagePlates = (stages) => {
+  const m = {};
+  for (const s of stages) {
+    m[s.id] = s.bg.img;
+    for (const c of s.bg.cards || []) m[`${s.id}_${c.key}`] = c.img;
+  }
+  return m;
+};
+Object.assign(imageManifest, stagePlates(STAGES));
+
+// ── SWAPPING DAY FOR NIGHT WITHOUT RESTARTING THE GAME ───────────────────
+//
+// See onTimeOfDayChange. The music keeps playing, the audio graph stays
+// unlocked, the panel stays open and on the same pane, and nothing blinks.
+//
+// The ONLY reason this is cheap: `STAGES` is imported by this file and no
+// other, `TIME_OF_DAY` is imported by nothing at all, and every renderer
+// reads `stage.tod` off the stage object handed to it on the frame it draws.
+// So there is no rig to tear down — there are four objects to replace.
+//
+// ⚠️ LOAD FIRST, SWAP SECOND, both halves valid throughout. The incoming
+// plates are fetched while the outgoing ones stay live; STAGES and `images`
+// change together, in one tick, only once every new image has decoded. START
+// pressed mid-swap gives the half you were already in, whole. The array is
+// mutated in place rather than reassigned because it is an imported binding.
+//
+// A second switch while one is in flight simply supersedes it: `todWant`
+// records what was last asked for, and a resolved load that is no longer the
+// answer is discarded rather than applied on top of the newer one.
+let todWant = STAGES[0] ? STAGES[0].tod : 'night';
+function applyTimeOfDay() {
+  const want = timeOfDay();          // the panel has already written the choice
+  todWant = want;
+  if (STAGES[0] && STAGES[0].tod === want) return Promise.resolve(true);
+  const next = resolveStages(want);
+  return loadImages(stagePlates(next)).then((loaded) => {
+    if (todWant !== want) return false;   // superseded by a later switch
+    Object.assign(images, loaded);
+    Object.assign(imageManifest, stagePlates(next));
+    STAGES.length = 0;
+    STAGES.push(...next);
+    return true;
+  }).catch(() => false);              // keep the half that still works
 }
 
 // ── TWO-STAGE LOAD: THE PICTURE, THEN THE GAME ─────────────────────────
@@ -1555,14 +1594,13 @@ loadImages({ ...TITLE_IMAGES })
   .then((loaded) => {
     images = loaded;
     showTitle();
-    // Coming back from the TIME OF DAY reload — see onTimeOfDayChange. Read
-    // and cleared in one go, so a plain refresh never reopens it.
-    let reopen = null;
-    try {
-      reopen = sessionStorage.getItem('wh_reopen');
-      sessionStorage.removeItem('wh_reopen');
-    } catch (_e) {}
-    if (reopen === 'settings') panel.open('settings');
+    // The TIME OF DAY reload used to leave a breadcrumb here so the panel could
+    // be reopened on the settings pane afterwards. There is no reload now, so
+    // the panel never closed and there is nothing to restore. One stale key is
+    // cleared for anyone whose last visit was on the old build and left one
+    // behind — without it, their next plain refresh would pop the panel open
+    // for no reason they could connect to anything.
+    try { sessionStorage.removeItem('wh_reopen'); } catch (_e) {}
   })
   .catch((err) => {
     // A rejected asset load used to leave a permanently black canvas with

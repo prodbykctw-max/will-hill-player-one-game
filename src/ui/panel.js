@@ -517,14 +517,25 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
   });
   $('sTod').addEventListener('change', (e) => {
     try { localStorage.setItem('wh_tod', e.target.value); } catch (_e) {}
-    // The handler RELOADS when it can, and returns true when it did — so the
-    // note below is only ever seen in the case it is true for. It used to be
-    // printed unconditionally, which is how a setting that works after a
-    // reload came to look like a setting that does nothing.
+    // The handler returns FALSE only mid-run, where switching the world under
+    // a live run would be worse than waiting. Otherwise it returns a promise
+    // that resolves once the other half's plates have decoded and been swapped
+    // in — nothing reloads, the music does not stop, and this panel stays
+    // open on this pane, so the note is the only thing that moves.
     const applied = onTimeOfDayChange?.(e.target.value);
-    $('todNote').textContent = applied
-      ? 'Switching…'
-      : 'Applies when this run ends — finish the stage or go back to the title.';
+    if (applied === false) {
+      $('todNote').textContent =
+        'Applies when this run ends — finish the stage or go back to the title.';
+      return;
+    }
+    $('todNote').textContent = 'Switching…';
+    Promise.resolve(applied).then((ok) => {
+      // fillSettings writes the real note for the chosen mode — including the
+      // hour it currently is in Atlanta, which is the whole point of the
+      // default. Re-running it is how the note goes back to being true.
+      if (ok !== false) fillSettings();
+      else $('todNote').textContent = 'That one could not load — still on the previous look.';
+    });
   });
 
   // Tapping the dimmed area behind the card closes it. Not the card itself,
