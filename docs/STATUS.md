@@ -136,12 +136,15 @@ drift period. EAV is the weakest and that is the artwork — its plate is mostly
 tree and Swifty sign. **Night stages have no cloud cards at all**; weather at
 night would be new work, not a fix.
 
-### CAT 3 — Sound — *partly done*
+### CAT 3 — Sound ✅ shipped
 - ✅ Ending music starts sooner.
-- ❌ **Loop-seam crossfade.** Cues are cut so their end runs back into their
-  own start (`musiccheck` confirms all ten match their cut plan) but nothing
-  crossfades the seam. Either an engine change in `music.js` or longer masters
-  from him.
+- ✅ **Loop-seam crossfade** (`6d649c8`). Every looping cue laps two elements:
+  0.9s before the end the spare starts at zero, the pair cross, and they swap
+  at the seam. Native loop stays on both elements as the safety net, so no
+  graph / no gesture / a missed lap all degrade to exactly the old behaviour.
+  `loopseam` 5 PASS off the master bus, with a `window.__lapOff` break-test
+  proving the lap is what carries the seam. Longer masters from him remain
+  welcome but are no longer load-bearing.
 
 ### CAT 4 — UX ✅ shipped
 - ✅ **HOW TO PLAY is the four-page swipe card he specified** (`4d0bdb6`):
