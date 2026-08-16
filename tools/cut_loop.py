@@ -164,6 +164,33 @@ BPM = {
     # 28/32/36 bars all sit at ~2.89x and 40 bars at 1.09x; the old
     # correlation search had no way to see that cliff and landed off it.
     'mar_10_26': 145.0,
+    # title. He said 134 and the arithmetic confirms it twice over, from two
+    # independent loops: his own 28.668s trim is 16.0000 bars at 134, and the
+    # 85.970s loop it replaces is 48.0000 bars at 134 — the latter to a tenth
+    # of a millisecond, on a cut that was made before anyone knew the tempo.
+    # Two whole-bar landings at the same BPM is not a coincidence.
+    'knowledge_x_polo': 134.0,
+}
+
+# ── LENGTHS HE CHOSE HIMSELF, WHICH THE SEARCH DOES NOT GET TO IMPROVE ────
+#
+# best_length_bars() picks a bar count by scoring the join. That is the right
+# behaviour when nobody has listened. It is the WRONG behaviour once he has sat
+# at tools/loopbench.html and decided, because the thing he is deciding — does
+# this phrase come round correctly — is exactly what the scorer proved blind
+# to: it rated a 40-bar cut of stage one the cleanest join in the whole grid
+# while its last two bars were a duplicate of its first two.
+#
+# So a cue listed here skips the search entirely and is cut at the bar count he
+# set. The join is still measured and reported, and the crossfade and levelling
+# still run; the only thing removed is the tool's vote on the length.
+#
+#   title 16 bars @ 134 = 28.657s, from hook 57.309 — set at the bench
+#     2026-08-16, judged with the crossfade OFF (the harsher test). Measured
+#     1.39x against the track's own typical splice, where ~3x is a join you
+#     hear every wrap.
+CHOSEN_BARS = {
+    'title': 16,
 }
 # Phrases are counted in fours and eights in this music, so candidates step in
 # 4 bars and an 8-bar multiple gets a small thumb on the scale — enough to win
@@ -373,7 +400,7 @@ def level_to(y, sr, target_lufs=TARGET_LUFS, ceiling_db=PEAK_CEILING):
     return out, cur, lufs(out, sr), 20 * np.log10(max(gain, 1e-9)), gain < want * 0.999
 
 
-def cut(src, hook, target, dest, dry_run=False):
+def cut(src, hook, target, dest, dry_run=False, chosen=None):
     import librosa
     import soundfile as sf
     y, sr = librosa.load(str(src), sr=None, mono=False)
@@ -392,7 +419,16 @@ def cut(src, hook, target, dest, dry_run=False):
     else:
         bpm = BPM.get(src.stem)
         want = min(target, len(rest) / sr)
-        if bpm:
+        if chosen and bpm:
+            # His length, not the search's. See CHOSEN_BARS.
+            bars = chosen
+            n = int(round(bars * (4.0 * 60.0 / bpm) * sr))
+            if n + int(MATCH_WIN * sr) > len(mono):
+                raise SystemExit(
+                    f'{src.stem}: {bars} bars at {bpm} BPM is {bars*4*60/bpm:.3f}s, '
+                    f'but only {len(rest)/sr:.3f}s follows the hook.')
+            score = wrap_continuity(mono, sr, n)
+        elif bpm:
             n, score, _, bars = best_length_bars(mono, sr, bpm, want)
         else:
             n, score, _ = best_length(mono, sr, want)
@@ -512,7 +548,8 @@ def main():
             print(f'{slot:12s} {key + ".mp3":26s} '
                   f'{"same as " + done[key]["slot"]:>44s}')
             continue
-        info = cut(src_dir / f'{key}.mp3', e['hook'], TARGET.get(slot), dest, dry)
+        info = cut(src_dir / f'{key}.mp3', e['hook'], TARGET.get(slot), dest, dry,
+                   chosen=CHOSEN_BARS.get(slot))
         done[key] = {'slot': slot, 'target': TARGET.get(slot)}
         size = f'{info["bytes"] / 1024 / 1024:.2f}MB' if 'bytes' in info else '-'
         total += info.get('bytes', 0)
