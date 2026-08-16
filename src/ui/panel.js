@@ -28,6 +28,10 @@ import {
 // copy of the timezone maths living in the interface layer.
 import { atlantaHour } from '../world/stages.js';
 import leaderboardCard from '../assets/backgrounds/leaderboard-card.webp';
+// The MARTA cabinet OPTIONS and SETTINGS are drawn inside. His concept art,
+// blanked to an empty housing by tools/cut_cabinet.py. Imported for the same
+// reason the card above is — a literal path 404s under the Pages subpath.
+import cabinetPlate from '../assets/ui/cabinet.webp';
 // HOW TO PLAY, in real frames from the running game — see
 // tools/shoot_howto.mjs. Imported rather than written into index.html for the
 // same reason the card above is: the bundler content-hashes these, and a
@@ -112,6 +116,14 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
 
   const card = $('lbCard');
   if (card) card.style.backgroundImage = `url(${leaderboardCard})`;
+  // ⚠️ A CUSTOM PROPERTY, NOT `style.backgroundImage`. Setting the image
+  // directly would paint the cabinet behind EVERY view: an inline style beats
+  // any stylesheet rule, so `#panelCard`'s own dark plate could never win it
+  // back. Only the `.cabinet` rule reads this variable, so the class stays
+  // the single thing that decides whether the housing shows — and the URL is
+  // assigned once, so switching views never re-decodes it.
+  const panelCard = $('panelCard');
+  if (panelCard) panelCard.style.setProperty('--cabinet-plate', `url(${cabinetPlate})`);
   const views = { menu: $('pvMenu'), board: $('pvBoard'), how: $('pvHow'),
     form: $('pvForm'), settings: $('pvSettings') };
   const title = $('panelTitle');
@@ -134,6 +146,14 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
     // plate, no border, no external heading — so the artwork gets the whole
     // frame. Every other view keeps the panel it has always had.
     $('panelCard').classList.toggle('bare', view === 'board');
+    // ── OPTIONS AND SETTINGS ARE THE MARTA CABINET ───────────────────────
+    //
+    // Only these two. The board has its own artwork (the breeze card), and
+    // HOW TO PLAY and the sign-up form both need more height than the glass
+    // has — a four-page swipe pager and a three-field form inside a cabinet
+    // opening would either scroll inside a scroller or shrink the pictures to
+    // nothing. They keep the plain panel.
+    $('panelCard').classList.toggle('cabinet', view === 'menu' || view === 'settings');
     title.hidden = view === 'board';   // the ticket is lettered LEADERBOARD
     title.textContent = view === 'form' ? 'ENTER THE CONTEST'
       : view === 'settings' ? 'SETTINGS'
