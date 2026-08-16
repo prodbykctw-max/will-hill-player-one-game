@@ -142,12 +142,35 @@ export function createStillScene(ctx, canvas) {
     const reserve = safe ? reservedTop() : 0;
     const availH = Math.max(1, canvas.height - reserve);
     const contain = Math.min(canvas.width / img.width, availH / img.height);
-    const cover = canvas.width / img.width;
-    const cropRows = (img.height * cover - availH) / cover;
+    // ⚠️ COVER ON BOTH AXES, NOT WIDTH ALONE.
+    //
+    // Width-anchored cover leaves the plate SHORTER than the canvas whenever
+    // the screen is proportionally taller than the painting: at 430x932 the
+    // 853x1844 plate draws 929.6 tall, so 2.4px could never be covered no
+    // matter where it sat, and the reserve + the 25% top margin turned that
+    // into 8.8px of dead background at the head. Once #game became full-bleed
+    // (index.html) that would simply have moved the client's black band from
+    // the foot to the crown. Scaling by the larger of the two ratios lets the
+    // painting meet both edges; the cost is horizontal crop, 1.1px on his
+    // phone.
+    //
+    // CAPPED AT 6% over the width fit, because that cost is not bounded in
+    // general — a 2.5:1 window would want 15% more scale and start eating the
+    // stars, which reach to x-frac 0.035 and 0.968. Six percent closes any
+    // gap up to ~56px on a phone this size, far more than the 34pt indicator
+    // strip this is here for, while never trimming more than ~25px of width.
+    const coverW = canvas.width / img.width;
+    const coverH = canvas.height / img.height;
+    const cover = Math.max(coverW, Math.min(coverH, coverW * 1.06));
+    // Rows the cover crop must spend, measured against the WHOLE canvas now
+    // that the plate is required to fill it — not against availH, which was
+    // the old way of keeping the reserve empty. The reserve is honoured
+    // below by where the safe band lands, not by leaving a strip unpainted.
+    const cropRows = (img.height * cover - canvas.height) / cover;
     const spareTop = safe ? safe.top : 0;
     const spareBot = safe ? img.height - safe.bottom : 0;
     const budget = spareTop + spareBot;
-    const useCover = budget > 0 && cover > contain && cropRows <= budget;
+    const useCover = budget > 0 && cover >= contain && cropRows <= budget;
     const s = (useCover ? cover : contain) * zoom;
     const dw = img.width * s;
     const dh = img.height * s;
@@ -167,7 +190,18 @@ export function createStillScene(ctx, canvas) {
       const leftover = Math.max(0, budget - cropRows);
       const topMargin = leftover * 0.25;
       const offTop = Math.max(0, Math.min(spareTop, cropRows, spareTop - topMargin));
-      return { s, dw, dh, dx: (canvas.width - dw) / 2, dy: reserve - offTop * s };
+      let dy = -offTop * s;
+      // Keep the top of the safe band clear of the status bar / island. This
+      // used to be done by starting the plate at `reserve`, which is no longer
+      // available — the plate has to touch y=0 — so it is expressed directly:
+      // move the painting DOWN until row `safe.top` clears the inset.
+      if (safe && dy + safe.top * s < reserve) dy = reserve - safe.top * s;
+      // ⚠️ AND THIS CLAMP IS THE WHOLE POINT: never a row of background above
+      // the painting, never one below it. It runs last so it outranks the
+      // inset preference — the client's instruction was "no black space", and
+      // an inset that cannot be honoured without opening a gap loses.
+      dy = Math.min(0, Math.max(canvas.height - dh, dy));
+      return { s, dw, dh, dx: (canvas.width - dw) / 2, dy };
     }
     const slack = (availH - dh) / 2;
     return { s, dw, dh, dx: (canvas.width - dw) / 2, dy: reserve + slack + slack * bias };

@@ -160,12 +160,26 @@ audio.tryAutostart();
 const camera = createCamera();
 
 function resize() {
-  // Prefer visualViewport where it exists — on iOS Safari it's the one that
-  // actually tracks the address bar/toolbar showing or hiding; innerWidth/
-  // innerHeight can lag a beat behind it.
+  // ⚠️ MEASURE THE BOX, NOT THE VIEWPORT — they are not the same rectangle
+  // any more and the difference is exactly the bug the client photographed.
+  //
+  // #game is `position: fixed; inset: 0` (see index.html), so its box now
+  // spans the physical screen including the home-indicator strip, while
+  // visualViewport still reports the safe area — 34pt shorter on his iPhone.
+  // Sizing the bitmap off the viewport would leave the CSS box scaling a
+  // too-short bitmap up to fill it: the black band would be gone and the
+  // whole painting would be stretched by 4% instead, which is the mistake
+  // that got made once already with letterbox filler and was thrown out.
+  //
+  // clientWidth/clientHeight are that box, in CSS px, from the element
+  // itself. visualViewport stays as the fallback for the first frame if the
+  // element has not been laid out yet (clientHeight 0 would give a 1px
+  // canvas and a divide-by-zero in the fit).
   const vv = window.visualViewport;
-  canvas.width = vv ? Math.round(vv.width) : window.innerWidth;
-  canvas.height = vv ? Math.round(vv.height) : window.innerHeight;
+  const w = canvas.clientWidth || (vv ? Math.round(vv.width) : window.innerWidth);
+  const h = canvas.clientHeight || (vv ? Math.round(vv.height) : window.innerHeight);
+  canvas.width = Math.max(1, Math.round(w));
+  canvas.height = Math.max(1, Math.round(h));
   camera.resize(canvas.width, canvas.height);
 }
 // ── WHERE THE MOUSE IS, FOR HIS EYES TO FOLLOW ───────────────────────────

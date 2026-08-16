@@ -54,19 +54,41 @@
     }
     /* Stronger still on the board itself: no double-tap, no pinch, no pan. */
     #game {
-      display: block; width: 100vw; image-rendering: pixelated;
+      display: block; image-rendering: pixelated;
       touch-action: none;
-      /* ⚠️ NOT 100vh ALONE. On iOS Safari `vh` is anchored to the LARGE
-         viewport (address bar + toolbar collapsed) — real screenshot from the
-         client showed PRESS START up but OPTIONS/MUSIC gone, on a device with
-         BOTH Safari bars visible at once. `overflow:hidden` on <body> above
-         means nothing can scroll to reveal the shortfall, so the extra height
-         `vh` claims but the screen doesn't have just clips off the bottom of
-         the card — exactly where OPTIONS/MUSIC draw. `dvh` tracks the bars
-         actually showing; `vh` stays first as the fallback for browsers that
-         don't know `dvh` (CSS ignores a property it can't parse and keeps the
-         last one it understood). */
+      /* ⚠️ FIXED AND INSET, NOT `100vw` x `100dvh`.
+         Client, on the installed app: "there is a black space at the bottom
+         of the pwa... can we bring the image down some to cover that?"
+         Measured at ~33 logical px, which is the iOS home-indicator inset
+         (34pt) almost exactly — and it was NOT the painting letterboxing.
+         With `height: 100dvh` this canvas is an in-flow block whose box stops
+         at the safe-area line in standalone mode, so the strip below it was
+         never part of the canvas at all: it was `body`'s own #0a0810 showing
+         through, which no amount of moving the image inside the canvas could
+         ever have covered.
+         The previous comment here was right about its own bug — `vh` alone
+         clipped OPTIONS/MUSIC off the bottom in Safari with both bars up —
+         and `dvh` did fix that. It just cannot reach past the safe area.
+         `position: fixed; inset: 0` with the `viewport-fit=cover` already in
+         the viewport meta spans the physical screen, indicator and all.
+         ⚠️ `inset: 0` ALONE DOES NOT SIZE A CANVAS. It is a REPLACED element:
+         with `width: auto` an absolutely-positioned replaced box keeps its
+         intrinsic 300x150 and the over-constrained inset is simply dropped.
+         Measured that way first — the canvas came out 300x150 on every
+         viewport. The size has to be stated.
+         ⚠️ AND THE EXTRA STRIP IS ADDED, NOT ASSUMED. `100dvh` is what the
+         client's standalone app resolves to and it stops at the safe-area
+         line; adding `env(safe-area-inset-bottom)` puts back exactly the
+         indicator strip that is missing and is a no-op everywhere that inset
+         is 0 (desktop, and Safari with its toolbar up — which is the state
+         the dvh fix above was written for, so that fix still holds).
+         ⚠️ AND THE BACKING STORE MUST BE MEASURED FROM THIS BOX, not from
+         visualViewport — see resize() in src/main.js. Growing the box while
+         still sizing the bitmap off the viewport would stretch the painting
+         instead of extending it. */
+      position: fixed; left: 0; top: 0; width: 100vw;
       height: 100vh; height: 100dvh;
+      height: calc(100dvh + env(safe-area-inset-bottom, 0px));
     }
 
     /* ── ON-SCREEN CONTROLS ───────────────────────────────────────────
