@@ -103,6 +103,28 @@ export const STAGE_SLOTS = ['stage_01', 'stage_02', 'stage_03', 'stage_04'];
 export const MAP_SLOTS = ['map_01_02', 'map_02_03', 'map_03_04'];
 
 const FADE = 0.9;      // seconds to cross from one cue to the next
+// ── THE LOOP SEAM ────────────────────────────────────────────────────────
+// Client: "the songs need to be longer or we need to find better loop
+// points." The points are already as good as arithmetic gets them —
+// tools/cut_loop.py picks each cut by cross-correlation so the end runs back
+// into its own start — but `loop = true` on an MP3 still wraps with a flick:
+// the format pads the first frame with encoder priming samples, and the
+// element adds its own wrap latency on top. Nothing about the cut can remove
+// that; it has to be MASKED.
+//
+// So a looping cue is TWO elements taking turns. LAP seconds before the end,
+// the spare starts from zero and the two cross linearly; at the seam the old
+// front is paused and the pair swap roles. The material either side of the
+// lap is the same passage by construction (that is what cut_loop.py chose),
+// so a sub-second linear cross is inaudible where a native wrap clicks.
+//
+// ⚠️ THE NATIVE LOOP STAYS ON BOTH ELEMENTS, deliberately. If the graph is
+// not running (no gesture yet, WebAudio refused) the lap never arms and the
+// cue behaves exactly as it always did — and if a lap ever fails to arm in
+// time, the element wraps itself instead of running off the end into
+// silence. The crossfade is an improvement layered on the old behaviour,
+// never a replacement that can fail worse.
+const LAP = 0.9;       // seconds of overlap that mask a loop's wrap
 const DUCK_TO = 0.42;  // how far the music drops under a punch
 const DUCK_MS = 260;   // how long it stays down before recovering
 
@@ -164,7 +186,10 @@ export function createMusic(getContext, getMaster) {
     // rather than a copy of it — see play(). Everything that reads `current`
     // (setMuted, duck, tick, status) then sees the live gain instead of a
     // snapshot of what the gain was at the moment the cue started.
-    const node = { el, gain: null, cue, slot };
+    const node = { el, gain: null, cue, slot,
+      // The other half of the loop pair. Built lazily at half-distance so
+      // its buffer is warm by lap time, graphed only when the context runs.
+      spare: null, spareGain: null, lapEndsAt: 0, laps: 0 };
     nodes.set(slot, node);
     graph(node);              // only if the context can actually deliver it
     if (!node.gain) el.volume = 0;
@@ -227,12 +252,109 @@ export function createMusic(getContext, getMaster) {
   function stopNode(node, secs) {
     if (!node) return;
     ramp(node, 0, secs);
+    // A mid-lap cue is TWO playing elements; both retire, or the spare keeps
+    // singing underneath the next screen's music.
+    if (node.lapEndsAt && node.spareGain) {
+      const ctx = getContext();
+      if (ctx) {
+        node.spareGain.gain.cancelScheduledValues(ctx.currentTime);
+        node.spareGain.gain.setValueAtTime(node.spareGain.gain.value, ctx.currentTime);
+        node.spareGain.gain.linearRampToValueAtTime(0, ctx.currentTime + secs);
+      }
+      node.lapEndsAt = 0;
+    }
     const el = node.el;
+    const spare = node.spare;
     // Pause AFTER the fade, and only if nothing has started it again since.
     setTimeout(() => {
       if (current && current.el === el) return;
       try { el.pause(); } catch (_e) { /* */ }
+      if (spare) { try { spare.pause(); } catch (_e) { /* */ } }
     }, secs * 1000 + 60);
+  }
+
+  // The spare is a second <audio> on the SAME source. Its MediaElementSource
+  // is created only while the context is genuinely running — same trap as
+  // graph(): adopting an element into a suspended graph silences it for good.
+  function buildSpare(node) {
+    if (node.spare) return;
+    const el = new Audio();
+    el.src = node.cue.src;
+    el.loop = true;             // the safety net, see the LAP note
+    el.preload = 'auto';        // it exists to be ready at the seam
+    el.crossOrigin = 'anonymous';
+    el.volume = 0;
+    node.spare = el;
+  }
+
+  function graphSpare(node) {
+    if (node.spareGain || !node.spare) return;
+    const ctx = getContext();
+    if (!ctx || ctx.state !== 'running' || !getMaster()) return;
+    try {
+      const src = ctx.createMediaElementSource(node.spare);
+      const gain = ctx.createGain();
+      gain.gain.value = 0;
+      src.connect(gain).connect(getMaster());
+      node.spare.volume = 1;    // the gain node owns the level from here
+      node.spareGain = gain;
+    } catch (_e) { /* element volume stays in charge; lap simply never arms */ }
+  }
+
+  // Runs once a frame for the current cue. Arms the lap, drives the swap.
+  function lapTick(node) {
+    // Harness door: setting window.__lapOff reverts to the bare native loop,
+    // which is how tools/harness/loopseam.mjs proves the lap is what carries
+    // the seam — a check that cannot fail is a comment. Inert otherwise.
+    if (typeof window !== 'undefined' && window.__lapOff) return;
+    // Crossfading needs BOTH sides on the graph — without it the native
+    // loop already does everything this function would.
+    if (!node || !node.gain || !node.cue.loop || muted) return;
+    const el = node.el;
+    const dur = el.duration;
+    if (!Number.isFinite(dur) || dur <= LAP * 3) return;
+    const ctx = getContext();
+
+    // Mid-lap: wait for the deadline, then retire the old front and swap.
+    if (node.lapEndsAt) {
+      if (ctx.currentTime < node.lapEndsAt) return;
+      try { el.pause(); } catch (_e) { /* */ }
+      if (node.gain) node.gain.gain.value = 0;
+      const oldEl = node.el; const oldGain = node.gain;
+      node.el = node.spare; node.gain = node.spareGain;
+      node.spare = oldEl; node.spareGain = oldGain;
+      node.lapEndsAt = 0;
+      node.laps++;
+      return;
+    }
+
+    const t = el.currentTime;
+    // Warm the spare from half-distance, so the seam never waits on a fetch.
+    if (t > dur / 2) { buildSpare(node); graphSpare(node); }
+    if (!node.spareGain || t < dur - LAP) return;
+
+    // ── THE LAP ──. The remaining time IS the ramp length, so a tick that
+    // lands late simply crosses faster rather than overshooting the wrap.
+    const remain = Math.max(0.15, dur - t);
+    const level = levelOf(node);
+    try {
+      node.spare.currentTime = 0;
+      const pr = node.spare.play();
+      if (pr && pr.catch) pr.catch(() => {});
+    } catch (_e) { return; }
+    const now = ctx.currentTime;
+    node.spareGain.gain.cancelScheduledValues(now);
+    node.spareGain.gain.setValueAtTime(0, now);
+    node.spareGain.gain.linearRampToValueAtTime(level, now + remain);
+    node.gain.gain.cancelScheduledValues(now);
+    node.gain.gain.setValueAtTime(node.gain.gain.value, now);
+    node.gain.gain.linearRampToValueAtTime(0, now + remain);
+    node.lapEndsAt = now + remain;
+    // ⚠️ Known, accepted: a duck() landing inside this sub-second window
+    // re-ramps only the outgoing gain (ramp() writes node.gain), so the
+    // cross momentarily carries both at level. It resolves at the deadline
+    // and a duck exactly at the seam is rare; the alternative is threading
+    // lap-awareness through every ramp call.
   }
 
   return {
@@ -310,6 +432,14 @@ export function createMusic(getContext, getMaster) {
       if (prev && prev.el !== node.el) stopNode(prev, FADE);
     },
 
+    // Harness door — jump the current cue near its own end so a loop seam
+    // can be watched in seconds instead of minutes. Not used by the game.
+    seek(t) {
+      if (current && Number.isFinite(t)) {
+        try { current.el.currentTime = t; } catch (_e) { /* */ }
+      }
+    },
+
     stop() {
       wanted = null;
       const prev = current;
@@ -341,6 +471,7 @@ export function createMusic(getContext, getMaster) {
         ducking -= dtMs;
         if (ducking <= 0 && current) ramp(current, levelOf(current), 0.35);
       }
+      lapTick(current);
       if (wanted && !current) this.play(wanted);
       else if (current && current.el.paused && !muted) {
         const pr = current.el.play();
@@ -364,7 +495,11 @@ export function createMusic(getContext, getMaster) {
     setMuted(v) {
       muted = !!v;
       if (current) ramp(current, levelOf(current), 0.25);
-      if (muted && current) { try { current.el.pause(); } catch (_e) { /* */ } }
+      if (muted && current) {
+        try { current.el.pause(); } catch (_e) { /* */ }
+        if (current.spare) { try { current.spare.pause(); } catch (_e) { /* */ } }
+        current.lapEndsAt = 0;
+      }
     },
 
     // For the harness, and for anyone wondering why they cannot hear anything.
@@ -387,6 +522,9 @@ export function createMusic(getContext, getMaster) {
         srcs: Object.fromEntries(Object.entries(MANIFEST).map(([k, c]) => [k, c.src])),
         muted,
         ducking: ducking > 0,
+        // The loop-seam crossfade, for tools/harness/loopseam.mjs: how many
+        // laps this cue has completed and whether one is in flight.
+        lap: current ? { laps: current.laps, active: !!current.lapEndsAt } : null,
         el: !el ? null : {
           paused: el.paused,
           t: +el.currentTime.toFixed(2),
