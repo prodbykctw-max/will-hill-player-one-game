@@ -4,12 +4,11 @@
 proposed, everything not done, everything undone, everything on hold.
 
 - Repo: `prodbykctw-max/will-hill-player-one-game`
-- `main` and `claude/last-markdown-game-link-lvk1n6` are both at **`4ef9eab`**
+- `main` and `claude/last-markdown-game-link-lvk1n6` are both at **`b1a9dec`**
 - Live: <https://prodbykctw-max.github.io/will-hill-player-one-game/>
 - Loop bench: <https://prodbykctw-max.github.io/will-hill-player-one-game/bench/>
-- `gh-pages` was rebuilt from `4ef9eab`. Live matches main — verified on the
-  CDN by bundle hash (`index-l23R2Ktx.js`) and by `America/New_York` being
-  present in it.
+- `gh-pages` was rebuilt from `b1a9dec`. Live matches main — verified on the
+  CDN by bundle hash and by `createBufferSource` being present in it.
 
 ---
 
@@ -67,6 +66,67 @@ scratchpad, never the repo root.
 ---
 
 ## DONE — shipped and live
+
+### Audio, settings and scores — the day he tested it live (`fa72781` … `b1a9dec`)
+
+Eight commits, all confirmed by him on the device: *"Everything plays well.
+Settings works smoothly."*
+
+- **A looping cue plays from a decoded buffer, not a media element.** He cut
+  the intro himself at the bench, heard it in the game and said *"at the end of
+  the loop it's a pause before the loop starts again — the loop is perfect."*
+  He was comparing against `tools/loopbench.html` and comparing fairly: the
+  bench uses `AudioBufferSourceNode` with `loopStart`/`loopEnd`, sample-accurate
+  and butt-joined, while the game crossed two `<audio>` elements over **`LAP =
+  0.9` seconds** — most of a second of bar 16 playing over bar 1, every wrap.
+  Correct for a loop point nobody had listened to, where the raw join is 13x or
+  104x; wrong for one he cut to be exact. Measured after: laps 0, zero silent
+  frames, one cue audible at a time. It also removes the MP3 container padding
+  a native element loop wraps through, and deletes the iOS failure path
+  entirely — there is no second element left to refuse.
+  ⚠️ **The element path stays as the fallback** and engages whenever the
+  context is asleep or a decode has not landed. Two buffers are held at once
+  (playing + warmed); a decoded stage track is ~35MB of Float32.
+- **Two bugs of mine on the way, both caught by measurement, both worth
+  remembering.** Promotion carried the element's gain across to avoid a jump
+  and shipped audible music with the sound OFF — a muted element is *paused*,
+  so its gain can sit at full level and still be silent; copy that onto a
+  buffer, which has no pause, and it plays (bus 0.194). Then the "assertion" I
+  added to setMuted cancelled the very ramp-to-zero the line above scheduled,
+  so muting left it at full volume (bus 0.482). `levelOf()` is now the only
+  thing allowed to decide a level, and nothing may touch the gain in setMuted.
+- **Changing a setting no longer restarts the game.** *"Setting the time and
+  settings shouldn't restart the whole damn game man… it shouldn't stop the
+  music."* TIME OF DAY called `location.reload()`; the comment defending it
+  argued the live re-resolve was a lot of machinery, which was true and beside
+  the point. It turned out small: nothing outside `main.js` imports `STAGES`,
+  nothing imports `TIME_OF_DAY`, every renderer reads `stage.tod` off the
+  object it is handed. Load first, swap second, both halves valid throughout.
+- **The intro is his own cut: 16 bars at 134 BPM from hook 57.132.** He set it
+  at the bench, then heard *"a little is missing from the first beat, maybe a
+  few hundred ms off"* — right again, and measurable: his 57.309 sat 182ms past
+  the strong onset and 46ms short of the next, in the GAP between two hits and
+  off the 8th-note grid, so the loop opened in a dip with the run-up cut away.
+  The hook moved back 177ms. `CHOSEN_BARS` in `cut_loop.py` is the mechanism
+  that stops the search overruling him, and a cue he picked **ships with no
+  crossfade** — on his cut it measured slightly worse (1.38x vs 1.36x) while
+  rewriting his first 15ms with audio from bar 17.
+- **No login, and a score is never lost.** *"They never have to login again…
+  it keeps up with all the scores… before they answer the contest it should
+  keep all of this shit on local storage."* There was never a login. What was
+  broken: `pendingRuns` lived in a variable, so runs finished before
+  registering died with the tab; and a failed submit was discarded AND marked
+  sent. It is a persisted outbox now (`wh_pending_runs` / `wh_sent_runs`) and a
+  run leaves only on a 2xx, retrying on registration, the next run, reconnect,
+  or the next visit.
+- **Verification.** `outbox` (new, 13) reads the queue out of localStorage
+  rather than trusting the module, and its break-test wipes the key to prove
+  the survives-a-reload check can fail. `todlive` (new, 12) drives the real
+  `#sTod` — `relaytod` could never see this, because it flips the setting by
+  writing localStorage and calling reload() itself. `loopbench` grew to 32.
+  `loopseam` was **reframed, not deleted**: grading "a lap happened" would now
+  grade the absence of the fix, so it grades what the lap existed FOR.
+  musicbox 11, endcue 11, loopseam 9, pausemenu 13, relaytod 26, share 12.
 
 ### Atlanta time everywhere, and a bench for his own ear (`4afd00e` … `4ef9eab`)
 

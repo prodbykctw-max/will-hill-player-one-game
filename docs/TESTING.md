@@ -60,7 +60,7 @@ Pages is) serves `index.html` for the directory, so the URL the client gets is
 read them mechanically:
 
 `barescars` · `ceiling` · `cloudseal` · `daylamps` · `endcue` · `entrypaths` · `finishrun` · `howswipe` · `idleflex` · `introorder` ·
-`loopbench` · `loopseam` · `musicbox` · `optionsmenu` · `padlift` · `panelnav` · `pausemenu` · `relaytod` ·
+`loopbench` · `loopseam` · `musicbox` · `outbox` · `todlive` · `optionsmenu` · `padlift` · `panelnav` · `pausemenu` · `relaytod` ·
 `share` · `stageflag` · `titlefit` · `titleintro`
 
 **Report-only** — they print a table or a contact sheet for a human to read,
@@ -74,26 +74,28 @@ The one-liner above reports those as `NO VERDICT`. Do not read that as broken �
 stage day-above-night for eyeballing, `daynight` prints a difference table.
 They are the eyes-on tools; the graded set is the tripwire.
 
-### Last full-suite result
+### Last sweep
 
-All fourteen graded harnesses green as of the pad-lift commit, 210 checks:
-
-```
-ceiling     15    daylamps    12    endcue      11    idleflex     8
-introorder   4    musicbox    11    optionsmenu 12    padlift     11
-panelnav    13    pausemenu   13    relaytod    26    share       12
-titlefit    60    titleintro  12
-```
-
-**Re-run after the title, touch, viewport and audio work** — twelve graded
-harnesses, **202 checks, all green**. The canvas and input changes touch every
-screen, so the gameplay, panel and audio ones are the point of running them:
+⚠️ **PARTIAL, and labelled as such.** The audio-engine day re-ran the harnesses
+the change could touch, not all of them — recording a number that was not
+measured is how this file starts grading last month's product. Green as of
+`b1a9dec`:
 
 ```
-titlefit    76    titleintro  12    introorder   4    barescars    8
-relaytod    26    pausemenu   13    panelnav    13    musicbox    11
-padlift     11    optionsmenu 12    endcue      11    loopseam     5
+musicbox    11    endcue      11    loopseam     9    pausemenu   13
+relaytod    26    share       12    todlive     12    outbox      13
+loopbench   32    optionsmenu 12    panelnav    13    entrypaths   9
 ```
+
+`loopseam` went 11 → 9 deliberately: two of its checks demanded that the
+two-element lap ENGAGE, and a buffer-backed cue has no lap. Grading that would
+now be grading the absence of the fix. It grades what the lap existed for —
+the bus not dipping at the seam — and still checks the lap's own failure
+reporting on cues genuinely still on an element.
+
+Earlier full sweeps, for the record: fourteen graded harnesses / 210 checks at
+the pad-lift commit, and twelve / 202 after the title, touch and viewport work.
+**A full run is overdue** and belongs in the pre-contest pass (CAT 6).
 
 ### Three things verified without a harness, and why
 
@@ -166,7 +168,9 @@ drifts into grading last month's product and nobody notices.
 | `cloudseal` | weather passes BEHIND the buildings on all four day stages — and is still visible |
 | `endcue` | each finish line hands to the NEXT scene's music, with no restart |
 | `howswipe` | HOW TO PLAY is four swiped ✕/✓ lessons, and page 4's frames really differ at the bags |
-| `loopseam` | a looping cue crosses its seam on a two-element lap, and the bus never dips there |
+| `loopseam` | a looping cue's wrap is seamless — by decoded buffer now, by the two-element lap only when a cue is still on an element |
+| `todlive` | changing TIME OF DAY does not reload, stop the music, or close the panel — driven through the real `#sTod`, which `relaytod` cannot see |
+| `outbox` | a score survives everything: held before registration, kept across a reload, retried after a failed submit, never re-sent once accepted |
 | `loopbench` | the trimming bench's READOUT and its AUDIO agree — the crossfade it previews is `crossfade_wrap()`'s own, sample for sample, and the copied `hook` is the original-file coordinate |
 | `entrypaths` | a run reaches the board whether they enter before OR after it |
 | `padlift` | the movement pads' height, solidity, seam, and that a press still lights them |
@@ -259,6 +263,13 @@ Everything here needs a real phone. The container cannot do any of it.
 ---
 
 ## Known open, and honest about it
+
+- **⚠️ MUSIC IS WEB AUDIO NOW, AND A HARNESS MUST NOT ASSUME AN ELEMENT.**
+  A looping cue decodes to an `AudioBuffer` and loops in the graph; the media
+  element is the fallback. `status().mode` says which, and `status().el` is
+  SYNTHESISED for a buffer cue so the existing fields still read true. A check
+  written against `el.paused` would now report a healthy game as silent — the
+  same trap `musicbox` was written for, one layer down. Grade the master bus.
 
 - **Loop points, now that the seam itself is handled.** ~~Nothing crossfades
   the seam~~ — stale, and it was stale for a while: `crossfade_wrap()` in

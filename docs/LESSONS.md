@@ -391,6 +391,37 @@ authorise.** His music, his call, and "it makes the tool better" is not
 consent. The conservative default was also the more accurate one, which is
 usually how this goes.
 
+## 19. The tool and the game were not playing the same thing
+
+He approved a loop at the bench and then said the game had "a pause at the end
+of the loop." Both were true. `tools/loopbench.html` plays a loop with
+`AudioBufferSourceNode` + `loopStart`/`loopEnd` — sample-accurate, butt-joined.
+The game crossed two `<audio>` elements over **0.9 seconds**, so every wrap
+played most of a second of bar 16 on top of bar 1. Nobody had noticed because
+until he cut a loop himself, the two halves either side of a wrap were the
+*same passage* — that is what the old search optimised for — and an overlap of
+identical audio is inaudible. The moment the loop point became exact, the
+overlap became the artefact.
+
+I spent a while unable to reproduce it, because in the *game* nothing was
+wrong by any measure I had: no silence, no dropout, no missing cue. The
+mismatch was not inside the game at all. It was between the instrument he
+judged with and the thing he judged.
+
+**If someone approves work in one tool and rejects it in another, check that
+the two tools do the same thing before looking for the bug in either.** And if
+you build someone an instrument to make a decision with, the product has to
+honour that instrument exactly, or the decision it produced is not the
+decision that ships.
+
+Two of my own bugs on the way there, both the same shape: an element that is
+muted is *paused*, so its gain node can sit at full level and still be silent.
+Carry that number onto a buffer source, which has no pause, and the music
+plays with the sound switched off. Then the "assertion" I added to catch it
+cancelled the very ramp that did the muting. **State that is only correct
+because something else is switched off is not state, it is a coincidence** —
+and a second mechanism will find it.
+
 ## The short version
 
 0. **Touch the thing before you describe it** — including when what you are
@@ -421,3 +452,7 @@ usually how this goes.
     actually authorise, before it is the thing that shipped.
 19. A break-test that proves a control is wired has not proved the checks have
     teeth. Re-run the real assertions against the broken state.
+20. If they approve it in one tool and reject it in the product, suspect the
+    two tools before suspecting either result.
+21. State that is only correct because something else is switched off is a
+    coincidence, and the next mechanism will expose it.

@@ -11,7 +11,31 @@ the soundtrack, touch and viewport sections again on **2026-08-16** (loop
 points re-cut on the producer's own BPMs, the map cue prefetched, the pads
 releasable by sliding off, the installed app's foot closed).
 
-Later on **2026-08-16**, two more things landed, both live:
+⚠️ **The audio engine changed on 2026-08-16 and this matters to anything that
+touches sound.** A LOOPING cue plays from a decoded `AudioBuffer` through an
+`AudioBufferSourceNode` (`loopStart`/`loopEnd`), not from an `<audio>` element.
+The element path is still there and is the fallback whenever the context is
+suspended or a decode has not landed, so both shapes exist at once —
+`status().mode` is `'buffer'` or `'element'` and `status().el` is synthesised
+for the former. The two-element lap (`LAP = 0.9`) now only runs for
+element-backed cues; on a buffer there is no wrap to hide. Do not add a check
+that reads `el.paused`, and do not reintroduce a crossfade on a cue listed in
+`CHOSEN_BARS` — see LESSONS 19.
+
+Later on **2026-08-16**, these landed, all live and all confirmed on his phone
+(*"Everything plays well. Settings works smoothly."*):
+
+- **TIME OF DAY switches live.** `location.reload()` is gone. `applyTimeOfDay()`
+  in main.js loads the incoming half's plates while the outgoing half stays
+  playable, then swaps `STAGES` (mutated in place — it is an imported binding)
+  and `images` in one tick. A second switch supersedes the first; a failed load
+  keeps the half that works.
+- **The intro is his cut**: 16 bars at 134 BPM from hook 57.132 of
+  `knowledge_x_polo`, no crossfade. `CHOSEN_BARS` in cut_loop.py pins it so the
+  length search cannot overrule him.
+- **Scores are an outbox on the device.** `wh_pending_runs` and `wh_sent_runs`.
+  A run leaves the outbox only on a 2xx and retries on registration, the next
+  run, `online`, or the next visit. There is no login and never was.
 
 - **The clock is Atlanta's, everywhere.** `timeOfDay()` in
   `src/world/stages.js` now defaults to the hour in `America/New_York` rather
