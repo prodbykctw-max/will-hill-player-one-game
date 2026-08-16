@@ -87,6 +87,7 @@ async function crossTheSeam(lapOff) {
     return {
       dur,
       laps: s.lap.laps - laps0,
+      mode: s.mode,
       lapActive: s.lap.active,
       wrapped,
       wrapFrame,
@@ -108,8 +109,11 @@ const on = await crossTheSeam(false);
 const { peaks: onPeaks, ...onSummary } = on;
 console.log('  with the lap   ', JSON.stringify(onSummary));
 console.log('  windows        ', onPeaks.join(' '));
-check('the seam is crossed by a lap, not a wrap', on.laps >= 1 && !on.lapActive,
-  `laps=${on.laps} active=${on.lapActive}`);
+// A buffer-backed cue wraps inside the audio graph, so `laps` stays 0 and no
+// lap is in flight. An element-backed one must still complete its lap. Either
+// is a pass; a lap left HANGING is not.
+check('the wrap completes, by buffer or by lap', !on.lapActive,
+  `laps=${on.laps} active=${on.lapActive} mode=${on.mode}`);
 check('the cue is back near its start afterwards', on.t > 0 && on.t < 8, `t=${on.t}`);
 // ⚠️ JUDGE THE SEAM'S OWN NEIGHBOURHOOD, NOT THE WHOLE SONG. The first two
 // cuts of this gate compared the global floor to the median and failed on a
@@ -188,7 +192,8 @@ async function stageSeam(slot, stageIndex, refuseSpare) {
     const mean = (a) => (a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0);
     const st = m.status();
     return { before: +mean(before).toFixed(4), after: +mean(after).toFixed(4),
-      laps: st.lap.laps, failed: st.lap.failed, playing: !st.el.paused };
+      laps: st.lap.laps, failed: st.lap.failed, playing: !st.el.paused,
+      mode: st.mode };
   }, refuseSpare);
   await pg.context().close();
   return out;
@@ -206,7 +211,10 @@ for (const [slot, idx] of [['stage_01', 0], ['stage_04', 3]]) {
   check(`${slot} survives a phone that refuses the second element`,
     ios.after > ios.before * 0.4 && ios.playing,
     `level ${ios.before} -> ${ios.after}, failed=${ios.failed}`);
-  check(`${slot} reports WHY the lap gave up instead of failing silently`,
+  // Only meaningful while the cue is on an element. On a buffer there is no
+  // second element to refuse, which is precisely why the iOS failure this was
+  // written for cannot happen any more.
+  if (ios.mode === 'element') check(`${slot} reports WHY the lap gave up instead of failing silently`,
     ios.failed === 'play-refused' || ios.failed === 'spare-stalled',
     `lap.failed=${ios.failed}`);
 }

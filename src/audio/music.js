@@ -249,6 +249,132 @@ export function createMusic(getContext, getMaster) {
     }
   }
 
+  // ── A LOOPING CUE PLAYS FROM A DECODED BUFFER, NOT A MEDIA ELEMENT ──────
+  //
+  // Client, having cut the intro himself at the bench and then heard it in the
+  // game: "at the end of the loop it's a pause before the loop starts again —
+  // we need to get rid of whatever that pause is, the loop is perfect." And
+  // before that: "never asked for a crossfade — if I picked the perfect loop
+  // it wouldn't need the crossfade, it will need to play continuous the same
+  // infinite."
+  //
+  // He was comparing against tools/loopbench.html, and he was comparing fairly:
+  // THE BENCH AND THE GAME WERE NOT PLAYING THE SAME THING. The bench uses
+  // AudioBufferSourceNode with loopStart/loopEnd, which is sample-accurate and
+  // butt-joins. The game used two <audio> elements and crossed them over LAP =
+  // 0.9 SECONDS — so at every wrap, most of a second of bar 16 played on top
+  // of bar 1. That was the right call for a loop point nobody had listened to,
+  // where the raw join is 13x or 104x the track's own sample step and the
+  // overlap is hiding a click. It is the wrong call for a loop he cut to be
+  // exact, where the two halves are different music and the overlap is the
+  // artefact.
+  //
+  // So: decode the file once, loop the buffer. No overlap, no spare element,
+  // and no MP3 encoder gap either — the decoded buffer has no container
+  // padding to wrap through, which is the OTHER thing that can put a hole at a
+  // seam on Safari.
+  //
+  // ⚠️ THE ELEMENT PATH STAYS, AND STAYS THE FALLBACK. Everything below is
+  // skipped unless the context is genuinely running, the master exists, and
+  // the buffer has decoded. A decode that fails or has not finished leaves the
+  // cue on the element exactly as before, lap and all — this file has already
+  // been the reason the whole soundtrack was silent once (see play()), and a
+  // new path that can only ever ADD a way to play is the only safe shape for
+  // it this close to a contest.
+  const buffers = new Map();      // slot -> AudioBuffer
+  const decoding = new Map();     // slot -> Promise
+  // Two at a time: the cue playing and the one warm() has fetched ahead of it.
+  // A decoded stage track is ~35MB of Float32 — holding all ten would be
+  // several hundred megabytes for no benefit, on a phone.
+  const MAX_BUFFERS = 2;
+
+  function decodeSlot(slot) {
+    const cue = MANIFEST[slot];
+    if (!cue || !cue.src || !cue.loop) return Promise.resolve(null);
+    if (buffers.has(slot)) return Promise.resolve(buffers.get(slot));
+    if (decoding.has(slot)) return decoding.get(slot);
+    const ctx = getContext();
+    if (!ctx) return Promise.resolve(null);
+    const pr = fetch(cue.src)
+      .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error('fetch'))))
+      .then((ab) => ctx.decodeAudioData(ab))
+      .then((buf) => {
+        buffers.set(slot, buf);
+        decoding.delete(slot);
+        // Evict the least useful, never what is playing or just decoded.
+        for (const k of [...buffers.keys()]) {
+          if (buffers.size <= MAX_BUFFERS) break;
+          if (k === slot || (current && current.slot === k)) continue;
+          buffers.delete(k);
+        }
+        return buf;
+      })
+      .catch(() => { decoding.delete(slot); return null; });
+    decoding.set(slot, pr);
+    return pr;
+  }
+
+  function canBuffer(node) {
+    const ctx = getContext();
+    return !!(node && node.cue.loop && buffers.has(node.slot)
+      && ctx && ctx.state === 'running' && getMaster());
+  }
+
+  function startBuffer(node, offset = 0) {
+    const ctx = getContext();
+    const buf = buffers.get(node.slot);
+    if (!ctx || !buf) return false;
+    stopBufferNow(node);
+    try {
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      src.loop = true;
+      src.loopStart = 0;
+      src.loopEnd = buf.duration;         // the whole cut, which IS the loop
+      const gain = ctx.createGain();
+      gain.gain.value = 0;                // play() ramps it up, same as before
+      src.connect(gain).connect(getMaster());
+      src.start(0, Math.max(0, offset % buf.duration));
+      // The element's gain node is kept, not disconnected: if the buffer is
+      // ever evicted this node has to be able to fall back to the element, and
+      // createMediaElementSource cannot be run twice on one element. Ramped to
+      // zero instead, so the paused element contributes nothing.
+      if (node.gain && node.gain !== gain) {
+        node.elGain = node.gain;
+        try {
+          node.elGain.gain.cancelScheduledValues(ctx.currentTime);
+          node.elGain.gain.setValueAtTime(node.elGain.gain.value, ctx.currentTime);
+          node.elGain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.02);
+        } catch (_e) { /* */ }
+      }
+      // The element must not also be singing. It never played for this cue,
+      // but a cue can be promoted from element to buffer between plays.
+      try { node.el.pause(); } catch (_e) { /* */ }
+      node.bufSrc = src;
+      node.gain = gain;
+      node.bufAt = ctx.currentTime - offset;
+      return true;
+    } catch (_e) {
+      return false;
+    }
+  }
+
+  function stopBufferNow(node) {
+    if (!node || !node.bufSrc) return;
+    try { node.bufSrc.stop(); } catch (_e) { /* */ }
+    try { node.bufSrc.disconnect(); } catch (_e) { /* */ }
+    node.bufSrc = null;
+  }
+
+  // Where a buffer-backed cue is, in its own timeline. status() and the
+  // harnesses read this the same way they read el.currentTime.
+  function bufTime(node) {
+    const ctx = getContext();
+    const buf = node && node.bufSrc && node.bufSrc.buffer;
+    if (!ctx || !buf) return 0;
+    return (ctx.currentTime - node.bufAt) % buf.duration;
+  }
+
   function stopNode(node, secs) {
     if (!node) return;
     ramp(node, 0, secs);
@@ -270,6 +396,10 @@ export function createMusic(getContext, getMaster) {
       if (current && current.el === el) return;
       try { el.pause(); } catch (_e) { /* */ }
       if (spare) { try { spare.pause(); } catch (_e) { /* */ } }
+      // A buffer source keeps running until it is stopped — it has no
+      // `paused` to fall back on, so forgetting this leaves the previous cue
+      // playing at zero gain forever and burning CPU.
+      stopBufferNow(node);
     }, secs * 1000 + 60);
   }
 
@@ -443,6 +573,11 @@ export function createMusic(getContext, getMaster) {
       // was 'none' at creation — changing the attribute alone is a hint the
       // browser is free to ignore until something asks.
       try { node.el.load(); } catch (_e) { /* a failed warm must never throw */ }
+      // And decode it, so the cue that arrives at the finish line can start on
+      // a buffer rather than on the element. This is the right place for it:
+      // main.js already calls warm() at 55% of the stage, which is seconds of
+      // headroom for a decode that takes a few hundred milliseconds.
+      decodeSlot(slot);
       return true;
     },
 
@@ -468,7 +603,10 @@ export function createMusic(getContext, getMaster) {
     play(slot) {
       wanted = slot;
       if (current && current.slot === slot) {
-        if (current.el.paused && !muted) {
+        // A buffer-backed cue is already running; there is no paused element
+        // to unstick, and calling play() on the silent element would start a
+        // second copy of the same music underneath it.
+        if (!current.bufSrc && current.el.paused && !muted) {
           const pr = current.el.play();
           if (pr && pr.catch) pr.catch(() => {});
         }
@@ -509,6 +647,16 @@ export function createMusic(getContext, getMaster) {
       // IS playing, which is what lights Safari's indicator, and none of it
       // reaches the speaker.
       current = node;
+      // THE BUFFER FIRST, WHEN THERE IS ONE. Sample-accurate loop, no overlap,
+      // no container padding to wrap through. Falls through to the element
+      // untouched when the cue is a one-shot, the context is still asleep, or
+      // the decode has not landed — see the block above stopNode().
+      if (canBuffer(node) && startBuffer(node, node.cue.startAt || 0)) {
+        ramp(node, levelOf(node), FADE);
+        if (prev && prev !== node) stopNode(prev, FADE);
+        return;
+      }
+      decodeSlot(slot);            // so the NEXT play of this cue is gapless
       try {
         if (node.cue.startAt && node.el.currentTime < 0.05) {
           node.el.currentTime = node.cue.startAt;
@@ -523,9 +671,14 @@ export function createMusic(getContext, getMaster) {
     // Harness door — jump the current cue near its own end so a loop seam
     // can be watched in seconds instead of minutes. Not used by the game.
     seek(t) {
-      if (current && Number.isFinite(t)) {
-        try { current.el.currentTime = t; } catch (_e) { /* */ }
+      if (!current || !Number.isFinite(t)) return;
+      if (current.bufSrc) {
+        // A buffer source cannot be scrubbed — it is replaced at the offset.
+        // levelOf() for the same reason as the promotion in tick().
+        if (startBuffer(current, Math.max(0, t))) ramp(current, levelOf(current), 0.01);
+        return;
       }
+      try { current.el.currentTime = t; } catch (_e) { /* */ }
     },
 
     stop() {
@@ -559,9 +712,47 @@ export function createMusic(getContext, getMaster) {
         ducking -= dtMs;
         if (ducking <= 0 && current) ramp(current, levelOf(current), 0.35);
       }
-      lapTick(current);
+      // ── PROMOTE TO THE BUFFER THE MOMENT ONE EXISTS ────────────────────
+      //
+      // play() cannot do this on its own: main.js re-states the same cue every
+      // frame and play() returns early when it is already current, so a decode
+      // that lands after the cue started would never be picked up and the cue
+      // would run to the end of the session on the element — which is exactly
+      // what happened the first time this shipped, with the buffer sitting
+      // decoded and unused.
+      //
+      // Handed over AT THE SAME OFFSET and at the same level, so it is a
+      // continuation rather than a restart: the two are decoding the identical
+      // file, so the samples line up and the only error is the millisecond or
+      // so of scheduling slop. Once promoted, the cue never goes back.
+      if (current && !current.bufSrc && canBuffer(current)) {
+        const at = current.el.currentTime;
+        if (startBuffer(current, at)) {
+          current.lapEndsAt = 0;          // any lap in flight is now moot
+          // ⚠️ levelOf(), NOT THE GAIN THE ELEMENT HAPPENED TO BE AT.
+          //
+          // The first version carried the old gain across to avoid a jump, and
+          // shipped audible music with the sound switched OFF: an element that
+          // is muted is PAUSED, so its gain node can sit at full level and
+          // still be silent — the pause is what silences it. Copy that number
+          // onto a buffer source, which has no pause, and the cue starts
+          // playing at 0.855 with muted true. Measured: bus 0.194 on a title
+          // screen whose sound setting was off. levelOf() is the one place
+          // that knows about mute and ducking, so it is the only thing allowed
+          // to decide a level.
+          ramp(current, levelOf(current), 0.02);
+        }
+      }
+      // Keep the cue that is playing decoded even if nobody warmed it.
+      if (current && !current.bufSrc && current.cue.loop) decodeSlot(current.slot);
+
+      // ⚠️ NO LAP ON A BUFFER-BACKED CUE. The lap exists to hide a media
+      // element's wrap; a looping AudioBufferSourceNode has no wrap to hide,
+      // and running it here would fade the cue into a spare element nobody
+      // wants — which is the 0.9s overlap he asked to be rid of.
+      if (!current || !current.bufSrc) lapTick(current);
       if (wanted && !current) this.play(wanted);
-      else if (current && current.el.paused && !muted) {
+      else if (current && !current.bufSrc && current.el.paused && !muted) {
         const pr = current.el.play();
         if (pr && pr.catch) pr.catch(() => {});
       }
@@ -572,7 +763,8 @@ export function createMusic(getContext, getMaster) {
       // keep happening, so this asserts the level rather than trusting that
       // every path remembered to. Cheap: one comparison a frame, and it only
       // acts when something is genuinely wrong.
-      if (current && current.gain && !muted && ducking <= 0 && !current.el.paused) {
+      if (current && current.gain && !muted && ducking <= 0
+          && (current.bufSrc || !current.el.paused)) {
         const want = levelOf(current);
         if (want > 0 && current.gain.gain.value < want * 0.5) {
           ramp(current, want, 0.25);
@@ -587,6 +779,16 @@ export function createMusic(getContext, getMaster) {
         try { current.el.pause(); } catch (_e) { /* */ }
         if (current.spare) { try { current.spare.pause(); } catch (_e) { /* */ } }
         current.lapEndsAt = 0;
+        // The buffer keeps running at zero gain rather than being stopped:
+        // unmuting should drop back into the track where it would have been,
+        // not restart the cue from its downbeat. The ramp at the top of this
+        // function is what silences it.
+        //
+        // ⚠️ NOTHING GOES HERE THAT TOUCHES THE GAIN. A `cancelScheduledValues`
+        // "assertion" sat here for one build and cancelled that very ramp, so
+        // muting left the music playing at full level — bus 0.48 after the
+        // switch went off. An element got away with this because pausing it is
+        // what made it silent; a buffer source has only its gain.
       }
     },
 
@@ -598,8 +800,20 @@ export function createMusic(getContext, getMaster) {
     // a check written that way reports silence on a game that is playing fine.
     status() {
       const el = current && current.el;
+      // A BUFFER-BACKED CUE REPORTS THROUGH THE SAME FIELDS. Every audio
+      // harness in this project reads status().el.t / .dur / .paused, and the
+      // rule they were written to — grade the master bus, never an element
+      // flag — is unchanged. Synthesising these keeps them measuring the cue
+      // that is actually playing instead of an element that is now silent by
+      // design and would report paused:true on a game that is playing fine.
+      const onBuf = !!(current && current.bufSrc);
+      const bdur = onBuf ? current.bufSrc.buffer.duration : 0;
       return {
         playing: current ? current.slot : null,
+        // Which path this cue is on, so a harness can prove the buffer is in
+        // use rather than assume it.
+        mode: onBuf ? 'buffer' : 'element',
+        decoded: [...buffers.keys()],
         wanted,
         wired: Object.entries(MANIFEST).filter(([, c]) => c.src).map(([k]) => k),
         missing: Object.entries(MANIFEST).filter(([, c]) => !c.src).map(([k]) => k),
@@ -618,7 +832,15 @@ export function createMusic(getContext, getMaster) {
           // accepted play() and then never advanced. Null means the lap is
           // healthy. The cue keeps playing either way, on its own loop.
           failed: current.lapFailed || null } : null,
-        el: !el ? null : {
+        el: !el ? null : (onBuf ? {
+          paused: false,
+          t: +bufTime(current).toFixed(2),
+          dur: +bdur.toFixed(2),
+          loop: true,
+          ready: 4,
+          err: null,
+          level: current.gain ? +current.gain.gain.value.toFixed(3) : 0,
+        } : {
           paused: el.paused,
           t: +el.currentTime.toFixed(2),
           dur: Number.isFinite(el.duration) ? +el.duration.toFixed(2) : null,
@@ -627,15 +849,15 @@ export function createMusic(getContext, getMaster) {
           err: el.error ? el.error.code : null,
           // What is actually reaching the master bus, gain node or element.
           level: current.gain ? +current.gain.gain.value.toFixed(3) : +el.volume.toFixed(3),
-        },
+        }),
         // Every cue that has been built, so a cross-fade can be watched: two
         // are audible at once for FADE seconds when one cue hands to the next.
         live: [...nodes.entries()]
-          .filter(([, n]) => !n.el.paused)
+          .filter(([, n]) => n.bufSrc || !n.el.paused)
           .map(([slot, n]) => ({
             slot,
             level: +(n.gain ? n.gain.gain.value : n.el.volume).toFixed(3),
-            t: +n.el.currentTime.toFixed(2),
+            t: +(n.bufSrc ? bufTime(n) : n.el.currentTime).toFixed(2),
           })),
       };
     },
