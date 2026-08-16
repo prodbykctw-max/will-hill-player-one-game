@@ -112,13 +112,41 @@ OBJECTS = ['wordmark', 'logo', 'stars']
 # background, printing a faint halo around each landed object.
 ALPHA_FLOOR = 8
 
+# ⚠️ AND THE LETTERS' SHADOW COMES OUT WITH THEM — THE SECOND SCAR.
+#
+# Measured against clean sky in the SAME ROW (which controls for the sky's own
+# vertical gradient, the thing that fooled the first read): the ring 2px
+# outside the old hole is 7.69 levels DARKER than its row's sky, +4px is
+# -5.90, +8px still -3.88. That is the keyline's antialiasing and the drop
+# shadow's soft tail, and the old mask stopped one pixel past the outline and
+# left all of it in the plate. So even a perfect fill was surrounded by a
+# letter-shaped dark ghost, and every fill mismatched its own boundary — the
+# rim step was ~5 levels where untouched sky neighbours differ by 0.86.
+#
+# Growing the hole into that halo fixes both at once, monotonically:
+#   +0: seam 5.36   +1: 1.98   +3: 1.15   +5: 0.84  (natural sky is 0.86)
+# 5 px is where the seam reaches the painting's own noise floor. It is safe
+# to take: every one of those 17,646 px is open sky — zero overlap with the
+# pole, signs or hero cards, nothing at or below skylineTop 427 — and main()
+# re-checks that before writing rather than trusting this comment.
+HALO_GROW = 5
+
 BAND_H = 24        # tall enough for real 2D texture, short enough that the
                    # vertical gradient inside one band is nearly flat
 BAND_OVERLAP = 6   # rows a band reaches into the one above, for the feather
 CHUNK_W = 260      # max donor core width — see THE FILL in the header
 CHUNK_PAD = 8      # context columns a window carries past its core
-DY_MAX = 150       # the cloud work's cap: further up is a different blue
+# ⚠️ THE SEARCH MUST REACH THE WHOLE SKY BAND, not a ±150-row neighbourhood.
+# The lettering occupies rows 164-403 of a 36-421 sky, so the clean belts big
+# enough to donate are nearly all ABOVE it: a band at the logo's foot (y≈390)
+# is ~250 rows from them. Capped at 150 the lower bands found nothing and fell
+# to the pyramid — 45% of the hole came back smooth, which is the same defect
+# the blur was, arriving by a different road. Reaching the full band, the
+# altitude difference is handled by the ring mean-correction plus the rim
+# diffusion, so distance is only a tie-breaker (0.03/row) among real options.
+DY_MAX = 400
 SKY_TOP, SKY_BOT = 36, 421   # legal donor rows
+DY_COST = 0.03
 
 GATE_SEAM = 2.0
 GATE_TEX_LO, GATE_TEX_HI = 0.70, 1.40
@@ -152,8 +180,9 @@ def hole_mask(rgb):
         if (grown == m).all():
             break
         m = grown
-    # One clean pixel past the outline, to take the anti-aliased edge with it.
-    return ndimage.binary_dilation(m, iterations=1)
+    # One clean pixel past the outline, then HALO_GROW more to take the
+    # shadow's soft tail with it — see the constant for the measurement.
+    return ndimage.binary_dilation(m, iterations=1 + HALO_GROW)
 
 
 def donor_legal(rgb, hole):
@@ -187,10 +216,21 @@ def integral(mask):
 
 
 def band_donor_fill(rgb, hole, ok):
-    """24px band donors, chunked. Returns (filled, joins, stats)."""
+    """24px band donors, chunked. Returns (filled, pred, predw, joins, stats).
+
+    ⚠️ NOTHING IS WRITTEN OUTSIDE THE HOLE, and the donor's opinion about the
+    pixels just outside it is kept anyway — that pair of facts is what makes
+    the rim correction work at all (see gradient_fix). Each chunk's donor
+    covers a window a little larger than its hole core; the part landing on
+    real painting never reaches the output, it goes into `pred`, where the
+    rim can be asked "what would this fill have put here?" and compared with
+    what the painting actually has.
+    """
     H, W, _ = rgb.shape
     rgbf = rgb.astype(np.float32)
     filled = rgbf.copy()
+    pred = np.zeros_like(rgbf)   # donor prediction, hole AND its surroundings
+    predw = np.zeros((H, W), np.float32)
     sat = integral(ok)
     ringok = ~hole & ok          # what a donor must agree with: real sky
     lab, n = ndimage.label(hole)
@@ -248,18 +288,15 @@ def band_donor_fill(rgb, hole, ok):
                              - sat[yd + bh, xs] + sat[yd, xs])
                         for xd in xs[s == bh * w]:
                             if tgt is None:
-                                best = (dy * 0.08, yd, int(xd))
+                                best = (dy * DY_COST, yd, int(xd))
                                 break
                             cand = rgbf[yd:yd + bh, xd:xd + w][ring]
-                            cost = float(np.abs(cand - tgt).mean()) + dy * 0.08
+                            cost = (float(np.abs(cand - tgt).mean())
+                                    + dy * DY_COST)
                             if best is None or cost < best[0]:
                                 best = (cost, yd, int(xd))
                         if best is not None and tgt is None:
                             break
-                    # A near-level donor that already agrees is good enough;
-                    # searching wider only fetches worse altitudes.
-                    if best is not None and dy >= 40:
-                        break
                 if best is None:
                     pyr_needed[top:bot, w0:w1] |= chw
                     stats['pyramid_px'] += int(chw.sum())
@@ -269,35 +306,66 @@ def band_donor_fill(rgb, hole, ok):
                 if tgt is not None:
                     dring = rgbf[yd:yd + bh, xd:xd + w][ring]
                     donor += tgt.mean(axis=0) - dring.mean(axis=0)
-                wg = ndimage.gaussian_filter(chw.astype(np.float32), 1.5)
-                wg = np.clip((wg - 0.12) / 0.7, 0, 1)
-                wg[chw] = 1.0
-                filled[win] = (filled[win] * (1 - wg[..., None])
-                               + donor * wg[..., None])
+                # Crossfade weight for OVERLAPPING CHUNKS, applied inside the
+                # window: bands share BAND_OVERLAP rows and neighbouring
+                # chunks share their pads, so where two donors both speak the
+                # weight ramps from one to the other instead of stepping.
+                wy = np.ones(bh, np.float32)
+                if top < by:
+                    r = by - top
+                    wy[:r] = np.linspace(0.0, 1.0, r + 2)[1:-1]
+                wx = np.ones(w, np.float32)
+                pad = min(CHUNK_PAD, max(1, w // 4))
+                wx[:pad] = np.linspace(0.0, 1.0, pad + 2)[1:-1]
+                wx[w - pad:] = np.linspace(1.0, 0.0, pad + 2)[1:-1]
+                wgt = np.maximum(wy[:, None] * wx[None, :], 1e-3)
+                pred[win] += donor * wgt[..., None]
+                predw[win] += wgt
                 stats['chunks'] += 1
                 stats['donor_px'] += int(chw.sum())
 
+    have = predw > 0
+    pred[have] /= predw[have][:, None]
+    # THE OUTPUT TAKES DONOR PIXELS ONLY WHERE THE LETTERS WERE.
+    put = hole & have
+    filled[put] = pred[put]
+    miss = hole & ~have
+    if miss.any():
+        pyr_needed |= miss
+        stats['pyramid_px'] += int(miss.sum())
     if pyr_needed.any():
+        pyr_needed &= hole
         low = pyramid_inpaint(np.clip(filled, 0, 255).astype(np.uint8),
                               pyr_needed)
         filled[pyr_needed] = low[pyr_needed].astype(float)
-    return filled, joins, stats
+    return filled, pred, have, joins, stats
 
 
-def gradient_fix(orig, filled, hole):
+def gradient_fix(orig, filled, hole, pred, have):
     """Diffuse the boundary error inward so the patch has no outline.
 
-    Known only on the rim (where filled meets untouched painting), pushed
-    into the hole by the same push-pull pyramid. Straight from the title
-    cloud work — a patch that is individually correct still reads as a patch
-    if its edge steps.
+    ⚠️ THIS FUNCTION USED TO BE A NO-OP, AND NOBODY NOTICED FOR WEEKS. It
+    measured `orig[rim] - filled[rim]` on rim pixels — which sit OUTSIDE the
+    hole, where the fill writes nothing, so the error was identically zero,
+    the diffusion spread zero, and the patch was never bent to meet the
+    painting. Both the shipped plate and the first band-donor attempt scored
+    ~4.6 levels of rim step against a sky whose own neighbouring pixels
+    differ by 0.86 — a mismatch the code believed it had already corrected.
+
+    The error has to be measured where the fill's OPINION and the painting's
+    TRUTH cover the same pixel. band_donor_fill keeps that opinion in `pred`
+    for a ring outside the hole (never writing it), so on that ring
+    `orig - pred` is the real disagreement. Diffusing it inward with the
+    push-pull pyramid bends the patch onto the painting's tone, which is what
+    the docstring always claimed.
     """
-    rim = ndimage.binary_dilation(hole, iterations=1) & ~hole
-    if not rim.any():
+    ring = (ndimage.binary_dilation(hole, iterations=3) & ~hole & have)
+    if not ring.any():
         return filled
     err = np.zeros_like(filled)
-    err[rim] = orig.astype(float)[rim] - filled[rim]
-    spread = pyramid_inpaint(np.clip(err + 128, 0, 255).astype(np.uint8), ~rim)
+    err[ring] = orig.astype(float)[ring] - pred[ring]
+    spread = pyramid_inpaint(np.clip(err + 128, 0, 255).astype(np.uint8),
+                             ~ring)
     spread = spread.astype(float) - 128
     out = filled.copy()
     out[hole] = filled[hole] + spread[hole]
@@ -358,10 +426,10 @@ def main():
           f'({100 * hole.sum() / (H * W):.1f}% of the plate), '
           f'{int(ok.sum())} px of legal donor sky')
 
-    filled, joins, stats = band_donor_fill(rgb, hole, ok)
+    filled, pred, have, joins, stats = band_donor_fill(rgb, hole, ok)
     print(f'  {stats["chunks"]} band chunks: donor {stats["donor_px"]} px, '
           f'pyramid {stats["pyramid_px"]} px')
-    fixed = gradient_fix(rgb, filled, hole)
+    fixed = gradient_fix(rgb, filled, hole, pred, have)
     # NO INTERIOR BLUR HERE, ON PURPOSE. The sigma-3 smooth that used to
     # follow was hiding row-join banding and produced the "scars" the client
     # photographed; the joins are measured now (gate 3), not smeared over.
@@ -396,9 +464,28 @@ def main():
     if jm >= GATE_JOIN_MEAN or jx >= GATE_JOIN_MAX:
         failures.append('joins')
 
-    outside = ~ndimage.binary_dilation(hole, iterations=8)
+    # GATE 5 — THE HOLE ITSELF STAYED IN OPEN SKY. HALO_GROW is only safe
+    # while the grown mask touches nothing but sky; if the lettering ever
+    # moves, or a card grows, this catches it instead of quietly erasing a
+    # lamppost. Skyline rows and the four standing cards are all forbidden.
+    skyline = json.load(open(BG / 'title-portrait-clouds.json')).get(
+        'skylineTop', 427)
+    bad = int(hole[skyline:].sum())
+    for k in ('signL', 'signR', 'hero', 'pole'):
+        a = np.array(Image.open(BG / f'titlep-{k}.webp').convert('RGBA'))
+        bad += int((hole & (a[..., 3] > ALPHA_FLOOR)).sum())
+    print(f'  gate 5  the hole is open sky only (no skyline rows, no '
+          f'sign/hero/pole pixels): {"yes" if not bad else f"NO — {bad} px"}')
+    if bad:
+        failures.append('hole-escaped-sky')
+
+    # EXACT, not "close outside a dilated margin". The fill writes only where
+    # the letters were, so every other pixel of his painting must come out
+    # bit-identical pre-encode; a margin would have hidden the feather that
+    # used to bleed donor onto real artwork.
+    outside = ~hole
     same = np.array_equal(fixed[outside], rgb.astype(float)[outside])
-    print(f'  gate 4  outside dilate(hole,8) equals the base pre-encode: '
+    print(f'  gate 4  every pixel outside the holes is the base, exactly: '
           f'{"yes" if same else "NO"}')
     if not same:
         failures.append('containment')
