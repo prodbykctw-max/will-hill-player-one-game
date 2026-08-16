@@ -53,6 +53,12 @@ npm-debug.log*
 # textbook case for the rule above: if losing it means the work cannot be
 # rebuilt, commit it. Losing these means asking the client to send them again.
 !/assets/refs/
+# UI CONCEPT ART. The MARTA-cabinet OPTIONS/SETTINGS/dashboard mockups the
+# client commissioned and iterated in ChatGPT. Same case as /assets/refs/ —
+# they arrive as chat attachments, this container can see them rendered but
+# cannot read their pixels, and the real screens get built by measuring
+# against them. Losing them means paying to have them drawn again.
+!/assets/ui-concept/
 
 # Claude Code project settings — local only, never shared via the repo.
 #
