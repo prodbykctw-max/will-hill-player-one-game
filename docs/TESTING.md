@@ -40,13 +40,27 @@ done
 and a harness that defaults to the repo root drops them beside the source.
 Three separate sweeps have had to clean that up; `shots/` is gitignored.
 
+⚠️ **`loopbench` needs `public/bench/` built first**, and it must be reached by
+its explicit filename:
+
+```
+python3 tools/build_loopbench.py          # writes public/bench/ (gitignored)
+node tools/harness/loopbench.mjs          # -> /bench/index.html
+```
+
+Vite's dev server answers a bare directory with the APP's `index.html` — its
+SPA fallback — so `http://localhost:5199/bench/` grades the game instead of
+the bench, silently and with confusing errors. Static hosting (which is what
+Pages is) serves `index.html` for the directory, so the URL the client gets is
+`/bench/` and it is correct there.
+
 ### ⚠️ Six of these do not print a verdict, and that is not a failure
 
 **Graded** — they end in `ALL n PASS` or `FAILED: <checks>`, and a sweep can
 read them mechanically:
 
-`barescars` · `ceiling` · `cloudseal` · `daylamps` · `endcue` · `entrypaths` · `howswipe` · `idleflex` · `introorder` ·
-`loopseam` · `musicbox` · `optionsmenu` · `padlift` · `panelnav` · `pausemenu` · `relaytod` ·
+`barescars` · `ceiling` · `cloudseal` · `daylamps` · `endcue` · `entrypaths` · `finishrun` · `howswipe` · `idleflex` · `introorder` ·
+`loopbench` · `loopseam` · `musicbox` · `optionsmenu` · `padlift` · `panelnav` · `pausemenu` · `relaytod` ·
 `share` · `stageflag` · `titlefit` · `titleintro`
 
 **Report-only** — they print a table or a contact sheet for a human to read,
@@ -153,6 +167,7 @@ drifts into grading last month's product and nobody notices.
 | `endcue` | each finish line hands to the NEXT scene's music, with no restart |
 | `howswipe` | HOW TO PLAY is four swiped ✕/✓ lessons, and page 4's frames really differ at the bags |
 | `loopseam` | a looping cue crosses its seam on a two-element lap, and the bus never dips there |
+| `loopbench` | the trimming bench's READOUT and its AUDIO agree — the crossfade it previews is `crossfade_wrap()`'s own, sample for sample, and the copied `hook` is the original-file coordinate |
 | `entrypaths` | a run reaches the board whether they enter before OR after it |
 | `padlift` | the movement pads' height, solidity, seam, and that a press still lights them |
 | `stageflag` | `?relay=1` / `?stage=N` work AND a plain URL is still the player's game |

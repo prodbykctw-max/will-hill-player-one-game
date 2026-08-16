@@ -12,6 +12,16 @@ Architecture and conventions for working on this repo. Read `docs/GDD.md` first 
 - Vite's asset import system content-addresses (hashes) imported assets automatically — this replaces the hand-rolled `externalize_assets.py` content-addressing step the Jandé project needed.
 - `assets/` (raw reference art, 3D source, AutoSprite/Tripo3D exports) is ignored **by default, not by rule**. The point is to stop unwanted *exposure*, not to block recordkeeping — a blanket ban was losing irreplaceable work. The test: **if losing the file means the work cannot be rebuilt, commit it.** Currently kept: **39 tracked files** — nine `will-hill-pixel` sheets (downed, fall, hit, idle, jump, knockback, perform, run, walk), twelve enemy sheets (enemy_a/b/c × defeat/idle/stomp/walk), the brand files and prodbyKCTW's voice recording. Re-downloadable packs and build scratch stay ignored. (This said "the four SIDESCROLLER sprite sheets" long after the reaction clips and every enemy sheet were added — `git ls-files assets/ | wc -l` is the check.) See `.gitignore` for the negation pattern (`/assets/*`, not `/assets/` — git will not descend into an excluded directory). Composed game-ready assets live in `src/` and are hashed into `dist/` at build time.
 
+- **`public/bench/` is generated, never committed** (`.gitignore` has it).
+  `tools/build_loopbench.py` writes it from `tools/loopbench.html` plus the
+  loops in `src/assets/music/`, and `tools/deploy.sh` publishes it at `/bench/`
+  along with the game. Two things it does deliberately: it serves the SHIPPED
+  loops rather than re-rendering the client's master tracks, so the bench adds
+  nothing to what is public (`--master <slot>` opts one cue out of that, for
+  when a loop needs to get *longer*); and it strips the comments out of the
+  published copy, because `vite.config.js`'s stripper only ever sees
+  `index.html` and these ones quote the client word for word.
+
 ## Process this repo follows
 
 This project follows the `game-dev-pipeline` skill (`~/.claude/skills/game-dev-pipeline/SKILL.md`) — a reusable 5-phase process (Concept & Style → Environment/World → Tooling & MCP selection → Repo Scaffold → Asset Pipeline & Deploy) developed alongside this repo's own scaffold and meant to apply to future game projects too. ⚠️ That one lives on the client's own machine, NOT in this repo, so a container cannot read or update it — anything learned that belongs there has to be handed over deliberately.

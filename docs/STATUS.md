@@ -4,9 +4,12 @@
 proposed, everything not done, everything undone, everything on hold.
 
 - Repo: `prodbykctw-max/will-hill-player-one-game`
-- `main` and `claude/last-markdown-game-link-lvk1n6` are both at **`cf9d4dc`**
+- `main` and `claude/last-markdown-game-link-lvk1n6` are both at **`4ef9eab`**
 - Live: <https://prodbykctw-max.github.io/will-hill-player-one-game/>
-- `gh-pages` was rebuilt from `cf9d4dc`. Live matches main.
+- Loop bench: <https://prodbykctw-max.github.io/will-hill-player-one-game/bench/>
+- `gh-pages` was rebuilt from `4ef9eab`. Live matches main — verified on the
+  CDN by bundle hash (`index-l23R2Ktx.js`) and by `America/New_York` being
+  present in it.
 
 ---
 
@@ -55,7 +58,7 @@ deploy       bash tools/deploy.sh
 |---|---|
 | `?relay=1` | CHAMPAGNE RELAY: no enemies, no pit deaths, aura always lit |
 | `?stage=1..4` | start on that stage (one-indexed; out of range → stage 1) |
-| `?tod=day` / `night` | force the time of day |
+| `?tod=day` / `night` | force the time of day (the default is **Atlanta's** clock, not the device's — see `timeOfDay()`) |
 | `?lb=<url>` | point the leaderboard client at a stub — **DEV BUILD ONLY**, folded to dead code by Vite in production |
 
 Screenshots default to `shots/` (gitignored). Scratch work goes in the session
@@ -64,6 +67,55 @@ scratchpad, never the repo root.
 ---
 
 ## DONE — shipped and live
+
+### Atlanta time everywhere, and a bench for his own ear (`4afd00e` … `4ef9eab`)
+
+- **The game runs on Atlanta's clock, for everyone, everywhere.** *"The goal
+  was to bring Atlanta to the world… if I'm in Australia and I'm playing this
+  game, the time it is in Atlanta needs to be the time it is in this game."*
+  The default was the device clock; it is now Eastern. `atlantaHour()` /
+  `isNightInAtlanta()` in `src/world/stages.js` ask `Intl` for the hour in
+  `America/New_York` rather than subtracting an offset, so daylight saving is
+  the platform's tz database's problem and there is no March/November bug
+  waiting. No `Intl` falls back to the device clock rather than throwing.
+- **The setting keeps every option, renamed honestly.** TIME OF DAY is now
+  `Atlanta time` (default) / `Always day` / `Always night` / `My local time`.
+  The old stored `'auto'` maps to `'local'` in **both** `panel.js` and
+  `timeOfDay()` — they must agree or the dropdown would say one thing while
+  the sky did another. The note names the hour it is in Atlanta right now, so
+  a player abroad sees why the streets are dark at noon.
+- **`tools/loopbench.html` — he trims the loops himself.** *"What would be
+  cool if you created a bench for me to trim each track to the perfect loop
+  with a little millisecond slider… if you put the wave files from each track
+  there."* Live at `/bench/`. Five cues (the four gameplay stages plus the
+  intro), waveform with the trim region shaded, ms nudges, bar/beat snapping,
+  `LOOP THE JOIN` playing the wrap sample-accurately from 4s out, and an A/B
+  against what ships today. **It finds numbers; `cut_loop.py` still makes the
+  cut**, so the loudness match, the crossfade and the five gates stay in force.
+- **The bench serves the SHIPPED loops, not his masters.** The first design
+  rendered fresh clips from the originals — 96-148s of each unreleased
+  instrumental on a public URL against the 66-102s already there. The shipped
+  cuts are the same bytes the CDN already serves and are what the game
+  actually sounds like. Cost, stated per cue in the interface: a shipped loop
+  can be trimmed but not extended. `--master <slot>` re-renders one cue when a
+  longer loop is wanted, opt-in and one at a time.
+- **Bench time is loop time.** `cut_loop.py` cuts so the hook IS the start, so
+  zero on the page is the loop point and the END reads out the new length
+  directly. The copied JSON still reports `hook` in ORIGINAL-file coordinates.
+  A number meaning something different from what is being heard is the only
+  way this tool could quietly cause a wrong cut, so it is designed out.
+- **Verification.** `loopbench` (new, 21) reads the real state through
+  `window.__bench` — the buffer actually handed to the audio graph, never a
+  recomputation that would agree with itself. It pins the crossfade to
+  `crossfade_wrap()`'s own formula sample-for-sample (worst error 2.7e-8). Its
+  break-test unticks the real checkbox and **re-runs the sample-exact checks
+  against that state**, which go red (head error 1.0e-1). `relaytod` 26 PASS
+  after the clock change. Both deploys confirmed on the CDN.
+- **Still open here:** the 2-bar duplication at the end of stage one is
+  diagnosed (the first 1.5s returns at 62.895s, correlation 0.889 → 38 bars,
+  62.897s) but **not cut** — his ear decides on the bench first. Tempos for
+  `salvador_knowledge`, `strange_girl` and `knowledge_x_polo` are detector
+  guesses and flagged as such; he knows the real ones.
 
 ### The title screen, twice over (`2bb29ef`, `eceb8b1`) — both from live photos
 
