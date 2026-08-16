@@ -452,12 +452,24 @@ function peaks(from, to, width) {
   }
   return out;
 }
-function drawWave(cv, from, to, marks) {
+function drawWave(cv, from, to, marks, shade) {
   const dpr = window.devicePixelRatio || 1;
   cv.width = cv.clientWidth * dpr; cv.height = cv.clientHeight * dpr;
   const g = cv.getContext('2d'); g.scale(dpr, dpr);
   const W = cv.clientWidth, H = cv.clientHeight;
+  const at = (t) => (t - from) / (to - from) * W;
   g.clearRect(0, 0, W, H);
+  // What is being cut, drawn as a region rather than a line. A shipped loop
+  // ends where its file ends, so a "NOW" marker would always sit on the right
+  // border and be invisible — the thing worth seeing is the gap between the
+  // new END and it.
+  if (shade && shade[1] - shade[0] > 0.001) {
+    g.fillStyle = 'rgba(255,107,107,0.16)';
+    g.fillRect(at(shade[0]), 0, at(shade[1]) - at(shade[0]), H);
+    g.fillStyle = '#ff9b9b'; g.font = '10px ui-monospace, monospace';
+    const label = `cut ${(shade[1] - shade[0]).toFixed(3)}s`;
+    g.fillText(label, Math.min(W - g.measureText(label).width - 3, at(shade[0]) + 4), H - 5);
+  }
   g.strokeStyle = '#3a3450'; g.beginPath(); g.moveTo(0, H / 2); g.lineTo(W, H / 2); g.stroke();
   const p = peaks(from, to, W);
   g.strokeStyle = '#6f83c0';
@@ -469,22 +481,25 @@ function drawWave(cv, from, to, marks) {
   g.stroke();
   for (const [t, colour, label] of marks) {
     if (t < from || t > to) continue;
-    const x = (t - from) / (to - from) * W;
+    // Kept a pixel inside the canvas: a line exactly on the border draws at
+    // half width or not at all, and the END of a shipped loop is always on it.
+    const x = Math.max(1, Math.min(W - 1, at(t)));
     g.strokeStyle = colour; g.lineWidth = 2;
     g.beginPath(); g.moveTo(x, 0); g.lineTo(x, H); g.stroke();
     g.fillStyle = colour; g.font = '10px ui-monospace, monospace';
-    g.fillText(label, Math.min(W - 34, x + 3), 11);
+    const w = g.measureText(label).width;
+    g.fillText(label, x + 3 + w > W ? x - w - 3 : x + 3, 11);
   }
   g.lineWidth = 1;
 }
 function marks() {
-  const m = [[startS, '#ffd66e', 'START'], [endS, '#ff6b6b', 'END']];
-  // Where the game wraps today, so the change is always visible against it.
-  if (cue && Math.abs(cue.currentLoop - endS) > 0.01) m.push([cue.currentLoop, '#6ec1ff', 'NOW']);
-  return m;
+  return [[startS, '#ffd66e', 'START'], [endS, '#ff6b6b', 'END']];
 }
 function drawAll() {
-  drawWave($('wave'), 0, buf.duration, marks());
+  // The shaded tail is everything between the new end and where the game
+  // wraps today — literally the audio that would stop being played.
+  const shade = cue && cue.currentLoop > endS + 0.001 ? [endS, cue.currentLoop] : null;
+  drawWave($('wave'), 0, buf.duration, marks(), shade);
   drawWave($('zEnd'), Math.max(0, endS - 1.5), endS, [[endS, '#ff6b6b', 'END']]);
   drawWave($('zStart'), startS, Math.min(buf.duration, startS + 1.5), [[startS, '#ffd66e', 'START']]);
 }
@@ -563,5 +578,18 @@ $('suggest').onclick = () => {
 $('copy').onclick = async () => {
   try { await navigator.clipboard.writeText($('numbers').textContent); } catch (e) {}
   $('copied').hidden = false; setTimeout(() => { $('copied').hidden = true; }, 1200);
+};
+
+// The door tools/harness/loopbench.mjs measures through. It reads the real
+// state — the buffer actually handed to the audio graph, not a second copy —
+// because the one bug worth catching here is the numbers meaning something
+// different from what is being heard, and a test that recomputed them itself
+// could not see that.
+window.__bench = {
+  state: () => ({ startS, endS, playing, mode, slot: cue && cue.slot, hook: cue && cue.hook }),
+  playingBuffer: () => src && src.buffer,
+  loopRegion: () => src && { start: src.loopStart, end: src.loopEnd },
+  source: () => buf,
+  numbers: () => $('numbers').textContent,
 };
 </script>
