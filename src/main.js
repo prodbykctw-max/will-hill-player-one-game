@@ -29,7 +29,7 @@ import { createTitle, TITLE_IMAGES, INTRO_TICKS as TITLE_INTRO_TICKS,
 import martaMapArt from './assets/backgrounds/marta-map.webp';
 import { loadImages } from './render/images.js';
 import { createRunLog, lbSubmit, bankLocalRun, isRegistered, localRuns, hasPendingRun,
-  signupOffered, markSignupOffered } from './net/leaderboard.js';
+  signupOffered, markSignupOffered, recordRunStats } from './net/leaderboard.js';
 import { createPanel, soundEnabled, setSoundEnabled,
   sfxEnabled, setSfxEnabled } from './ui/panel.js';
 import { createHaptics } from './core/haptics.js';
@@ -619,6 +619,7 @@ function advanceFromScreen() {
       state.screen = 'complete';
       state.screenT = 0;
       state.finalLog = state.runLog.finish();
+      recordRunStats(state.finalLog, state.score);
       // Banked on the device FIRST, and unconditionally. The Worker is not
       // deployed yet and a phone at a party is not always on a network;
       // either way the run happened and the player should be able to see it.
@@ -1081,7 +1082,23 @@ function update() {
     }
     state.screen = 'gameOver';
     state.screenT = 0;
-    lbSubmit(state.runLog.finish());
+    // ⚠️ RECORDED BEFORE finish(), or it is not in the log that gets sent.
+    //
+    // Client: "can we count stats like how many deaths throughout the entire
+    // time of you playing, how many kills." Kills were already in the log as
+    // `stomp`; a death was not in it at all — the run simply stopped, so
+    // neither the device nor the dashboard could ever count one.
+    //
+    // The cause rides in the type rather than a second field, because the
+    // whole log is `{t, type}` pairs and the Worker scores it with
+    // `SCORE_RULES[ev.type] || 0` — an unknown type is worth zero, so new
+    // event names are score-neutral by construction and cannot inflate a
+    // contest run. player.deathCause is set in three places: 'enemy' and
+    // 'pothole' in entities/player.js, 'fall' here at FALL_DEATH_Y.
+    state.runLog.record(`death_${player.deathCause || 'enemy'}`);
+    const log = state.runLog.finish();
+    recordRunStats(log, state.score);
+    lbSubmit(log);
     // Banked locally too, exactly like the complete path. A knocked-down run
     // already SUBMITS to the contest (the line above), but it never reached
     // wh_local_runs — so "your best on this device" and the share card lied
@@ -1116,6 +1133,12 @@ function update() {
   }
 
   if (player.x >= finishLineX(level)) {
+    // How far people actually get is the one question the log could not
+    // answer — a run that ends on stage two and a run that ends on stage four
+    // looked identical in it. One event per stage cleared makes the drop-off
+    // countable, on the device and in the dashboard both. Score-neutral, same
+    // as the death events.
+    state.runLog.record(`stage_clear_${state.stageIndex + 1}`);
     state.screen = 'stageClear';
     state.screenT = 0;
   }

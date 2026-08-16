@@ -247,6 +247,101 @@ export function bankLocalRun(score) {
   } catch (_e) {}
 }
 
+// ── LIFETIME STATS ───────────────────────────────────────────────────────
+//
+// Client: "can we count stats like how many deaths over throughout the entire
+// time of you playing, how many kills… how can we keep stats and metrics like
+// that?"
+//
+// ⚠️ TALLIED FROM THE RUN LOG, NOT FROM COUNTERS SPRINKLED THROUGH THE GAME.
+// Every one of these numbers already exists in the event log the run submits —
+// bags, doubles, stomps, bottles, potholes, the deaths and stage clears added
+// alongside this. Incrementing a second set of counters at each gameplay site
+// would be two sources of truth for one fact, and they drift the first time a
+// path is added that forgets one: the knocked-down run that submitted a score
+// but never banked it locally was exactly that bug, and it lied about the
+// player's own best for weeks.
+//
+// So this takes the finished log and folds it in ONCE, at the end of the run.
+// One call site, one arithmetic, and it is the same log the server tallies —
+// so the device's numbers and the dashboard's numbers cannot disagree about
+// what happened, only about which runs reached the network.
+const STATS_KEY = 'wh_stats';
+const STATS_VERSION = 1;
+
+const EMPTY_STATS = {
+  v: STATS_VERSION,
+  runs: 0, bags: 0, bagsX2: 0, bagsLost: 0, kills: 0, bottles: 0,
+  potholes: 0, continues: 0, deaths: 0,
+  deathsEnemy: 0, deathsPothole: 0, deathsFall: 0,
+  stagesCleared: 0, bestStage: 0, gamesCompleted: 0,
+  bestScore: 0, totalScore: 0, totalMs: 0, firstT: 0, lastT: 0,
+};
+
+export function readStats() {
+  try {
+    const s = JSON.parse(localStorage.getItem(STATS_KEY) || 'null');
+    if (!s || s.v !== STATS_VERSION) return { ...EMPTY_STATS };
+    return { ...EMPTY_STATS, ...s };
+  } catch (_e) {
+    return { ...EMPTY_STATS };
+  }
+}
+
+// Exported for the Worker to share — see cloudflare/leaderboard-worker.js,
+// which folds the same log server-side. Kept as a pure function of the log so
+// both sides can be checked against the same input.
+export function tallyLog(log) {
+  const t = { bags: 0, bagsX2: 0, bagsLost: 0, kills: 0, bottles: 0,
+    potholes: 0, continues: 0, deaths: 0, deathsEnemy: 0, deathsPothole: 0,
+    deathsFall: 0, stagesCleared: 0, bestStage: 0 };
+  for (const ev of (log && log.events) || []) {
+    const type = ev && ev.type;
+    if (type === 'bag') t.bags++;
+    else if (type === 'bagx2') { t.bags++; t.bagsX2++; }
+    else if (type === 'bagLost') t.bagsLost++;
+    else if (type === 'stomp') t.kills++;
+    else if (type === 'champagne') t.bottles++;
+    else if (type === 'pothole') t.potholes++;
+    else if (type === 'continue') t.continues++;
+    else if (typeof type === 'string' && type.startsWith('death_')) {
+      t.deaths++;
+      if (type === 'death_enemy') t.deathsEnemy++;
+      else if (type === 'death_pothole') t.deathsPothole++;
+      else if (type === 'death_fall') t.deathsFall++;
+    } else if (typeof type === 'string' && type.startsWith('stage_clear_')) {
+      t.stagesCleared++;
+      const n = Number(type.slice('stage_clear_'.length)) || 0;
+      if (n > t.bestStage) t.bestStage = n;
+    }
+  }
+  return t;
+}
+
+export function recordRunStats(log, score) {
+  const t = tallyLog(log);
+  const s = readStats();
+  const now = Date.now();
+  s.runs += 1;
+  s.bags += t.bags; s.bagsX2 += t.bagsX2; s.bagsLost += t.bagsLost;
+  s.kills += t.kills; s.bottles += t.bottles; s.potholes += t.potholes;
+  s.continues += t.continues; s.deaths += t.deaths;
+  s.deathsEnemy += t.deathsEnemy; s.deathsPothole += t.deathsPothole;
+  s.deathsFall += t.deathsFall;
+  s.stagesCleared += t.stagesCleared;
+  if (t.bestStage > s.bestStage) s.bestStage = t.bestStage;
+  // Four stages cleared in one run is the whole game — the `complete` screen.
+  if (t.bestStage >= 4) s.gamesCompleted += 1;
+  const sc = Math.max(0, Math.floor(Number(score) || 0));
+  s.totalScore += sc;
+  if (sc > s.bestScore) s.bestScore = sc;
+  s.totalMs += Math.max(0, Math.floor((log && log.durationMs) || 0));
+  if (!s.firstT) s.firstT = now;
+  s.lastT = now;
+  try { localStorage.setItem(STATS_KEY, JSON.stringify(s)); } catch (_e) {}
+  return s;
+}
+
 // ── submit + fetch top ──
 //
 // ⚠️ AN UNREGISTERED RUN IS HELD, NOT DISCARDED. This is the bug the client
