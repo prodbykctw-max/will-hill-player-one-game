@@ -418,6 +418,37 @@ export default {
         });
       }
 
+      // ── WHAT DOES THE EDGE KNOW ABOUT THE DEVICE ASKING? ─────────────────
+      //
+      // Purely diagnostic, and it exists because the map cannot be verified
+      // from the machine that builds it: a probe sent from this project's
+      // container came back with city, region and country all null, even
+      // though Cloudflare's own trace resolves that address to US/IAD. Edge
+      // geo is attached to consumer networks, not reliably to datacentre or
+      // proxy addresses — so "does geo work" is a question only a real phone
+      // on a real carrier can answer.
+      //
+      // Open it on the phone and it says what would be stored for a run from
+      // there. It reveals only the caller's own coarse location back to the
+      // caller — the same thing cloudflare.com/cdn-cgi/trace already does for
+      // anybody — reads nothing, writes nothing, and touches no table.
+      if (url.pathname === '/whereami' && req.method === 'GET') {
+        const cf = req.cf || {};
+        return json({
+          ok: true,
+          city: cf.city || null,
+          region: cf.region || null,
+          country: cf.country || null,
+          lat: cf.latitude || null,
+          lon: cf.longitude || null,
+          timezone: cf.timezone || null,
+          colo: cf.colo || null,
+          // If this is false the map will have no dot for this device, and
+          // the reason is the network it is on, not the code.
+          wouldPlotOnMap: !!(cf.latitude && cf.longitude),
+        });
+      }
+
       return json({ ok: false, err: 'not found' }, 404);
     } catch (e) {
       // ⚠️ FAIL CLOSED. This used to return String(e.message) to the caller,
