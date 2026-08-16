@@ -87,15 +87,20 @@ SLOTS = [
     ('title', 'TITLE — the intro music'),
 ]
 
-# Tempos he gave by hand. A beat tracker read 89 BPM on a track whose filename
-# says 135 — two thirds of the truth — which is why the cutter does not snap to
-# bars at all. Where he has not said, the bench estimates and SAYS it is
-# estimating; the field is editable and the ear is the check.
-KNOWN_BPM = {
-    'lonliness_2': 174.0,
-    'doggzzz': 145.0,
-    'mar_10_26': 145.0,
-}
+# ⚠️ ONE TEMPO TABLE, AND IT LIVES IN THE CUTTER. This file kept its own copy
+# for about an hour, which was long enough to be wrong: he confirmed the intro
+# at 134, cut_loop.py learned it, and the bench went on calling it a detected
+# guess of 132.51 — telling him his own answer was unreliable. Read the
+# cutter's table instead, so a tempo he gives is known everywhere at once.
+def _known_bpm():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location('cut_loop', ROOT / 'tools' / 'cut_loop.py')
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return dict(mod.BPM)
+
+
+KNOWN_BPM = _known_bpm()
 
 # What is already known about each cue, shown next to it so he is not starting
 # from nothing. The stage-one line is the measurement that started this: it is
