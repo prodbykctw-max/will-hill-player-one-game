@@ -4,9 +4,9 @@
 proposed, everything not done, everything undone, everything on hold.
 
 - Repo: `prodbykctw-max/will-hill-player-one-game`
-- `main` and `claude/last-markdown-game-link-lvk1n6` are both at **`eceb8b1`**
+- `main` and `claude/last-markdown-game-link-lvk1n6` are both at **`cf9d4dc`**
 - Live: <https://prodbykctw-max.github.io/will-hill-player-one-game/>
-- `gh-pages` was rebuilt from `eceb8b1`. Live matches main (bundle `index-Dtt-NBXC.js` confirmed on the CDN).
+- `gh-pages` was rebuilt from `cf9d4dc`. Live matches main.
 
 ---
 
@@ -102,6 +102,41 @@ scratchpad, never the repo root.
   grew 60 → 76 with head/foot checks and a break-test that reopens the band.
   Both break-tested red against the previous build. Eleven harnesses re-run
   green, since the canvas change touches every screen.
+
+### Touch, the ride's music, and the loop points (`df862be`, `e0551f7`, `3ca8626`, `cf9d4dc`)
+
+- **A pad you slide off no longer sticks.** *"Sometimes when I'm moving, the
+  directional pad button gets stuck… sometimes it shows like the preview zone
+  as if I'm about to zoom in on it."* Movement pointers are deliberately never
+  captured (capture broke sliding between pads), so a thumb that drifts onto
+  the canvas and lifts there sent its `pointerup` to the canvas and `#touch`
+  never heard it. Window-level release **keyed to `e.pointerId`** — the older
+  version cleared every pad and broke multi-touch, which is why it had been
+  removed — plus `touchend`/`touchcancel` when no touches remain, for the iOS
+  paths that send no pointer event. Callout/selection suppression is now stated
+  on the pads themselves rather than inherited.
+- **The map music was downloading, not late.** The cue was already asked for on
+  the crossing frame; `preload='none'` made the finish line the start of its
+  *fetch*. `music.warm()` prefetches at 55% of the stage. Verified false at
+  30%, true at 60%, file pulled before the line.
+- **Loop points cut on his tempo, chosen by the audible join.** He supplied
+  174 (`lonliness_2`) and 145 (`doggzzz`); both verified against onset
+  autocorrelation. `ncc` proved to be the wrong selector — it picked a 44-bar
+  `ui_pause` measuring 3.05× the track's own typical splice. Scoring the wrap
+  itself: **stage_04 2.46× → 1.37×**, **ui_pause 3.14× → 1.17×**. His hook
+  offsets kept, as he chose. `stage_01` is the worst remaining at 3.36× and
+  needs its BPM from him.
+- **The installed app's foot.** Two CSS attempts each moved the painting and
+  neither closed it, so `resize()` now measures the shortfall against
+  `screen.height` and grows the box when standalone, full-width, and short by
+  an inset-sized amount. The page background is also the plate's own bottom
+  edge now — measured RGB (8,10,11) against the old (10,8,16) — so any residual
+  strip reads as wet street, not a bar. **Still needs his confirmation from the
+  home-screen app**: Chromium cannot launch as an installed iOS app, so the
+  emulated case (898px web view on a 932px screen → grows to 932, zero
+  uncovered rows) is the strongest proof available here.
+- **The wind was left exactly as it is**, at his instruction. `audio.js` has
+  zero diff this session.
 
 ### The contest backend (`0489ce9`) — the most load-bearing work here
 - **Moved off Cloudflare KV onto D1.** The board was one KV key doing

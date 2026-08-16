@@ -71,15 +71,47 @@ panelnav    13    pausemenu   13    relaytod    26    share       12
 titlefit    60    titleintro  12
 ```
 
-**Re-run after the title work** (bare-plate refill + the full-bleed canvas),
-eleven harnesses, all green — the canvas change touches every screen, so the
-gameplay and panel ones are the point of running them:
+**Re-run after the title, touch, viewport and audio work** — twelve graded
+harnesses, **202 checks, all green**. The canvas and input changes touch every
+screen, so the gameplay, panel and audio ones are the point of running them:
 
 ```
 titlefit    76    titleintro  12    introorder   4    barescars    8
 relaytod    26    pausemenu   13    panelnav    13    musicbox    11
-padlift     11    optionsmenu 12    relay   report-only
+padlift     11    optionsmenu 12    endcue      11    loopseam     5
 ```
+
+### Three things verified without a harness, and why
+
+Not everything earned a permanent file. These were measured inline, and the
+numbers are recorded here so a later session can re-run them rather than
+wonder:
+
+- **A pad released off its own edge.** Press ▶, drag onto the canvas, release
+  there; the pad must not stay lit. `.on` is driven by the same `set()` that
+  holds the key, so the class *is* the key state, not decoration. Worth
+  promoting into `padlift` if touch is ever reworked — add the two-finger case
+  too (hold ▶, tap JUMP, release JUMP, ▶ still down), since the old fix for
+  this bug broke exactly that.
+- **The map cue prefetches.** `__startStage(0)`, teleport the player to 30% and
+  60% of `finishLineX`, watch `state.mapWarmed` and the network. False at 30%,
+  true at 60%, `map_01_02` fetched before the line.
+- **The installed app's short box.** `__standaloneOverride` +
+  `__screenHeightOverride` (beside the existing `__safeTopOverride`) emulate a
+  898px web view on a 932px screen: the canvas must grow to 932 with zero
+  uncovered rows. Chromium cannot launch as an installed iOS app, so this
+  emulation is the ceiling of what can be proved here — the client's own
+  screenshot is the real check.
+
+### Measuring a loop, not eyeballing it
+
+`tools/cut_loop.py --plan` reports each cue's join, and `wrap_continuity()` is
+the number that matters: the spectrum of the 50 ms leading into the cut against
+the 50 ms the loop returns to, normalised by 200 random interior splices of the
+same track. **1.0 is an ordinary moment in that music; over ~2× is a join you
+hear every wrap.** Ranked as of 2026-08-16 — `stage_01` 3.36× is the worst and
+is waiting on its BPM, `stage_04` 1.37× and `ui_pause` 1.17× are re-cut,
+`title` 0.53× was already the cleanest in the set.
 
 `titlefit` grew 60 → 76: five shapes day and night asserting the box spans the
 viewport, the plate reaches both edges, and no row at either end is the clear

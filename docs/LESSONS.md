@@ -324,6 +324,33 @@ apply itself to the next one.** When two tools touch the same material, the
 second one should be reading the first one's measurements, not its own
 intuition about how much anyone will notice.
 
+## 16. A scorer that measures the wrong thing confidently picks the wrong answer
+
+The loop cutter chose lengths by normalised cross-correlation: does the audio
+after the cut continue like the audio at the start? That is the right question
+on paper, and it is phase-sensitive in practice — two takes of the same groove
+a bar apart score near zero. It picked 44 bars for `ui_pause`, a cut whose wrap
+measures **3.05×** that track's own typical splice, no better than the loop it
+was replacing, and it had no opinion at all about the 48-bar cut sitting at
+**1.11×**. The tool was not broken and its number was not wrong; it was
+answering a different question from the one the client was asking, which was
+*"does this sound like a cut."*
+
+The fix was to score the join the way the ear does — spectra either side of the
+wrap, normalised against 200 random splices inside the same track, so the
+answer is in that music's own terms. Same candidates, same code path, different
+question, and the ranking inverted.
+
+**When a measurement disagrees with the client's ear, check what the
+measurement is actually a measurement OF before defending it.** The number was
+real the whole time. It just was not the number that mattered.
+
+And a smaller one riding along: the client's own tempo beat the tool's
+inference outright. The header had a documented, measured reason for never
+snapping to bars — a beat tracker read 89 BPM on a 135 BPM track — and that
+reason expired the moment the producer was asked. **A constraint derived from a
+tool's limits is not a constraint on the person holding the tool.**
+
 ## The short version
 
 0. **Touch the thing before you describe it** — including when what you are
@@ -344,4 +371,7 @@ intuition about how much anyone will notice.
     from a comment. A number stuck at the wrong level indicts the fix, not the input.
 13. A short exposure is not a defect budget — and the lesson another tool
     already measured on the same material does not port itself.
+14. Ask what a measurement measures before defending it against the client's ear.
+15. A limit that came from a tool's blind spot is not a limit on the person
+    holding the tool — the producer knew the tempo all along.
 12. If a fix shrinks a symptom without killing it, the theory is wrong — not too small.

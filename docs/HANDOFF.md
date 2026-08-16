@@ -6,7 +6,10 @@ Repo: https://github.com/prodbykctw-max/will-hill-player-one-game
 Read `docs/GDD.md` for design and `CLAUDE.md` for architecture first. This
 file covers what a fresh session needs that isn't obvious from the code.
 
-**Every number in this file was verified against the code on 2026-08-12.**
+**Every number in this file was verified against the code on 2026-08-12**, and
+the soundtrack, touch and viewport sections again on **2026-08-16** (loop
+points re-cut on the producer's own BPMs, the map cue prefetched, the pads
+releasable by sliding off, the installed app's foot closed).
 It has been wrong before — a stale line here sent a session off regenerating
 enemy sprites that were already fine, and cost the client time correcting it.
 If you change a behaviour, change the line here in the same commit. A doc that
@@ -620,11 +623,38 @@ on a looping slot a non-zero value is the bug above, not a feature.
 
 ### Finding the loop point — and two bugs the selftest caught
 
-The length is found by **cross-correlation, not by tempo**. Snapping to a bar
-needs the bar length, and beat trackers lock to whatever pulse is loudest: this
-project's read 89 BPM on a track whose own filename says 135, which is exactly
-two-thirds of it. Instead the tool searches lengths around a target and scores
-each by how well the head matches what follows the cut.
+The length is found by **cross-correlation, not by tempo** — *unless the
+producer has supplied the tempo*, which is now the preferred path. Snapping to
+a bar needs the bar length, and beat trackers lock to whatever pulse is
+loudest: this project's read 89 BPM on a track whose own filename says 135,
+exactly two-thirds of it. That reasoning holds for a machine and stops holding
+the moment the man who made the track tells you the number.
+
+**`BPM` in `tools/cut_loop.py` is his, per source track** (`lonliness_2` 174,
+`doggzzz` 145 as of 2026-08-16). With an entry, candidates are whole bars only,
+so the loop returns on a downbeat by construction; without one the old search
+runs unchanged. Verify each number against onset autocorrelation before using
+it — `lonliness_2` peaks hardest at a bar of 87, so its 174 is a double-time
+count and the bar count is kept **even** to stay on a downbeat under either
+reading.
+
+**And the candidates are scored by the audible join, not by `ncc`.** This is
+the correction that mattered: `ncc` asks "is the music at n the same as at 0",
+which is phase-sensitive, so two takes of the same groove a bar apart score
+near zero. It picked 44 bars for `ui_pause`, whose wrap measures **3.05×** that
+track's own typical splice — no better than the loop it replaced — while it had
+no opinion at all about 48 bars, which sits at **1.11×**. `wrap_continuity()`
+now scores the thing the ear reports: the spectrum of the 50 ms leading into
+the cut against the 50 ms the loop returns to, normalised by 200 random
+interior splices. 1.0 is an ordinary moment in the music; 3× is a join you hear
+every wrap. An 8-bar multiple breaks ties, and both winners landed on one.
+
+Re-cut 2026-08-16, measured on the encoded files: `stage_04` 2.46× at 98.3s →
+**1.37× at 88.3s** (64 bars @174), `ui_pause` 3.14× at 78.4s → **1.17× at
+79.4s** (48 bars @145). stage_04 trades 10s for that, deliberately — he is the
+one who hears the loop errors. The rest of the set, ranked by the same measure:
+`stage_01` 3.36× (worst, needs its BPM), `map_02_03` 2.05×, `map_01_02` 1.94×,
+`stage_03` 1.76×, `stage_02` 1.08×, `map_03_04` 1.04×, `title` 0.53×.
 
 Both bugs were found by `--selftest` against synthetic audio, before any music
 was touched, and both would have shipped silently:
@@ -709,6 +739,20 @@ before. **The music is not what makes the game heavy** — ~5.6MB of the boot
 payload is artwork, loaded eagerly by the image manifest, including all four
 stages' plates and cards plus the ending and the MARTA map. Doubling the cues
 for day/night adds **zero** to boot: a night player never fetches a day cue.
+
+**One cue is now fetched ahead of its screen, and it has to be.** Client: *"I
+feel like the map music doesn't start soon enough — as soon as the user crosses
+to the finish, the train map music starts immediately."* The trigger was never
+late (`main.js` flips to `stageClear` on the frame `player.x >= finishLineX`,
+and that screen already asks for the map cue); `preload='none'` meant crossing
+the line was the moment the map track began its **fetch**. `music.warm(slot)`
+builds the node and flips it to `preload='auto'` without playing it, and
+`update()` calls it once at **55% of the stage** — late enough that the stage's
+own track has buffered so the two are not competing for a phone's uplink, early
+enough to pull under a megabyte with half a minute of running left. The flag
+resets in `startStage`, or only stage one would ever prefetch. Verified:
+`mapWarmed` false at 30%, true at 60%, `map_01_02` fetched before the line
+rather than at it.
 
 ### Verifying it
 
