@@ -807,10 +807,17 @@
           <input id="sHaptics" type="checkbox" checked /></label>
         <p class="note" id="hapticsNote" hidden></p>
         <label class="row"><span>TIME OF DAY</span>
+          <!-- ⚠️ ATLANTA IS THE DEFAULT, AND THAT IS THE POINT OF THE GAME.
+               Client: "the goal was to bring Atlanta to the world… if I'm in
+               Australia and I'm playing this game, the time it is in Atlanta
+               needs to be the time it is in this game." The old default was
+               the device clock; it is still here, under its honest name, as
+               a choice rather than the assumption. -->
           <select id="sTod">
-            <option value="auto">Match my clock</option>
+            <option value="atl">Atlanta time</option>
             <option value="day">Always day</option>
             <option value="night">Always night</option>
+            <option value="local">My local time</option>
           </select></label>
         <p class="note" id="todNote"></p>
         <button class="btn ghost" id="btnBack" type="button">BACK</button>

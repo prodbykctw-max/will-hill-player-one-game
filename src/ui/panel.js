@@ -23,6 +23,10 @@ import {
 } from '../net/leaderboard.js';
 // Through the bundler, so the URL is the content-hashed one. A literal path in
 // the stylesheet resolves in dev and 404s in dist.
+// The settings note tells the player what time it is in Atlanta right now —
+// one function, from the module that owns the rule, rather than a second
+// copy of the timezone maths living in the interface layer.
+import { atlantaHour } from '../world/stages.js';
 import leaderboardCard from '../assets/backgrounds/leaderboard-card.webp';
 // HOW TO PLAY, in real frames from the running game — see
 // tools/shoot_howto.mjs. Imported rather than written into index.html for the
@@ -353,11 +357,16 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
 
   // ── settings ──────────────────────────────────────────────────────────
   function fillSettings() {
-    let tod = 'auto';
+    // 'atl' is the default for everyone who has never chosen — see the select
+    // in index.html and timeOfDay() in world/stages.js. 'auto' is the old
+    // stored value for "match my clock"; it maps to 'local' so anybody who
+    // set it before this change keeps what they picked.
+    let tod = 'atl';
     let snd = true;
     let sfx = true;
     try {
-      tod = localStorage.getItem('wh_tod') || 'auto';
+      const stored = localStorage.getItem('wh_tod');
+      tod = stored === 'auto' ? 'local' : (stored || 'atl');
       snd = localStorage.getItem('wh_sound') !== 'off';
       sfx = localStorage.getItem('wh_sfx') !== 'off';
     } catch (_e) {}
@@ -383,9 +392,21 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
         note.hidden = !note.textContent;
       }
     }
-    $('todNote').textContent = tod === 'auto'
-      ? 'The stages match the time of day on your phone — night streets after 7pm.'
-      : (tod === 'day' ? 'Always daytime streets.' : 'Always night streets.');
+    // The Atlanta line names the hour it is THERE, so a player in Sydney can
+    // see why their streets are dark at lunchtime instead of thinking the
+    // setting is broken.
+    let note;
+    if (tod === 'day') note = 'Always daytime streets.';
+    else if (tod === 'night') note = 'Always night streets.';
+    else if (tod === 'local') {
+      note = 'The stages match the clock on your phone — night streets after 7pm.';
+    } else {
+      const h = atlantaHour();
+      const hh = h % 12 === 0 ? 12 : h % 12;
+      note = `The stages run on Atlanta time — it is ${hh}${h < 12 ? 'am' : 'pm'} there `
+        + 'right now. Night streets after 7pm Eastern, wherever you are.';
+    }
+    $('todNote').textContent = note;
   }
 
   // ── wiring ────────────────────────────────────────────────────────────

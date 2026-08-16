@@ -959,6 +959,41 @@ export function isNightNow(d = new Date()) {
   return h >= NIGHT_FROM || h < NIGHT_UNTIL;
 }
 
+// ── THE GAME RUNS ON ATLANTA TIME, WHEREVER YOU ARE ──────────────────────
+//
+// Client: "the goal was to bring Atlanta to the world… if I'm in California
+// and I'm playing this game, the time it is in Atlanta needs to be the time it
+// is in this game. If I'm in Australia and I'm playing this game, the time it
+// is in Atlanta needs to be the time it is in this game."
+//
+// So the default is no longer the device's clock. It is Eastern. A player in
+// Sydney opening this at their lunchtime gets Atlanta's night streets, because
+// the streets ARE Atlanta's — EAV, Edgewood, Underground, Little Five Points —
+// and a game about a place should be on that place's clock.
+//
+// `Intl` is asked for the hour in America/New_York rather than an offset being
+// subtracted, so daylight saving is handled by the platform's own tz database
+// and there is no March and November bug waiting to happen. If Intl is missing
+// or the zone is unknown — ancient browsers, stripped runtimes — it falls back
+// to the device clock rather than throwing, because a wrong-looking sky is a
+// blemish and a crash is a lost player.
+export function atlantaHour(d = new Date()) {
+  try {
+    const s = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/New_York', hour: 'numeric', hour12: false,
+    }).format(d);
+    const h = parseInt(s, 10);
+    // hour12:false can render midnight as 24 depending on the engine.
+    if (Number.isFinite(h)) return h % 24;
+  } catch (_e) { /* no Intl, or no tz data */ }
+  return d.getHours();
+}
+
+export function isNightInAtlanta(d = new Date()) {
+  const h = atlantaHour(d);
+  return h >= NIGHT_FROM || h < NIGHT_UNTIL;
+}
+
 // `?tod=day` / `?tod=night` forces it. This is not debug scaffolding to strip
 // later — it is how the client checks both halves of his own game without
 // changing the clock on his phone, and how a bug report can say which one it
@@ -974,8 +1009,16 @@ export function timeOfDay() {
   try {
     const v = localStorage.getItem('wh_tod');
     if (v === 'day' || v === 'night') return v;
+    // 'local' is the old default under its honest name: the clock on the
+    // device in the player's hand. 'auto' is what that setting used to be
+    // stored as, so anybody who explicitly picked "Match my clock" before this
+    // change keeps it — the settings panel maps the same pair the same way,
+    // and the two must agree or the dropdown would say one thing while the sky
+    // did another. Anything else — including an empty slot, which is every new
+    // player — falls through to Atlanta.
+    if (v === 'local' || v === 'auto') return isNightNow() ? 'night' : 'day';
   } catch (_e) { /* private mode, or storage disabled */ }
-  return isNightNow() ? 'night' : 'day';
+  return isNightInAtlanta() ? 'night' : 'day';
 }
 
 // Fold the chosen half up to the top level so every reader — the renderer,
