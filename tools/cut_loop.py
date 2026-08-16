@@ -158,6 +158,12 @@ def best_length(mono, sr, target):
 BPM = {
     'lonliness_2': 174.0,
     'doggzzz': 145.0,
+    # stage_01, and the cleanest tempo reading in the set: bar autocorrelation
+    # lands at exactly 1.000 on 1.6552s. It was also the WORST loop shipped,
+    # at 3.36x — and the grid says why. Of the candidates around its target,
+    # 28/32/36 bars all sit at ~2.89x and 40 bars at 1.09x; the old
+    # correlation search had no way to see that cliff and landed off it.
+    'mar_10_26': 145.0,
 }
 # Phrases are counted in fours and eights in this music, so candidates step in
 # 4 bars and an 8-bar multiple gets a small thumb on the scale — enough to win
@@ -167,7 +173,15 @@ BAR_STEP = 4
 PHRASE_BONUS = 0.02
 # How far BELOW the requested target the bar search may look. The grid is
 # coarse and quality beats length on a loop point the producer can hear.
-SEARCH_DOWN = 0.85
+#
+# ⚠️ 0.85 WAS STILL TOO TIGHT, AND STAGE ONE PROVED IT. Its whole grid, in
+# wrap units: 28/32/36 bars all ~2.89x, 40 bars 1.09x, 44 bars 1.94x, 48 bars
+# 1.97x, 56 bars 2.79x, 60 bars 4.36x — WORSE than the 3.36x loop it shipped
+# with. There is exactly one clean cut in that track and it sits at 0.83 of
+# the target, just under an 0.85 floor, so the search walked straight past the
+# only answer and took 1.97x. A cliff that narrow is the normal case on a
+# coarse grid, not a special one.
+SEARCH_DOWN = 0.75
 _WRAP_BASE = {}
 
 
@@ -405,6 +419,19 @@ def cut(src, hook, target, dest, dry_run=False):
                  bitrate_mode='VARIABLE', compression_level=COMPRESSION)
         info['bytes'] = os.path.getsize(dest)
         info['kbps'] = round(os.path.getsize(dest) * 8 / (len(clip) / sr) / 1000)
+        # ⚠️ GRADE THE FILE THAT SHIPS, NOT THE ARRAY IT CAME FROM.
+        #
+        # The selector scores candidates on the decoded source; the player
+        # hears a re-encoded VBR mp3 with a 15ms crossfade baked in, and the
+        # two are not the same signal at the boundary. Stage one is the proof:
+        # the chosen cut scored 1.09x before encoding and 1.78x after it.
+        # Still far better than the 3.36x it replaced, but the number that was
+        # printed would have been a claim about the wrong artefact.
+        try:
+            shipped, ssr = librosa.load(str(dest), sr=22050, mono=True)
+            info['wrap_shipped'] = round(wrap_continuity(shipped, ssr, len(shipped)), 2)
+        except Exception:
+            info['wrap_shipped'] = None
     return info
 
 
