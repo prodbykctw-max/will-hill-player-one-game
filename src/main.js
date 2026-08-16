@@ -29,7 +29,7 @@ import { createTitle, TITLE_IMAGES, INTRO_TICKS as TITLE_INTRO_TICKS,
 import martaMapArt from './assets/backgrounds/marta-map.webp';
 import { loadImages } from './render/images.js';
 import { createRunLog, lbSubmit, bankLocalRun, isRegistered, localRuns, hasPendingRun,
-  signupOffered, markSignupOffered, recordRunStats } from './net/leaderboard.js';
+  signupOffered, markSignupOffered, recordRunStats, pendingRunCount } from './net/leaderboard.js';
 import { createPanel, soundEnabled, setSoundEnabled,
   sfxEnabled, setSfxEnabled } from './ui/panel.js';
 import { createHaptics } from './core/haptics.js';
@@ -293,7 +293,11 @@ if (import.meta.env.DEV) {
   // timestamp on the URL and a bare specifier is a different URL — so it reads
   // a `pendingRun` that is always null and reports the held run as lost. This
   // hook hands out the app's own copy.
-  window.__lb = { hasPendingRun };
+  // `pendingRunCount` and not just `hasPendingRun`: the single-slot bug that
+  // dropped a 25,800 run was invisible to a boolean — one run was held right
+  // up until a second one silently replaced it, and "true" was the honest
+  // answer both times. A harness can only catch that by counting.
+  window.__lb = { hasPendingRun, pendingRunCount };
   // The title's controls are geometry, not constants — the OPTIONS word's
   // placement is three caps against the live window — so the harness asks the
   // screen where it put things rather than re-deriving it and grading its own
@@ -635,6 +639,16 @@ function advanceFromScreen() {
   if (state.screen === 'gameOver' && state.continues > 0) {
     state.continues--;
     state.runLog.record('continue');
+    // ⚠️ THE RUN THAT JUST SUBMITTED IS NOT THE RUN HE IS ABOUT TO FINISH.
+    //
+    // Death submits immediately, so by the time this line runs the Worker has
+    // already recorded the score as it stood at the knockdown. Carrying the
+    // same runId forward meant the FINISHED run — the one worth more — was
+    // refused as a replay and thrown away: measured live at 18,300 recorded
+    // against 25,800 actually played. Renewing here makes the finished run
+    // its own submission, and `supersedes` tells the Worker to drop the
+    // partial row so that stretch of play is not counted twice.
+    state.runLog.renew();
     state.hearts = 3;
     startStage(state.stageIndex);
     return;

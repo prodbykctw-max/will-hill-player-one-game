@@ -132,10 +132,34 @@ export function createRunLog() {
   const events = [];
   let startedAt = 0;
   let runId = '';
+  // The id this run replaces, set by renew() when a continue is spent.
+  let supersedes = '';
   return {
+    // ⚠️ A CONTINUED RUN NEEDS A NEW ID, OR ITS REAL SCORE IS REFUSED.
+    //
+    // Caught in the live contest database. A death with a continue still in
+    // hand submits the run there and then; the player taps JUMP, keeps
+    // playing, and the true end submits the SAME runId — which the Worker
+    // rejects as a replay, exactly as designed. The board therefore kept the
+    // score at his FIRST death and threw away the run he actually finished:
+    // 18,300 recorded against 25,800 played, with two `replay` entries in the
+    // abuse log as the only trace.
+    //
+    // Renewing the id at the continue makes the finished run a distinct
+    // submission, so it lands and the best score wins. `supersedes` carries
+    // the id it replaces, so the Worker can drop the partial row rather than
+    // counting that stretch of play twice.
+    renew() {
+      const prev = runId;
+      runId = (crypto.randomUUID && crypto.randomUUID())
+        || `${Date.now().toString(16)}-${Math.floor(Math.random() * 1e16).toString(16)}`;
+      supersedes = prev;
+      return prev;
+    },
     start() {
       startedAt = performance.now();
       events.length = 0;
+      supersedes = '';
       // ⚠️ A UUID PER RUN, MINTED AT THE START, AND THE SERVER REFUSES A
       // REPEAT. Without it a finished event log can simply be posted twice —
       // or worse, somebody else's good log posted under your own phone
@@ -150,6 +174,7 @@ export function createRunLog() {
     finish() {
       return {
         runId,
+        supersedes,
         events: events.slice(),
         durationMs: Math.round(performance.now() - startedAt),
       };
@@ -365,15 +390,55 @@ export function recordRunStats(log, score) {
 //
 // The finished log is parked here instead, and `flushPendingRun()` sends it
 // the instant registration completes.
-let pendingRun = null;
+// ⚠️ A QUEUE, NOT A SLOT — AND THE SINGLE SLOT COST A REAL SCORE.
+//
+// This was `let pendingRun = null` with `pendingRun = runLogResult`, so the
+// SECOND run played before registering overwrote the first. Caught in the
+// live contest database: the client's own board showed a best of 18,300
+// while his share card said 25,800, and the 25,800 run was in neither the
+// accepted rows nor the rejections. It had been held, overwritten by a later
+// run, and silently dropped. In a contest with a real prize that is the worst
+// class of bug there is — the player's best run disappearing with no error
+// anywhere.
+//
+// Every unsent run is kept now, in order, and all of them go when
+// registration completes. Capped so a marathon session cannot grow without
+// bound; the cap drops the LOWEST-scoring held run rather than the oldest,
+// because the one that matters to a contest is the best one.
+const PENDING_CAP = 12;
+let pendingRuns = [];
+
+// Runs already accepted by the Worker. The server refuses a repeat by run id
+// — that is the replay protection working — but it should never be ASKED
+// twice: his dashboard logged two `replay` rejections against runs that had
+// already scored, which is noise in the abuse log where a real attack would
+// otherwise stand out.
+const sentRunIds = new Set();
 
 export function lbSubmit(runLogResult) {
   if (!runLogResult) return;
+  if (runLogResult.runId && sentRunIds.has(runLogResult.runId)) return;
   if (!isRegistered()) {
-    pendingRun = runLogResult;   // held for flushPendingRun()
+    // Same run twice (a re-offered form, a second flush) must not queue twice.
+    if (runLogResult.runId
+        && pendingRuns.some((r) => r.runId === runLogResult.runId)) return;
+    pendingRuns.push(runLogResult);
+    if (pendingRuns.length > PENDING_CAP) {
+      const scoreOf = (r) => (r.events || []).reduce((n, ev) => n
+        + (ev && ev.type === 'bag' ? 100 : 0)
+        + (ev && ev.type === 'bagx2' ? 200 : 0)
+        + (ev && ev.type === 'stomp' ? 50 : 0)
+        - (ev && ev.type === 'bagLost' ? 100 : 0), 0);
+      let worst = 0;
+      for (let i = 1; i < pendingRuns.length; i++) {
+        if (scoreOf(pendingRuns[i]) < scoreOf(pendingRuns[worst])) worst = i;
+      }
+      pendingRuns.splice(worst, 1);
+    }
     return;
   }
   if (!lbOn()) return;
+  if (runLogResult.runId) sentRunIds.add(runLogResult.runId);
   const reg = contestRegistration();
   try {
     fetch(LB_URL + '/submit', {
@@ -381,6 +446,8 @@ export function lbSubmit(runLogResult) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         runId: runLogResult.runId,
+        // Present only on a run that was continued — see createRunLog.renew.
+        supersedes: runLogResult.supersedes || '',
         name: lbName(),
         events: runLogResult.events,
         durationMs: runLogResult.durationMs,
@@ -398,15 +465,20 @@ export function lbSubmit(runLogResult) {
 // Called the moment someone enters the contest. Sends the run they had just
 // finished, if there was one. Safe to call at any time: no held run, no-op.
 export function flushPendingRun() {
-  if (!pendingRun) return false;
-  const run = pendingRun;
-  pendingRun = null;
-  lbSubmit(run);
+  if (!pendingRuns.length) return false;
+  // Taken first, so a submit that somehow re-enters cannot see the same runs
+  // still queued and send them a second time.
+  const runs = pendingRuns;
+  pendingRuns = [];
+  for (const run of runs) lbSubmit(run);
   return true;
 }
 
-// Test seam — the harness needs to see whether a run is being held.
-export function hasPendingRun() { return !!pendingRun; }
+// Test seam — the harness needs to see whether runs are being held, and how
+// many, since "one is held" was true right up until the moment a second run
+// quietly replaced the first.
+export function hasPendingRun() { return pendingRuns.length > 0; }
+export function pendingRunCount() { return pendingRuns.length; }
 
 export function lbTop(n, cb) {
   if (!lbOn()) {

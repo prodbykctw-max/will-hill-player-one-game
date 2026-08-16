@@ -400,6 +400,21 @@ export default {
             st.stages, st.best_stage,
             txt(cf.city), txt(cf.region), txt(cf.country),
             num(cf.latitude), num(cf.longitude)).run();
+          // ⚠️ A CONTINUED RUN REPLACES ITS OWN PARTIAL ROW. The client
+          // submits at the knockdown and again at the true end, under a fresh
+          // id (see createRunLog.renew) — otherwise the finished, higher run
+          // is refused as a replay and the board keeps the lesser score. The
+          // finished log contains every event of the earlier one, so without
+          // this the first stretch is counted twice in the stats.
+          //
+          // Scoped to the SAME player id, so nobody can delete anyone else's
+          // row by naming it, and the row in `runs` needs no repair: it holds
+          // MAX(score) per person, which the finished run wins on its own.
+          const sup = String(b.supersedes || '').slice(0, 64);
+          if (sup && /^[0-9a-f-]{16,64}$/i.test(sup)) {
+            await env.DB.prepare('DELETE FROM run_stats WHERE run_id = ? AND id = ?')
+              .bind(sup, id).run();
+          }
         } catch (_e) { /* stats are never load-bearing */ }
 
         const row = await env.DB.prepare('SELECT score FROM runs WHERE id = ?').bind(id).first();

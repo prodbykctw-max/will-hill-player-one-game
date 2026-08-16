@@ -34,6 +34,16 @@ const MIN_ENEMY_SPACING_COLS = 8;
 // this is many times the expected wait — it is a backstop, not a schedule.
 const CHAMPAGNE_WAIT_COLS = 26;
 const MIN_FEATURE_GAP_COLS = 9;
+// Columns of clean street before every finish line — see the `runIn` comment
+// in the generation loop. Wider than the widest thing that can be placed.
+const FINISH_CLEAR_COLS = 6;
+// A feature is placed at its START column and grows rightward, so reserving
+// six columns is not the same as keeping six columns clear: the widest
+// pothole is 168px — 5.25 columns — and one starting just outside the zone
+// still reaches into it. Measured: with only the start gated, L5P's pothole
+// at column 439 still overlapped the zone by 8px. The gate therefore holds
+// back by the clearance PLUS the widest thing that can be placed.
+const MAX_FEATURE_COLS = 6;
 // Platform width, down 10% with the rest of the difficulty pass: w was
 // 5 + [0..4] (mean 7.0), now 5 + [0..3] (mean 6.5). A narrower stoop is a
 // tighter landing. Note these no longer punch holes in the street — see the
@@ -222,7 +232,40 @@ export function genAhead(level, untilCol) {
     const roll = rnd01(c * 1.7 + level.seed);
     // Enforce a run of plain street between features so the ground reads as
     // a continuous road rather than a chain of disconnected slabs.
-    const featureOk = c - level.lastFeatureCol >= MIN_FEATURE_GAP_COLS;
+    // ── THE APPROACH TO A FINISH LINE IS KEPT CLEAR ────────────────────────
+    //
+    // Client: "the finish line of criminal records is in a pothole. Is it
+    // always gonna be there or did it just spawn there this time?"
+    //
+    // ALWAYS. `createLevel` seeds with `stageIndex * 97 + 13` — a pure
+    // function of the stage number, no clock, no entropy — so every stage
+    // lays out identically for every player on every run. Measured across all
+    // four: EAV, Edgewood and the Underground are clear for eight columns
+    // before their line, and Little 5 Points has an obstacle at columns
+    // 449-454 straddling a finish line at 450. Every player who reaches that
+    // finish walks into it, forever.
+    //
+    // The loop already refuses to place features AT or past `stageEnd`. What
+    // it never checked is whether a feature placed just BEFORE the line
+    // EXTENDS across it — and a pothole is 112-168px, up to 5.25 columns
+    // wide, so one starting at 449 lands squarely on the finish.
+    //
+    // Six columns, because that is wider than anything that can be placed: a
+    // pothole caps at 5.25 columns and a gap at 4, so the last feature that
+    // can start does so at stageEnd-7 and ends by stageEnd-1.75. The plaza
+    // past the line is already kept flat; this is the same courtesy on the
+    // near side, and it is the difference between crossing the line and
+    // tripping over it.
+    // ⚠️ `__finishClearOff` is a harness door, not a game flag: it restores
+    // the old behaviour so tools/harness/finishrun.mjs can prove the check
+    // catches the bug. A break-test that only moves its own threshold, and
+    // not the product, passes on a broken build — the first cut of that
+    // harness did exactly that and reported 12/12 on a level it had not
+    // changed. Inert in play.
+    const clearCols = (typeof window !== 'undefined' && window.__finishClearOff)
+      ? 0 : FINISH_CLEAR_COLS + MAX_FEATURE_COLS;
+    const runIn = c >= stageEnd - clearCols;
+    const featureOk = !runIn && c - level.lastFeatureCol >= MIN_FEATURE_GAP_COLS;
 
     if (featureOk && roll < recipe.gap) {
       // GAP — jump-only pit, guaranteed landing strip after.
