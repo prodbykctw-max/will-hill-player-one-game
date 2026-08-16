@@ -134,6 +134,74 @@ def best_length(mono, sr, target):
     return best_n, best_score, scored[:5]
 
 
+# ── THE PRODUCER KNOWS THE TEMPO; A BEAT TRACKER ONLY GUESSES IT ─────────
+#
+# The header explains why this file does not snap to bars: a tracker read 89
+# BPM on a track whose own filename says 135, two thirds of the truth, and a
+# bar length that is 3/2 wrong puts the splice off the beat every time. That
+# reasoning is still correct — for a MACHINE. It stops applying the moment the
+# person who produced the track tells you the number.
+#
+# So these are his, given per source track, and they unlock the cut the
+# correlation search can only approximate: a loop whose length is a whole
+# number of bars returns to its own downbeat, which is seamless by
+# construction rather than by search.
+#
+#   lonliness_2 (stage_04) 174 — his count. Autocorrelation agrees but peaks
+#     hardest at 2.759s, a bar at 87: 174 is the double-time count of the same
+#     grid. Harmless as long as the bar count is EVEN, which keeps the cut on
+#     a downbeat under either reading. Verified: beat 0.702, bar 0.696.
+#   doggzzz (ui_pause) 145 — verified beat 0.840, bar 0.755, both strong.
+#
+# Add a track here as he supplies it; without an entry the old correlation
+# search runs unchanged, so this is additive and nothing else moves.
+BPM = {
+    'lonliness_2': 174.0,
+    'doggzzz': 145.0,
+}
+# Phrases are counted in fours and eights in this music, so candidates step in
+# 4 bars and an 8-bar multiple gets a small thumb on the scale — enough to win
+# a tie against a mid-phrase length, never enough to beat a genuinely better
+# join. The join still decides.
+BAR_STEP = 4
+PHRASE_BONUS = 0.02
+
+
+def best_length_bars(mono, sr, bpm, target):
+    """Pick a BAR-EXACT loop length, scored by the same join test.
+
+    The correlation search alone can land anywhere, including a few
+    milliseconds off the beat — inaudible as a click after the crossfade, but
+    the music arrives late on the downbeat every single wrap, which is the
+    error you hear as "the loop is slightly off" even when there is no click.
+    Restricting the candidates to whole bars removes that failure entirely;
+    scoring them by ncc keeps the tool's own answer to "does this end actually
+    continue into this start", so the bar grid narrows the field and the audio
+    still picks the winner.
+    """
+    win = int(MATCH_WIN * sr)
+    bar = 4.0 * 60.0 / bpm
+    lo_bars = max(BAR_STEP, int(np.floor(target / bar)))
+    hi_bars = int((len(mono) - win) / sr / bar)
+    head = mono[:win]
+    scored = []
+    for bars in range(lo_bars, hi_bars + 1):
+        if bars % BAR_STEP:
+            continue
+        n = int(round(bars * bar * sr))
+        if n + win > len(mono):
+            break
+        s = ncc(head, mono[n:n + win])
+        if bars % 8 == 0:
+            s += PHRASE_BONUS
+        scored.append((s, n, bars))
+    if not scored:
+        return best_length(mono, sr, target)
+    scored.sort(reverse=True)
+    best_score, best_n, best_bars = scored[0]
+    return best_n, best_score, [(s, n) for s, n, _ in scored[:5]], best_bars
+
+
 def splice_score(y, sr):
     """The step ACROSS the wrap, in units of the track's own typical
     sample-to-sample step. This is the click, measured: looping puts the last
@@ -251,12 +319,18 @@ def cut(src, hook, target, dest, dry_run=False):
     rest = y[a:]
     mono = rest.mean(axis=1)
 
+    bars = None
     if target is None:
         n, score = len(rest), None              # credits: no loop, keep it all
         clip = rest
         before = after = splice_score(clip, sr)
     else:
-        n, score, _ = best_length(mono, sr, min(target, len(rest) / sr))
+        bpm = BPM.get(src.stem)
+        want = min(target, len(rest) / sr)
+        if bpm:
+            n, score, _, bars = best_length_bars(mono, sr, bpm, want)
+        else:
+            n, score, _ = best_length(mono, sr, want)
         before = splice_score(rest[:n], sr)
         clip = crossfade_wrap(rest, n, sr)      # takes the FULL rest, not the clip
         after = splice_score(clip, sr)
@@ -268,6 +342,7 @@ def cut(src, hook, target, dest, dry_run=False):
 
     info = {
         'src': src.name, 'hook': hook, 'secs': round(len(clip) / sr, 2),
+        'bars': bars, 'bpm': BPM.get(src.stem),
         'match': None if score is None else round(score, 3),
         'join_before': round(before[2], 1), 'join_after': round(after[2], 1),
         'lufs_before': round(was, 1), 'lufs_after': round(now, 1),

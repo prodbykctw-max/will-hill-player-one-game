@@ -295,6 +295,10 @@ let bootPlate = null;
 function startStage(i) {
   const stage = STAGES[i];
   state.stageIndex = i;
+  // Per stage, not per run: each one warms its OWN map cue partway through
+  // (see the finish-line check in update). Left set, only stage one would
+  // ever prefetch and every later ride would be back to fetching at the line.
+  state.mapWarmed = false;
   state.level = createLevel(stage, i);
   // Baked street tiles are keyed by column/row, and every stage restarts at
   // column 0 — so without this the new stage would blit the old one's asphalt.
@@ -1056,6 +1060,30 @@ function update() {
     // score 0, so dying broke on the first stage stays unrecorded.
     bankLocalRun(state.score);
     return;
+  }
+
+  // ── FETCH THE RIDE'S MUSIC BEFORE HE GETS THERE ────────────────────────
+  //
+  // Client: "I feel like the map music doesn't start soon enough… as soon as
+  // the user crosses to the finish, the train map music starts immediately."
+  //
+  // The cue is already asked for on the crossing frame — see cueForScreen's
+  // `stageClear` case, which was built to his earlier note. The lateness is
+  // underneath that: music elements are created `preload = 'none'` so ten
+  // cues do not download at boot, which makes the finish line the moment the
+  // map track begins its FETCH. Warming it in advance is the only fix that
+  // touches the actual cause; moving the trigger earlier cannot help a file
+  // that is not in memory yet.
+  //
+  // At 55% rather than at stage start: by then the stage's own track has long
+  // since buffered, so the two are not competing for a phone's uplink, and
+  // there is still a good half-minute of running left to fetch under a
+  // megabyte. Guarded by a flag on state so it fires once per stage, not
+  // sixty times a second.
+  if (!state.mapWarmed && player.x >= finishLineX(level) * 0.55) {
+    state.mapWarmed = true;
+    const next = MAP_SLOTS[state.stageIndex];
+    if (next) audio.music.warm(next);
   }
 
   if (player.x >= finishLineX(level)) {

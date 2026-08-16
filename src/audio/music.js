@@ -358,6 +358,38 @@ export function createMusic(getContext, getMaster) {
   }
 
   return {
+    // ── HAVE THE NEXT CUE IN MEMORY BEFORE IT IS ASKED FOR ─────────────────
+    //
+    // Client: "I feel like the map music doesn't start soon enough… as soon as
+    // the user crosses to the finish, the train map music starts immediately."
+    //
+    // The transition was never the problem. main.js flips to `stageClear` on
+    // the very frame `player.x >= finishLineX(level)`, and that screen already
+    // asks for the map cue — that part was built to his earlier note and works.
+    // What happens next is the delay: every element is created with
+    // `preload = 'none'` (deliberately — ten cues eagerly downloading would be
+    // megabytes nobody asked for), so crossing the line is the moment the map
+    // track STARTS DOWNLOADING. On a phone on cell data that is the pause he
+    // is hearing, and no amount of moving the trigger earlier fixes it,
+    // because the trigger is already on the right frame.
+    //
+    // So the fix is to fetch it early and quietly. warm() builds the node and
+    // flips it to `preload = 'auto'` without playing it, wiring nothing into
+    // the graph: the browser buffers in the background while the stage is
+    // still being played, and the cue that arrives at the finish line is
+    // already in memory. Idempotent, so main.js can call it whenever.
+    warm(slot) {
+      const node = build(slot);
+      if (!node || node.warmed) return false;
+      node.warmed = true;
+      node.el.preload = 'auto';
+      // load() is what actually starts the fetch on an element whose preload
+      // was 'none' at creation — changing the attribute alone is a hint the
+      // browser is free to ignore until something asks.
+      try { node.el.load(); } catch (_e) { /* a failed warm must never throw */ }
+      return true;
+    },
+
     // Ask for a cue. Safe to call every frame — asking for the cue that is
     // already playing does nothing, which is what lets main.js state it
     // declaratively at each screen instead of tracking transitions.
