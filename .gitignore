@@ -109,6 +109,14 @@ __pycache__/
 # away by hand because the thing that must never happen on this project is
 # harness output riding into a commit unnoticed; see the top of CLAUDE.md.
 shots/
+# ⚠️ AND ANY THAT LAND AT THE ROOT ANYWAY. Older harnesses defaulted their
+# output directory to the repo root before OUT was made to default to
+# `shots/`, and four of them (pausemenu.png, relay-title-day.png and friends)
+# reappeared here after a container rollback restored a pre-fix checkout. A
+# stop-hook then asked for them to be committed, which is exactly the accident
+# the top of CLAUDE.md is about. No PNG belongs at the repo root — every real
+# image lives under assets/ or src/assets/ — so the root is closed.
+/*.png
 
 # Cloudflare
 .wrangler/
