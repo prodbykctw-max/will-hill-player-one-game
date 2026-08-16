@@ -1,8 +1,19 @@
 # The contest backend — deploying it
 
-Two Workers and one **D1 database**. Nothing here is deployed: creating the
-database and pushing the Workers touches the live Cloudflare account, so it
-stays a manual, explicitly-confirmed step.
+Two Workers and one **D1 database**.
+
+> ✅ **THE DATABASE IS CREATED AND MIGRATED** — 2026-08-16, on his own
+> Cloudflare account, at his instruction ("I gave you Cloudflare connectivity
+> so I thought you could've just made this database for me").
+>
+> ```
+> name  will-hill-contest
+> id    980cd717-a9e1-4b63-9643-dc5ffa58be4f     (already in both wrangler tomls)
+> ```
+>
+> Five tables — `runs`, `entrants`, `seen_runs`, `rejects`, `run_stats` — and
+> five indexes, verified present. **Skip step 2 below.** What is left is
+> pushing the two Workers, which needs the `wrangler` CLI logged in as him.
 
 > ⚠️ **THIS USED TO SAY KV. DO NOT CREATE A KV NAMESPACE.**
 > The first design held the whole leaderboard in one KV key and did

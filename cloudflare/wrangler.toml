@@ -11,11 +11,11 @@ compatibility_date = "2026-08-10"
 # and KV's ~1-write-per-second-per-key ceiling made a launch party a queue.
 # D1 turns the whole thing into one atomic upsert.
 #
-# TODO before deploying:
-#   wrangler d1 create will-hill-contest
-#   wrangler d1 execute will-hill-contest --remote --file=cloudflare/schema.sql
-# then paste the id below.
+# ✅ CREATED AND MIGRATED 2026-08-16. The database exists, all five tables and
+# five indexes are in it, and the id below is real — nothing to do here before
+# deploying. Re-running schema.sql is safe (every statement is IF NOT EXISTS)
+# but unnecessary.
 [[d1_databases]]
 binding = "DB"
 database_name = "will-hill-contest"
-database_id = "TODO_CREATE_D1_DATABASE"
+database_id = "980cd717-a9e1-4b63-9643-dc5ffa58be4f"

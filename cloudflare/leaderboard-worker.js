@@ -149,6 +149,57 @@ function scoreFromEvents(events, durationMs) {
   return score;
 }
 
+// ── THE SAME LOG, COUNTED ────────────────────────────────────────────────
+//
+// Client: "can we count stats like how many deaths over throughout the entire
+// time of you playing, how many kills."
+//
+// Deliberately a MIRROR of tallyLog in src/net/leaderboard.js — same event
+// names, same arithmetic, same shape. The device keeps its own lifetime
+// numbers from the log it just finished; this keeps the contest-wide ones from
+// the log it just received. Two implementations of one rule is a risk worth
+// naming: if either side gains an event type, both change, and the pair are
+// cross-checked by tools/harness/statsync.mjs feeding one log to both.
+//
+// Nothing new is collected. Every number here was already inside the payload
+// the score is recomputed from; it was simply being discarded afterwards.
+function statsFromEvents(events, durationMs) {
+  const s = {
+    bags: 0, bags_x2: 0, bags_lost: 0, kills: 0, bottles: 0, potholes: 0,
+    continues: 0, deaths: 0, death_enemy: 0, death_pothole: 0, death_fall: 0,
+    stages: 0, best_stage: 0,
+  };
+  if (!Array.isArray(events)) return s;
+  let lastT = -1;
+  for (const ev of events.slice(0, MAX_EVENTS)) {
+    if (!ev || typeof ev.t !== 'number' || typeof ev.type !== 'string') continue;
+    // The same window the scorer trusts. An event the score would not count
+    // must not be counted here either, or the dashboard disagrees with the
+    // board about the very same run.
+    if (ev.t < lastT || ev.t > (durationMs || 0) + 1000) continue;
+    lastT = ev.t;
+    const type = ev.type;
+    if (type === 'bag') s.bags++;
+    else if (type === 'bagx2') { s.bags++; s.bags_x2++; }
+    else if (type === 'bagLost') s.bags_lost++;
+    else if (type === 'stomp') s.kills++;
+    else if (type === 'champagne') s.bottles++;
+    else if (type === 'pothole') s.potholes++;
+    else if (type === 'continue') s.continues++;
+    else if (type.startsWith('death_')) {
+      s.deaths++;
+      if (type === 'death_enemy') s.death_enemy++;
+      else if (type === 'death_pothole') s.death_pothole++;
+      else if (type === 'death_fall') s.death_fall++;
+    } else if (type.startsWith('stage_clear_')) {
+      s.stages++;
+      const n = Number(type.slice('stage_clear_'.length)) || 0;
+      if (n > s.best_stage) s.best_stage = n;
+    }
+  }
+  return s;
+}
+
 // Every refusal is recorded with its reason so the dashboard can show abuse
 // as it happens. Never allowed to break a request: a logging failure must not
 // turn a clean rejection into a 500.
@@ -318,6 +369,24 @@ export default {
                             THEN excluded.updated ELSE runs.updated END,
              score   = MAX(runs.score, excluded.score)`,
         ).bind(id, name, score, now, now).run();
+
+        // STATS — one row per run, on the public side of the wall (opaque id
+        // only). Wrapped so a stats failure can never cost somebody their
+        // contest entry: the score is already committed above, and a dashboard
+        // number is not worth failing a submission over.
+        try {
+          const st = statsFromEvents(b.events, durationMs);
+          await env.DB.prepare(
+            `INSERT OR IGNORE INTO run_stats
+               (run_id, id, t, score, duration, bags, bags_x2, bags_lost,
+                kills, bottles, potholes, continues, deaths, death_enemy,
+                death_pothole, death_fall, stages, best_stage)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          ).bind(runId, id, now, score, durationMs, st.bags, st.bags_x2,
+            st.bags_lost, st.kills, st.bottles, st.potholes, st.continues,
+            st.deaths, st.death_enemy, st.death_pothole, st.death_fall,
+            st.stages, st.best_stage).run();
+        } catch (_e) { /* stats are never load-bearing */ }
 
         const row = await env.DB.prepare('SELECT score FROM runs WHERE id = ?').bind(id).first();
         const best = row ? row.score : score;

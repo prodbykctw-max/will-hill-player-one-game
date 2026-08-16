@@ -9,6 +9,16 @@
 -- even if somebody writes a careless query later — the column is not in the
 -- table it selects from.
 
+-- ⚠️ AND A FIFTH, `run_stats`, ADDED BEFORE THE DATABASE EVER EXISTED —
+-- which is the only cheap moment to add a table to a contest. Client: "can we
+-- count stats like how many deaths over throughout the entire time of you
+-- playing, how many kills… how can we keep stats and metrics like that?"
+--
+-- One row per SUBMITTED RUN, tallied from the same event log the score is
+-- recomputed from, so no new data is collected and nothing extra is sent. It
+-- carries the opaque `id`, never a phone number, so it sits on the same side
+-- of the wall as `runs`.
+
 -- The public board. One row per person, holding their BEST score.
 -- `id` is a SHA-256 of their phone number, never the number itself, so this
 -- whole table can be served to anybody.
@@ -55,3 +65,44 @@ CREATE TABLE IF NOT EXISTS rejects (
   ip       TEXT
 );
 CREATE INDEX IF NOT EXISTS rejects_t ON rejects (t DESC);
+
+-- ── STATS ────────────────────────────────────────────────────────────────
+--
+-- One row per submitted run, tallied server-side from the event log that was
+-- already being walked to recompute the score. Nothing new is collected: the
+-- client sends the same log it always did, and the same arithmetic runs on
+-- both ends (src/net/leaderboard.js tallyLog), so the device's lifetime
+-- numbers and the dashboard's cannot disagree about what happened — only
+-- about which runs reached the network.
+--
+-- ⚠️ NO PHONE, NO EMAIL, NO NAME. Keyed on the same opaque `id` as `runs`, so
+-- this table lives on the public side of the wall and a careless join later
+-- still cannot leak a way to contact anybody.
+--
+-- ⚠️ THESE NUMBERS ARE PLAYER-REPORTED. The SCORE is revalidated (the Worker
+-- recomputes it and refuses implausible logs), but a determined person could
+-- inflate their own kill count without gaining a point. Fine for a dashboard,
+-- not evidence — do not pay anybody on the strength of a stat.
+CREATE TABLE IF NOT EXISTS run_stats (
+  run_id     TEXT PRIMARY KEY,        -- the run's own UUID; one row per run
+  id         TEXT NOT NULL,           -- opaque player id, joins to runs.id
+  t          INTEGER NOT NULL,        -- ms epoch of the submission
+  score      INTEGER NOT NULL,
+  duration   INTEGER NOT NULL,        -- run length in ms
+  bags       INTEGER NOT NULL DEFAULT 0,
+  bags_x2    INTEGER NOT NULL DEFAULT 0,
+  bags_lost  INTEGER NOT NULL DEFAULT 0,
+  kills      INTEGER NOT NULL DEFAULT 0,
+  bottles    INTEGER NOT NULL DEFAULT 0,
+  potholes   INTEGER NOT NULL DEFAULT 0,
+  continues  INTEGER NOT NULL DEFAULT 0,
+  deaths     INTEGER NOT NULL DEFAULT 0,
+  death_enemy   INTEGER NOT NULL DEFAULT 0,
+  death_pothole INTEGER NOT NULL DEFAULT 0,
+  death_fall    INTEGER NOT NULL DEFAULT 0,
+  stages     INTEGER NOT NULL DEFAULT 0,  -- stages cleared in this run
+  best_stage INTEGER NOT NULL DEFAULT 0   -- furthest stage reached (1-4)
+);
+-- The dashboard reads these two ways: newest first, and grouped per player.
+CREATE INDEX IF NOT EXISTS run_stats_t ON run_stats (t DESC);
+CREATE INDEX IF NOT EXISTS run_stats_id ON run_stats (id);

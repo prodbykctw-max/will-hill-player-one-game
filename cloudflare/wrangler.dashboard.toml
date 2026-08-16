@@ -19,4 +19,4 @@ compatibility_date = "2026-08-10"
 [[d1_databases]]
 binding = "DB"
 database_name = "will-hill-contest"
-database_id = "TODO_CREATE_D1_DATABASE"
+database_id = "980cd717-a9e1-4b63-9643-dc5ffa58be4f"
