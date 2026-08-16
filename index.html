@@ -118,6 +118,16 @@
       border: 2px solid rgba(255,214,110,0.34);
       border-radius: 16px;
       touch-action: none;
+      /* ⚠️ THE PADS KILL THE CALLOUT THEMSELVES, they do not rely on body.
+         Client: "sometimes it shows like the preview zone as if I'm about to
+         try to zoom in on it." That is iOS's long-press callout / selection
+         magnifier, and a d-pad is held down for seconds at a time, which is
+         exactly the gesture that summons it. These labels (DASH, JUMP) are
+         real text nodes in a button-shaped box — the most selectable thing on
+         the page — so the suppression is stated here rather than inherited,
+         where a later rule or a UA default cannot get between it and them. */
+      -webkit-touch-callout: none;
+      -webkit-user-select: none; user-select: none;
       /* NO backdrop-filter. It was blur(3px) — invisible over this art, and
          not free: a backdrop filter on four fixed elements sitting over a
          canvas that repaints every frame makes the compositor re-sample the

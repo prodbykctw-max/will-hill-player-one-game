@@ -196,6 +196,35 @@ export function createInput(haptics) {
       // A capture torn down by the browser (element removed, gesture stolen)
       // fires this and nothing else; without it a latched button sticks on.
       root.addEventListener('lostpointercapture', release);
+
+      // ⚠️ AND THE SAME TWO ON THE WINDOW, KEYED BY POINTER ID.
+      //
+      // Client, from a live run: "sometimes when I'm moving, the directional
+      // pad button gets stuck" — and his screenshot shows ▶ lit with no thumb
+      // on it.
+      //
+      // A MOVEMENT pointer is deliberately not captured (capture is what broke
+      // sliding between the two pads). Uncaptured, its events go to whatever
+      // element is under the finger, and #touch is a zero-height container
+      // whose pads are the only hit area it has. So a thumb that drifts up off
+      // the pad and lifts over the CANVAS sends its pointerup to the canvas:
+      // `root` never hears it, `release` never runs, and the key stays down
+      // until something else clears it. That is the stuck pad, and it is the
+      // common way to let go of a d-pad — you slide off it.
+      //
+      // The old fix for this was a window pointerup that cleared EVERY pad,
+      // which is why it was removed: it killed multi-touch, dropping the
+      // movement pad the other thumb was still holding. This one deletes only
+      // `e.pointerId`'s own action, so the other thumb is untouched. Capture
+      // phase, so it still lands if something downstream stops propagation.
+      window.addEventListener('pointerup', release, true);
+      window.addEventListener('pointercancel', release, true);
+      // iOS can end a touch sequence with touchcancel and no pointer event at
+      // all — the callout, the app switcher, an edge swipe. When the screen
+      // has no touches left on it, nothing can still be held.
+      const noTouchesLeft = (e) => { if (!e.touches || e.touches.length === 0) clearAll(); };
+      window.addEventListener('touchend', noTouchesLeft, true);
+      window.addEventListener('touchcancel', noTouchesLeft, true);
     }
 
     const clearAll = () => {
