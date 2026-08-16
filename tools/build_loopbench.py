@@ -92,15 +92,20 @@ SLOTS = [
 # at 134, cut_loop.py learned it, and the bench went on calling it a detected
 # guess of 132.51 — telling him his own answer was unreliable. Read the
 # cutter's table instead, so a tempo he gives is known everywhere at once.
-def _known_bpm():
+def _cutter():
     import importlib.util
     spec = importlib.util.spec_from_file_location('cut_loop', ROOT / 'tools' / 'cut_loop.py')
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
-    return dict(mod.BPM)
+    return mod
 
 
-KNOWN_BPM = _known_bpm()
+_CUT = _cutter()
+KNOWN_BPM = dict(_CUT.BPM)
+# Cues he picked himself shipped WITHOUT a crossfade — see CHOSEN_BARS in
+# cut_loop.py. The bench must not offer to preview one as "what ships" on those,
+# or it is demonstrating a treatment his audio never received.
+CHOSEN = set(_CUT.CHOSEN_BARS)
 
 # What is already known about each cue, shown next to it so he is not starting
 # from nothing. The stage-one line is the measurement that started this: it is
@@ -239,6 +244,8 @@ def build(masters=()):
             'bpm': bpm if bpm else estimate_bpm(sf.read(str(ship), always_2d=True)[0][:, 0],
                                                 sf.info(str(ship)).samplerate),
             'bpmKnown': bpm is not None,
+            'crossfade': slot not in CHOSEN,
+            'chosen': slot in CHOSEN,
         }
         if not e['bpmKnown']:
             e['bpmAlternates'] = ratio_traps(e['bpm'])

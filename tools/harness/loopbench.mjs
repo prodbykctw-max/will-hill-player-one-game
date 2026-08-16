@@ -231,6 +231,14 @@ check('134 is recorded as KNOWN, not detected — one tempo table, in the cutter
   intro.bpm === '134' && !intro.guessed, `${intro.bpm} BPM, guessed=${intro.guessed}`);
 check('and it starts where he put it in the original track',
   intro.numbers.hook === 57.309, `hook ${intro.numbers.hook}`);
+// "If I picked the perfect loop it wouldn't need the crossfade." It does not
+// get one, and the bench must not preview a treatment his audio never had.
+const xf2 = await p.evaluate(() => ({
+  checked: document.getElementById('xfade').checked,
+  note: document.getElementById('xfadeNote').textContent,
+}));
+check('a loop he picked ships raw — no crossfade, and the bench says so',
+  !xf2.checked && /NOT used on this one/.test(xf2.note), xf2.note);
 
 // ── the selection plays back, and you can see where you are ─────────────
 await p.check('#xfade');

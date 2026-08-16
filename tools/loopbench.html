@@ -40,19 +40,25 @@
   loop can be TRIMMED but not EXTENDED, because there is no audio past its end.
   Going longer means re-rendering that cue from the master first.
 
-  ── THE CROSSFADE IS THE REAL ONE ───────────────────────────────────────
-  Ticked (the default, because it is what the game plays), the join is built
-  the way crossfade_wrap() in cut_loop.py builds it: the first 15ms of the loop
-  is replaced by an equal-power blend of WHAT FOLLOWED THE CUT over the loop's
-  own head. Not head-into-head — that was the first version there and it made
-  the join eleven times worse, because the clip then ended on a sample 15ms
-  deep into its own start. Untick it to hear the bare splice.
+  ── THE CROSSFADE, AND WHY A LOOP HE PICKED DOES NOT GET ONE ────────────
+  His call, and it is the right one: "never asked for a crossfade — if I
+  picked the perfect loop it wouldn't need the crossfade, it will need to play
+  continuous the same infinite." A crossfade is a patch for a loop point that
+  does not quite meet itself. On his intro cut it measured very slightly WORSE
+  than the bare join (1.38x against 1.36x) while rewriting the first 15ms of
+  his loop with audio from the bar after it — so the downbeat that played was
+  not the downbeat he chose. Cues listed in CHOSEN_BARS now ship raw.
 
-  One honest caveat, since the source is the shipped file: its first 15ms
-  ALREADY carries the blend from the original cut, so a preview of a trimmed
-  loop re-blends over that. The error lives entirely inside 15ms and cannot
-  affect the judgement being made here — whether a phrase comes round twice —
-  and the real cut is made from the master by cut_loop.py regardless.
+  The box therefore follows what actually shipped for the cue in hand, rather
+  than defaulting on: unticked for a cue he picked, ticked for one the search
+  chose, where the raw join really is 13x or 50x the track's own typical step
+  and the fade is earning its place.
+
+  When it IS on, the join is built the way crossfade_wrap() in cut_loop.py
+  builds it: the first 15ms replaced by an equal-power blend of WHAT FOLLOWED
+  THE CUT over the loop's own head. Not head-into-head — that was the first
+  version there and it made the join eleven times worse, because the clip then
+  ended on a sample 15ms deep into its own start.
 
   HOW TO USE IT
     1. Pick a stage, or drop in a file.
@@ -170,7 +176,7 @@
     <button id="playFull">▶ from the start</button>
     <button class="now" id="playNow" hidden>▶ what ships now</button>
     <button id="stop">■ stop</button>
-    <label><input type="checkbox" id="xfade" checked> 15ms crossfade (what ships)</label>
+    <label><input type="checkbox" id="xfade"> 15ms crossfade <span id="xfadeNote">(what ships)</span></label>
   </div>
   <div class="row"><span class="val" id="lenOut"></span><span class="val" id="deltaOut"></span></div>
   <div class="row" id="fitRow" hidden>
@@ -258,6 +264,15 @@ async function pick(c, btn) {
       alts.appendChild(b);
     }
   }
+  // ⚠️ DO NOT PREVIEW A TREATMENT HIS AUDIO NEVER RECEIVED. A cue he picked
+  // himself ships with NO crossfade — his call, and the right one: on the
+  // intro, crossfading measured very slightly worse than the raw join (1.38x
+  // against 1.36x) while rewriting the first 15ms of his loop with audio from
+  // the bar after it. So the box follows what actually shipped for this cue.
+  $('xfade').checked = c.crossfade !== false;
+  $('xfadeNote').textContent = c.crossfade === false
+    ? '— NOT used on this one; you picked it, so it plays exactly as you cut it'
+    : '(what ships on this cue)';
   $('bpmWarn').hidden = c.bpmKnown;
   $('bpmWarn').textContent = c.bpmKnown ? ''
     : 'This tempo is DETECTED, not known — and detectors miss by a ratio, not '

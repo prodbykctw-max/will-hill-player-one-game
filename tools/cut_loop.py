@@ -433,7 +433,25 @@ def cut(src, hook, target, dest, dry_run=False, chosen=None):
         else:
             n, score, _ = best_length(mono, sr, want)
         before = splice_score(rest[:n], sr)
-        clip = crossfade_wrap(rest, n, sr)      # takes the FULL rest, not the clip
+        if chosen:
+            # ⚠️ A LOOP HE PICKED DOES NOT GET CROSSFADED. His words: "never
+            # asked for a crossfade — if I picked the perfect loop it wouldn't
+            # need the crossfade, it will need to play continuous the same
+            # infinite." He is right, and on his intro cut the measurement
+            # agrees outright: raw joins at 1.36x the track's own typical
+            # sample step, crossfaded at 1.38x. It made it very slightly WORSE
+            # while rewriting the first 15ms of his loop with audio from bar
+            # 17 — samples moved by up to 0.1245 against a track peak of 1.05.
+            #
+            # The crossfade earns its place on a cue nobody has listened to,
+            # where the search lands mid-phrase and the raw join is 13x or 50x.
+            # On a loop chosen at the bench it is patching something that is
+            # not broken, and it means the downbeat he chose is not the
+            # downbeat that plays. So the cut ships exactly as he cut it, and
+            # the join is REPORTED rather than papered over.
+            clip = rest[:n]
+        else:
+            clip = crossfade_wrap(rest, n, sr)  # takes the FULL rest, not the clip
         after = splice_score(clip, sr)
 
     # Levelled AFTER the cut, so the number describes the audio that ships:
