@@ -177,7 +177,36 @@ function resize() {
   // canvas and a divide-by-zero in the fit).
   const vv = window.visualViewport;
   const w = canvas.clientWidth || (vv ? Math.round(vv.width) : window.innerWidth);
-  const h = canvas.clientHeight || (vv ? Math.round(vv.height) : window.innerHeight);
+  let h = canvas.clientHeight || (vv ? Math.round(vv.height) : window.innerHeight);
+
+  // ⚠️ IN THE INSTALLED APP THE BOX CAN STILL COME UP SHORT, AND THE CSS
+  // CANNOT ALWAYS TELL. He reported the strip again after
+  // `calc(100dvh + env(safe-area-inset-bottom))` shipped and visibly moved the
+  // painting down: whatever his standalone reports, the two together are not
+  // reaching the foot of the screen. Rather than guess a third time at which
+  // unit is lying, measure the disagreement and close it — `screen.height` is
+  // the physical screen, and a full-width standalone web view owns all of it.
+  //
+  // Fires only when there IS a shortfall, only in standalone, only in
+  // portrait-ish full width, and only for a gap small enough to be an inset
+  // (never a resized window). Worst case it draws a few px of wet street past
+  // the bottom edge, which is nothing; the alternative is the bar he keeps
+  // photographing. The overrides let a harness prove the path — Chromium
+  // cannot launch as an installed iOS app — the same way __safeTopOverride
+  // proves the island path in stillscene.
+  const standalone = typeof window.__standaloneOverride === 'boolean'
+    ? window.__standaloneOverride
+    : ((window.matchMedia && window.matchMedia('(display-mode: standalone)').matches)
+      || window.navigator.standalone === true);
+  const scrH = window.__screenHeightOverride
+    || (window.screen && window.screen.height) || 0;
+  const scrW = (window.screen && window.screen.width) || 0;
+  if (standalone && scrH > h && scrH - h <= 80
+      && (!scrW || Math.abs(window.innerWidth - scrW) <= 2)) {
+    canvas.style.height = scrH + 'px';
+    h = scrH;
+  }
+
   canvas.width = Math.max(1, Math.round(w));
   canvas.height = Math.max(1, Math.round(h));
   camera.resize(canvas.width, canvas.height);

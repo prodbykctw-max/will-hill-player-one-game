@@ -37,7 +37,15 @@
   <title>Will Hill: Player One</title>
   <style>
     html, body {
-      margin: 0; padding: 0; background: #0a0810; height: 100%;
+      /* ⚠️ THIS COLOUR IS THE PAINTING'S OWN BOTTOM EDGE, MEASURED.
+         The bottom 24 rows of title-portrait.webp average RGB (8,10,11); the
+         page used to be (10,8,16), which is bluer and lighter. That
+         difference is what made the strip under the canvas in the installed
+         app read as a BLACK BAR rather than as more wet street. It does not
+         close the gap — the canvas sizing above does that — but any residual
+         inset the web view refuses to hand us now blends into the art
+         instead of framing it. Cheap, and correct whatever the cause. */
+      margin: 0; padding: 0; background: #080a0b; height: 100%;
       overflow: hidden;
       /* a game canvas should never rubber-band or text-select under a thumb */
       overscroll-behavior: none;
