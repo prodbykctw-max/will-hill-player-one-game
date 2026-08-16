@@ -89,6 +89,23 @@ Four stages, each a real Atlanta neighborhood, rendered as an exact-replica map 
 3. **The Underground (5 Points)**
 4. **Little 5 Points**
 
+### The game keeps Atlanta's clock, wherever it is played
+
+*"The goal was to bring Atlanta to the world. If I'm in California and I'm
+playing this game, the time it is in Atlanta needs to be the time it is in this
+game. If I'm in Australia and I'm playing this game, the time it is in Atlanta
+needs to be the time it is in this game."*
+
+Day and night are decided by the hour in **America/New_York**, not by the
+device. A player in Sydney opening this at their lunchtime gets Atlanta's night
+streets, because the streets ARE Atlanta's — EAV, Edgewood, Underground, Little
+Five Points — and a game about a place runs on that place's clock. Night from
+7pm Eastern.
+
+It is a default, not a cage: TIME OF DAY offers `Atlanta time` (default),
+`Always day`, `Always night` and `My local time`. See `timeOfDay()` /
+`atlantaHour()` in `src/world/stages.js`.
+
 ### Visual style & background references
 
 Backgrounds are **real Atlanta photos converted into a stylized night pixel-art look** — not invented/fictional scenes. Moody rain-slicked streets, warm interior/streetlight glow against a cool purple-blue night sky, dense pixel-level signage detail, a mix of real brands and real local spots. This is the definitive art direction for all 4 stage backgrounds — new environment art should be measured against these references.

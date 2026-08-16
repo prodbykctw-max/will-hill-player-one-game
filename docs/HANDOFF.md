@@ -10,6 +10,29 @@ file covers what a fresh session needs that isn't obvious from the code.
 the soundtrack, touch and viewport sections again on **2026-08-16** (loop
 points re-cut on the producer's own BPMs, the map cue prefetched, the pads
 releasable by sliding off, the installed app's foot closed).
+
+Later on **2026-08-16**, two more things landed, both live:
+
+- **The clock is Atlanta's, everywhere.** `timeOfDay()` in
+  `src/world/stages.js` now defaults to the hour in `America/New_York` rather
+  than the device's, via `atlantaHour()` / `isNightInAtlanta()`. `Intl` is
+  asked for the hour rather than an offset being subtracted, so daylight
+  saving is the platform's problem. The TIME OF DAY setting keeps every option
+  — `atl` (default) / `day` / `night` / `local` — and the legacy stored value
+  `'auto'` maps to `'local'` in **both** `panel.js` and `timeOfDay()`. Those
+  two must stay in agreement; if they drift, the dropdown says one thing while
+  the sky does another.
+- **The loop bench** at `/bench/`, from `tools/loopbench.html` +
+  `tools/build_loopbench.py`. He trims the loops himself; the bench only
+  reports numbers and `cut_loop.py` still makes the cut. `public/bench/` is
+  generated and gitignored — rebuild it before running the `loopbench`
+  harness, and reach it by `/bench/index.html` in dev (Vite answers a bare
+  directory with the app's own `index.html`).
+  ⚠️ **Stage one is still uncut.** The measurement says its last 3.312s
+  duplicate its opening (the first 1.5s returns at 62.895s, correlation 0.889
+  → 38 bars, 62.897s), but it is deliberately NOT cut: three measurements have
+  already lost to his ear on this exact track, so the bench exists to let him
+  decide. Do not "fix" it from the number alone.
 It has been wrong before — a stale line here sent a session off regenerating
 enemy sprites that were already fine, and cost the client time correcting it.
 If you change a behaviour, change the line here in the same commit. A doc that

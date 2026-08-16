@@ -351,6 +351,46 @@ snapping to bars — a beat tracker read 89 BPM on a 135 BPM track — and that
 reason expired the moment the producer was asked. **A constraint derived from a
 tool's limits is not a constraint on the person holding the tool.**
 
+## 17. Three measurements lost to the same ear before anyone handed over the controls
+
+Section 16 ends with the scorer being fixed. It was fixed, and it was wrong
+again straight after: the rebuilt scorer rated a 40-bar cut of stage one the
+**cleanest join in the whole grid** — 1.09 against a 2.9 average — and the
+client heard it stutter. Both were right. The spectrum either side of that
+splice matched beautifully *because the last two bars were a duplicate of the
+first two*, so the join was joining a phrase to itself. A metric that asks
+"does the audio continue" scores a repeat as perfect. Only a person can hear
+that something came round twice.
+
+That was the third time a measurement had lost to his ear on the same
+material, and the third time the response was a better measurement. The right
+response was to stop: build the bench, put the waveform and a millisecond
+slider in front of him, and let the tool find numbers while he makes the
+judgement. `tools/loopbench.html`.
+
+**When the same person's ear keeps overruling the metric, that is not a signal
+to improve the metric. It is a signal that the decision was never the metric's
+to make.** Fifteen minutes of tooling would have saved three rounds of it.
+
+## 18. Nearly publishing his masters as a convenience
+
+The bench needed audio. The obvious build rendered fresh clips from the
+original tracks so any loop length could be auditioned — which would have put
+96-148s of each unreleased instrumental on a public URL, against the 66-102s
+the game already serves. Nobody asked for that. It was a side effect of making
+the tool nicer, and it would have shipped inside a commit about a slider.
+
+The shipped loops turned out to be the better source anyway — same bytes the
+CDN already serves, already cut to start at the hook, and they are what the
+game actually sounds like rather than a cleaner render that flatters the join.
+The only thing lost is auditioning a LONGER loop, which is now opt-in per cue
+(`--master <slot>`) and stated in the interface rather than assumed.
+
+**Check whether the convenient version of a favour is one he would actually
+authorise.** His music, his call, and "it makes the tool better" is not
+consent. The conservative default was also the more accurate one, which is
+usually how this goes.
+
 ## The short version
 
 0. **Touch the thing before you describe it** — including when what you are
@@ -374,4 +414,10 @@ tool's limits is not a constraint on the person holding the tool.**
 14. Ask what a measurement measures before defending it against the client's ear.
 15. A limit that came from a tool's blind spot is not a limit on the person
     holding the tool — the producer knew the tempo all along.
-12. If a fix shrinks a symptom without killing it, the theory is wrong — not too small.
+16. If a fix shrinks a symptom without killing it, the theory is wrong — not too small.
+17. When a judgement keeps coming back to one person's ear, stop building
+    better measurements and build them the controls.
+18. Check whether the convenient version of a favour is one the client would
+    actually authorise, before it is the thing that shipped.
+19. A break-test that proves a control is wired has not proved the checks have
+    teeth. Re-run the real assertions against the broken state.

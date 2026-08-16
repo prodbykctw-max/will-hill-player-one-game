@@ -260,11 +260,19 @@ Everything here needs a real phone. The container cannot do any of it.
 
 ## Known open, and honest about it
 
-- **Loop-seam crossfade.** Cues are cut so their end runs back into their own
-  start, but nothing crossfades the seam. Longer masters from prodbyKCTW would
-  also solve it.
-- **The fall sprite wears a flannel** no other clip has. Blocked on an
-  AutoSprite API key.
+- **Loop points, now that the seam itself is handled.** ~~Nothing crossfades
+  the seam~~ — stale, and it was stale for a while: `crossfade_wrap()` in
+  `cut_loop.py` bakes a 15ms equal-power fade into every cut, and `music.js`
+  laps a cue across two elements so the wrap is crossed rather than wrapped
+  (`loopseam` grades it off the master bus). What is genuinely open is where
+  the loops should END — he hears stage one repeat two bars, which no seam
+  measurement can see. That is his call at `/bench/`, not a check to write.
+- **The fall sprite wears a flannel** no other clip has — the only clip of the
+  nine that does. Blocked on an AutoSprite API key (re-checked 2026-08-16,
+  still `Unauthorized`), and **not fixable in code**: it is a whole jacket, and
+  a colour key cannot separate it from his skin — the flannel-free idle frame
+  measures 10.5% "brown" against fall's 12.2%. See `docs/STATUS.md` for the
+  interim.
 - **Intro three-beat ordering** (environment → objects → title) is not built.
   `introorder` grades the ordering that *did* ship: his name before PLAYER ONE.
   The three-beat version needs the signs, hero and pole lifted cleanly off the

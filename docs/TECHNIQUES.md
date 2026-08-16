@@ -389,6 +389,36 @@ sound like a chime instead of a synth lead.
 **Browsers suspend AudioContext until a real gesture.** Nothing is heard until
 you resume it on a keydown or pointerdown.
 
+**A loop point is a musical judgement, so ship the controls, not a better
+scorer.** Three metrics in a row lost to the client's ear on the same track —
+the last one rated a cut "cleanest in the grid" precisely because its final two
+bars were a duplicate of its first two, so the join was joining a phrase to
+itself. Build the bench instead (`tools/loopbench.html`):
+
+- **Sample-accurate playback only.** `AudioBufferSourceNode` with `loopStart` /
+  `loopEnd`. A `<audio loop>` element adds its own gap at the wrap and you end
+  up auditioning the element, not the edit.
+- **Make the origin impossible to misread.** Serve clips that begin AT the loop
+  point, so the page's zero is the loop's zero and the end marker reads out the
+  length directly. Then convert back to source coordinates in the copied
+  output. A number that means something different from what is being heard is
+  the only way a tool like this causes damage.
+- **Preview the join the way the shipped file is built** — for an equal-power
+  wrap, blend what FOLLOWED the cut over the clip's head, never head into head
+  (see `crossfade_wrap()`; head-into-head measured 11× worse, because the clip
+  then ends on a sample 15ms deep into its own start).
+- **Show the runners-up.** When the top few candidates sit inside 0.001 of each
+  other the measurement is not deciding anything, and saying so is worth more
+  than a confident single number.
+- **The bench finds numbers; the existing cutter still makes the cut**, so the
+  loudness match and the gates stay in force. Never export audio from the
+  browser.
+
+**Tempo detectors miss by a RATIO, not a little** — halves, doubles, and the
+two-thirds that caught this project twice (one read 114.84 BPM on a 174 BPM
+track). Offer those specific wrong answers as one-tap alternates and label a
+detected tempo as detected. Better still: ask the person who made it.
+
 ---
 
 ## 9. Anti-cheat scoring
