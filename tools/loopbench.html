@@ -173,6 +173,10 @@
     <label><input type="checkbox" id="xfade" checked> 15ms crossfade (what ships)</label>
   </div>
   <div class="row"><span class="val" id="lenOut"></span><span class="val" id="deltaOut"></span></div>
+  <div class="row" id="fitRow" hidden>
+    <span class="hint">that length is a whole number of bars at</span>
+    <span class="nudge" id="fitBpm"></span>
+  </div>
   <p class="hint">LOOP THE JOIN starts 4s before the end so the wrap arrives immediately, then keeps looping.
     If a phrase comes round twice, or there is a hole, it is audible on the first pass.</p>
 
@@ -184,8 +188,9 @@
 
 <div class="panel" id="outp" hidden>
   <div class="row">
-    <button id="suggest">suggest a loop (where the phrase returns)</button>
+    <button class="go" id="ship">SHIP THIS ONE →</button>
     <button id="copy">copy the numbers</button>
+    <button id="suggest">suggest a loop (where the phrase returns)</button>
     <span id="copied" class="ok" hidden>copied</span>
   </div>
   <pre id="numbers"></pre>
@@ -199,6 +204,11 @@ let ctx, buf, src, name = '', playing = false, mode = 'join';
 let startS = 0, endS = 0;
 let cue = null;          // manifest entry, when a stage was picked
 let xbuf = null, xkey = '';   // cached crossfaded loop buffer
+let fitKey = '';              // which tempo chips are currently rendered
+// The main waveform is drawn once into an offscreen canvas and blitted each
+// frame, so the moving playhead costs a copy rather than a re-scan of a
+// hundred-odd seconds of samples sixty times a second.
+let mainBuf = null, playT0 = 0, playFrom = 0, playLen = 0, playBase = 0, raf = 0;
 
 // ── the cue list, when this copy was built with the tracks in it ─────────
 (async function cues() {
@@ -332,6 +342,38 @@ function syncInputs() {
   $('barlen').textContent = `1 bar = ${barLen().toFixed(4)}s · 1 beat = ${(barLen() / 4).toFixed(4)}s`;
   const whole = Math.abs(bars - Math.round(bars)) < 0.02;
   $('lenOut').className = whole ? 'val ok' : 'val warn';
+
+  // ⚠️ A RED BAR COUNT USUALLY MEANS THE TEMPO IS WRONG, NOT THE LOOP.
+  // He trimmed the intro by ear to 28.668s and this line called it 15.829
+  // bars, in red, because the DETECTED tempo was 132.51 — and he stopped to
+  // ask whether the tool would even accept what he had picked. It was 16.000
+  // bars exactly; the tempo was 134, which the same arithmetic proves twice
+  // over (the loop shipping before it is 48.0000 bars at 134, to a tenth of a
+  // millisecond). So rather than flagging his good work as suspect, solve for
+  // the tempo that makes it whole and offer it. His ear picks the length; this
+  // just names the grid the length was already on.
+  const fit = [];
+  for (const nb of [Math.round(bars), Math.round(bars) - 1, Math.round(bars) + 1]) {
+    if (nb < 2) continue;
+    const b = nb * 4 * 60 / len;
+    if (b >= 70 && b <= 200) fit.push([nb, b]);
+  }
+  $('fitRow').hidden = whole || !fit.length;
+  // ⚠️ REBUILT ONLY WHEN THEY CHANGE. syncInputs() runs on every slider tick,
+  // so recreating these nodes unconditionally meant a tap could land on a
+  // button that had already been replaced — the chip would simply do nothing,
+  // intermittently, which is the worst kind of broken control.
+  const key = fit.map(([nb, b]) => `${nb}@${b.toFixed(2)}`).join('|');
+  if (!$('fitRow').hidden && key !== fitKey) {
+    fitKey = key;
+    $('fitBpm').textContent = '';
+    for (const [nb, b] of fit) {
+      const btn = document.createElement('button');
+      btn.textContent = `${nb} bars @ ${b.toFixed(2)}`;
+      btn.onclick = () => { $('bpm').value = b.toFixed(2); syncInputs(); drawAll(); };
+      $('fitBpm').appendChild(btn);
+    }
+  }
   if (cue) {
     const d = len - cue.currentLoop;
     $('deltaOut').textContent = Math.abs(d) < 0.0005 ? '· unchanged'
@@ -401,6 +443,8 @@ function joinBuffer(a, b) {
 function stop() {
   if (src) { try { src.stop(); } catch (e) {} src.disconnect(); src = null; }
   playing = false;
+  if (raf) { cancelAnimationFrame(raf); raf = 0; }
+  paintMain();
 }
 function startLoop(which) {
   stop();
@@ -409,18 +453,25 @@ function startLoop(which) {
   const b = which === 'now' ? Math.min(cue.currentLoop, buf.duration) : endS;
   src = ctx.createBufferSource();
   src.loop = true;
+  let off;
   if ($('xfade').checked) {
     // The blended copy IS the loop, so it wraps over its whole length.
     src.buffer = which === 'now' ? joinBufferFor(a, b) : joinBuffer(a, b);
     src.loopStart = 0; src.loopEnd = src.buffer.duration;
-    src.start(0, which === 'join' ? Math.max(0, src.buffer.duration - 4) : 0);
+    off = which === 'join' ? Math.max(0, src.buffer.duration - 4) : 0;
+    src.start(0, off);
   } else {
     src.buffer = buf;
     src.loopStart = a; src.loopEnd = b;
-    src.start(0, which === 'join' ? Math.max(a, b - 4) : a);
+    off = (which === 'join' ? Math.max(a, b - 4) : a) - a;
+    src.start(0, a + off);
   }
   src.connect(ctx.destination);
   playing = true;
+  // Where the playhead is, in the page's own timeline: the loop runs [a, b),
+  // it entered at `off` into that span, and it started at playT0.
+  playT0 = ctx.currentTime; playFrom = off; playBase = a; playLen = b - a;
+  if (!raf) raf = requestAnimationFrame(pump);
 }
 // "what ships now" must not evict the cache the working loop is using, or
 // every A/B would pay for a rebuild of the other one.
@@ -452,13 +503,21 @@ function peaks(from, to, width) {
   }
   return out;
 }
-function drawWave(cv, from, to, marks, shade) {
+function drawWave(cv, from, to, marks, shade, sel, size) {
   const dpr = window.devicePixelRatio || 1;
-  cv.width = cv.clientWidth * dpr; cv.height = cv.clientHeight * dpr;
+  const CW = size ? size[0] : cv.clientWidth, CH = size ? size[1] : cv.clientHeight;
+  cv.width = CW * dpr; cv.height = CH * dpr;
   const g = cv.getContext('2d'); g.scale(dpr, dpr);
-  const W = cv.clientWidth, H = cv.clientHeight;
+  const W = CW, H = CH;
   const at = (t) => (t - from) / (to - from) * W;
   g.clearRect(0, 0, W, H);
+  // WHAT IS SELECTED, not just where its edges are. He asked for the slider to
+  // show his selection; two thin lines at either end of a 100-second waveform
+  // do not read as a region, especially on a phone.
+  if (sel && sel[1] > sel[0]) {
+    g.fillStyle = 'rgba(255,214,110,0.13)';
+    g.fillRect(at(sel[0]), 0, at(sel[1]) - at(sel[0]), H);
+  }
   // What is being cut, drawn as a region rather than a line. A shipped loop
   // ends where its file ends, so a "NOW" marker would always sit on the right
   // border and be invisible — the thing worth seeing is the gap between the
@@ -499,9 +558,39 @@ function drawAll() {
   // The shaded tail is everything between the new end and where the game
   // wraps today — literally the audio that would stop being played.
   const shade = cue && cue.currentLoop > endS + 0.001 ? [endS, cue.currentLoop] : null;
-  drawWave($('wave'), 0, buf.duration, marks(), shade);
+  const cv = $('wave');
+  if (!mainBuf) mainBuf = document.createElement('canvas');
+  drawWave(mainBuf, 0, buf.duration, marks(), shade, [startS, endS],
+    [cv.clientWidth, cv.clientHeight]);
+  paintMain();
   drawWave($('zEnd'), Math.max(0, endS - 1.5), endS, [[endS, '#ff6b6b', 'END']]);
   drawWave($('zStart'), startS, Math.min(buf.duration, startS + 1.5), [[startS, '#ffd66e', 'START']]);
+}
+
+// Blit the cached waveform, then the playhead on top. Called every frame while
+// something is playing, so it must not touch the sample data.
+function paintMain() {
+  const cv = $('wave');
+  if (!mainBuf) return;
+  const dpr = window.devicePixelRatio || 1;
+  cv.width = mainBuf.width; cv.height = mainBuf.height;
+  const g = cv.getContext('2d');
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  g.clearRect(0, 0, cv.width, cv.height);
+  g.drawImage(mainBuf, 0, 0);
+  if (!playing || !playLen) return;
+  g.scale(dpr, dpr);
+  const W = cv.width / dpr, H = cv.height / dpr;
+  const t = playBase + ((ctx.currentTime - playT0 + playFrom) % playLen);
+  const x = t / buf.duration * W;
+  g.strokeStyle = '#7ee787'; g.lineWidth = 2;
+  g.beginPath(); g.moveTo(x, 0); g.lineTo(x, H); g.stroke();
+}
+function pump() {
+  raf = 0;
+  if (!playing) { paintMain(); return; }
+  paintMain();
+  raf = requestAnimationFrame(pump);
 }
 // A tap moves the END, because the END is what is being hunted — the loop
 // starts at the hook and stays there. Shift or a long press moves the START.
@@ -575,8 +664,33 @@ $('suggest').onclick = () => {
   $('numbers').textContent += `\n// where the phrase returns, best first:\n//   ${top}`;
 };
 
+function shipText() {
+  // Written to be pasted into a message and understood without the page in
+  // front of you — the numbers, and the sentence that says what to do with
+  // them. A bare JSON blob arriving in a chat is a puzzle.
+  const n = JSON.parse($('numbers').textContent.split('\n//')[0]);
+  const was = cue ? ` (was ${cue.currentLoop.toFixed(3)}s)` : '';
+  return `LOOP BENCH — ${cue ? cue.label : n.track}\n`
+    + `cut ${n.track} from ${n.hook}s for ${n.loopSeconds}s${was}\n`
+    + `${n.bars} bars @ ${n.bpm} BPM\n`
+    + JSON.stringify(n);
+}
+$('ship').onclick = async () => {
+  const text = shipText();
+  // The share sheet is the whole point on a phone: one tap from the bench into
+  // the conversation, with no copy, no app switch, no losing it in the middle.
+  // Everywhere else it falls back to the clipboard, which is what a desktop
+  // would have done anyway.
+  try {
+    if (navigator.share) { await navigator.share({ text }); return; }
+  } catch (e) { if (e && e.name === 'AbortError') return; }
+  try { await navigator.clipboard.writeText(text); } catch (e) {}
+  $('copied').textContent = 'copied — paste it to Claude';
+  $('copied').hidden = false; setTimeout(() => { $('copied').hidden = true; }, 2400);
+};
 $('copy').onclick = async () => {
-  try { await navigator.clipboard.writeText($('numbers').textContent); } catch (e) {}
+  try { await navigator.clipboard.writeText(shipText()); } catch (e) {}
+  $('copied').textContent = 'copied';
   $('copied').hidden = false; setTimeout(() => { $('copied').hidden = true; }, 1200);
 };
 
@@ -591,5 +705,8 @@ window.__bench = {
   loopRegion: () => src && { start: src.loopStart, end: src.loopEnd },
   source: () => buf,
   numbers: () => $('numbers').textContent,
+  playhead: () => (playing && playLen
+    ? playBase + ((ctx.currentTime - playT0 + playFrom) % playLen) : null),
+  ship: () => shipText(),
 };
 </script>

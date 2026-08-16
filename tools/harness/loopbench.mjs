@@ -179,6 +179,63 @@ check('and two thirds is one of them',
   guess.alts.some((a) => near(parseFloat(a), parseFloat(guess.bpm) * 2 / 3, 0.05)),
   `${guess.bpm} -> ${guess.alts.join(' / ')}`);
 
+// ── a red bar count must accuse the tempo, not his ear ──────────────────
+// His actual session: he trimmed the intro to start 38.809s / end 67.477s and
+// the readout called it 15.829 bars in red, because the DETECTED tempo was
+// 132.51. It was 16.000 bars exactly at 134 — which the same arithmetic proves
+// twice, since the loop shipping before it is 48.0000 bars at 134 to a tenth
+// of a millisecond. He stopped and asked whether the tool would even accept
+// what he had picked. It would have; the interface just implied otherwise.
+await p.click('#cues button:nth-child(5)');
+await p.waitForFunction(() => window.__bench.state().slot === 'title', null, { timeout: 20000 });
+await p.uncheck('#snap');
+await p.fill('#startN', '38.809'); await p.dispatchEvent('#startN', 'change');
+await p.fill('#endN', '67.477'); await p.dispatchEvent('#endN', 'change');
+const fit = await p.evaluate(() => ({
+  len: document.getElementById('lenOut').textContent,
+  red: document.getElementById('lenOut').className.includes('warn'),
+  shown: !document.getElementById('fitRow').hidden,
+  chips: [...document.getElementById('fitBpm').children].map((x) => x.textContent),
+}));
+check('his intro pick reads 15.829 bars at the detected tempo, and is flagged',
+  /15\.82\d bars/.test(fit.len) && fit.red, fit.len);
+check('the tempo that makes it whole is offered instead of leaving it suspect',
+  fit.shown && fit.chips.some((c) => /^16 bars @ 133\.9/.test(c)), fit.chips.join(' · '));
+await p.click('#fitBpm button:nth-child(1)');
+const fixed = await p.evaluate(() => ({
+  len: document.getElementById('lenOut').textContent,
+  green: document.getElementById('lenOut').className.includes('ok'),
+  bpm: document.getElementById('bpm').value,
+}));
+check('tapping it turns his own pick green at 16.000 bars',
+  /16\.000 bars/.test(fixed.len) && fixed.green, `${fixed.bpm} BPM — ${fixed.len}`);
+
+// ── the selection plays back, and you can see where you are ─────────────
+await p.check('#xfade');
+await p.click('#play');
+await p.waitForFunction(() => window.__bench.playhead() !== null, null, { timeout: 10000 });
+const head = await p.evaluate(async () => {
+  const a = window.__bench.playhead();
+  await new Promise((r) => setTimeout(r, 700));
+  const c = window.__bench.playhead();
+  return { a, c, start: window.__bench.state().startS, end: window.__bench.state().endS };
+});
+check('the playhead advances while it plays', head.c > head.a, `${head.a.toFixed(2)} -> ${head.c.toFixed(2)}s`);
+check('and stays inside the selection',
+  head.a >= head.start - 0.01 && head.c <= head.end + 0.01,
+  `[${head.start.toFixed(2)}, ${head.end.toFixed(2)}]`);
+
+// ── ship it in one tap ──────────────────────────────────────────────────
+const ship = await p.evaluate(() => window.__bench.ship());
+check('SHIP THIS ONE sends a message that reads without the page',
+  /LOOP BENCH — TITLE/.test(ship) && /cut knowledge_x_polo from 57\.309s for 28\.668s/.test(ship)
+  && /was 85\.970s/.test(ship) && /16 bars @ 133\.95 BPM/.test(ship),
+  ship.split('\n').slice(0, 3).join(' | '));
+const parsed = await p.evaluate(() => JSON.parse(window.__bench.ship().split('\n').pop()));
+check('and carries machine-readable numbers cut_loop.py can take',
+  parsed.slot === 'title' && parsed.hook === 57.309 && parsed.loopSeconds === 28.668,
+  JSON.stringify(parsed));
+
 await b.close();
 const bad = checks.filter(([, ok]) => !ok);
 console.log(`\n${checks.length - bad.length}/${checks.length} checks pass`);
