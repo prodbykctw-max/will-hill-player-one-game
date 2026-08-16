@@ -76,16 +76,29 @@ They are the eyes-on tools; the graded set is the tripwire.
 
 ### Last sweep
 
-⚠️ **PARTIAL, and labelled as such.** The audio-engine day re-ran the harnesses
-the change could touch, not all of them — recording a number that was not
-measured is how this file starts grading last month's product. Green as of
-`b1a9dec`:
+**FULL, and green.** All 32 harnesses run at `47249b3`, against a fresh dev
+server. **24 graded harnesses, 355 checks, zero failures.** The 8 report-only
+harnesses all ran clean — which means they produced their sheets, not that
+they graded anything.
 
 ```
-musicbox    11    endcue      11    loopseam     9    pausemenu   13
-relaytod    26    share       12    todlive     12    outbox      13
-loopbench   32    optionsmenu 12    panelnav    13    entrypaths   9
+barescars    8    ceiling     15    cloudseal    8    daylamps    12
+endcue      11    entrypaths   9    finishrun   12    howswipe    10
+idleflex     8    introorder   4    loopbench   32    loopseam     9
+musicbox    11    optionsmenu 12    outbox      13    padlift     11
+panelnav    13    pausemenu   13    relaytod    26    share       12
+stageflag    6    titlefit    76    titleintro  12    todlive     12
 ```
+
+⚠️ **Do not sweep on exit codes alone.** A first pass here graded all 32 by
+`$?` and reported "32 of 32". That number is true and it is not the claim that
+matters: 8 of those never grade anything, so the honest figure was 24. Read the
+verdict LINE.
+
+And when you grep for it, match all three wordings — `ALL n PASS`,
+`ALL n/n PASS` (`barescars`, `finishrun`) and `n/n checks pass` (`loopbench`).
+A pattern that only catches the first reports three passing harnesses as
+missing, which reads exactly like a harness that broke.
 
 `loopseam` went 11 → 9 deliberately: two of its checks demanded that the
 two-element lap ENGAGE, and a buffer-backed cue has no lap. Grading that would
@@ -93,9 +106,12 @@ now be grading the absence of the fix. It grades what the lap existed for —
 the bus not dipping at the seam — and still checks the lap's own failure
 reporting on cues genuinely still on an element.
 
-Earlier full sweeps, for the record: fourteen graded harnesses / 210 checks at
-the pad-lift commit, and twelve / 202 after the title, touch and viewport work.
-**A full run is overdue** and belongs in the pre-contest pass (CAT 6).
+Earlier sweeps, for the record: a PARTIAL one at `b1a9dec` covering only what
+the audio-engine change could touch; fourteen graded / 210 checks at the
+pad-lift commit; twelve / 202 after the title, touch and viewport work. The
+overdue full run this section used to call for is the one above. CAT 6 still
+wants a re-run against the final build, plus the on-device checklist no
+harness replaces.
 
 ### Three things verified without a harness, and why
 
