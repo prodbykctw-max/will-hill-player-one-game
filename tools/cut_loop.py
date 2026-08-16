@@ -165,6 +165,40 @@ BPM = {
 # join. The join still decides.
 BAR_STEP = 4
 PHRASE_BONUS = 0.02
+# How far BELOW the requested target the bar search may look. The grid is
+# coarse and quality beats length on a loop point the producer can hear.
+SEARCH_DOWN = 0.85
+_WRAP_BASE = {}
+
+
+def wrap_continuity(mono, sr, n, win_s=0.050, probes=200):
+    """How big the join at `n` is, in units of this track's own typical join.
+
+    Looping mono[0:n] puts the 50ms ending at n next to the 50ms starting at
+    0. Compare their spectra, then normalise by the same comparison at 200
+    random interior points, so the answer is "does this sound like a cut" in
+    the music's own terms rather than against an absolute nobody can set.
+    1.0 is an ordinary moment; 3x is a join you hear every wrap.
+    """
+    W = int(win_s * sr)
+    if n < W or n + W > len(mono):
+        return 9.9
+    def spec(a):
+        f = np.abs(np.fft.rfft(a * np.hanning(len(a))))
+        s = f.sum()
+        return f / s if s else f
+    key = (id(mono), sr, W, probes)
+    med = _WRAP_BASE.get(key)
+    if med is None:
+        rng = np.random.default_rng(7)
+        base = []
+        for _ in range(probes):
+            i = int(rng.integers(W, max(W + 1, len(mono) - 2 * W)))
+            base.append(float(np.abs(spec(mono[i - W:i]) - spec(mono[i:i + W])).sum()))
+        med = float(np.median(base)) or 1e-9
+        _WRAP_BASE[key] = med
+    join = float(np.abs(spec(mono[n - W:n]) - spec(mono[:W])).sum())
+    return join / med
 
 
 def best_length_bars(mono, sr, bpm, target):
@@ -181,9 +215,11 @@ def best_length_bars(mono, sr, bpm, target):
     """
     win = int(MATCH_WIN * sr)
     bar = 4.0 * 60.0 / bpm
-    lo_bars = max(BAR_STEP, int(np.floor(target / bar)))
+    # Search the whole grid, not just upward from the target. Bar counts are
+    # coarse — a bar is 1.4-1.7s here — so a one-sided range can leave the
+    # only good join just below the floor. SEARCH_DOWN keeps a sane minimum.
+    lo_bars = max(BAR_STEP, int(np.floor(target * SEARCH_DOWN / bar)))
     hi_bars = int((len(mono) - win) / sr / bar)
-    head = mono[:win]
     scored = []
     for bars in range(lo_bars, hi_bars + 1):
         if bars % BAR_STEP:
@@ -191,15 +227,30 @@ def best_length_bars(mono, sr, bpm, target):
         n = int(round(bars * bar * sr))
         if n + win > len(mono):
             break
-        s = ncc(head, mono[n:n + win])
+        # ⚠️ SCORED ON WHAT THE WRAP SOUNDS LIKE, NOT ON WAVEFORM CORRELATION.
+        #
+        # ncc asks "is the music at n the same as the music at 0", which is the
+        # right question in theory and a poor predictor in practice: it is
+        # phase-sensitive, so two takes of the same groove a bar apart can
+        # score near zero. Measured on doggzzz: ncc picked 44 bars, whose
+        # actual wrap is 3.05x the track's own typical splice — no better than
+        # the loop it replaced — while 48 bars sits at 1.11x and ncc had no
+        # opinion about it.
+        #
+        # So score the join itself: the spectrum of the 50ms LEADING INTO the
+        # cut against the 50ms the loop RETURNS TO, normalised by the same
+        # comparison made at 200 random points inside the track. 1.0 means the
+        # wrap is as continuous as any ordinary moment in the music; that is
+        # the number the ear is reporting.
+        s = -wrap_continuity(mono, sr, n)
         if bars % 8 == 0:
-            s += PHRASE_BONUS
+            s += PHRASE_BONUS       # phrases run in eights; ties go to the bar
         scored.append((s, n, bars))
     if not scored:
         return best_length(mono, sr, target)
     scored.sort(reverse=True)
     best_score, best_n, best_bars = scored[0]
-    return best_n, best_score, [(s, n) for s, n, _ in scored[:5]], best_bars
+    return best_n, -best_score, [(s, n) for s, n, _ in scored[:5]], best_bars
 
 
 def splice_score(y, sr):
