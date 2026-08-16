@@ -185,10 +185,25 @@ BPM = {
 # set. The join is still measured and reported, and the crossfade and levelling
 # still run; the only thing removed is the tool's vote on the length.
 #
-#   title 16 bars @ 134 = 28.657s, from hook 57.309 — set at the bench
-#     2026-08-16, judged with the crossfade OFF (the harsher test). Measured
-#     1.39x against the track's own typical splice, where ~3x is a join you
-#     hear every wrap.
+#   title 16 bars @ 134 = 28.657s, from hook 57.132 — set at the bench
+#     2026-08-16, judged with the crossfade OFF (the harsher test).
+#
+#     ⚠️ THE HOOK MOVED BACK 177ms AFTER HE HEARD IT IN THE GAME: "a little is
+#     missing from the first beat, like maybe a few hundred ms off." He was
+#     right and it was measurable. His bench pick, 57.309, sat 182ms past the
+#     strong onset at 57.1269 and 46ms short of the next one — off the 8th-note
+#     grid (224ms at 134) in the gap between two hits, so the loop opened in a
+#     dip with the run-up into the downbeat cut away. 57.132 puts the pickup
+#     back and lands on the grid.
+#
+#     It is also the best join in the soundtrack by the metric that matters
+#     here: wrap continuity 0.99, where 1.0 is an ordinary moment in the music.
+#     The raw sample step at the wrap is 9.1x — worse than the 1x the old cut
+#     happened to get, and deliberately accepted. That number is ONE sample
+#     pair, it moves by an order of magnitude if the cut shifts by a single
+#     sample, and the mp3 re-encode shifts samples anyway. For scale, stage_01
+#     ships at 23.9x WITH a crossfade and nobody has ever reported a click on
+#     it. Chasing it would mean moving off the downbeat again.
 CHOSEN_BARS = {
     'title': 16,
 }

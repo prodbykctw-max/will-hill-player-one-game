@@ -211,7 +211,7 @@ check('tapping it turns the same length green on a whole bar count',
   /\.000 bars/.test(fixed.len) && fixed.green, `${fixed.bpm} BPM — ${fixed.len}`);
 
 // ── his shipped decision, read back off the artifact ────────────────────
-// The intro is the first loop he chose himself: 16 bars at 134 from 57.309s.
+// The intro is the first loop he chose himself: 16 bars at 134 from 57.132s.
 // This grades the cut that actually shipped, so a future re-cut cannot quietly
 // undo it — and it is why the checks above had to move off the title cue.
 await p.click('#cues button:nth-child(5)');
@@ -230,7 +230,7 @@ check('the intro that ships is his 16 bars at 134, exactly',
 check('134 is recorded as KNOWN, not detected — one tempo table, in the cutter',
   intro.bpm === '134' && !intro.guessed, `${intro.bpm} BPM, guessed=${intro.guessed}`);
 check('and it starts where he put it in the original track',
-  intro.numbers.hook === 57.309, `hook ${intro.numbers.hook}`);
+  intro.numbers.hook === 57.132, `hook ${intro.numbers.hook}`);
 // "If I picked the perfect loop it wouldn't need the crossfade." It does not
 // get one, and the bench must not preview a treatment his audio never had.
 const xf2 = await p.evaluate(() => ({
@@ -258,12 +258,12 @@ check('and stays inside the selection',
 // ── ship it in one tap ──────────────────────────────────────────────────
 const ship = await p.evaluate(() => window.__bench.ship());
 check('SHIP THIS ONE sends a message that reads without the page',
-  /LOOP BENCH — TITLE/.test(ship) && /cut knowledge_x_polo from 57\.309s for 28\.657s/.test(ship)
+  /LOOP BENCH — TITLE/.test(ship) && /cut knowledge_x_polo from 57\.132s for 28\.657s/.test(ship)
   && /16 bars @ 134 BPM/.test(ship),
   ship.split('\n').slice(0, 3).join(' | '));
 const parsed = await p.evaluate(() => JSON.parse(window.__bench.ship().split('\n').pop()));
 check('and carries machine-readable numbers cut_loop.py can take',
-  parsed.slot === 'title' && parsed.hook === 57.309 && near(parsed.loopSeconds, 28.657, 0.001),
+  parsed.slot === 'title' && parsed.hook === 57.132 && near(parsed.loopSeconds, 28.657, 0.001),
   JSON.stringify(parsed));
 
 await b.close();
