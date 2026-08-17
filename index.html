@@ -552,16 +552,27 @@
        over, and the previous two passes are kept in assets/ui-concept/ so a
        swap can be checked rather than guessed.
 
-       ⚠️ FITTED, NOT COVERED: "fit the whole cabinet, don't crop my art."
-       At 853x1844 (0.4626) against his 430x932 phone (0.4614) the two are
-       within a thousandth, so min() fills the screen to within a pixel AND
-       cannot crop — on any phone, not only his.
+       ⚠️ IT FILLS THE SCREEN, and getting here took both answers from him.
+       Against pass 1 — a 1086x1448 plate, 0.750 — he said "fit the whole
+       cabinet, don't crop my art", because covering a 0.461 phone with a 3:4
+       painting throws 418 plate pixels off the sides. He then redrew it
+       portrait so it would not have to be cropped, and against THIS plate the
+       same fit rule left black bars top and bottom: "I made this to fill the
+       screen. You need to make sure it fills the screen."
 
-       ⚠️ `dvh` here, and `lvh` on the covering cabinet — opposite choices for
-       opposite jobs. Cover wants the LARGEST the screen can get so it never
-       under-covers when the toolbars retract. Fit wants the CURRENT height,
-       or the cabinet is sized for a screen taller than the one it is on and
-       hangs off the bottom while the toolbars are showing.
+       Both are satisfied at once now only because the plate changed. At
+       853x1844 (0.4626) against his 430x932 phone (0.4614) the two agree to
+       about a thousandth, so covering costs roughly one pixel off the height
+       — his art is not meaningfully cropped and the screen is full.
+
+       ⚠️ `lvh`, NOT `dvh`, now that this covers — the same choice as the other
+       cabinet and for the same reason. dvh is the CURRENT viewport height,
+       which shrinks while Safari's toolbars are showing; sizing off it is
+       what put the bars in his screenshot, because the cabinet was built for
+       an 830px window and then centred in a 932px one. lvh is the height with
+       the bars hidden, so the cabinet is sized for the largest the screen can
+       get and over-covers the rest of the time. Over-covering is invisible;
+       under-covering is the gap he photographed.
 
        ⚠️ Both classes in each selector, not just `.cabinet-entry`. These are
        the same specificity as the `.cabinet` rules they override and win only
@@ -571,10 +582,29 @@
     #panelCard.cabinet.cabinet-entry {
       background-image: var(--entry-plate);
       aspect-ratio: 853 / 1844;
-      width: min(100vw, calc((100dvh - env(safe-area-inset-top, 0px)
-                                     - env(safe-area-inset-bottom, 0px))
+      width: max(100vw, calc((100lvh + env(safe-area-inset-top, 0px)
+                                     + env(safe-area-inset-bottom, 0px))
                              * 853 / 1844));
+      /* ⚠️ Without this the cover width is undone — #panel is a flex row and
+         a flex item defaults to flex-shrink:1, so an item deliberately grown
+         wider than the line is squeezed straight back to it. */
+      flex: none;
       transition: transform 0.18s ease-out;
+    }
+    /* ⚠️ LANDSCAPE FITS INSTEAD OF COVERING. Cover is right on a phone held
+       upright — his case, and where the plate's aspect all but matches the
+       screen. On a wide, short window the same rule scales the cabinet to the
+       WIDTH and crops the ends off: measured at 900x600 the card comes out
+       900x1946 and his painted x lands 109px above the top of the screen,
+       leaving a dialog with no visible way out. Fitting there letterboxes the
+       sides, which nobody is looking at on a laptop, and keeps every control
+       reachable. */
+    @media (orientation: landscape) {
+      #panelCard.cabinet.cabinet-entry {
+        width: min(100vw, calc((100dvh - env(safe-area-inset-top, 0px)
+                                       - env(safe-area-inset-bottom, 0px))
+                               * 853 / 1844));
+      }
     }
     /* Focusing a field slides the machine up so his SAVE & ENTER clears the
        keyboard — see the focus/blur listeners in panel.js. Gated to a coarse

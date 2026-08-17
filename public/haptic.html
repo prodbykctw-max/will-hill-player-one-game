@@ -4,34 +4,43 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
 <meta name="robots" content="noindex,nofollow" />
-<title>WH:P1 — haptics probe 2</title>
+<title>WH:P1 — haptics probe 3</title>
 <!--
   ⚠️ A DIAGNOSTIC, NOT PART OF THE GAME. Reachable only by typing /haptic.html.
 
-  ROUND 1 SETTLED THE MECHANISM. Client: "1 worked, 2-5 didn't."
+  WHAT THE FIRST TWO ROUNDS ESTABLISHED, from his phone:
 
-    1  a real switch, flipped by his own finger      BUZZED
-    2  switch.click()                                nothing
-    3  label.click(), switch nested inside it        nothing
-    4  label.click(), bound by for=                  nothing
-    5  navigator.vibrate(30)                         no such function
+    ROUND 1  "1 worked, 2-5 duds"
+      1  real switch, his own finger                 BUZZED
+      2  switch.click()                              nothing
+      3  label.click(), switch nested                nothing
+      4  label.click(), bound by for=                nothing
+      5  navigator.vibrate(30)                       no such function
+      -> WebKit gates the haptic to genuine user activation. Nothing can be
+         fired AT the player. Four fixes had gone into a technique that cannot
+         work, each one a guess about an undocumented side effect.
 
-  So WebKit gates the switch haptic to genuine user activation of the control.
-  There is no way to fire one AT the player — their finger has to land ON a
-  switch. Four years of "add haptics to this button" advice on the web assumes
-  otherwise and all of it is wrong on iOS.
+    ROUND 2  "works all works, 8 after release"
+      6  invisible switch (opacity 0.01)             BUZZED
+      7  ... with pad art painted on top             BUZZED
+      8  hold two seconds, then let go               BUZZED ON RELEASE
+      9  fifteen fast taps                           ALL BUZZED, no throttle
+      -> A hidden switch under a drawn control works and does not rate-limit.
+         But the haptic lands on RELEASE, so a held movement pad can never get
+         a tick when the thumb arrives. Buttons activate on release anyway, so
+         for every button this is exactly the right moment.
 
-  That is still buildable: put a real switch under the thumb at every tap
-  target. But a game pad is not a settings toggle, and four things decide
-  whether it survives being one:
+  ROUND 3 IS THE INTEGRATION QUESTION. The game's controls are real <button>
+  elements with real handlers. Putting a switch inside one is invalid HTML
+  that browsers tolerate; putting it over one means forwarding the click. Both
+  can fail in ways only Safari will show, and the wrong choice means rewriting
+  every control twice.
 
-    6  does it still buzz when the switch is INVISIBLE?
-    7  ... and when the pad art is drawn on top of it?
-    8  does it buzz on touch-DOWN or only on release? (a d-pad tick that
-       arrives on release is worse than none)
-    9  does every tap buzz, or does iOS rate-limit? (a run fires hundreds)
+    10  switch INSIDE the button
+    11  switch OVER the button, click forwarded
 
-  Answer those and the pads can be rebuilt around whichever ones hold.
+  Each pad reports whether its BUTTON HANDLER actually ran, so a buzz that
+  eats the tap is caught rather than shipped.
 -->
 <style>
   :root { color-scheme: dark; }
@@ -50,111 +59,117 @@
     padding: 10px 12px; margin: 0 0 18px; font-size: 12.5px; color: #b6d3b6;
   }
   .known b { color: #79d18a; }
+  .known .no { color: #ff9d85; }
   .t { border-top: 1px solid #23203a; padding: 15px 0 6px; }
   .t h2 { font-size: 14px; margin: 0 0 2px; color: #f2ead8; letter-spacing: .03em; }
   .t p { margin: 0 0 10px; font-size: 12.5px; color: #9c9384; }
-  /* Every pad is the same size so the only thing changing between tests is
-     the one thing under test. */
-  .pad {
-    position: relative; height: 96px; border-radius: 12px;
-    border: 1px solid #34304e; background: #171426; overflow: hidden;
-    display: flex; align-items: center; justify-content: center;
+  /* Styled exactly like the game's own buttons, so the thing under test is
+     the switch and not some other difference. */
+  .gamebtn {
+    position: relative; display: block; width: 100%; height: 84px;
+    border: 1px solid #6b5a2a; border-radius: 12px;
+    background: linear-gradient(#241f14, #17130c);
+    color: #ffd66e; font: inherit; font-weight: 700; font-size: 15px;
+    letter-spacing: .06em; cursor: pointer; overflow: hidden;
+    -webkit-tap-highlight-color: transparent;
   }
-  .pad .cap {
-    position: absolute; inset: 0; display: flex; align-items: center;
-    justify-content: center; font-weight: 700; font-size: 15px;
-    color: #cfc6b2; pointer-events: none;
-  }
-  /* The switch, stretched to fill its pad. transform DOES move hit testing,
-     so the whole pad is the control even though the control is 51px wide. */
-  .pad input[switch] {
-    position: absolute; left: 50%; top: 50%; margin: 0;
-    appearance: auto; -webkit-appearance: auto;
+  .gamebtn:active { filter: brightness(1.3); }
+  .gamebtn .face { position: relative; z-index: 2; pointer-events: none; }
+  .gamebtn input[switch] {
+    position: absolute; left: 50%; top: 50%; margin: 0; z-index: 1;
+    opacity: 0.01; appearance: auto; -webkit-appearance: auto;
     transform: translate(-50%, -50%) scale(6);
   }
-  .out { margin-top: 8px; font-size: 12px; color: #79d18a; min-height: 16px; }
+  .over { position: relative; }
+  .over input[switch] {
+    position: absolute; left: 50%; top: 50%; margin: 0; z-index: 5;
+    opacity: 0.01; appearance: auto; -webkit-appearance: auto;
+    transform: translate(-50%, -50%) scale(6);
+  }
+  .out { margin-top: 8px; font-size: 12px; color: #79d18a; min-height: 32px; }
+  .out .bad { color: #ff7a5e; }
   .count { color: #ffd66e; font-weight: 700; }
   footer { margin-top: 24px; font-size: 12px; color: #6f6858; }
 </style>
 </head>
 <body>
-<h1>HAPTICS PROBE 2</h1>
-<p class="sub">Round 1 answered how. This answers whether it can be a game pad. Tap each one and tell me if you feel it.</p>
+<h1>HAPTICS PROBE 3</h1>
+<p class="sub">Last one. Two ways of putting a switch on a real game button. Tap each a few times.</p>
 
 <div class="known">
-  Settled in round 1: <b>only a real finger on a real switch</b> buzzes.
-  Scripted clicks do nothing, and navigator.vibrate does not exist here.
+  Settled: a hidden switch under drawn art <b>buzzes</b>, every tap counts,
+  <b>no throttling</b> — but the buzz lands <b>on release</b>, so a held
+  movement pad <span class="no">cannot</span> get a tick when the thumb lands.
+  Buttons fire on release anyway, so for buttons the timing is right.
 </div>
 
 <div class="t">
-  <h2>6 — INVISIBLE SWITCH</h2>
-  <p>Same switch as the one that worked, at opacity 0.01, filling this pad. If this buzzes, the control can be hidden.</p>
-  <div class="pad" id="p6"><span class="cap">TAP HERE</span></div>
-  <div class="out" id="o6"></div>
+  <h2>10 — SWITCH INSIDE THE BUTTON</h2>
+  <p>A real &lt;button&gt; with the switch as its child. The click bubbles up to the button on its own.</p>
+  <button class="gamebtn" id="b10"><span class="face">SAVE &amp; ENTER</span></button>
+  <div class="out" id="o10">handler runs: <span class="count" id="c10">0</span></div>
 </div>
 
 <div class="t">
-  <h2>7 — INVISIBLE SWITCH, ART ON TOP</h2>
-  <p>Same again, with a drawn pad face over it that ignores touches. This is what a real D-PAD button would be.</p>
-  <div class="pad" id="p7"><span class="cap">▲ JUMP</span></div>
-  <div class="out" id="o7"></div>
+  <h2>11 — SWITCH OVER THE BUTTON</h2>
+  <p>The switch is a sibling laid on top, and it passes the tap to the button itself.</p>
+  <div class="over" id="w11">
+    <button class="gamebtn" id="b11"><span class="face">SAVE &amp; ENTER</span></button>
+  </div>
+  <div class="out" id="o11">handler runs: <span class="count" id="c11">0</span></div>
 </div>
 
 <div class="t">
-  <h2>8 — DOWN OR UP?</h2>
-  <p>Press and HOLD for two seconds, then let go. Tell me whether the buzz came when your thumb landed or when it lifted. A tick that arrives on release is useless for a game pad.</p>
-  <div class="pad" id="p8"><span class="cap">HOLD, THEN RELEASE</span></div>
-  <div class="out" id="o8"></div>
+  <h2>12 — PLAIN BUTTON (the control)</h2>
+  <p>No switch at all. This one must NOT buzz. If it does, something else is producing the feeling and rounds 1 and 2 need redoing.</p>
+  <button class="gamebtn" id="b12"><span class="face">SAVE &amp; ENTER</span></button>
+  <div class="out" id="o12">handler runs: <span class="count" id="c12">0</span></div>
 </div>
 
-<div class="t">
-  <h2>9 — DOES EVERY TAP COUNT?</h2>
-  <p>Tap this as fast as you can, about fifteen times. A run fires hundreds of these. Tell me if they all buzz or if it fades out.</p>
-  <div class="pad" id="p9"><span class="cap">TAP FAST</span></div>
-  <div class="out" id="o9">taps: <span class="count" id="c9">0</span></div>
-</div>
-
-<footer>Nothing here is stored or sent anywhere.</footer>
+<footer>Tell me: which of 10 and 11 buzz, and whether the handler count goes up by exactly one per tap on each.</footer>
 
 <script>
 (function () {
-  // One builder, so the pads differ only in the thing being tested.
-  function fit(padId, opacity, artOnTop, onFire) {
-    var pad = document.getElementById(padId);
-    var sw = document.createElement('input');
-    sw.type = 'checkbox';
-    sw.setAttribute('switch', '');
-    sw.setAttribute('aria-hidden', 'true');
-    sw.tabIndex = -1;
-    sw.style.opacity = opacity;
-    pad.appendChild(sw);
-    if (artOnTop) pad.appendChild(pad.firstElementChild);  // cap back on top
-    // The cap already has pointer-events:none, so the finger reaches the
-    // switch either way — this only changes what is painted over it.
-    sw.addEventListener('change', function () { sw.blur(); if (onFire) onFire(); });
-    sw.addEventListener('touchstart', function () {
-      if (padId === 'p8') mark('o8', 'thumb DOWN at ' + stamp());
-    }, { passive: true });
-    sw.addEventListener('touchend', function () {
-      if (padId === 'p8') mark('o8', document.getElementById('o8').textContent
-        + '  |  thumb UP at ' + stamp());
-    }, { passive: true });
-    return sw;
+  function mkSwitch() {
+    var i = document.createElement('input');
+    i.type = 'checkbox';
+    i.setAttribute('switch', '');
+    i.setAttribute('aria-hidden', 'true');
+    i.tabIndex = -1;
+    return i;
   }
-  function stamp() {
-    var d = new Date();
-    return d.getSeconds() + '.' + String(d.getMilliseconds()).padStart(3, '0') + 's';
+  function counter(id, cid) {
+    var n = 0;
+    return function () {
+      n += 1;
+      document.getElementById(cid).textContent = n;
+    };
   }
-  function mark(id, text) { document.getElementById(id).textContent = text; }
 
-  fit('p6', '0.01', false, function () { mark('o6', 'toggled'); });
-  fit('p7', '0.01', true, function () { mark('o7', 'toggled'); });
-  fit('p8', '0.01', true, null);
-  var n = 0;
-  fit('p9', '0.01', true, function () {
-    n += 1;
-    document.getElementById('c9').textContent = n;
+  // 10 — inside. Invalid HTML per spec, tolerated by every engine; the click
+  // on the switch bubbles to the button, so no forwarding is needed.
+  var b10 = document.getElementById('b10');
+  b10.insertBefore(mkSwitch(), b10.firstChild);
+  b10.addEventListener('click', counter('o10', 'c10'));
+
+  // 11 — over, and forwarded. Valid HTML, but the switch is what the finger
+  // hits, so it has to hand the tap on. The guard stops the forwarded click
+  // coming straight back round.
+  var w11 = document.getElementById('w11');
+  var b11 = document.getElementById('b11');
+  var s11 = mkSwitch();
+  w11.appendChild(s11);
+  var forwarding = false;
+  s11.addEventListener('click', function () {
+    if (forwarding) return;
+    forwarding = true;
+    b11.click();
+    forwarding = false;
   });
+  b11.addEventListener('click', counter('o11', 'c11'));
+
+  // 12 — the control. Nothing attached but a counter.
+  document.getElementById('b12').addEventListener('click', counter('o12', 'c12'));
 })();
 </script>
 </body>
