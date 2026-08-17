@@ -2,181 +2,158 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
 <meta name="robots" content="noindex,nofollow" />
-<title>WH:P1 — haptics probe</title>
+<title>WH:P1 — haptics probe 2</title>
 <!--
-  ⚠️ A DIAGNOSTIC, NOT PART OF THE GAME. Reachable only by typing /haptic.html,
-  never linked from anything a player sees.
+  ⚠️ A DIAGNOSTIC, NOT PART OF THE GAME. Reachable only by typing /haptic.html.
 
-  Client: "Vibration is still not working."
+  ROUND 1 SETTLED THE MECHANISM. Client: "1 worked, 2-5 didn't."
 
-  It cannot be answered from this side. There is no Vibration API on iOS
-  Safari — there never has been — and the only route from a web page to the
-  Taptic Engine is a side effect of toggling <input type="checkbox" switch>,
-  which arrived in iOS 17.4 and is documented nowhere. Playwright cannot test
-  it: its "iPhone" profile is Chromium wearing an iOS user-agent, and it
-  reports navigator.vibrate as a function, which real Safari does not. So a
-  harness here can only ever tell me the harness is lying.
+    1  a real switch, flipped by his own finger      BUZZED
+    2  switch.click()                                nothing
+    3  label.click(), switch nested inside it        nothing
+    4  label.click(), bound by for=                  nothing
+    5  navigator.vibrate(30)                         no such function
 
-  This page asks the only instrument that can answer: his thumb. Five buttons,
-  five different routes, one of which is the control. Whichever ones buzz, the
-  game uses; the rest get deleted.
+  So WebKit gates the switch haptic to genuine user activation of the control.
+  There is no way to fire one AT the player — their finger has to land ON a
+  switch. Four years of "add haptics to this button" advice on the web assumes
+  otherwise and all of it is wrong on iOS.
+
+  That is still buildable: put a real switch under the thumb at every tap
+  target. But a game pad is not a settings toggle, and four things decide
+  whether it survives being one:
+
+    6  does it still buzz when the switch is INVISIBLE?
+    7  ... and when the pad art is drawn on top of it?
+    8  does it buzz on touch-DOWN or only on release? (a d-pad tick that
+       arrives on release is worse than none)
+    9  does every tap buzz, or does iOS rate-limit? (a run fires hundreds)
+
+  Answer those and the pads can be rebuilt around whichever ones hold.
 -->
 <style>
   :root { color-scheme: dark; }
   * { box-sizing: border-box; }
   body {
-    margin: 0; padding: 20px 16px calc(28px + env(safe-area-inset-bottom, 0px));
+    margin: 0; padding: 18px 16px calc(28px + env(safe-area-inset-bottom, 0px));
     background: #0b0a12; color: #f2ead8;
     font: 16px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace;
+    -webkit-user-select: none; user-select: none;
+    -webkit-tap-highlight-color: transparent;
   }
   h1 { font-size: 19px; margin: 0 0 4px; color: #ffd66e; letter-spacing: .04em; }
-  p.sub { margin: 0 0 18px; color: #a49b88; font-size: 13px; }
-  .env {
-    border: 1px solid #2a2740; border-radius: 8px; padding: 10px 12px;
-    margin: 0 0 20px; font-size: 12.5px; color: #cfc6b2; background: #12101d;
+  p.sub { margin: 0 0 16px; color: #a49b88; font-size: 13px; }
+  .known {
+    border: 1px solid #2c4a2c; background: #101a10; border-radius: 8px;
+    padding: 10px 12px; margin: 0 0 18px; font-size: 12.5px; color: #b6d3b6;
   }
-  .env b { color: #ffd66e; font-weight: 700; }
-  .t { border-top: 1px solid #23203a; padding: 16px 0 4px; }
+  .known b { color: #79d18a; }
+  .t { border-top: 1px solid #23203a; padding: 15px 0 6px; }
   .t h2 { font-size: 14px; margin: 0 0 2px; color: #f2ead8; letter-spacing: .03em; }
   .t p { margin: 0 0 10px; font-size: 12.5px; color: #9c9384; }
-  button.go {
-    width: 100%; padding: 15px; font: inherit; font-weight: 700;
-    background: #ffd66e; color: #17140c; border: 0; border-radius: 10px;
-    cursor: pointer; -webkit-tap-highlight-color: transparent;
+  /* Every pad is the same size so the only thing changing between tests is
+     the one thing under test. */
+  .pad {
+    position: relative; height: 96px; border-radius: 12px;
+    border: 1px solid #34304e; background: #171426; overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
   }
-  button.go:active { filter: brightness(0.82); }
-  button.go[disabled] { background: #3a3650; color: #7d7794; }
-  .real { display: flex; align-items: center; gap: 14px; }
-  .real input { transform: scale(1.5); transform-origin: left center; }
+  .pad .cap {
+    position: absolute; inset: 0; display: flex; align-items: center;
+    justify-content: center; font-weight: 700; font-size: 15px;
+    color: #cfc6b2; pointer-events: none;
+  }
+  /* The switch, stretched to fill its pad. transform DOES move hit testing,
+     so the whole pad is the control even though the control is 51px wide. */
+  .pad input[switch] {
+    position: absolute; left: 50%; top: 50%; margin: 0;
+    appearance: auto; -webkit-appearance: auto;
+    transform: translate(-50%, -50%) scale(6);
+  }
   .out { margin-top: 8px; font-size: 12px; color: #79d18a; min-height: 16px; }
-  .out.bad { color: #ff7a5e; }
-  footer { margin-top: 26px; font-size: 12px; color: #6f6858; }
+  .count { color: #ffd66e; font-weight: 700; }
+  footer { margin-top: 24px; font-size: 12px; color: #6f6858; }
 </style>
 </head>
 <body>
-<h1>HAPTICS PROBE</h1>
-<p class="sub">Tap each one. Tell me which ones you FEEL. Sound off, phone out of its case, Settings → Sounds &amp; Haptics → System Haptics ON.</p>
+<h1>HAPTICS PROBE 2</h1>
+<p class="sub">Round 1 answered how. This answers whether it can be a game pad. Tap each one and tell me if you feel it.</p>
 
-<div class="env" id="env">reading device…</div>
-
-<div class="t">
-  <h2>1 — REAL SWITCH (the control)</h2>
-  <p>Flip this with your finger. If this one does not buzz, nothing on this page will, and no code change fixes it — it means this iOS build has no switch haptic and the game cannot reach the Taptic Engine at all.</p>
-  <label class="real"><input type="checkbox" switch id="realSwitch" /> <span>flip me</span></label>
+<div class="known">
+  Settled in round 1: <b>only a real finger on a real switch</b> buzzes.
+  Scripted clicks do nothing, and navigator.vibrate does not exist here.
 </div>
 
 <div class="t">
-  <h2>2 — CLICK THE INPUT</h2>
-  <p>What the game does today.</p>
-  <button class="go" id="b2">FIRE 2</button>
-  <div class="out" id="o2"></div>
+  <h2>6 — INVISIBLE SWITCH</h2>
+  <p>Same switch as the one that worked, at opacity 0.01, filling this pad. If this buzzes, the control can be hidden.</p>
+  <div class="pad" id="p6"><span class="cap">TAP HERE</span></div>
+  <div class="out" id="o6"></div>
 </div>
 
 <div class="t">
-  <h2>3 — CLICK A WRAPPING LABEL</h2>
-  <p>The switch inside a &lt;label&gt;, and the LABEL gets the click.</p>
-  <button class="go" id="b3">FIRE 3</button>
-  <div class="out" id="o3"></div>
+  <h2>7 — INVISIBLE SWITCH, ART ON TOP</h2>
+  <p>Same again, with a drawn pad face over it that ignores touches. This is what a real D-PAD button would be.</p>
+  <div class="pad" id="p7"><span class="cap">▲ JUMP</span></div>
+  <div class="out" id="o7"></div>
 </div>
 
 <div class="t">
-  <h2>4 — CLICK A for= LABEL</h2>
-  <p>Same idea, associated by id instead of by nesting.</p>
-  <button class="go" id="b4">FIRE 4</button>
-  <div class="out" id="o4"></div>
+  <h2>8 — DOWN OR UP?</h2>
+  <p>Press and HOLD for two seconds, then let go. Tell me whether the buzz came when your thumb landed or when it lifted. A tick that arrives on release is useless for a game pad.</p>
+  <div class="pad" id="p8"><span class="cap">HOLD, THEN RELEASE</span></div>
+  <div class="out" id="o8"></div>
 </div>
 
 <div class="t">
-  <h2>5 — navigator.vibrate(30)</h2>
-  <p>The real API. Expected to be missing on iPhone; this is here so we know for certain rather than assuming.</p>
-  <button class="go" id="b5">FIRE 5</button>
-  <div class="out" id="o5"></div>
+  <h2>9 — DOES EVERY TAP COUNT?</h2>
+  <p>Tap this as fast as you can, about fifteen times. A run fires hundreds of these. Tell me if they all buzz or if it fades out.</p>
+  <div class="pad" id="p9"><span class="cap">TAP FAST</span></div>
+  <div class="out" id="o9">taps: <span class="count" id="c9">0</span></div>
 </div>
 
 <footer>Nothing here is stored or sent anywhere.</footer>
 
 <script>
 (function () {
-  var nav = navigator;
-  var hasVibrate = typeof nav.vibrate === 'function';
-  var hasSwitch = 'switch' in document.createElement('input');
-  var ua = nav.userAgent;
-  var m = ua.match(/OS (\d+)[_.](\d+)/);
-  document.getElementById('env').innerHTML =
-    'navigator.vibrate: <b>' + (hasVibrate ? 'present' : 'ABSENT') + '</b><br>' +
-    'switch attribute: <b>' + (hasSwitch ? 'supported' : 'NOT SUPPORTED') + '</b><br>' +
-    'reported iOS: <b>' + (m ? m[1] + '.' + m[2] : 'not iOS') + '</b><br>' +
-    'touch points: <b>' + (nav.maxTouchPoints || 0) + '</b>';
-
-  // Every switch is built the same way the game builds it: on screen, drawn,
-  // 1x1 and a hair above transparent. WebKit plays the haptic as a side effect
-  // of ANIMATING a real control, so an element parked off-canvas at opacity 0
-  // has nothing to animate and nothing to feel.
-  function mkSwitch() {
-    var i = document.createElement('input');
-    i.type = 'checkbox';
-    i.setAttribute('switch', '');
-    i.tabIndex = -1;
-    i.setAttribute('aria-hidden', 'true');
-    i.style.cssText = 'position:fixed;left:0;top:0;width:1px;height:1px;'
-      + 'opacity:0.01;z-index:-1;margin:0;padding:0;border:0;'
-      + 'appearance:auto;-webkit-appearance:auto';
-    return i;
+  // One builder, so the pads differ only in the thing being tested.
+  function fit(padId, opacity, artOnTop, onFire) {
+    var pad = document.getElementById(padId);
+    var sw = document.createElement('input');
+    sw.type = 'checkbox';
+    sw.setAttribute('switch', '');
+    sw.setAttribute('aria-hidden', 'true');
+    sw.tabIndex = -1;
+    sw.style.opacity = opacity;
+    pad.appendChild(sw);
+    if (artOnTop) pad.appendChild(pad.firstElementChild);  // cap back on top
+    // The cap already has pointer-events:none, so the finger reaches the
+    // switch either way — this only changes what is painted over it.
+    sw.addEventListener('change', function () { sw.blur(); if (onFire) onFire(); });
+    sw.addEventListener('touchstart', function () {
+      if (padId === 'p8') mark('o8', 'thumb DOWN at ' + stamp());
+    }, { passive: true });
+    sw.addEventListener('touchend', function () {
+      if (padId === 'p8') mark('o8', document.getElementById('o8').textContent
+        + '  |  thumb UP at ' + stamp());
+    }, { passive: true });
+    return sw;
   }
-
-  // 2 — the input itself
-  var s2 = mkSwitch();
-  document.body.appendChild(s2);
-  void s2.offsetHeight;
-
-  // 3 — wrapped in a label, label gets the click
-  var l3 = document.createElement('label');
-  l3.style.cssText = 'position:fixed;left:0;top:1px;width:1px;height:1px;'
-    + 'opacity:0.01;z-index:-1;display:block';
-  var s3 = mkSwitch();
-  s3.style.position = 'static';
-  l3.appendChild(s3);
-  document.body.appendChild(l3);
-  void l3.offsetHeight;
-
-  // 4 — associated by for=
-  var s4 = mkSwitch();
-  s4.id = 'hapticFor';
-  document.body.appendChild(s4);
-  var l4 = document.createElement('label');
-  l4.setAttribute('for', 'hapticFor');
-  l4.style.cssText = 'position:fixed;left:1px;top:0;width:1px;height:1px;'
-    + 'opacity:0.01;z-index:-1;display:block';
-  document.body.appendChild(l4);
-  void l4.offsetHeight;
-
-  function say(id, text, bad) {
-    var el = document.getElementById(id);
-    el.textContent = text;
-    el.className = bad ? 'out bad' : 'out';
+  function stamp() {
+    var d = new Date();
+    return d.getSeconds() + '.' + String(d.getMilliseconds()).padStart(3, '0') + 's';
   }
+  function mark(id, text) { document.getElementById(id).textContent = text; }
 
-  document.getElementById('b2').addEventListener('click', function () {
-    try { s2.click(); s2.blur(); say('o2', 'fired — checked=' + s2.checked); }
-    catch (e) { say('o2', 'threw: ' + e.message, true); }
-  });
-  document.getElementById('b3').addEventListener('click', function () {
-    try { l3.click(); s3.blur(); say('o3', 'fired — checked=' + s3.checked); }
-    catch (e) { say('o3', 'threw: ' + e.message, true); }
-  });
-  document.getElementById('b4').addEventListener('click', function () {
-    try { l4.click(); s4.blur(); say('o4', 'fired — checked=' + s4.checked); }
-    catch (e) { say('o4', 'threw: ' + e.message, true); }
-  });
-  document.getElementById('b5').addEventListener('click', function () {
-    if (!hasVibrate) { say('o5', 'navigator.vibrate does not exist here', true); return; }
-    try { say('o5', 'vibrate() returned ' + nav.vibrate(30)); }
-    catch (e) { say('o5', 'threw: ' + e.message, true); }
-  });
-  document.getElementById('realSwitch').addEventListener('change', function (e) {
-    e.target.blur();
+  fit('p6', '0.01', false, function () { mark('o6', 'toggled'); });
+  fit('p7', '0.01', true, function () { mark('o7', 'toggled'); });
+  fit('p8', '0.01', true, null);
+  var n = 0;
+  fit('p9', '0.01', true, function () {
+    n += 1;
+    document.getElementById('c9').textContent = n;
   });
 })();
 </script>
