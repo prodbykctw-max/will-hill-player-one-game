@@ -42,6 +42,16 @@ import cabinetPlate from '../assets/ui/cabinet.webp';
 import entryPlate from '../assets/ui/contest-entry.webp';
 import panelOptionsPlate from '../assets/ui/panel-options.webp';
 import panelSettingsPlate from '../assets/ui/panel-settings.webp';
+// ⚠️ HIS WORDS ARE WHAT GLOWS, so the glow is cut off his own plates rather
+// than drawn in CSS. Client: "trace over the text of each button as functional
+// and make the text glow. It's all white text so just make the text a white
+// glow." One transparent bloom layer per painted surface, from
+// tools/cut_glow_glyphs.py; index.html screens it back over the plate and
+// pulses it. See the long note in the stylesheet for why this cannot be a
+// box-shadow or a CSS filter.
+import entryGlow from '../assets/ui/glow-entry.webp';
+import optionsGlow from '../assets/ui/glow-options.webp';
+import settingsGlow from '../assets/ui/glow-settings.webp';
 import pillOn from '../assets/ui/pill-on.webp';
 import pillOff from '../assets/ui/pill-off.webp';
 import todAtl from '../assets/ui/tod-atl.webp';
@@ -155,6 +165,13 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
     panelCard.style.setProperty('--panel-settings', `url(${panelSettingsPlate})`);
     panelCard.style.setProperty('--pill-on', `url(${pillOn})`);
     panelCard.style.setProperty('--pill-off', `url(${pillOff})`);
+    // The three bloom layers. Set on the card even though two of them are read
+    // by #panelScreen — a custom property inherits, and keeping every plate URL
+    // in one place is what stops a view switching to a plate whose glow was
+    // never wired.
+    panelCard.style.setProperty('--entry-glow', `url(${entryGlow})`);
+    panelCard.style.setProperty('--options-glow', `url(${optionsGlow})`);
+    panelCard.style.setProperty('--settings-glow', `url(${settingsGlow})`);
   }
   const views = { menu: $('pvMenu'), board: $('pvBoard'), how: $('pvHow'),
     form: $('pvForm'), settings: $('pvSettings') };

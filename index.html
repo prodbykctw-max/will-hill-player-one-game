@@ -723,66 +723,122 @@
        NOW. Both halves have to move together or the cabinet loses them. */
     #panel .btn.cabOnly { display: none; }
     #panelCard.cabinet-entry .btn.cabOnly { display: block; }
-    /* ── HIS PAINTED CONTROLS HAVE TO LOOK LIVE ────────────────────────
-       "Can we make all tappable buttons a little more noticeable... maybe add
-       a little glow or something, it needs to be a lot more obvious they
-       could be clicked."
+    /* ── HIS PAINTED WORDS ARE WHAT GLOWS ──────────────────────────────
+       "Can we make all tappable buttons a little more noticeable... it needs
+       to be a lot more obvious they could be clicked." Then, on the first
+       attempt: "Instead of those square lines that are glowing around buttons
+       and stuff like that I think you just need to trace over the text of each
+       button as functional and make the text glow. It's all white text so just
+       make the text a white glow and you can intensify a little more too so
+       it's blatantly obvious."
 
-       On these screens every control is HIS painting with a transparent box
-       over it, so there is nothing at all to say which parts answer a thumb —
-       the coin slot and the SAVE button look equally pressable. This is the
-       smallest thing that fixes that without putting any art of mine on his:
-       no shape, no border, no label, just his own amber breathing behind the
-       control he already drew. Same colour and the same slow cycle as the
-       glow he approved on the dashboard's map dots.
+       ⚠️ THE FIRST VERSION IS THE THING HE IS DESCRIBING, and it is worth
+       keeping the reason on the record: on these screens every control is his
+       painting with a transparent box over it, and the only thing CSS can put
+       a glow on by itself is that box. A box-shadow on a rectangle IS a
+       rectangle drawn on his artwork — a wide soft one on the OPTIONS rows,
+       which are 87% of the panel wide, reads as four glowing frames. He asked
+       for the words instead, and the words are in the picture.
 
-       It follows border-radius, so his round SAVE & ENTER gets a round halo
-       and his NOT NOW plate gets a rectangular one. cqw, so it scales with
-       the cabinet instead of turning into a hard ring on a small phone.
-       Staggered a little per control so the panel breathes rather than
-       flashing all at once. */
-    #panelCard.cabinet .pv .btn,
-    #panelCard.cabinet #panelClose {
-      animation: liveglow 2.8s ease-in-out infinite;
+       So the glow comes OUT OF the picture. tools/cut_glow_glyphs.py finds the
+       ink inside each live control's rect on the plate itself, blooms it, and
+       writes one transparent layer per surface; this screens that layer back
+       over his plate and pulses its opacity. The lit shape is his letterforms,
+       in his own ink colour — white where his text is white, amber on the
+       OPTIONS menu — and nothing is lit where nothing is tappable, so the coin
+       slot and the receipt tray stay dark.
+
+       ⚠️ NO CSS FILTER HERE ON PURPOSE, twice over: `filter: drop-shadow` is
+       applied BEFORE the mask, so glowing a masked layer clips the glow away
+       to nothing; and this pulses forever over a running game, where animating
+       opacity on a bitmap is a compositor job and a live blur is a repaint
+       every frame. The bloom is baked at plate resolution instead.
+
+       ⚠️ `isolation: isolate` OR THE SCREEN BLEND REACHES THE GAME. Without
+       it the blend's backdrop is everything painted below in the stacking
+       context, which includes the dimmed street behind the panel — his glow
+       would lift the game as well as his plate. */
+    #panelCard.cabinet-entry { isolation: isolate; }
+    #panelCard.cabinet-menu #panelScreen,
+    #panelCard.cabinet-settings #panelScreen { isolation: isolate; }
+    #panelCard.cabinet-entry::after,
+    #panelCard.cabinet-menu #panelScreen::after,
+    #panelCard.cabinet-settings #panelScreen::after {
+      content: ''; position: absolute; inset: 0;
+      /* ⚠️ It must never eat a tap. The layer covers every control it lights. */
+      pointer-events: none;
+      background-repeat: no-repeat;
+      /* 100% 100%, matching the plate it sits on — both boxes carry the
+         plate's own aspect-ratio, so the bloom lands on the ink it came off. */
+      background-size: 100% 100%;
+      mix-blend-mode: screen;
+      animation: glyphglow 2.8s ease-in-out infinite;
     }
-    #panelCard.cabinet .pv .btn:nth-of-type(2) { animation-delay: 0.35s; }
-    #panelCard.cabinet .pv .btn:nth-of-type(3) { animation-delay: 0.7s; }
-    #panelCard.cabinet .pv .btn:nth-of-type(4) { animation-delay: 1.05s; }
-    #panelCard.cabinet .pv .btn:nth-of-type(5) { animation-delay: 1.4s; }
-    #panelCard.cabinet #panelClose { animation-delay: 0.5s; }
-    @keyframes liveglow {
-      /* ⚠️ MOSTLY OUTER BLOOM, BARELY ANY INSET. The first pass leaned on an
-         inset shadow and it drew a hard bright line along the top and bottom
-         of the wide OPTIONS rows — a rectangle stencilled across his panel,
-         which is precisely the thing not to do to his artwork. A wide, weak
-         outer glow reads as the control being lit; a tight inset reads as a
-         box someone drew on it. */
-      0%, 100% {
-        box-shadow: 0 0 1.1cqw rgba(255,198,92,0.16),
-                    inset 0 0 0.5cqw rgba(255,198,92,0.07);
-      }
-      50% {
-        box-shadow: 0 0 2.8cqw rgba(255,198,92,0.40),
-                    inset 0 0 0.9cqw rgba(255,198,92,0.15);
-      }
+    #panelCard.cabinet-entry::after { background-image: var(--entry-glow); }
+    #panelCard.cabinet-menu #panelScreen::after { background-image: var(--options-glow); }
+    #panelCard.cabinet-settings #panelScreen::after { background-image: var(--settings-glow); }
+    @keyframes glyphglow {
+      0%, 100% { opacity: 0.26; }
+      50%      { opacity: 1; }
     }
-    /* A press is unmistakable: the glow snaps bright and the wash comes up. */
+    /* A press is unmistakable — but NOT as an outline. A radial wash has no
+       edge of its own, so it reads as the control lighting up under the thumb
+       rather than as a box appearing around it. */
     #panelCard.cabinet .pv .btn:active,
     #panelCard.cabinet #panelClose:active {
-      animation: none;
-      background: rgba(255,198,92,0.20);
-      box-shadow: 0 0 2.6cqw rgba(255,214,110,0.75),
-                  inset 0 0 1.6cqw rgba(255,214,110,0.45);
+      background: radial-gradient(closest-side,
+                  rgba(255,214,110,0.34), rgba(255,214,110,0) 76%);
     }
     /* ⚠️ A pulse is motion, and some people have that switched off at the OS.
-       They still need to know what is tappable, so the glow stays — it just
-       stops breathing. */
+       They still need to know what is tappable, so the glow stays lit — it
+       just stops breathing. */
     @media (prefers-reduced-motion: reduce) {
-      #panelCard.cabinet .pv .btn,
-      #panelCard.cabinet #panelClose {
+      #panelCard.cabinet-entry::after,
+      #panelCard.cabinet-menu #panelScreen::after,
+      #panelCard.cabinet-settings #panelScreen::after {
+        animation: none; opacity: 0.82;
+      }
+    }
+    /* ── AND THE SAME IDEA WHERE THE TEXT IS REAL ──────────────────────
+       The ticket's own action bar and the plain panel's ghost buttons have
+       actual DOM text, so they need no bloom layer at all — `text-shadow` on
+       the glyphs IS the glow he described, and it costs nothing. Same 2.8s
+       cycle as the painted surfaces so the whole UI breathes together.
+       ⚠️ NOT on `#panel .btn` — that one is dark text on solid amber, and a
+       white glow behind black lettering is a smudge. Only the light-on-dark
+       ones get it. */
+    #lbActions .btn.card, #panel .btn.ghost {
+      animation: textglow 2.8s ease-in-out infinite;
+    }
+    @keyframes textglow {
+      0%, 100% { text-shadow: 0 0 0.5cqw rgba(255,255,255,0.35); }
+      50%      { text-shadow: 0 0 0.5cqw rgba(255,255,255,0.95),
+                             0 0 1.6cqw rgba(255,255,255,0.75),
+                             0 0 3.4cqw rgba(255,214,110,0.45); }
+    }
+    /* ⚠️ cqw ONLY WORKS INSIDE A CONTAINER. #lbActions is in the card, which
+       declares container-type; #panel is not, so its ghost buttons need the
+       same shape in px or the shadow silently collapses to 0. */
+    #panel .btn.ghost { animation-name: textglowpx; }
+    /* ⚠️ AND NOT ON THE CABINET AT ALL. Those buttons are `font-size: 0` with
+       transparent text — the words are in his painting — so a text-shadow there
+       paints nothing while still running an animation per control on top of a
+       live game. The bloom layer is their glow. */
+    #panelCard.cabinet .pv .btn { animation: none; }
+    @keyframes textglowpx {
+      0%, 100% { text-shadow: 0 0 2px rgba(255,255,255,0.35); }
+      50%      { text-shadow: 0 0 2px rgba(255,255,255,0.95),
+                             0 0 7px rgba(255,255,255,0.75),
+                             0 0 14px rgba(255,214,110,0.45); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      #lbActions .btn.card {
         animation: none;
-        box-shadow: 0 0 2.0cqw rgba(255,198,92,0.30),
-                    inset 0 0 0.7cqw rgba(255,198,92,0.12);
+        text-shadow: 0 0 0.5cqw rgba(255,255,255,0.9), 0 0 1.6cqw rgba(255,255,255,0.6);
+      }
+      #panel .btn.ghost {
+        animation: none;
+        text-shadow: 0 0 2px rgba(255,255,255,0.9), 0 0 7px rgba(255,255,255,0.6);
       }
     }
 
@@ -969,15 +1025,28 @@
     /* ── THE BOARD, ON HIS MARTA CARD ──────────────────────────────────
        The leaderboard is his breeze-card design and the rows are laid over
        it, not drawn next to it. Everything here is a FRACTION of the card,
-       measured off the artwork itself (852x1846) and listed in the commit
-       that blanked its placeholder rows, so the layout survives the card
-       being shown at any width.
+       measured off the artwork itself, so the layout survives the card being
+       shown at any width.
 
-         rank column   left edge   0.127
-         player        left edge   0.286
-         score         RIGHT edge  0.880
-         row centres   0.5612  0.6077  0.6528  0.6972  0.7405
-         your rank     0.8240
+       ⚠️ THE CARD IS THE TICKET ALONE NOW — 784x1596, cropped out of the
+       852x1846 plate at x34-818, y147-1743 by tools/trim_lb_card.py, because
+       he asked for the painted surround gone: "I just used red dots to touch
+       the edge of the card that I wanna keep and I've used yellow to show the
+       part that I want removed... I just want the actual card." Cropping moved
+       the coordinate space, so every fraction below is the remapped one and the
+       numbers in the older commits no longer apply. The script prints the
+       conversion and reprints it if the crop ever changes.
+
+         rank column   left edge   0.0947   (was 0.127)
+         player        left edge   0.2674   (was 0.286)
+         score         RIGHT edge  0.9130   (was 0.880)
+         row TOPS      0.53075  0.58453  0.63658  0.68805  0.73836
+         your rank     0.8274   (was 0.795)
+
+       The row tops are the list panel.js and share.js both carry as ROW_TOP —
+       three renderers reading one measurement of one painting, which is the
+       standing risk here and the reason all three are named in each other's
+       comments.
 
        Aspect-ratio holds the box to the card's shape, so a percentage top
        lands on the row it was measured against on any screen. Font size is
@@ -1010,8 +1079,9 @@
          artwork takes the entire panel. Measured on a 430x932 phone: 259px
          wide before, 336px after, and full-height instead of 561px.
          The one thing this CANNOT do is fill the last sliver left and right.
-         The ticket is 852x1846 — aspect 0.462 — and the frame it sits in is
-         nearer 0.55, so covering it edge to edge means cropping his artwork,
+         The ticket is 784x1596 — aspect 0.491, up from 0.462 now the painted
+         surround is off it — and the frame it sits in is nearer 0.55, so
+         covering it edge to edge means cropping his artwork,
          which is not a thing to do to solve a layout problem. Any remaining
          gap shows the dimmed game, never a plate. If he wants it truly
          edge-to-edge the ticket needs re-rendering at the frame's shape. */
