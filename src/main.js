@@ -28,8 +28,14 @@ import { createTitle, TITLE_IMAGES, INTRO_TICKS as TITLE_INTRO_TICKS,
   SRC_W as STILL_W, SRC_H as STILL_H } from './render/title.js';
 import martaMapArt from './assets/backgrounds/marta-map.webp';
 import { loadImages } from './render/images.js';
-import { createRunLog, lbSubmit, bankLocalRun, isRegistered, localRuns, hasPendingRun,
-  signupOffered, markSignupOffered, recordRunStats, pendingRunCount, flushPendingRun } from './net/leaderboard.js';
+// ⚠️ signupOffered/markSignupOffered/localRuns are deliberately NOT imported
+// any more. They were the two guards on the pre-run sign-up gate and both are
+// retired: the offer now repeats every start until the player actually
+// enters. leaderboard.js still exports them — the stored `wh_signup_offered`
+// key is harmless and other callers may want the latch — but main.js reads
+// registration and nothing else. See beginFromTitle().
+import { createRunLog, lbSubmit, bankLocalRun, isRegistered, hasPendingRun,
+  recordRunStats, pendingRunCount, flushPendingRun } from './net/leaderboard.js';
 import { createPanel, soundEnabled, setSoundEnabled,
   sfxEnabled, setSfxEnabled } from './ui/panel.js';
 import { createHaptics } from './core/haptics.js';
@@ -396,6 +402,43 @@ function startStage(i) {
 // to the leaderboard rather than hidden from it.
 const CONTINUES_PER_RUN = 1;
 
+// ── WHAT "START" MEANS — ONE ROUTE, TAP OR KEY ─────────────────────────────
+//
+// Client, spelling the order out: "once you hit start game, you should be
+// presented with registering for the contest with an option to skip if you
+// want to, and then you should be presented with the instructions on how to
+// play and then you can go." So START is no longer a synonym for startRun():
+// it is the head of a three-stop chain — CONTEST → HOW TO PLAY → run — and
+// the run is only ever launched by the far end of it (panel onClose, holding
+// `state.pendingRun`).
+//
+// ⚠️ IT LIVES IN A FUNCTION BECAUSE THERE ARE TWO STARTS. The pointer handler
+// on the title card and the keyboard/JUMP path both mean START, and the gate
+// used to exist only on the pointer one — so anybody who pressed Space, or
+// tapped the JUMP pad on the title, walked straight past the sign-up that the
+// tap path stopped at. One function, both callers, no second door.
+//
+// ⚠️ AND IT ASKS EVERY TIME, NOT ONCE. It used to latch on `signupOffered()`
+// — one NOT NOW and the offer never came back, ever, on any visit. Client:
+// "ask again next time they start until they're registered." So the only
+// thing that retires the ask is actually entering. The old
+// `localRuns().length` guard is gone with it for the same reason: it made the
+// gate unreachable for the exact person it exists for, a brand-new player,
+// who by definition has no runs banked yet.
+//
+// The one guard that stays is `introDone`. A tap during the title assembly
+// means "skip this animation", and a skip must stay a skip — landing a
+// first-time player on a contact form because they were impatient is how this
+// was broken the first time.
+function beginFromTitle() {
+  const introDone = (state.screenT - state.introAt) > INTRO_TICKS;
+  if (!introDone) { startRun(); return; }
+  state.pendingRun = true;        // whatever they choose, the run follows
+  // Somebody already entered has nothing to fill in, so they get the
+  // instructions and nothing else. NOT NOW on the form lands here too.
+  panel.open(isRegistered() ? 'how' : 'form', { flow: 'start' });
+}
+
 function startRun() {
   state.score = 0;
   state.hearts = 3;
@@ -559,31 +602,7 @@ canvas.addEventListener('pointerdown', (e) => {
     // the walkthrough build by accident.
     setRelay(false);
     commit();
-    // ── THE OFFER BEFORE A RUN — BUT NEVER THE FIRST ONE ─────────────────
-    //
-    // Client: "an option to sign up should be before run and after death",
-    // and separately: "they never should even have to sign up again." So the
-    // offer is latched in localStorage (not in memory): tap NOT NOW once and
-    // it never returns, on this visit or the next.
-    //
-    // ⚠️ TWO GUARDS, BOTH LEARNED FROM BREAKING SOMETHING. Putting a form in
-    // front of START outright cost more than it bought:
-    //   * THE INTRO SKIP. A tap during the assembly falls through to this
-    //     same path, so a first-time player tapping to skip the intro got a
-    //     contact form instead of the game. `introDone` keeps a skip a skip.
-    //   * THE FIRST GAME. Nobody should have to get past a sign-up to find
-    //     out whether they like it — at a party that is where the phone gets
-    //     handed back. So the offer waits until a run has actually been
-    //     played on this device; before that the way in is OPTIONS →
-    //     LEADERBOARD → ENTER THE CONTEST, one tap from this screen.
-    const introDone = (state.screenT - state.introAt) > INTRO_TICKS;
-    if (introDone && !isRegistered() && !signupOffered() && localRuns().length) {
-      markSignupOffered();
-      state.pendingRun = true;      // whatever they choose, the run follows
-      panel.open('form');
-      return;
-    }
-    startRun();
+    beginFromTitle();
     return;
   }
   if (state.screen === 'stageClear' || state.screen === 'gameOver'
@@ -693,9 +712,17 @@ function advanceFromScreen() {
   // moment worth asking for a phone number. Somebody who has not entered gets
   // the form; somebody who has gets the board with their name on it. Closing
   // it lands on the title.
+  // ⚠️ `flow: 'post'` — THE BOARD IS THE END OF THE JOURNEY HERE.
+  // Client: "die or win? Ending scene then Leaderboard and registration. If
+  // already registered, no registration offer, only leaderboard." So an
+  // unregistered player gets the sign-up and then the board behind it; a
+  // registered one goes straight to the board with their name on it. Either
+  // way BACK off that board closes out to the title in one tap rather than
+  // stepping sideways into OPTIONS — showTitle() has already run, so the
+  // title card is what the closing panel reveals.
   if (state.screen === 'complete') {
     showTitle();
-    panel.open(isRegistered() ? 'board' : 'form');
+    panel.open(isRegistered() ? 'board' : 'form', { flow: 'post' });
     return;
   }
   // ── AND AFTER DEATH ──────────────────────────────────────────────────
@@ -707,8 +734,7 @@ function advanceFromScreen() {
   // ask was missing. Same rule as everywhere else: only if not already in.
   if (state.screen === 'gameOver') {
     showTitle();
-    if (!isRegistered()) markSignupOffered();
-    panel.open(isRegistered() ? 'board' : 'form');
+    panel.open(isRegistered() ? 'board' : 'form', { flow: 'post' });
     return;
   }
   // Otherwise back to the attract screen. Restarting the instant you
@@ -837,7 +863,10 @@ function update() {
       // Same as the tap path: try the unlock, swallow nothing. See there.
       if (!audio.ready() && (soundEnabled() || sfxEnabled())) audio.unlock();
       commit();
-      startRun();
+      // ⚠️ beginFromTitle, NOT startRun. This is the second START and it used
+      // to be the hole in the gate — Space, or the JUMP pad on the title,
+      // skipped the sign-up the tap path stops at.
+      beginFromTitle();
     }
     return;
   }

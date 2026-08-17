@@ -144,8 +144,11 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
     commit: () => { audio?.confirm(); haptics?.confirm(); },
     back: () => { audio?.back(); haptics?.tap(); },
   };
+  // `cue` may be a function when one button means two things — HOW TO PLAY's
+  // footer is BACK out of the menu but PLAY at the end of the start chain,
+  // and the two want opposite sounds. Everything else passes a plain key.
   const on = (id, cue, fn) => $(id)?.addEventListener('click', () => {
-    feedback[cue]();
+    feedback[typeof cue === 'function' ? cue() : cue]();
     fn();
   });
 
@@ -177,6 +180,27 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
     form: $('pvForm'), settings: $('pvSettings') };
   const title = $('panelTitle');
   let open = false;
+  // ── WHICH JOURNEY THE PANEL IS ON ──────────────────────────────────────
+  //
+  // Client, writing the whole thing out in one line: "Start — sign in or not
+  // — how to play — play game — die or win? Ending scene then Leaderboard and
+  // registration. If already registered, no registration offer, only
+  // leaderboard."
+  //
+  // So the same three views serve two different journeys, and every BACK on
+  // them means something different depending which one the player is on:
+  //
+  //   'start'  before a run.  form NOT NOW → how,  how PLAY → close (run)
+  //   'post'   after a run.   form NOT NOW → board, board BACK → close (title)
+  //   'menu'   the default.   form NOT NOW → board, board BACK → menu
+  //
+  // One handler cannot guess which, and guessing is what this replaces: BACK
+  // used to be hardwired to a single destination per button, so the pre-run
+  // sign-up dumped the player into the leaderboard and the post-run one had
+  // no way back to the title that did not go through OPTIONS.
+  //
+  // Set by api.open(view, { flow }).
+  let flow = 'menu';
 
   function show(view) {
     for (const [k, v] of Object.entries(views)) if (v) v.hidden = k !== view;
@@ -241,6 +265,14 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
       : view === 'settings' ? 'SETTINGS'
         : view === 'menu' ? 'OPTIONS'
           : view === 'how' ? 'HOW TO PLAY' : 'LEADERBOARD';
+    // The footer button on HOW TO PLAY is the launch control when a run is
+    // queued behind the panel, and the plain way back to OPTIONS when it is
+    // not. Set here rather than in fillHow() because it depends on how the
+    // player arrived, not on what the page contains.
+    const howBack = $('btnHowBack');
+    if (howBack) {
+      howBack.textContent = (isPendingRun && isPendingRun()) ? 'PLAY' : 'BACK';
+    }
     if (view === 'how') fillHow();
     if (view === 'board') fillBoard();
     if (view === 'form') fillForm();
@@ -470,7 +502,10 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
     // so drop it here or the cabinet stays lifted on the way to the board and
     // the phone keeps its keyboard up over a screen with no fields on it.
     document.activeElement?.blur?.();
-    show('board');
+    // On the way into a run the next stop is the instructions, same as NOT
+    // NOW. Everywhere else the board is the payoff — they just entered, so
+    // show them the ticket with their name on it.
+    show(flow === 'start' ? 'how' : 'board');
   }
 
   // ── settings ──────────────────────────────────────────────────────────
@@ -564,8 +599,22 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
   on('btnMenuHow', 'press', () => show('how'));
   on('btnMenuSettings', 'press', () => show('settings'));
   on('btnMenuClose', 'back', () => api.close());
-  on('btnHowBack', 'back', () => show('menu'));
-  on('btnBoardBack', 'back', () => show('menu'));
+  // ── THE LAST DOOR IN THE START CHAIN ───────────────────────────────────
+  //
+  // HOW TO PLAY is the final stop before a queued run, so its button is the
+  // thing that actually launches the game — closing the panel is what
+  // main.js's onClose watches for. Reached the ordinary way (OPTIONS → HOW TO
+  // PLAY) it is still just BACK to the menu. Same button, two jobs, and the
+  // LABEL has to say which or a player waiting to be taken to the game reads
+  // "BACK" as "you are about to lose your place".
+  on('btnHowBack', () => (isPendingRun && isPendingRun() ? 'commit' : 'back'), () => {
+    if (isPendingRun && isPendingRun()) { api.close(); return; }
+    show('menu');
+  });
+  // BACK off the leaderboard closes outright when the board IS the end of the
+  // journey — after a run, per his order: ending scene, then the board, then
+  // out. Reached from OPTIONS it still steps one level up to the menu.
+  on('btnBoardBack', 'back', () => (flow === 'post' ? api.close() : show('menu')));
   on('btnRegister', 'press', () => show('form'));
   // SHARE decides its own note copy, because the same tap means different
   // things on different machines: a phone opens the OS sheet (nothing to
@@ -605,10 +654,11 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
     }
   });
   on('btnBack', 'back', () => show('menu'));
-  // NOT NOW steps back to the board normally — but when a run is queued
-  // behind this form (the pre-run offer), the way on is OUT, not deeper in.
-  // isPendingRun is supplied by main.js, the same way onClose is.
-  const notNow = () => (isPendingRun && isPendingRun() ? api.close() : show('board'));
+  // NOT NOW, CANCEL and the red ✕ all land wherever the opener said to land.
+  // 'how'   — the pre-run chain: skipping the contest still gets the lesson.
+  // 'close' — off the back of a run: one tap out, straight to the title.
+  // 'board' — the default, for REGISTER pressed from the leaderboard.
+  const notNow = () => show(flow === 'start' ? 'how' : 'board');
   on('btnSkip', 'back', notNow);
   // He painted TWO ways out of the sign-up cabinet — the CANCEL plate and the
   // red X beside it — so both are wired, to the same thing NOT NOW does. The
@@ -764,9 +814,10 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
 
   const api = {
     get isOpen() { return open; },
-    open(view = 'board') {
+    open(view = 'board', opts = {}) {
       open = true;
       el.hidden = false;
+      flow = opts.flow || 'menu';
       show(view);
     },
     close() {

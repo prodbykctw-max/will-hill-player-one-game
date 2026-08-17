@@ -21,6 +21,7 @@
 // leave `?relay=1` still meaning something, or the URL door is broken too.
 const _pw = await import(process.env.PLAYWRIGHT || 'playwright');
 const chromium = _pw.chromium || _pw.default?.chromium;
+const { startFromTitle } = await import('./startchain.mjs');
 const b = await chromium.launch(process.env.CHROMIUM ? { executablePath: process.env.CHROMIUM } : {});
 // Screenshots land in `shots/` unless SEAM_OUT says otherwise. It used to
 // default to the repo ROOT, so any run without that variable set dropped
@@ -123,8 +124,8 @@ for (const tod of ['night', 'day']) {
   const noButton = await pb.evaluate(() => typeof window.__title.relayRect === 'undefined'
     && typeof window.__title.hitRelay === 'undefined');
   check(`[${tod}] no CHAMPAGNE RELAY button exists on the title card`, noButton);
-  await pb.touchscreen.tap(215, 300);
-  await pb.waitForTimeout(1600);
+  // The start chain sits between the tap and the run now — see startchain.mjs.
+  await startFromTitle(pb);
   const pressed = await pb.evaluate(() => ({ screen: window.__game.screen,
     tod: window.__game.level && window.__game.level.stage.tod,
     enemies: window.__game.level ? window.__game.level.enemies.length : null,
@@ -176,7 +177,7 @@ check('relay still reachable by URL after the switch', post.screen === 'playing'
 // title card — the whole point of it being a "dev/dashboard thing" now.
 await ps.reload({ waitUntil: 'networkidle' });
 await enter(ps);
-await ps.touchscreen.tap(215, 300); await ps.waitForTimeout(1600);
+await startFromTitle(ps);
 const normal = await ps.evaluate(() => ({ screen: window.__game.screen,
   enemies: window.__game.level ? window.__game.level.enemies.length : null }));
 check('a normal START after the switch is still a normal run',

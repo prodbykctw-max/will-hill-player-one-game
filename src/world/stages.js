@@ -811,11 +811,42 @@ const STAGE_DEFS = [
           { key: 'waffle', img: ugdWaffle, depth: 0.50, span: [0.564, 0.638] },
           { key: 'coke', img: ugdCoke, depth: 0.50, span: [0.543, 0.597] },
           {
-            key: 'trees', img: ugdTrees, depth: 0.48, span: [0.000, 0.947],
+            // ⚠️ THE PEACHTREE FURNITURE SIGNBOARD IS ON THIS CARD. The SAM
+            // cut put it here rather than on `peachtree`, which ended up with
+            // just the parapet above it — measured, inside x1180-1450:
+            // 27,046 opaque px on `trees` against 7,982 on `peachtree`.
+            //
+            // That makes this a LETTERING card whatever its name says, and
+            // lettering cards get lettering rules. The base plate keeps a full
+            // copy of everything a card redraws, so any offset between this
+            // card and the base prints the board twice. Hence both changes
+            // here:
+            //   * depth 0.48 -> 0.50. 0.50 is BASE_DEPTH, the one value at
+            //     which a card cannot ghost — identical offset by
+            //     construction. Same fix already applied to CITGO, SALE,
+            //     WAFFLE HOUSE and the Edgewood shopfronts.
+            //   * the third sway band, over xRanges [0.730, 0.950] — plate
+            //     x1120..1458, dead across the signboard — is gone. Shearing
+            //     painted lettering ±3px against a static copy of itself is
+            //     the same fault in miniature, and it only shows in motion.
+            // The cost is that the trees at the right of the plate no longer
+            // float. Cheap against a shimmering sign.
+            //
+            // ⚠️ AND THIS IS NOT WHAT CAUSED "P PEACHTREE". That one was a
+            // 10x19px crumb of the letter P sitting on the `lamps` card at
+            // depth 0.78, printing ~15px out — see tools/drop_card_crumbs.py,
+            // which erases it and records how it was found. Both faults were
+            // real and they were on different cards; fixing this one did not
+            // move the P, and that is worth knowing before assuming the card
+            // that OWNS an object is the card ghosting it.
+            //
+            // The upstream fix for the mis-grouping is tools/sam_group.py:
+            // put the signboard on `peachtree` and re-cut, and then this is a
+            // tree card again and can have its depth and its sway back.
+            key: 'trees', img: ugdTrees, depth: 0.50, span: [0.000, 0.947],
             sway: [
               { top: 0.30, pivot: 0.62, amp: 3.5, freq: 0.9, xRanges: [[0.000, 0.080]] },
               { top: 0.30, pivot: 0.66, amp: 3, freq: 1.1, xRanges: [[0.630, 0.720]] },
-              { top: 0.28, pivot: 0.64, amp: 3, freq: 0.8, xRanges: [[0.730, 0.950]] },
             ],
           },
           { key: 'dirsign', img: ugdDirsign, depth: 0.50, span: [0.477, 0.534] },

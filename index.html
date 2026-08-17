@@ -1044,6 +1044,31 @@
     }
     #panel label.row select { width: auto; margin-top: 0; }
     #panel label.row input[type=checkbox] { width: 22px; height: 22px; accent-color: #ffd66e; }
+    /* ── NOTHING IN THE PANEL IS DOUBLE-TAP-TO-ZOOM ────────────────────────
+       Client, on a phone browser: "it still magnifies the button like some
+       other gesture", and separately "it's still trying to zoom in when I'm
+       on the web browser."
+
+       ⚠️ `user-scalable=no` IN THE VIEWPORT META DOES NOT DO THIS. iOS Safari
+       has ignored that flag since iOS 10 — deliberately, as an accessibility
+       decision — so the meta tag at the top of this file buys nothing on the
+       one browser the client is testing in. `touch-action: manipulation` is
+       the part Safari does honour: it keeps scrolling and pinch-to-zoom on
+       the page but removes the double-tap-zoom gesture from the element, so a
+       fast second tap on a button is a second tap and not a magnify. It also
+       drops the 300ms click delay that gesture exists to wait for, which is
+       why these buttons will feel quicker as well as steadier.
+
+       On every control, not just .btn — the cabinet's hit targets are the
+       real buttons on his painted screens. Pinch is blocked separately, in
+       the script at the foot of this file. */
+    #panel .btn,
+    #panel button,
+    #panel input,
+    #panel select,
+    #panel label {
+      touch-action: manipulation;
+    }
     #panel .btn {
       display: block; width: 100%; margin-top: 12px; padding: 13px;
       font: 800 14px/1 system-ui, sans-serif; letter-spacing: 0.08em;
@@ -1453,6 +1478,56 @@
     </div>
   </div>
 
+  <!-- ── PINCH AND DOUBLE-TAP DO NOT ZOOM THIS GAME ─────────────────────────
+       Client: "it's still trying to zoom in when I'm on the web browser", and
+       "on the web it still magnifies the button like some other gesture."
+
+       The viewport meta already says `user-scalable=no, maximum-scale=1.0`.
+       iOS Safari IGNORES BOTH — it has since iOS 10, on purpose — so on the
+       browser he is testing in that line has never done anything. These three
+       listeners are the part that works there.
+
+       A fixed-layout game is the case where suppressing zoom is right rather
+       than hostile: there is nothing to magnify, every control is already
+       thumb-sized, and a stray pinch leaves the player scrolled off their own
+       playfield with no visible way back. The page does not scroll, so nobody
+       loses the ability to reach content.
+
+       WHY IT IS INLINE AND NOT IN main.js: the module is deferred, so a pinch
+       during asset load — which is exactly when an impatient player pinches —
+       would land before any of its listeners existed.
+
+       `passive: false` on every one of them, or preventDefault is ignored and
+       these are three no-ops that look like a fix.
+
+       gesturestart/change/end are Safari-only and are the actual pinch on
+       iOS. The touchmove guard is the cross-browser backstop for a second
+       finger, and it deliberately tests `touches.length > 1` rather than
+       blocking all movement — one finger has to keep working or the touch
+       pads and the panel's own scroller stop responding. -->
+  <script>
+    for (const t of ['gesturestart', 'gesturechange', 'gestureend']) {
+      document.addEventListener(t, (e) => e.preventDefault(), { passive: false });
+    }
+    document.addEventListener('touchmove', (e) => {
+      if (e.touches.length > 1) e.preventDefault();
+    }, { passive: false });
+    // And the OTHER magnifier: iOS zooms the whole page when a field smaller
+    // than 16px takes focus, then leaves it zoomed. The sign-up inputs size
+    // themselves off the cabinet so they sit in his painted boxes, which puts
+    // them under 16px on a small phone. Rather than break his layout with a
+    // 16px floor, the viewport is pinned at the moment of focus and released
+    // on blur — Safari only re-zooms on a fresh focus, so a locked scale
+    // during that window is enough.
+    const vp = document.querySelector('meta[name=viewport]');
+    const BASE = vp && vp.content;
+    document.addEventListener('focusin', (e) => {
+      if (vp && e.target && e.target.matches('input, select, textarea')) {
+        vp.content = BASE + ', maximum-scale=1.0';
+      }
+    });
+    document.addEventListener('focusout', () => { if (vp) vp.content = BASE; });
+  </script>
   <script type="module" src="/src/main.js"></script>
 </body>
 </html>

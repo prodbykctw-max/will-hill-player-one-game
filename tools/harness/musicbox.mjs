@@ -17,6 +17,7 @@
 //
 //   PLAYWRIGHT=... SEAM_OUT=... node tools/harness/musicbox.mjs
 const _pw=await import(process.env.PLAYWRIGHT); const chromium=_pw.chromium||_pw.default?.chromium;
+const { startFromTitle } = await import('./startchain.mjs');
 // ⚠️ THIS FILE USED TO ASK THE WRONG QUESTION, AND A SILENT GAME PASSED IT.
 //
 // It checked `!el.paused` — "is the media element running" — which stayed
@@ -115,7 +116,7 @@ await grab('3  after a reload, box remembered');
 check('the choice survives a reload',
   await p.evaluate(()=>localStorage.getItem('wh_sound'))==='on');
 // Open space still starts the game.
-await p.touchscreen.tap(215,300); await p.waitForTimeout(1700);
+await startFromTitle(p);
 check('open space is still START',
   await p.evaluate(()=>window.__game.screen)==='playing');
 const fs=await import('fs'); fs.mkdirSync(OUT,{recursive:true});

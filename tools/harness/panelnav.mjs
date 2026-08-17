@@ -124,9 +124,24 @@ await p.waitForTimeout(300);
 s = await shown();
 check('✕ still closes the panel from settings, two levels deep', !s.open && s.screen === 'title', JSON.stringify(s));
 
-// A closed panel must not have swallowed the run — a plain tap starts one.
+// A closed panel must not have swallowed the run.
+//
+// ⚠️ A TITLE TAP IS NO LONGER A RUN. It is the head of the start chain —
+// CONTEST → HOW TO PLAY → run — so the run arrives at the far end of it, not
+// on the tap. This check used to tap once and assert `playing`, which after
+// the rewire was asserting that the sign-up does not exist. The thing it
+// actually guards is unchanged and still worth guarding: nothing the panel
+// did left the game unable to start. So it walks the whole chain. The order
+// itself is startflow.mjs's job, not this file's.
 await p.touchscreen.tap(215, 300);
-await p.waitForTimeout(1600);
+await p.waitForTimeout(900);
+for (const id of ['btnSkip', 'btnHowBack']) {
+  if (await p.evaluate((i) => !!document.getElementById(i)?.offsetParent, id)) {
+    await p.evaluate((i) => document.getElementById(i).click(), id);
+    await p.waitForTimeout(700);
+  }
+}
+await p.waitForTimeout(900);
 check('the game is still playable after all that', await p.evaluate(() => window.__game.screen) === 'playing');
 
 console.log('');
