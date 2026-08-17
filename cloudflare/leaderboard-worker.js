@@ -410,12 +410,47 @@ export default {
           // Scoped to the SAME player id, so nobody can delete anyone else's
           // row by naming it, and the row in `runs` needs no repair: it holds
           // MAX(score) per person, which the finished run wins on its own.
+          // ⚠️ NEVER DELETE A ROW THAT SCORED HIGHER THAN THE ONE REPLACING
+          // IT. `supersedes` exists so a continued run does not count its
+          // first stretch twice — the partial is dropped and the finished run
+          // stands. That is right whenever the finished run is the bigger of
+          // the two, which is the only way a continue can go.
+          //
+          // It is NOT right unconditionally, and the live database showed why:
+          // `runs` keeps MAX(score) forever, so the board held 29,750 while
+          // the row carrying that run's detail had been deleted by a later,
+          // smaller submission. Every dashboard tile reads run_stats, so the
+          // board and the tiles disagreed by 9,550 — on a page that decides
+          // who gets paid.
+          //
+          // The guard is the score itself: drop the superseded row only if
+          // this run beat it. Anything else leaves both rows, which
+          // over-counts one stretch of play in the totals — a far cheaper
+          // error than losing the winning run.
           const sup = String(b.supersedes || '').slice(0, 64);
           if (sup && /^[0-9a-f-]{16,64}$/i.test(sup)) {
-            await env.DB.prepare('DELETE FROM run_stats WHERE run_id = ? AND id = ?')
-              .bind(sup, id).run();
+            await env.DB.prepare(
+              'DELETE FROM run_stats WHERE run_id = ? AND id = ? AND score <= ?',
+            ).bind(sup, id, score).run();
           }
-        } catch (_e) { /* stats are never load-bearing */ }
+        } catch (e) {
+          // ⚠️ THIS WAS `catch (_e) {}` AND IT COST US THE EVIDENCE.
+          // Stats are still never load-bearing — the score in `runs` is the
+          // contest record and it is already committed above, so a failure
+          // here must not fail the submission. But swallowing it left no
+          // trace, and the first sign of trouble was a dashboard disagreeing
+          // with itself: `runs` held KCTW at 29,750 over 4 plays while
+          // run_stats held 2 rows topping out at 20,200 — the highest run
+          // missing outright, and nothing anywhere saying why.
+          // The response is unchanged; the failure just stops being invisible.
+          try {
+            await env.DB.prepare(
+              'INSERT INTO rejects (t, reason, detail, ip) VALUES (?, ?, ?, ?)',
+            ).bind(Date.now(), 'stats-insert',
+              String((e && e.message) || e).slice(0, 200),
+              req.headers.get('CF-Connecting-IP') || '').run();
+          } catch (_e2) { /* logging the logging failure is where it stops */ }
+        }
 
         const row = await env.DB.prepare('SELECT score FROM runs WHERE id = ?').bind(id).first();
         const best = row ? row.score : score;

@@ -572,9 +572,17 @@ function pick(c, fly) {
 
 function drawStrip() {
   const t = data.totals || {}, c = data.counts || {};
+  // ⚠️ THE BOARD'S BEST, NOT run_stats'. These two can differ and did.
+  // `runs` keeps MAX(score) forever; a run_stats row can be dropped by a later
+  // submission carrying `supersedes`. So this tile once read 20,200 sitting
+  // above a TOP 10 whose first line said 29,750 — the same page contradicting
+  // itself on the screen that decides who gets paid. The board is the contest
+  // record, so the tile quotes the very rows TOP 10 renders.
+  const boardBest = (data.rows || [])
+    .reduce((m, r) => Math.max(m, Number(r.score) || 0), 0);
   const tiles = [
     ['entrants', c.entrants || 0], ['runs', t.runs || 0],
-    ['high score', (t.best || 0).toLocaleString()], ['bags', t.bags || 0],
+    ['high score', boardBest.toLocaleString()], ['bags', t.bags || 0],
     ['stomped', t.kills || 0], ['deaths', t.deaths || 0],
   ];
   const f = data.funnel || {};
