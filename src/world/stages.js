@@ -173,43 +173,8 @@ import bgUnderground from '../assets/backgrounds/underground-base.webp';
 // with it and are not used while this is the base. Its own cut is in
 // progress; see assets/refs/underground-day.webp and tools/cut_planes.py.
 import bgUndergroundDayBase from '../assets/backgrounds/underground-day-base.webp';
-import ugClouds from '../assets/backgrounds/underground-clouds.webp';
-import ugSpire from '../assets/backgrounds/underground-spire.webp';
-import ugTowers from '../assets/backgrounds/underground-towers.webp';
-import ugBackdrop from '../assets/backgrounds/underground-backdrop.webp';
-import ugLeftblock from '../assets/backgrounds/underground-leftblock.webp';
-import ugMidbuild from '../assets/backgrounds/underground-midbuild.webp';
-import ugDome from '../assets/backgrounds/underground-dome.webp';
-import ugMarquee from '../assets/backgrounds/underground-marquee.webp';
-import ugLoans from '../assets/backgrounds/underground-loans.webp';
-import ugCoke from '../assets/backgrounds/underground-coke.webp';
-import ugWaffle from '../assets/backgrounds/underground-waffle.webp';
-import ugDirsign from '../assets/backgrounds/underground-dirsign.webp';
-import ugPed from '../assets/backgrounds/underground-ped.webp';
-import ugStreet from '../assets/backgrounds/underground-street.webp';
-import ugColumns from '../assets/backgrounds/underground-columns.webp';
 // The DAY set, cut from the day plate by tools/cut_planes.py against SAM
 // masks grouped in tools/sam_groups/underground-day.json.
-import ugdClouds from '../assets/backgrounds/underground-day-clouds.webp';
-import ugdSkystruct from '../assets/backgrounds/underground-day-skystruct.webp';
-import ugdSpire from '../assets/backgrounds/underground-day-spire.webp';
-import ugdTowers from '../assets/backgrounds/underground-day-towers.webp';
-import ugdBackdrop from '../assets/backgrounds/underground-day-backdrop.webp';
-import ugdLeftblock from '../assets/backgrounds/underground-day-leftblock.webp';
-import ugdMidbuild from '../assets/backgrounds/underground-day-midbuild.webp';
-import ugdArch from '../assets/backgrounds/underground-day-arch.webp';
-import ugdLetters from '../assets/backgrounds/underground-day-letters.webp';
-import ugdTrees from '../assets/backgrounds/underground-day-trees.webp';
-import ugdLoans from '../assets/backgrounds/underground-day-loans.webp';
-import ugdChecks from '../assets/backgrounds/underground-day-checks.webp';
-import ugdCoke from '../assets/backgrounds/underground-day-coke.webp';
-import ugdWaffle from '../assets/backgrounds/underground-day-waffle.webp';
-import ugdDirsign from '../assets/backgrounds/underground-day-dirsign.webp';
-import ugdPed from '../assets/backgrounds/underground-day-ped.webp';
-import ugdNewsbox from '../assets/backgrounds/underground-day-newsbox.webp';
-import ugdPoles from '../assets/backgrounds/underground-day-poles.webp';
-import ugdStreet from '../assets/backgrounds/underground-day-street.webp';
-import ugdColumns from '../assets/backgrounds/underground-day-columns.webp';
 
 // ── `bg` — real-world backdrop metrics (see src/render/backdrop.js) ──
 // These neighbourhoods are real places Will Hill walks through, so the
@@ -646,8 +611,31 @@ const STAGE_DEFS = [
       // so the arch reads, and Will Hill is the size of a man next to it
       // rather than the size of a bollard. The day and night plates are the
       // same 1122x1402, so the fix applies to both.
+      // ⚠️ FLAT FOR NOW, AND DELIBERATELY — the multiplane comes back in a
+      // second pass. The client photographed three faults here: "cloud coming
+      // through building, double building", and "that should be the first seam
+      // of the bg where it repeats". All three were ONE cause, measured with
+      // tools/harness/seamsweep.mjs: the old plate was 1122x1402 — PORTRAIT,
+      // where every other stage's is landscape — so scaling it by its height
+      // to sit on the world's ground squeezed its drawn width to 478px against
+      // a 430px screen. The join was on screen in 82 of 94 frames (EAV: 0 of
+      // 80), and anything wider than 48px had two copies showing at once.
+      //
+      // The new plate is 1535x1024 and draws ~984px, so a second copy of the
+      // arch cannot fit on screen at all. Its ground line was measured at
+      // y 727-753 of 1024 — the yellow platform edge — hence groundFrac 0.71.
+      // Day and night are a matched pair: cross-correlating their edge maps
+      // puts them at dx 0, dy 2 on a 512-tall resample, so the tod swap does
+      // not jump.
+      //
+      // The 19 day and 15 night cards are NOT ported: they are keyed to
+      // coordinates in a painting that no longer exists, and every one of them
+      // would land on the wrong building. They are in git at 8bf5e7b along
+      // with tools/sam_segment.py and tools/cut_planes.py, which is how the
+      // re-cut gets done. Until then Underground is a flat plate that does not
+      // repeat, which the client chose over depth that does.
       meters: 8.6,
-      groundFrac: 0.78,
+      groundFrac: 0.71,
       sky: ['#080818', '#06091e'],
       horizon: '#191a30',
       glow: 'rgba(220,60,60,0.10)',
@@ -665,23 +653,6 @@ const STAGE_DEFS = [
       // matrix; the cards are what stands in front of it.
       // THE NIGHT SET — fifteen cards. Spans are the cutter's own reported
       // x-extents over the 1122px plate, not estimates.
-      cards: [
-        { key: 'clouds', img: ugClouds, depth: 0.03, span: [0.640, 0.844] },
-        { key: 'spire', img: ugSpire, depth: 0.08, span: [0.814, 0.881] },
-        { key: 'towers', img: ugTowers, depth: 0.12, span: [0.863, 1.000] },
-        { key: 'backdrop', img: ugBackdrop, depth: 0.16, span: [0.270, 0.820] },
-        { key: 'leftblock', img: ugLeftblock, depth: 0.26, span: [0.000, 0.251] },
-        { key: 'midbuild', img: ugMidbuild, depth: 0.34, span: [0.265, 0.777] },
-        { key: 'dome', img: ugDome, depth: 0.44, span: [0.296, 0.750] },
-        { key: 'marquee', img: ugMarquee, depth: 0.50, span: [0.138, 0.894] },
-        { key: 'loans', img: ugLoans, depth: 0.56, span: [0.000, 0.133] },
-        { key: 'coke', img: ugCoke, depth: 0.60, span: [0.663, 0.773] },
-        { key: 'waffle', img: ugWaffle, depth: 0.62, span: [0.703, 0.786] },
-        { key: 'dirsign', img: ugDirsign, depth: 0.70, span: [0.452, 0.598] },
-        { key: 'ped', img: ugPed, depth: 0.74, span: [0.328, 0.429] },
-        { key: 'street', img: ugStreet, depth: 0.82, span: [0.003, 0.996] },
-        { key: 'columns', img: ugColumns, depth: 0.94, span: [0.161, 0.880] },
-      ],
       // The arch marquee bulbs, the Coca-Cola disc and the Waffle House
       // frontage — the three things genuinely emitting in this plate.
       // `layer` bolts each glow to its card so it travels with the thing that
@@ -698,7 +669,7 @@ const STAGE_DEFS = [
       bg: {
         img: bgUndergroundDayBase,
         meters: 8.6,
-        groundFrac: 0.78,
+        groundFrac: 0.71,   // the yellow platform edge, measured at y 727/1024
         // ── THE SKY IS SAMPLED OFF THE PLATE, NOT PICKED ─────────────
         // The gradient is only ever visible ABOVE the plate's top edge, so
         // the colour it reaches THERE is the only one that matters — and it
@@ -723,32 +694,6 @@ const STAGE_DEFS = [
         // reusing the night set. The compositions differ — the day arch sits
         // higher and its columns are narrower — so the night cards never
         // registered against this plate.
-        cards: [
-          { key: 'clouds', img: ugdClouds, depth: 0.03, drift: -0.035, span: [0.672, 0.989] },
-          // The sky band's static furniture, repainted over the drifting
-          // clouds so weather passes BEHIND it. depth 0.5 is BASE_DEPTH:
-          // at the base's own rate it registers with the base's copy to
-          // the pixel. tools/seal_stage_clouds.py.
-          { key: 'skystruct', img: ugdSkystruct, depth: 0.5, span: [0.000, 0.847] },
-          { key: 'spire', img: ugdSpire, depth: 0.08, span: [0.758, 0.888] },
-          { key: 'towers', img: ugdTowers, depth: 0.12, span: [0.480, 0.999] },
-          { key: 'backdrop', img: ugdBackdrop, depth: 0.16, span: [0.299, 0.348] },
-          { key: 'leftblock', img: ugdLeftblock, depth: 0.26, span: [0.000, 0.302] },
-          { key: 'midbuild', img: ugdMidbuild, depth: 0.34, span: [0.272, 0.884] },
-          { key: 'arch', img: ugdArch, depth: 0.46, span: [0.183, 0.888] },
-          { key: 'letters', img: ugdLetters, depth: 0.48, span: [0.281, 0.775] },
-          { key: 'trees', img: ugdTrees, depth: 0.52, span: [0.689, 0.999] },
-          { key: 'loans', img: ugdLoans, depth: 0.56, span: [0.034, 0.146] },
-          { key: 'checks', img: ugdChecks, depth: 0.58, span: [0.000, 0.143] },
-          { key: 'coke', img: ugdCoke, depth: 0.60, span: [0.657, 0.773] },
-          { key: 'waffle', img: ugdWaffle, depth: 0.62, span: [0.681, 0.880] },
-          { key: 'dirsign', img: ugdDirsign, depth: 0.70, span: [0.448, 0.616] },
-          { key: 'ped', img: ugdPed, depth: 0.74, span: [0.320, 0.434] },
-          { key: 'newsbox', img: ugdNewsbox, depth: 0.78, span: [0.501, 0.597] },
-          { key: 'poles', img: ugdPoles, depth: 0.80, span: [0.356, 0.875] },
-          { key: 'street', img: ugdStreet, depth: 0.86, span: [0.000, 0.999] },
-          { key: 'columns', img: ugdColumns, depth: 0.94, span: [0.155, 0.837] },
-        ],
         // Daylight. The marquee bulbs still read, faintly, but a Coca-Cola
         // disc and a Waffle House sign do not glow at midday, and painting
         // them as if they did is what makes a day scene look like a night

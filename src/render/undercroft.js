@@ -24,6 +24,12 @@
 // Well below the street's 1.0 — the section reads as deep, distant mass
 // rather than something scrolling along with the pavement.
 const BASE_PARALLAX = 0.26;
+// The train car, as a fraction of the tunnel band's height, and its own
+// width:height. 3.75 is the shape the car has always had (150x40); CAR_H was
+// effectively 0.50 and capped, which is what made the nearest object in the
+// undercroft smaller than the columns behind it.
+const CAR_H = 0.72;
+const CAR_ASPECT = 3.75;
 
 function hash01(n) {
   const x = Math.sin(n * 12.9898) * 43758.5453;
@@ -511,8 +517,24 @@ export function createUndercroft(ctx, canvas) {
     const phase = pmod(tick, PERIOD);
     if (phase > TRANSIT) return; // between trains — empty tunnel
 
-    const carH = Math.min(h * 0.52, 40);
-    const carW = 150;
+    // ── THE TRAIN IS ON THE NEAR TRACK, SO IT IS THE BIGGEST THING DOWN
+    //    HERE ────────────────────────────────────────────────────────────
+    // Client: "if the pillar in the background is in the right dimension and
+    // the tile floor is in the right dimension and the rats cross the
+    // platform, then the train should appear larger moving in front of the
+    // platform because it should be closer to us."
+    //
+    // He is right, and the cause was a hard cap. This read
+    // `Math.min(h * 0.52, 40)` with `carW = 150` — a car pinned at 40px tall
+    // and 150px wide no matter what the undercroft band did. The columns, the
+    // tile wall and the rats all scale with the band; the train alone did not,
+    // so the nearest object in the scene rendered smaller than the things
+    // behind it.
+    //
+    // Everything below is now derived from CAR_H and CAR_ASPECT, so the car
+    // keeps its proportions at any size and there is one number to turn.
+    const carH = h * CAR_H;
+    const carW = carH * CAR_ASPECT;
     const cars = 4;
     const trainLen = carW * cars;
     const p = phase / TRANSIT;
@@ -548,15 +570,20 @@ export function createUndercroft(ctx, canvas) {
       ctx.fillStyle = '#2f5fa8';
       ctx.fillRect(cx + 3, carTop + carH * 0.60, carW - 6, carH * 0.13);
       // lit windows
+      // Five windows, spaced as fractions of the car rather than in pixels —
+      // at 150px wide the old 16px window on a 25px pitch was 0.107/0.167 of
+      // the car, and holding those keeps the car looking like itself at any
+      // scale instead of sprouting wider gaps as it grows.
       for (let w = 0; w < 5; w++) {
         ctx.fillStyle = 'rgba(255,238,190,0.92)';
-        ctx.fillRect(cx + 16 + w * 25, carTop + carH * 0.18, 16, carH * 0.32);
+        ctx.fillRect(cx + carW * 0.107 + w * carW * 0.167,
+          carTop + carH * 0.18, carW * 0.107, carH * 0.32);
       }
       // roof + skirt
       ctx.fillStyle = 'rgba(255,255,255,0.16)';
-      ctx.fillRect(cx + 3, carTop, carW - 6, 2);
+      ctx.fillRect(cx + 3, carTop, carW - 6, Math.max(2, carH * 0.05));
       ctx.fillStyle = 'rgba(0,0,0,0.55)';
-      ctx.fillRect(cx + 3, carTop + carH - 3, carW - 6, 3);
+      ctx.fillRect(cx + 3, carTop + carH - carH * 0.075, carW - 6, Math.max(3, carH * 0.075));
       // coupling gap
       ctx.fillStyle = 'rgba(0,0,0,0.6)';
       ctx.fillRect(cx, carTop + carH * 0.2, 3, carH * 0.7);
