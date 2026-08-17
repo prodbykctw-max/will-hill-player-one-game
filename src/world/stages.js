@@ -286,7 +286,31 @@ const STAGE_DEFS = [
         { key: 'cars', img: eavCars, depth: 0.21, span: [0.784, 0.999] },
         { key: 'swifty', img: eavSwifty, depth: 0.50, span: [0.133, 0.432] },
         { key: 'citgo', img: eavCitgo, depth: 0.50, span: [0.094, 0.559] },
-        { key: 'fence', img: eavFence, depth: 0.67, span: [0.217, 0.792] },
+        { // ⚠️ 0.50, NOT 0.67 — THE FENCE IS CO-PLANAR WITH THE CITGO SIGN.
+            // Client, on his own phone: "the CITGO sign, you got it cut with the
+            // fence and it's moving. It shouldn't be cut at all. You got the line
+            // between that messed up and then the edge of the fence is messed up."
+            //
+            // Both halves of that are one fault. `fence` (x324..1183) OVERLAPS
+            // `citgo` (x181..830) and draws after it, so at 0.67 — +11px at the
+            // far end of the stage — its left edge crawled across the sign, and
+            // the occlusion boundary between them moved while the player ran.
+            // Meanwhile the base plate keeps a full copy of the fence, so the
+            // card's own boards printed 11px off their originals: vertical boards
+            // shifted against themselves, which is the "edge of the fence is
+            // messed up".
+            //
+            // The depth was simply wrong to begin with. The sign is MOUNTED ON
+            // this fence — they are the same distance from the camera, and giving
+            // them different rates said otherwise. At BASE_DEPTH the two can
+            // never separate, the occlusion his art painted is the occlusion the
+            // player sees, and the fence stops doubling against itself.
+            //
+            // EAV keeps a full depth range without it: clouds 0.02, skyline 0.07,
+            // cars 0.21, then verge 0.75, pole 0.76 and tree 0.81 in the near
+            // field. What is lost is parallax on a flat plane that should not
+            // have had any.
+            key: 'fence', img: eavFence, depth: 0.50, span: [0.217, 0.792] },
         { key: 'verge', img: eavVerge, depth: 0.75, span: [0.000, 0.859] },
         {
           key: 'tree', img: eavTree, depth: 0.81, span: [0.000, 0.313],
@@ -406,7 +430,31 @@ const STAGE_DEFS = [
           { key: 'cars', img: eavDayCars, depth: 0.21, span: [0.772, 0.979] },
           { key: 'swifty', img: eavDaySwifty, depth: 0.50, span: [0.129, 0.416] },
           { key: 'citgo', img: eavDayCitgo, depth: 0.50, span: [0.119, 0.542] },
-          { key: 'fence', img: eavDayFence, depth: 0.67, span: [0.212, 0.772] },
+          { // ⚠️ 0.50, NOT 0.67 — THE FENCE IS CO-PLANAR WITH THE CITGO SIGN.
+            // Client, on his own phone: "the CITGO sign, you got it cut with the
+            // fence and it's moving. It shouldn't be cut at all. You got the line
+            // between that messed up and then the edge of the fence is messed up."
+            //
+            // Both halves of that are one fault. `fence` (x324..1183) OVERLAPS
+            // `citgo` (x181..830) and draws after it, so at 0.67 — +11px at the
+            // far end of the stage — its left edge crawled across the sign, and
+            // the occlusion boundary between them moved while the player ran.
+            // Meanwhile the base plate keeps a full copy of the fence, so the
+            // card's own boards printed 11px off their originals: vertical boards
+            // shifted against themselves, which is the "edge of the fence is
+            // messed up".
+            //
+            // The depth was simply wrong to begin with. The sign is MOUNTED ON
+            // this fence — they are the same distance from the camera, and giving
+            // them different rates said otherwise. At BASE_DEPTH the two can
+            // never separate, the occlusion his art painted is the occlusion the
+            // player sees, and the fence stops doubling against itself.
+            //
+            // EAV keeps a full depth range without it: clouds 0.02, skyline 0.07,
+            // cars 0.21, then verge 0.75, pole 0.76 and tree 0.81 in the near
+            // field. What is lost is parallax on a flat plane that should not
+            // have had any.
+            key: 'fence', img: eavDayFence, depth: 0.50, span: [0.212, 0.772] },
           { key: 'verge', img: eavDayVerge, depth: 0.75, span: [0.000, 0.837] },
           {
           key: 'tree', img: eavDayTree, depth: 0.81, span: [0.000, 0.298],
