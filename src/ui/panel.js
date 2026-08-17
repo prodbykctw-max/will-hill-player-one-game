@@ -36,6 +36,16 @@ import leaderboardCard from '../assets/backgrounds/leaderboard-card.webp';
 // the Pages subpath.
 import cabinetPlate from '../assets/ui/cabinet.webp';
 import panelOptionsPlate from '../assets/ui/panel-options.webp';
+import panelSettingsPlate from '../assets/ui/panel-settings.webp';
+import pillOn from '../assets/ui/pill-on.webp';
+import pillOff from '../assets/ui/pill-off.webp';
+import todAtl from '../assets/ui/tod-atl.webp';
+import todDay from '../assets/ui/tod-day.webp';
+import todNight from '../assets/ui/tod-night.webp';
+import todLocal from '../assets/ui/tod-local.webp';
+
+// His four TIME OF DAY boxes, keyed by the <select> value they belong to.
+const TOD_PLATE = { atl: todAtl, day: todDay, night: todNight, local: todLocal };
 // HOW TO PLAY, in real frames from the running game — see
 // tools/shoot_howto.mjs. Imported rather than written into index.html for the
 // same reason the card above is: the bundler content-hashes these, and a
@@ -130,6 +140,9 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
   if (panelCard) {
     panelCard.style.setProperty('--cabinet-plate', `url(${cabinetPlate})`);
     panelCard.style.setProperty('--panel-options', `url(${panelOptionsPlate})`);
+    panelCard.style.setProperty('--panel-settings', `url(${panelSettingsPlate})`);
+    panelCard.style.setProperty('--pill-on', `url(${pillOn})`);
+    panelCard.style.setProperty('--pill-off', `url(${pillOff})`);
   }
   const views = { menu: $('pvMenu'), board: $('pvBoard'), how: $('pvHow'),
     form: $('pvForm'), settings: $('pvSettings') };
@@ -172,9 +185,10 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
     // the plain panel too: a four-page swipe pager and a three-field form
     // inside a cabinet opening either scroll within a scroller or shrink the
     // pictures to nothing.
-    const inCabinet = view === 'menu';
+    const inCabinet = view === 'menu' || view === 'settings';
     $('panelCard').classList.toggle('cabinet', inCabinet);
     $('panelCard').classList.toggle('cabinet-menu', view === 'menu');
+    $('panelCard').classList.toggle('cabinet-settings', view === 'settings');
     // The cabinet is full-bleed, so the SCROLLER has to stop padding and
     // start clipping. On the element rather than the card, because it is the
     // container's own padding and overflow that leave the gap.
@@ -452,6 +466,18 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
         + 'right now. Night streets after 7pm Eastern, wherever you are.';
     }
     $('todNote').textContent = note;
+    paintTod(tod);
+  }
+
+  // Swap the <select>'s background to HIS box for the chosen value. Set on
+  // the card rather than the select so it lives with the other plate vars,
+  // and so a value with no artwork simply shows nothing rather than the
+  // previous value's words.
+  function paintTod(v) {
+    const card = $('panelCard');
+    if (!card) return;
+    const url = TOD_PLATE[v];
+    card.style.setProperty('--tod-value', url ? `url(${url})` : 'none');
   }
 
   // ── wiring ────────────────────────────────────────────────────────────
@@ -561,6 +587,9 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
     if (e.target.checked) haptics?.tap();
   });
   $('sTod').addEventListener('change', (e) => {
+    // Repaint first, so the box reads as the new value while the plates for
+    // the other half of the day are still decoding.
+    paintTod(e.target.value);
     try { localStorage.setItem('wh_tod', e.target.value); } catch (_e) {}
     // The handler returns FALSE only mid-run, where switching the world under
     // a live run would be worse than waiting. Otherwise it returns a promise

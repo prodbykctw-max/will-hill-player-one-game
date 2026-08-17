@@ -428,6 +428,68 @@
       background-image: var(--panel-options);
       aspect-ratio: 546 / 1002;
     }
+    #panelCard.cabinet-settings #panelScreen {
+      background-image: var(--panel-settings);
+      aspect-ratio: 499 / 1148;
+    }
+    /* ── SETTINGS: HIS PIECES IN HIS SOCKETS ───────────────────────────
+       Every rect is a fraction of panel-settings, printed by
+       tools/cut_cabinet.py off his own empty render. The three switches keep
+       the outlines HE drew in that render — the ON/OFF sprites are resized to
+       exactly the socket, so his outline and the sprite's coincide. The TIME
+       OF DAY socket is blanked in the plate instead, because his value boxes
+       are drawn at aspect 5.3 against a socket of 3.5 and stretching them to
+       fit would halve the lettering; the border you see there is the one he
+       drew on the box. */
+    #panelCard.cabinet #pvSettings:not([hidden]) { display: contents; }
+    #panelCard.cabinet #pvSettings .note,
+    #panelCard.cabinet #pvSettings label.row > span { display: none; }
+    /* ⚠️ THE SWITCHES ARE STILL REAL CHECKBOXES. Only their paint changes —
+       hiding the input and drawing on the label would cost the tap target,
+       the focus ring and the screen-reader role, and this is a control a
+       player has to be able to find with a thumb in a dark room. */
+    #panelCard.cabinet #pvSettings label.row {
+      position: absolute; margin: 0; display: block;
+    }
+    #panelCard.cabinet #pvSettings label.row input[type=checkbox] {
+      appearance: none; -webkit-appearance: none;
+      display: block; width: 100%; height: 100%; margin: 0;
+      background: var(--pill-off) center / 100% 100% no-repeat;
+      border: 0; cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    #panelCard.cabinet #pvSettings label.row input[type=checkbox]:checked {
+      background-image: var(--pill-on);
+    }
+    #panelCard.cabinet #pvSettings label.row input[type=checkbox]:disabled {
+      opacity: 0.4; cursor: default;
+    }
+    #panelCard.cabinet #pvSettings label.row:has(#sSound) {
+      left: 70.14%; top: 21.52%; width: 22.85%; height: 4.62%;
+    }
+    #panelCard.cabinet #pvSettings label.row:has(#sSfx) {
+      left: 70.14%; top: 31.01%; width: 22.85%; height: 4.62%;
+    }
+    #panelCard.cabinet #pvSettings label.row:has(#sHaptics) {
+      left: 70.14%; top: 40.51%; width: 22.85%; height: 4.70%;
+    }
+    /* The select sits over the blanked socket, showing his value box as its
+       own background. `color: transparent` keeps the option text out of the
+       way — the words are in the picture — while the native <select> keeps
+       the OS picker, the keyboard access and the accessible name. */
+    #panelCard.cabinet #pvSettings label.row:has(#sTod) {
+      left: 49.70%; top: 51.13%; width: 43.89%; height: 3.57%;
+    }
+    #panelCard.cabinet #sTod {
+      width: 100%; height: 100%; margin: 0; padding: 0;
+      background: var(--tod-value) center / 100% 100% no-repeat;
+      border: 0; border-radius: 0; color: transparent; font-size: 0;
+      appearance: none; -webkit-appearance: none;
+    }
+    #panelCard.cabinet #sTod option { color: #f2ead8; font-size: 15px; }
+    #panelCard.cabinet #btnBack {
+      left: 6.61%; top: 62.37%; width: 87.17%; height: 5.84%;
+    }
     /* The heading is PAINTED into the plate, so the DOM one would be a second
        copy of the same word sitting on top of his. */
     #panelCard.cabinet #panelTitle { display: none; }

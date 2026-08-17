@@ -66,7 +66,9 @@ Usage:
 """
 import os
 
+import numpy as np
 from PIL import Image, ImageDraw
+from scipy import ndimage
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = os.path.join(REPO_ROOT, 'assets', 'ui-concept')
@@ -97,12 +99,92 @@ RADIUS = 20
 # Image coordinates in settings.png. Blanked out of the settings plate and
 # filled at runtime by the client's own pieces. Sizes here ARE the sizes he
 # was given to draw to, so changing one means re-briefing him.
+# ⚠️ MEASURED ON settings-empty.png, WHICH IS ITS OWN PAINTING.
+# The client redrew the panel when he emptied it, so these are NOT the rects
+# of the original settings.png — the pill went 120x51 -> 114x53 and every row
+# moved. Re-measure after any new render rather than trusting these.
+SETTINGS_PANEL = (143, 235, 641, 1382)      # 499 x 1148
 SOCKETS = [
-    ('sound', 493, 493, 612, 543),      # MUSIC          120 x 51
-    ('sfx', 493, 593, 612, 642),        # SOUND EFFECTS  120 x 50
-    ('haptics', 493, 691, 612, 741),    # VIBRATION      120 x 51
-    ('tod', 394, 819, 612, 875),        # TIME OF DAY    219 x 57
+    ('sound', 493, 482, 606, 534),      # MUSIC          114 x 53
+    ('sfx', 493, 591, 606, 643),        # SOUND EFFECTS  114 x 53
+    ('haptics', 493, 700, 606, 753),    # VIBRATION      114 x 54
+    ('tod', 391, 810, 609, 872),        # TIME OF DAY    219 x 63
 ]
+PILL_SIZE = (114, 53)
+
+# ── WHERE EACH STATE PIECE IS CUT FROM ───────────────────────────────────
+# ⚠️ EVERY ONE OF THESE IS A SEPARATE ChatGPT RENDER AT ITS OWN SCALE, and
+# they do not register with each other. The all-off panel is 878x1791 with a
+# 509x1155 panel and a 144x55 pill; the empty panel is 852x1846 with a 499x1148
+# panel and a 114x53 socket; the value boxes are drawn 537x101 against a socket
+# of 219x63. Asking for registered variants of one painting is not something
+# the generator can do, so each piece is CROPPED from his art and RESIZED to
+# the socket. Resizing his pixels is not drawing over them.
+# ── RECONCILING THE SCALES ───────────────────────────────────────────────
+# ⚠️ NO TWO OF HIS RENDERS SHARE A SCALE, so nothing can be cut from one and
+# dropped into another as-is. Measured:
+#
+#   settings-empty.png     852x1846 canvas, panel 499x1148, pill socket 114x53
+#   settings.png (all on)  852x1846 canvas, panel 501x1147, pill        122x55
+#   settings-all-off.png   878x1791 canvas, panel 509x1155, pill        144x55
+#
+# The all-off panel is not even a uniform scale of the empty one — 499/509 =
+# 0.980 across but 1148/1155 = 0.994 down. Cutting a pill from each and
+# resizing it to the socket by hand (the first pass here) happens to work for
+# a pill, and quietly stops working the moment a piece is not a lozenge.
+#
+# So every source is ALIGNED first: its panel is located, and the whole image
+# is resampled so that panel lands exactly on the reference panel below. After
+# that, one set of coordinates — the reference socket rects — cuts correctly
+# from any of them, and a new render only needs its panel found.
+REFERENCE = 'settings-empty.png'
+# Piece -> (source file, rect in REFERENCE coordinates). The rects ARE the
+# sockets, so an aligned cut needs no resizing at all.
+SRC_PILL_ON = ('settings.png', 'sound')
+SRC_PILL_OFF = ('settings-all-off.png', 'sound')
+# The four values, top to bottom in his sheet, in the order the <select> lists
+# them. All 537x101.
+SRC_TOD = ('settings-tod-values.png', 239, 775, [
+    ('atl', 315, 415), ('day', 580, 680), ('night', 841, 942),
+    ('local', 1104, 1204),
+])
+
+
+def find_panel(im):
+    """Locate the amber-bordered panel in one of his cabinet renders.
+
+    Warm-over-dark rather than luminance: the housing is dark metal and the
+    screen is dark glass, so a brightness threshold returns the whole cabinet.
+    The panel is the largest warm-bordered region on the plate.
+    """
+    a = np.asarray(im.convert('RGB')).astype(int)
+    warm = ((a[..., 0] - a[..., 2]) > 18) & (a[..., 0] > 55)
+    filled = ndimage.binary_fill_holes(
+        ndimage.binary_closing(warm, np.ones((9, 9))))
+    lab, n = ndimage.label(filled)
+    if not n:
+        raise SystemExit('no panel found')
+    sizes = ndimage.sum(filled, lab, range(1, n + 1))
+    sl = ndimage.find_objects(lab)[int(np.argmax(sizes))]
+    return (sl[1].start, sl[0].start, sl[1].stop - 1, sl[0].stop - 1)
+
+
+def align(im, ref_panel, ref_size):
+    """Resample `im` so its panel lands exactly on `ref_panel`.
+
+    Returns a canvas of `ref_size` in which reference coordinates are valid,
+    so one set of socket rects cuts correctly from every render.
+    """
+    px0, py0, px1, py1 = find_panel(im)
+    rx0, ry0, rx1, ry1 = ref_panel
+    sx = (rx1 - rx0 + 1) / (px1 - px0 + 1)
+    sy = (ry1 - ry0 + 1) / (py1 - py0 + 1)
+    out = im.convert('RGBA').resize(
+        (max(1, round(im.width * sx)), max(1, round(im.height * sy))),
+        Image.LANCZOS)
+    canvas = Image.new('RGBA', ref_size, (0, 0, 0, 0))
+    canvas.paste(out, (round(rx0 - px0 * sx), round(ry0 - py0 * sy)))
+    return canvas, (sx, sy)
 
 
 def rounded_alpha(size, radius):
@@ -131,24 +213,91 @@ def main():
     ImageDraw.Draw(house).rectangle([hx0, hy0, hx1, hy1], fill=GLASS)
     report.append(save(house, 'cabinet.webp') + (f'{house.width}x{house.height}',))
 
-    # ── 2. each painted panel, cropped to its own rect ────────────────────
-    for which in ('options', 'settings'):
-        src = Image.open(os.path.join(SRC, f'{which}.png')).convert('RGBA')
-        x0, y0, x1, y1 = PANEL[which]
-        plate = src.crop((x0, y0, x1 + 1, y1 + 1))
+    # ── 2. the OPTIONS panel, cropped whole. It has no state, so every
+    #       pixel of it ships exactly as he painted it. ────────────────────
+    ox0, oy0, ox1, oy1 = PANEL['options']
+    op = Image.open(os.path.join(SRC, 'options.png')).convert('RGBA')
+    op = op.crop((ox0, oy0, ox1 + 1, oy1 + 1))
+    op.putalpha(rounded_alpha(op.size, RADIUS))
+    report.append(save(op, 'panel-options.webp') + (f'{op.width}x{op.height}',))
 
-        if which == 'settings':
-            d = ImageDraw.Draw(plate)
-            for _name, sx0, sy0, sx1, sy1 in SOCKETS:
-                d.rectangle([sx0 - x0, sy0 - y0, sx1 - x0, sy1 - y0],
-                            fill=PANEL_FILL + (255,))
+    # ── 3. the SETTINGS panel, from his EMPTY render ──────────────────────
+    # The three pill sockets keep the empty outlines he drew — the ON/OFF
+    # sprites are resized to exactly those rects, so his outline and theirs
+    # coincide. The TIME OF DAY socket is blanked instead: his value boxes are
+    # 537x101 (aspect 5.3) against a 219x63 socket (aspect 3.5), so they cannot
+    # both be shown. Scaling a box to fill the socket would squash the
+    # lettering by half, so the box goes in at its own aspect and HIS border on
+    # it is the one that shows.
+    sx0, sy0, sx1, sy1 = SETTINGS_PANEL
+    sp = Image.open(os.path.join(SRC, 'settings-empty.png')).convert('RGBA')
+    sp = sp.crop((sx0, sy0, sx1 + 1, sy1 + 1))
+    d = ImageDraw.Draw(sp)
+    for name, ax0, ay0, ax1, ay1 in SOCKETS:
+        if name == 'tod':
+            d.rectangle([ax0 - sx0, ay0 - sy0, ax1 - sx0, ay1 - sy0],
+                        fill=PANEL_FILL + (255,))
+    sp.putalpha(rounded_alpha(sp.size, RADIUS))
+    report.append(save(sp, 'panel-settings.webp') + (f'{sp.width}x{sp.height}',))
 
-        plate.putalpha(rounded_alpha(plate.size, RADIUS))
-        report.append(save(plate, f'panel-{which}.webp')
-                      + (f'{plate.width}x{plate.height}',))
+    # ── 4. the state pieces, cut from ALIGNED sources ─────────────────────
+    ref = Image.open(os.path.join(SRC, REFERENCE))
+    ref_size = ref.size
+    socket = {n: (a, b, c, d) for n, a, b, c, d in SOCKETS}
+    for out_name, (fn, sock) in (('pill-on', SRC_PILL_ON),
+                                 ('pill-off', SRC_PILL_OFF)):
+        raw = Image.open(os.path.join(SRC, fn))
+        fitted, (sx, sy) = align(raw, SETTINGS_PANEL, ref_size)
+        cx0, cy0, cx1, cy1 = socket[sock]
+        # ⚠️ ALIGNING THE PANEL IS NOT ENOUGH. He drew the pill at a different
+        # size RELATIVE to the panel in each render — after alignment the
+        # all-off pill is still 141 wide against a 114 socket — so cutting at
+        # the socket rect slices his knob off. Find the pill's own bounds in a
+        # window around the socket, then fit those to the socket. Measured
+        # before this: the OFF knob was clipped flat on its left edge.
+        pw, ph = cx1 - cx0 + 1, cy1 - cy0 + 1
+        mx, my = pw // 2, ph // 2
+        win = fitted.crop((cx0 - mx, cy0 - my, cx1 + mx + 1, cy1 + my + 1))
+        wa = np.asarray(win.convert('RGB')).astype(int)
+        lum = 0.299 * wa[..., 0] + 0.587 * wa[..., 1] + 0.114 * wa[..., 2]
+        ink = (lum > np.percentile(lum, 5) + 12) & (np.asarray(win)[..., 3] > 0)
+        # The bbox of ALL ink in the window is wrong — the window is wide
+        # enough to touch the row above and below, and that measured the pill
+        # at 175x105 inside a 228x106 window. Take the one connected shape
+        # that covers the socket's centre instead.
+        # Close hard enough to join the pill's outline, its knob and its
+        # lettering into ONE shape — they are separate blobs otherwise, and
+        # the socket's own centre lands in the gap between knob and word, so
+        # "the shape under the middle" finds nothing at all.
+        ink = ndimage.binary_closing(ink, np.ones((13, 13)))
+        lab_p, n_p = ndimage.label(ink)
+        if not n_p:
+            raise SystemExit(f'{out_name}: nothing found near the socket')
+        inside = np.zeros_like(ink)
+        inside[my:my + ph, mx:mx + pw] = True
+        overlap = ndimage.sum(inside, lab_p, range(1, n_p + 1))
+        here = int(np.argmax(overlap)) + 1
+        ys, xs = np.nonzero(lab_p == here)
+        piece = win.crop((xs.min(), ys.min(), xs.max() + 1, ys.max() + 1))
+        grew = (piece.width, piece.height)
+        piece = piece.resize((pw, ph), Image.LANCZOS)
+        report.append(save(piece, f'{out_name}.webp')
+                      + (f'{piece.width}x{piece.height}  aligned '
+                         f'{sx:.3f}/{sy:.3f}, pill {grew[0]}x{grew[1]}',))
+
+    fn, tx0, tx1, rows = SRC_TOD
+    tod_src = Image.open(os.path.join(SRC, fn)).convert('RGBA')
+    _n, _sx0, _sy0, _sx1, _sy1 = [s for s in SOCKETS if s[0] == 'tod'][0]
+    tod_w = _sx1 - _sx0 + 1
+    for key, ty0, ty1 in rows:
+        box = tod_src.crop((tx0, ty0, tx1 + 1, ty1 + 1))
+        h = round(box.height * tod_w / box.width)
+        box = box.resize((tod_w, h), Image.LANCZOS)
+        report.append(save(box, f'tod-{key}.webp')
+                      + (f'{box.width}x{box.height}  width-fit',))
 
     for path, kb, dims in report:
-        print(f'{os.path.basename(path):24s} {dims:>10s}  {kb:6.1f} KB')
+        print(f'{os.path.basename(path):24s} {dims:<30s} {kb:6.1f} KB')
 
     # ── the numbers index.html needs ──────────────────────────────────────
     W, H = house.width, house.height
