@@ -811,7 +811,7 @@ export function createRenderer(ctx, canvas) {
   //   4. A RED WARNING GLOW licking the rim, because at night on a wet
   //      street that is what a barricade lamp does, and it separates the
   //      hole from every other dark thing in the frame.
-  function drawPitMouths(map, camera, isSolidAt, genC) {
+  function drawPitMouths(map, camera, isSolidAt, genC, under) {
     const c0 = Math.max(0, Math.floor(camera.x / T) - 2);
     // Clamp to the generation frontier. A column beyond it has no tiles
     // simply because it does not exist yet, and treating that as a hole
@@ -823,12 +823,12 @@ export function createRenderer(ctx, canvas) {
       if (isSolidAt(c, FLOOR_R)) { c++; continue; }
       let end = c;
       while (end + 1 <= c1 && !isSolidAt(end + 1, FLOOR_R)) end++;
-      drawOnePitMouth(c, end);
+      drawOnePitMouth(c, end, under);
       c = end + 1;
     }
   }
 
-  function drawOnePitMouth(cL, cR) {
+  function drawOnePitMouth(cL, cR, under) {
     const x0 = cL * T;
     const x1 = (cR + 1) * T;
     const y = FLOOR_R * T;
@@ -837,8 +837,40 @@ export function createRenderer(ctx, canvas) {
 
     ctx.save();
 
+    // ── 0. THE SECTION, CARRIED UP INTO THE SLAB BAND ────────────────────
+    //
+    // ⚠️ WITHOUT THIS THE BOTTOM OF EVERY HOLE IS SKY, and in daylight it is
+    // vivid. The undercroft is drawn from groundY + slabPx DOWNWARD, so the
+    // thickness of the road itself is a band nothing behind the world covers.
+    // On solid ground drawTiles fills it with paving. Over a hole nothing did,
+    // and the only thing left behind the mouth was the backdrop — which down
+    // there is the sky gradient. The throat below eases to 0.20 alpha by the
+    // bottom of the slab precisely so the section reads through it, and there
+    // was no section up here to read: measured on all four stages at midday,
+    // the inside of a hole came out rgb(30,70,122), as blue as the sky above
+    // it (tools/harness/pitsky.mjs, which reports it as blueness rather than
+    // brightness because a hole is allowed to be dark and is not allowed to be
+    // blue).
+    //
+    // The honest fix is not more black — it is the thing that is actually
+    // there. A hole in a road is a hole through the road's own layers, so the
+    // mouth is backed with the section's colours in the order you would hit
+    // them digging: wearing course, aggregate base, compacted fill, clay. Same
+    // palette the undercroft uses below the slab, so the two join instead of
+    // meeting at a line, and OPAQUE, so no gradient's leftover alpha can let
+    // the sky back in.
+    if (under) {
+      const sec = ctx.createLinearGradient(0, y - 2, 0, y + slab);
+      sec.addColorStop(0, under.asphalt);
+      sec.addColorStop(0.20, under.base);
+      sec.addColorStop(0.58, under.fill);
+      sec.addColorStop(1, under.mid);
+      ctx.fillStyle = sec;
+      ctx.fillRect(x0, y - 2, w, slab + 2);
+    }
+
     // 3. THE THROAT. Opaque black at the top of the drop, easing out by the
-    // bottom of the drawn slab so the undercroft still reads below it.
+    // bottom of the drawn slab so the section behind it reads below.
     const th_ = ctx.createLinearGradient(0, y - 2, 0, y + slab);
     th_.addColorStop(0, 'rgba(0,0,0,0.97)');
     th_.addColorStop(0.45, 'rgba(0,0,0,0.86)');

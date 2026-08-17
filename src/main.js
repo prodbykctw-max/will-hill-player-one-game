@@ -319,6 +319,36 @@ if (import.meta.env.DEV) {
   // point being that nothing restarts and nothing is thrown away.
   Object.defineProperty(window, '__tod', { get: () => (STAGES[0] ? STAGES[0].tod : null) });
   window.__panel = panel;
+  // WHERE THE HOLES ARE, IN SCREEN SPACE — the same question drawPitMouths
+  // answers, answered from the same numbers rather than re-derived. A harness
+  // that recomputes FLOOR_R * T * zoom for itself is grading its own
+  // arithmetic, and this project has paid for that mistake more than once.
+  // Returns one entry per run of missing floor currently on screen:
+  //   x, w     the mouth, in canvas px
+  //   top      the road surface — the top of the throat
+  //   slab     the thickness of the slab band below it, which is the band the
+  //            undercroft does NOT cover and where the backdrop shows through
+  window.__pits = () => {
+    const lv = state.level;
+    if (!lv || state.screen !== 'playing') return [];
+    const z = camera.zoom;
+    const top = camera.groundScreenY();
+    const slab = SLAB_R * T * z;
+    const c0 = Math.max(0, Math.floor(camera.x / T) - 1);
+    const c1 = Math.min(lv.genC - 1, Math.floor((camera.x + camera.vw) / T) + 1);
+    const out = [];
+    let c = c0;
+    while (c <= c1) {
+      if (isSolid(lv.map, c, FLOOR_R)) { c += 1; continue; }
+      let end = c;
+      while (end + 1 <= c1 && !isSolid(lv.map, end + 1, FLOOR_R)) end += 1;
+      const sx = (c * T - camera.x) * z;
+      const sw = (end + 1 - c) * T * z;
+      if (sx + sw > 0 && sx < camera.vw * z) out.push({ x: sx, w: sw, top, slab });
+      c = end + 1;
+    }
+    return out;
+  };
 }
 
 let images = null; // { player, enemy, eav, edgewood, l5p, underground }
@@ -1426,8 +1456,11 @@ function draw() {
     renderer.drawTiles(level.map, camera, (c, r) => isSolid(level.map, c, r), level.genC);
     // Straight after the tiles and before anything else: the holes have to be
     // drawn, not just left undrawn. See drawPitMouths in render/renderer.js.
+    // `stage.under` goes in so the mouth can be backed with the section's own
+    // strata: the slab band is the one band the undercroft does not cover, and
+    // without a backing the hole showed the sky gradient through it.
     renderer.drawPitMouths(level.map, camera,
-      (c, r) => isSolid(level.map, c, r), level.genC);
+      (c, r) => isSolid(level.map, c, r), level.genC, stage.under);
     // Light pools go down BEFORE the entities, so characters stand in the
     // light rather than having it painted over them.
     renderer.lighting.drawGroundPools(camera, stage);
