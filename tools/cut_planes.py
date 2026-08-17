@@ -581,224 +581,110 @@ PLANES = {
     # Deepest plate of the four and the best multiplane candidate: it is built
     # in real perspective, with a sky wedge top-right, towers behind, the arch
     # in the middle distance and two columns almost at the kerb. Far -> near.
+    # ── FIVE POINTS AT NIGHT, ON THE CLIENT'S WIDE PLATE ────────────────
+    #
+    # ⚠️ RE-CUT FOR THE 1535x1024 PAIR, same as the day half. The fifteen-card
+    # night set that used to live here belonged to the 1122x1402 portrait
+    # painting. His day and night plates are the same composition relit and
+    # cross-correlate at dx 0, dy 2, so the two card lists are twins — but the
+    # masks are cut per plate, because at night SAM finds different edges (the
+    # office block is dark and its lit windows are the only thing with a
+    # boundary) and a mask 10px out silently loses a card.
+    #
+    # NO DRIFTING CLOUDS HERE, deliberately. The weather card is a daytime
+    # thing: the night sky on this plate is near-black with stars, there is
+    # nothing to drift that would read, and the client's cloud notes were all
+    # about the day plates.
     'underground': [
-        # SAM traced all of these — see tools/sam_segment.py and the numbered
-        # proposal sheet in tools/captures/sam/. A dense pass returns 199
-        # usable masks on this plate: every lit window, every letter of
-        # UNDERGROUND, every kerb tile. tools/sam_group.py folds them into the
-        # cards below by region, and the full set stays on disk for the
-        # lighting pass, where per-window glow is exactly what it is for.
-        #
-        # The arch is the one exception and keeps its hand-traced polygon:
-        # SAM finds the dome's ribs and the letters but not the dark marquee
-        # body behind them, so its mask comes back 90138px against the
-        # polygon's 159206 — the card would have a hole where the sign is.
-        {
-            # Cloud bank over the towers — the farthest thing that is not sky.
-            'name': 'clouds',
-            'mask': 'clouds',
-            'min_px': 200,
-            'feather': 1.6,   # cloud edges are soft in the art; keep them soft
-        },
-        {
-            # The far spire with the red aircraft beacon.
-            'name': 'spire',
-            'mask': 'spire',
-            'min_px': 40,
-            'feather': 0.7,
-        },
-        {
-            # Downtown towers filling the right of frame.
-            'name': 'towers',
-            'mask': 'towers',
-            'holes': False,   # the gaps between towers are real sky
-            'min_px': 80,
-            'feather': 0.7,
-        },
-        {
-            # The buildings standing behind and above the arch.
-            'name': 'backdrop',
-            'mask': 'backdrop',
-            'min_px': 200,
-            'feather': 0.7,
-        },
-        {
-            # The office block down the left with all its lit windows. Cut by
-            # ROI this came back a solid rectangle and had to be abandoned;
-            # SAM traces the facade and returns 63 separate masks for it.
-            'name': 'leftblock',
-            'mask': 'leftblock',
-            'min_px': 120,
-            'feather': 0.7,
-        },
-        {
-            # The mid-distance buildings framed inside the arch.
-            'name': 'midbuild',
-            'mask': 'midbuild',
-            'min_px': 120,
-            'feather': 0.7,
-        },
-        {
-            # THE WHEEL — the dome above the sign.
-            #
-            # Its top edge is TRACED, not drawn: for each column the topmost
-            # run of lit masonry was detected and those points are the polygon
-            # below, offset 5px outward so the ROI stays a fence and the art
-            # keeps deciding the edge. It came back symmetric about x=590 to
-            # within a pixel and flat-capped between x=562 and x=626, which is
-            # the check that it followed the building and not noise.
-            #
-            # It is a WHEEL — ribs with real gaps you see through. Cut with the
-            # default hole-fill it came back a filled semicircle, so `holes` is
-            # off and `keep` names the material the ribs are: sampled across it
-            # at y=250 the ribs read luminance 71-160 and the gaps 1-30.
-            'name': 'dome',
-            'roi': [[
-                (338, 335), (354, 303), (370, 273), (386, 259), (402, 236),
-                (418, 227), (434, 204), (450, 195), (466, 186), (482, 182),
-                (498, 172), (514, 167), (530, 167), (546, 158), (562, 154),
-                (578, 154), (594, 154), (610, 154), (626, 154), (642, 158),
-                (658, 163), (674, 168), (690, 172), (706, 181), (722, 191),
-                (738, 200), (754, 209), (770, 227), (786, 241), (802, 264),
-                (818, 274), (826, 283), (846, 320), (860, 372), (290, 372),
-                (310, 340),
-            ]],
-            'keep': ['stone'],
-            'holes': False,
-            'close': 3,
-            'min_px': 120,
-            'feather': 0.7,
-        },
-        {
-            # THE MARQUEE — the lit drum the UNDERGROUND letters sit on.
-            #
-            # A separate card because it is a separate piece of structure, and
-            # because it is the lit one: the letters are not floating in space,
-            # they are mounted on a curved fascia with a bulb rail above the
-            # soffit and a second bulb rail below it. Read off the art at 1:1,
-            # the fascia top runs y=358 at centre to y=385 at the ends, the
-            # upper bulb rail sits y 445-490, and the lower one y 545-580.
-            #
-            # It carries the practical light for the whole arch, so giving it
-            # its own card is what lets that glow travel with the bulbs rather
-            # than with the dome above them.
-            'name': 'marquee',
-            'roi': [
-                [
-                    (288, 372), (340, 372), (400, 364), (500, 359), (590, 357),
-                    (700, 361), (800, 369), (884, 380),
-                    (884, 556), (800, 574), (700, 583), (590, 587), (500, 583),
-                    (400, 575), (330, 562), (288, 548),
-                ],
-                # Wing rails either side, over the office block and the towers.
-                # No sky anywhere near them, so `keep` names the stone.
-                [(148, 405), (310, 405), (310, 552), (148, 552)],
-                [(852, 372), (1014, 372), (1014, 536), (852, 536)],
-            ],
-            'keep': ['stone'],
-            'keep_roi': [
-                [(148, 405), (310, 405), (310, 552), (148, 552)],
-                [(852, 372), (1014, 372), (1014, 536), (852, 536)],
-            ],
-            'close': 2,
-            'min_px': 120,
-            'feather': 0.7,
-        },
-        {
-            # LOANS 555-0132 board on the left storefront.
-            'name': 'loans',
-            'mask': 'loans',
-            'min_px': 60,
-            'feather': 0.7,
-        },
-        {
-            # The Coca-Cola disc.
-            'name': 'coke',
-            'mask': 'coke',
-            'min_px': 60,
-            'feather': 0.7,
-        },
-        {
-            # WAFFLE HOUSE frontage — neon and the white box above it.
-            'name': 'waffle',
-            'mask': 'waffle',
-            'min_px': 60,
-            'feather': 0.7,
-        },
-        {
-            # Midtown/Westside — East Point/Airport direction sign.
-            'name': 'dirsign',
-            'mask': 'dirsign',
-            'min_px': 80,
-            'feather': 0.7,
-        },
-        {
-            # Both pedestrian signals on their posts.
-            'name': 'ped',
-            'mask': 'ped',
-            'min_px': 40,
-            'feather': 0.7,
-        },
-        {
-            # The wet street at the very bottom of the crop — the nearest
-            # ground before the game draws its own.
-            'name': 'street',
-            'mask': 'street',
-            'min_px': 200,
-            'feather': 2.4,
-        },
-        {
-            # The two turquoise columns — nearest things in the plate and the
-            # ones that should travel fastest. A colour keep on the teal got
-            # only the lit face and left them ragged; SAM returns each column
-            # whole, capitals, collars, taper and all.
-            'name': 'columns',
-            'mask': 'columns',
-            'min_px': 150,
-            'feather': 0.7,
-        },
-    ],
-    # ── Little Five Points ───────────────────────────────────────────────
-    # A storefront row seen at a shallow angle, so the depth here is lateral:
-    # the far buildings and the lamp mast at one end, the recessed bays and
-    # the kerb at the other. All SAM-traced. The CRIMINAL RECORDS sign is the
-    # landmark and it nearly got thrown away — at 16% of the plate and sitting
-    # entirely in the top half it tripped the sky guard, which now identifies
-    # sky by shape (touches the top edge, spans 90% of the width) rather than
-    # by size and position.
-    # ── DAYTIME FIVE POINTS ─────────────────────────────────────────────
-    # Every item is a frozen SAM mask (tools/sam_masks/underground-day/),
-    # grouped by tools/sam_group.py and checked against its --map render
-    # before any of it was wired. Far -> near; the depth each card gets is set
-    # in src/world/stages.js, not here.
-    'underground-day': [
-        {'name': 'clouds',    'mask': 'clouds',    'min_px': 120, 'feather': 0.8},
-        {'name': 'spire',     'mask': 'spire',     'min_px': 120, 'feather': 0.7},
-        {'name': 'towers',    'mask': 'towers',    'min_px': 150, 'feather': 0.7},
+        {'name': 'towers',    'mask': 'towers',    'min_px': 80,  'feather': 0.7,
+         'holes': False},
         {'name': 'backdrop',  'mask': 'backdrop',  'min_px': 150, 'feather': 0.7},
-        {'name': 'leftblock', 'mask': 'leftblock', 'min_px': 200, 'feather': 0.7},
-        {'name': 'midbuild',  'mask': 'midbuild',  'min_px': 200, 'feather': 0.7},
-        # The arch is the hero of this plate. `holes: False` because the stone
-        # wheel is a WHEEL — you see sky through the spokes — and filling it
-        # comes back a solid semicircle. Same trap the night cut hit.
+        # The office block down the left with all its lit windows. Cut by ROI
+        # this came back a solid rectangle and had to be abandoned; SAM traces
+        # the facade and returns it in pieces.
+        {'name': 'leftblock', 'mask': 'leftblock', 'min_px': 120, 'feather': 0.7},
+        {'name': 'park',      'mask': 'park',      'min_px': 60,  'feather': 0.6},
+        {'name': 'midbuild',  'mask': 'midbuild',  'min_px': 150, 'feather': 0.7},
+        {'name': 'peachtree', 'mask': 'peachtree', 'min_px': 150, 'feather': 0.7},
         {'name': 'arch',      'mask': 'arch',      'min_px': 150, 'feather': 0.7,
          'holes': False},
-        # UNDERGROUND, lifted off the drum it is painted on so the marquee
-        # glow can be bolted to the letters rather than the whole sign.
-        {'name': 'letters',   'mask': 'letters',   'min_px': 20,  'feather': 0.5,
-         'holes': False},
-        {'name': 'loans',     'mask': 'loans',     'min_px': 60,  'feather': 0.6},
-        {'name': 'checks',    'mask': 'checks',    'min_px': 60,  'feather': 0.6},
+        # ⚠️ NO `marquee` CARD, same reason as the day half's `letters`: the
+        # cut read "N ERGROU D". The bulbs' practical is bolted to `arch`.
         {'name': 'coke',      'mask': 'coke',      'min_px': 80,  'feather': 0.6},
         {'name': 'waffle',    'mask': 'waffle',    'min_px': 60,  'feather': 0.6},
         {'name': 'dirsign',   'mask': 'dirsign',   'min_px': 60,  'feather': 0.6},
-        {'name': 'ped',       'mask': 'ped',       'min_px': 40,  'feather': 0.6},
         {'name': 'trees',     'mask': 'trees',     'min_px': 120, 'feather': 0.8},
-        {'name': 'newsbox',   'mask': 'newsbox',   'min_px': 60,  'feather': 0.6},
-        {'name': 'poles',     'mask': 'poles',     'min_px': 40,  'feather': 0.5},
+        {'name': 'shelter',   'mask': 'shelter',   'min_px': 120, 'feather': 0.7},
+        {'name': 'furniture', 'mask': 'furniture', 'min_px': 50,  'feather': 0.6},
+        {'name': 'lamps',     'mask': 'lamps',     'min_px': 40,  'feather': 0.5},
+        {'name': 'columns',   'mask': 'columns',   'min_px': 150, 'feather': 0.7},
+    ],
+    # ── DAYTIME FIVE POINTS, ON THE CLIENT'S WIDE PLATE ─────────────────
+    #
+    # ⚠️ RE-CUT FROM SCRATCH FOR THE 1535x1024 PAIR. The old nineteen-card set
+    # was keyed to the 1122x1402 portrait painting and every card of it landed
+    # on the wrong building once the plate was replaced, which is why
+    # Underground shipped flat while the other three had depth. These masks come
+    # from a fresh SAM cascade on the new plate (407 usable masks), grouped by
+    # tools/sam_group.py and checked on its --map render before anything was
+    # cut. Far -> near; the depth each card gets is set in src/world/stages.js,
+    # not here.
+    #
+    # `clouds` and `skystruct` are NOT in this list — they come from
+    # tools/scrub_stage_clouds.py, which lifts the free-floating clouds off the
+    # base onto their own drifting card and writes the sky band's structure as
+    # the seal that stops a cloud being seen through a building.
+    'underground-day': [
+        # ── Far ──────────────────────────────────────────────────────────
+        # Downtown behind everything: the spire behind the right column, the
+        # tower group, the low blocks framed inside the arch, the right edge.
+        # `holes: False` — the gaps between towers are real sky.
+        {'name': 'towers',    'mask': 'towers',    'min_px': 150, 'feather': 0.7,
+         'holes': False},
+        # The tall beige office block the arch stands in front of. The single
+        # biggest thing the first grouping pass missed — one 152581px mask with
+        # no box wide enough to contain it, which left the whole centre of the
+        # picture on no card at all.
+        {'name': 'backdrop',  'mask': 'backdrop',  'min_px': 150, 'feather': 0.7},
+        # ── Mid ──────────────────────────────────────────────────────────
+        {'name': 'leftblock', 'mask': 'leftblock', 'min_px': 200, 'feather': 0.7},
+        # PARK / ALL DAY — the blade sign standing off the left block's corner.
+        {'name': 'park',      'mask': 'park',      'min_px': 60,  'feather': 0.6},
+        # The LOANS / CHECKS CASHED / awning frontage and the Waffle House
+        # building. Both signs are IN this card rather than beside it: they are
+        # painted flat on the facade with no gap behind them, so a separate
+        # depth buys no parallax and neither carries a practical.
+        {'name': 'midbuild',  'mask': 'midbuild',  'min_px': 200, 'feather': 0.7},
+        # The brick block down the right, PEACHTREE FURNITURE.
+        {'name': 'peachtree', 'mask': 'peachtree', 'min_px': 200, 'feather': 0.7},
+        # ── The hero ─────────────────────────────────────────────────────
+        # `holes: False` because the stone wheel IS a wheel — you see sky
+        # through the spokes — and filling it comes back a solid semicircle.
+        # Same trap the old night cut hit.
+        {'name': 'arch',      'mask': 'arch',      'min_px': 150, 'feather': 0.7,
+         'holes': False},
+        # ⚠️ NO `letters` CARD — see the note in tools/sam_group.py. Cut as its
+        # own card the word came back as six of eleven glyphs, and the day glow
+        # is bolted to `arch` instead.
+        # ── Signs that stand in front of things ──────────────────────────
+        {'name': 'coke',      'mask': 'coke',      'min_px': 80,  'feather': 0.6},
+        {'name': 'waffle',    'mask': 'waffle',    'min_px': 60,  'feather': 0.6},
+        {'name': 'dirsign',   'mask': 'dirsign',   'min_px': 60,  'feather': 0.6},
+        # ── Near ─────────────────────────────────────────────────────────
+        {'name': 'trees',     'mask': 'trees',     'min_px': 120, 'feather': 0.8},
+        {'name': 'shelter',   'mask': 'shelter',   'min_px': 120, 'feather': 0.7},
+        # News boxes, bin, mail box, hydrant and the parked cars — everything
+        # standing on the plaza at the same distance, on one card.
+        {'name': 'furniture', 'mask': 'furniture', 'min_px': 50,  'feather': 0.6},
+        # Lamp standards and traffic signals. Thin verticals; keep the feather
+        # tight or a 4px post dissolves.
+        {'name': 'lamps',     'mask': 'lamps',     'min_px': 40,  'feather': 0.5},
         # Nearest: the two cast-iron columns, almost at the kerb.
         {'name': 'columns',   'mask': 'columns',   'min_px': 150, 'feather': 0.7},
-        {'name': 'street',    'mask': 'street',    'min_px': 200, 'feather': 0.8},
+        # ⚠️ NO `street` CARD. The plaza is a ground strip: no landmark inside
+        # it, but a hard edge along the top with the columns planted on it. The
+        # one time a strip got its own card the pavement walked 380px out from
+        # under the fence standing in it. The plaza is the base plate.
     ],
     'l5p': [
         {

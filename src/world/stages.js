@@ -167,14 +167,53 @@ import l5pPoster from '../assets/backgrounds/l5p-poster.webp';
 import l5pKerb from '../assets/backgrounds/l5p-kerb.webp';
 import l5pPole from '../assets/backgrounds/l5p-pole.webp';
 import bgUnderground from '../assets/backgrounds/underground-base.webp';
-// DAYTIME Five Points. Client-supplied, same 1122x1402 frame as the night
-// plate but a different composition — the arch sits higher and the columns
-// are narrower — so the night plate's fifteen multiplane cards do NOT line up
-// with it and are not used while this is the base. Its own cut is in
-// progress; see assets/refs/underground-day.webp and tools/cut_planes.py.
+// ── FIVE POINTS, CUT AT LAST ─────────────────────────────────────────────
+// The client's wide 1535x1024 pair replaced a 1122x1402 portrait painting, and
+// every one of the old thirty-four cards was keyed to coordinates in a picture
+// that no longer exists — so Underground shipped FLAT while the other three
+// stages had depth. This is the re-cut: a fresh SAM cascade per plate (407
+// usable masks in daylight, 326 at night), grouped by region in
+// tools/sam_group.py, checked on its --map render before anything was cut, and
+// cut by tools/cut_planes.py. Fifteen cards a side, plus the day's drifting
+// clouds and its sky seal.
+//
+// Day and night are the same composition relit and cross-correlate at dx 0,
+// dy 2 — but the two sets are cut PER PLATE, because at night SAM finds
+// different edges (the left office block is dark and its lit windows are the
+// only thing with a boundary) and a mask ten pixels out silently loses a card.
+import ugTowers from '../assets/backgrounds/underground-towers.webp';
+import ugBackdrop from '../assets/backgrounds/underground-backdrop.webp';
+import ugLeftblock from '../assets/backgrounds/underground-leftblock.webp';
+import ugPark from '../assets/backgrounds/underground-park.webp';
+import ugMidbuild from '../assets/backgrounds/underground-midbuild.webp';
+import ugPeachtree from '../assets/backgrounds/underground-peachtree.webp';
+import ugArch from '../assets/backgrounds/underground-arch.webp';
+import ugCoke from '../assets/backgrounds/underground-coke.webp';
+import ugWaffle from '../assets/backgrounds/underground-waffle.webp';
+import ugDirsign from '../assets/backgrounds/underground-dirsign.webp';
+import ugTrees from '../assets/backgrounds/underground-trees.webp';
+import ugShelter from '../assets/backgrounds/underground-shelter.webp';
+import ugFurniture from '../assets/backgrounds/underground-furniture.webp';
+import ugLamps from '../assets/backgrounds/underground-lamps.webp';
+import ugColumns from '../assets/backgrounds/underground-columns.webp';
 import bgUndergroundDayBase from '../assets/backgrounds/underground-day-base.webp';
-// The DAY set, cut from the day plate by tools/cut_planes.py against SAM
-// masks grouped in tools/sam_groups/underground-day.json.
+import ugdClouds from '../assets/backgrounds/underground-day-clouds.webp';
+import ugdSkystruct from '../assets/backgrounds/underground-day-skystruct.webp';
+import ugdTowers from '../assets/backgrounds/underground-day-towers.webp';
+import ugdBackdrop from '../assets/backgrounds/underground-day-backdrop.webp';
+import ugdLeftblock from '../assets/backgrounds/underground-day-leftblock.webp';
+import ugdPark from '../assets/backgrounds/underground-day-park.webp';
+import ugdMidbuild from '../assets/backgrounds/underground-day-midbuild.webp';
+import ugdPeachtree from '../assets/backgrounds/underground-day-peachtree.webp';
+import ugdArch from '../assets/backgrounds/underground-day-arch.webp';
+import ugdCoke from '../assets/backgrounds/underground-day-coke.webp';
+import ugdWaffle from '../assets/backgrounds/underground-day-waffle.webp';
+import ugdDirsign from '../assets/backgrounds/underground-day-dirsign.webp';
+import ugdTrees from '../assets/backgrounds/underground-day-trees.webp';
+import ugdShelter from '../assets/backgrounds/underground-day-shelter.webp';
+import ugdFurniture from '../assets/backgrounds/underground-day-furniture.webp';
+import ugdLamps from '../assets/backgrounds/underground-day-lamps.webp';
+import ugdColumns from '../assets/backgrounds/underground-day-columns.webp';
 
 // ── `bg` — real-world backdrop metrics (see src/render/backdrop.js) ──
 // These neighbourhoods are real places Will Hill walks through, so the
@@ -611,29 +650,19 @@ const STAGE_DEFS = [
       // so the arch reads, and Will Hill is the size of a man next to it
       // rather than the size of a bollard. The day and night plates are the
       // same 1122x1402, so the fix applies to both.
-      // ⚠️ FLAT FOR NOW, AND DELIBERATELY — the multiplane comes back in a
-      // second pass. The client photographed three faults here: "cloud coming
-      // through building, double building", and "that should be the first seam
-      // of the bg where it repeats". All three were ONE cause, measured with
-      // tools/harness/seamsweep.mjs: the old plate was 1122x1402 — PORTRAIT,
-      // where every other stage's is landscape — so scaling it by its height
-      // to sit on the world's ground squeezed its drawn width to 478px against
-      // a 430px screen. The join was on screen in 82 of 94 frames (EAV: 0 of
-      // 80), and anything wider than 48px had two copies showing at once.
-      //
-      // The new plate is 1535x1024 and draws ~984px, so a second copy of the
-      // arch cannot fit on screen at all. Its ground line was measured at
-      // y 727-753 of 1024 — the yellow platform edge — hence groundFrac 0.71.
-      // Day and night are a matched pair: cross-correlating their edge maps
-      // puts them at dx 0, dy 2 on a 512-tall resample, so the tod swap does
-      // not jump.
-      //
-      // The 19 day and 15 night cards are NOT ported: they are keyed to
-      // coordinates in a painting that no longer exists, and every one of them
-      // would land on the wrong building. They are in git at 8bf5e7b along
-      // with tools/sam_segment.py and tools/cut_planes.py, which is how the
-      // re-cut gets done. Until then Underground is a flat plate that does not
-      // repeat, which the client chose over depth that does.
+      // THE PLATE. Client-supplied, 1535x1024 — it replaced a 1122x1402
+      // PORTRAIT painting, which was the single cause of three faults he
+      // photographed: "cloud coming through building, double building", and
+      // "that should be the first seam of the bg where it repeats". Measured
+      // with tools/harness/seamsweep.mjs, scaling the portrait plate by its
+      // height to sit on the world's ground squeezed its drawn width to 478px
+      // against a 430px screen, so the join was on screen in 82 of 94 frames
+      // (EAV: 0 of 80) and anything wider than 48px had two copies showing at
+      // once. This one draws ~984px, so a second copy of the arch cannot fit on
+      // screen at all. Ground line measured at y 727-753 of 1024 — the yellow
+      // platform edge — hence groundFrac 0.71. Day and night are a matched
+      // pair: cross-correlating their edge maps puts them at dx 0, dy 2 on a
+      // 512-tall resample, so the tod swap does not jump.
       meters: 8.6,
       groundFrac: 0.71,
       sky: ['#080818', '#06091e'],
@@ -641,24 +670,76 @@ const STAGE_DEFS = [
       glow: 'rgba(220,60,60,0.10)',
       rain: 0.55, // partly sheltered under the arch
       windBands: [{ top: 0.02, pivot: 0.26, amp: 2, freq: 1.1, xRanges: [[0.60, 0.70]] }],
-      // ── The multiplane set, far -> near ──────────────────────────────
+      // ── THE MULTIPLANE SET, far -> near ─────────────────────────────
       // Built in real perspective, so this plate has more genuine depth than
-      // any of the other three: sky wedge, towers behind, the arch in the
-      // middle distance, two columns almost at the kerb.
+      // any of the other three: downtown behind, the office block the arch
+      // stands in front of, the arch itself in the middle distance, and two
+      // cast-iron columns almost at the kerb.
       //
-      // The office block down the left and the buildings framed inside the
-      // arch are deliberately NOT cards — see tools/cut_planes.py. They abut
-      // other dark buildings with nothing to separate them, so cutting them
-      // gave back rectangles, and rectangles read as hard cuts. They are the
-      // matrix; the cards are what stands in front of it.
-      // THE NIGHT SET — fifteen cards. Spans are the cutter's own reported
-      // x-extents over the 1122px plate, not estimates.
+      // Spans are the cutter's own reported x-extents over the 1535px plate,
+      // divided by its width — not estimates. Depth is a far->near ordering in
+      // 0..1; the renderer turns it into a rate inside a deliberately TINY
+      // spread, so nothing migrates across the level.
+      //
+      // ⚠️ THE COLUMNS AND THE ARCH ARE 0.02 APART, AND THAT IS THE POINT.
+      // They are one structure: the columns hold the arch up. Placing the dome
+      // in the middle distance and the columns at the kerb — which is what
+      // their positions on screen suggest — shears the arch off its own legs a
+      // few hundred pixels into the stage. Things that hold each other up stay
+      // together.
+      //
+      // ⚠️ NO `street` CARD, on either half. The plaza is a ground strip: no
+      // landmark inside it, but a hard edge along the top with the columns
+      // planted on that edge. The one time a strip got its own rate the verge
+      // travelled 400px while the fence standing in it travelled 20 — 380px of
+      // shear on a 430px screen. The plaza is the base plate.
+      cards: [
+        { key: 'towers', img: ugTowers, depth: 0.07, span: [0.513, 0.999] },
+        { key: 'backdrop', img: ugBackdrop, depth: 0.12, span: [0.242, 0.589] },
+        { key: 'leftblock', img: ugLeftblock, depth: 0.18, span: [0.000, 0.242] },
+        // PARK / ALL DAY — a blade sign bolted to the left block's corner, so
+        // it sits with the block rather than at the depth its position in the
+        // draw order would suggest.
+        { key: 'park', img: ugPark, depth: 0.20, span: [0.050, 0.116] },
+        { key: 'peachtree', img: ugPeachtree, depth: 0.22, span: [0.826, 0.999] },
+        { key: 'midbuild', img: ugMidbuild, depth: 0.28, span: [0.180, 0.657] },
+        // The Waffle House frontage is ON the midbuild block; the Coca-Cola
+        // disc stands off it on a post.
+        { key: 'waffle', img: ugWaffle, depth: 0.33, span: [0.558, 0.596] },
+        { key: 'coke', img: ugCoke, depth: 0.38, span: [0.538, 0.593] },
+        {
+          key: 'trees', img: ugTrees, depth: 0.48, span: [0.000, 0.948],
+          // Street trees, pivoted at the bottom of each canopy so the trunks
+          // stay put. Three windows rather than one, or the whole line leans
+          // together like the single cutout it would otherwise be.
+          sway: [
+            { top: 0.30, pivot: 0.62, amp: 3.5, freq: 0.9, xRanges: [[0.000, 0.080]] },
+            { top: 0.30, pivot: 0.66, amp: 3, freq: 1.1, xRanges: [[0.630, 0.720]] },
+            { top: 0.28, pivot: 0.64, amp: 3, freq: 0.8, xRanges: [[0.730, 0.950]] },
+          ],
+        },
+        { key: 'dirsign', img: ugDirsign, depth: 0.56, span: [0.468, 0.527] },
+        { key: 'shelter', img: ugShelter, depth: 0.58, span: [0.000, 0.182] },
+        { key: 'arch', img: ugArch, depth: 0.68, span: [0.392, 0.592] },
+        { key: 'columns', img: ugColumns, depth: 0.70, span: [0.349, 0.633] },
+        // News boxes, bin, mail box, hydrant and the parked cars — everything
+        // standing on the plaza at one distance, on one card.
+        { key: 'furniture', img: ugFurniture, depth: 0.76, span: [0.189, 0.816] },
+        { key: 'lamps', img: ugLamps, depth: 0.78, span: [0.226, 0.888] },
+      ],
       // The arch marquee bulbs, the Coca-Cola disc and the Waffle House
       // frontage — the three things genuinely emitting in this plate.
       // `layer` bolts each glow to its card so it travels with the thing that
       // emits it instead of sliding off it.
+      // ⚠️ THE MARQUEE GLOW RIDES `arch`, NOT A LETTERS CARD. UNDERGROUND was
+      // cut as its own card so the bulbs could be bolted to the word — and the
+      // cut came back with six of eleven glyphs, reading "N ERGROU D". SAM
+      // finds some letters on this plate and not others, and the ones it misses
+      // are not recoverable by lowering a threshold already at the floor. The
+      // letters are painted flat on the drum with no gap behind them, so they
+      // were never a depth layer; the whole sign is the thing emitting.
       lights: [
-        { x: 0.50, y: 0.30, r: 0.26, rgb: '255,226,160', a: 0.24, flicker: 0.030, layer: 'marquee' },
+        { x: 0.50, y: 0.30, r: 0.26, rgb: '255,226,160', a: 0.24, flicker: 0.030, layer: 'arch' },
         { x: 0.72, y: 0.50, r: 0.24, rgb: '230,60,60', a: 0.20, layer: 'coke' },
         { x: 0.76, y: 0.62, r: 0.22, rgb: '255,196,90', a: 0.18, flicker: 0.014, layer: 'waffle' },
         { x: 0.06, y: 0.24, r: 0.28, rgb: '255,196,120', a: 0.12 },
@@ -685,21 +766,73 @@ const STAGE_DEFS = [
         // colour taken down 28% red / 14% green with blue held, which is how
         // a real sky deepens overhead. Wherever the plate's top edge lands on
         // whatever screen, the gradient meets it within a few levels.
-        sky: ['#2176f9', '#2e89f9'],
-        horizon: '#2e89f9',
+        // ⚠️ RE-MEASURED AFTER THE CLOUD SCRUB. Lifting the clouds off this
+        // plate repaints sky where they were, and the top-row median moved
+        // #2e89f9 -> #2386fa — 11 levels of red. Small, but it is a band across
+        // the top of the frame exactly where the gradient meets the plate, and
+        // re-measuring is the whole reason these are sampled rather than picked.
+        // Zenith is the same colour taken down 28% red / 14% green with blue
+        // held, which is how a real sky deepens overhead.
+        sky: ['#1973fa', '#2386fa'],
+        horizon: '#2386fa',
         glow: 'rgba(255,236,190,0.10)',
         rain: 0.0,
         windBands: [{ top: 0.02, pivot: 0.26, amp: 2, freq: 1.1, xRanges: [[0.60, 0.70]] }],
-        // NINETEEN cards, cut from the day plate's OWN SAM pass rather than
-        // reusing the night set. The compositions differ — the day arch sits
-        // higher and its columns are narrower — so the night cards never
-        // registered against this plate.
+        // FIFTEEN cards plus the weather, cut from the day plate's OWN SAM
+        // pass rather than reusing the night set — same reasoning as the night
+        // half above, and the depths are deliberately identical so the tod swap
+        // changes the paint and nothing else.
+        cards: [
+          // ⚠️ THE CLOUDS ARE PUFFS ON TRANSPARENCY, NOT A BAND OF SKY. Cut as
+          // a region of sky with clouds in it, a drifting card drags a slab of
+          // slightly-wrong blue across the real sky and its edges wipe over
+          // whatever they cross — both of which the client reported on sight.
+          // tools/scrub_stage_clouds.py lifts the free-floating blobs off the
+          // base and repaints sky behind them; eight lifted here, one left
+          // baked because its ring is 47% structure — it is the cloud behind
+          // the left block, and lifting a cloud a building is standing in front
+          // of is how you get a cloud in front of the building.
+          { key: 'clouds', img: ugdClouds, depth: 0.02, drift: -0.030, span: [0.220, 0.949] },
+          // ⚠️ THE SEAL, AND ITS TWO FIELDS DO TWO DIFFERENT JOBS. `depth: 0.5`
+          // is the BASE's own depth, which is what makes this register with the
+          // base's copy of the same pixels to the pixel, forever. Its POSITION
+          // IN THIS ARRAY — after `clouds` — is what makes it occlude the
+          // weather, because drawCards iterates the list in order and `depth`
+          // only sets the rate. Move the line and the fix moves with it: a
+          // cloud becomes visible through every building it passes behind,
+          // which is the longest-running bug on this project.
+          { key: 'skystruct', img: ugdSkystruct, depth: 0.5, span: [0.000, 1.000] },
+          { key: 'towers', img: ugdTowers, depth: 0.07, span: [0.511, 0.999] },
+          { key: 'backdrop', img: ugdBackdrop, depth: 0.12, span: [0.242, 0.539] },
+          { key: 'leftblock', img: ugdLeftblock, depth: 0.18, span: [0.000, 0.243] },
+          { key: 'park', img: ugdPark, depth: 0.20, span: [0.079, 0.117] },
+          { key: 'peachtree', img: ugdPeachtree, depth: 0.22, span: [0.827, 0.999] },
+          { key: 'midbuild', img: ugdMidbuild, depth: 0.28, span: [0.248, 0.657] },
+          { key: 'waffle', img: ugdWaffle, depth: 0.33, span: [0.564, 0.638] },
+          { key: 'coke', img: ugdCoke, depth: 0.38, span: [0.543, 0.597] },
+          {
+            key: 'trees', img: ugdTrees, depth: 0.48, span: [0.000, 0.947],
+            sway: [
+              { top: 0.30, pivot: 0.62, amp: 3.5, freq: 0.9, xRanges: [[0.000, 0.080]] },
+              { top: 0.30, pivot: 0.66, amp: 3, freq: 1.1, xRanges: [[0.630, 0.720]] },
+              { top: 0.28, pivot: 0.64, amp: 3, freq: 0.8, xRanges: [[0.730, 0.950]] },
+            ],
+          },
+          { key: 'dirsign', img: ugdDirsign, depth: 0.56, span: [0.477, 0.534] },
+          { key: 'shelter', img: ugdShelter, depth: 0.58, span: [0.000, 0.186] },
+          { key: 'arch', img: ugdArch, depth: 0.68, span: [0.387, 0.639] },
+          { key: 'columns', img: ugdColumns, depth: 0.70, span: [0.357, 0.635] },
+          { key: 'furniture', img: ugdFurniture, depth: 0.76, span: [0.154, 0.780] },
+          { key: 'lamps', img: ugdLamps, depth: 0.78, span: [0.225, 0.890] },
+        ],
         // Daylight. The marquee bulbs still read, faintly, but a Coca-Cola
         // disc and a Waffle House sign do not glow at midday, and painting
         // them as if they did is what makes a day scene look like a night
-        // scene with the brightness turned up.
+        // scene with the brightness turned up. Bolted to `arch` for the same
+        // reason as the night half — there is no letters card, and why not is
+        // written up there.
         lights: [
-          { x: 0.50, y: 0.55, r: 0.20, rgb: '255,236,190', a: 0.12, flicker: 0.030, layer: 'letters' },
+          { x: 0.50, y: 0.55, r: 0.20, rgb: '255,236,190', a: 0.12, flicker: 0.030, layer: 'arch' },
         ],
       },
       light: { pool: 'rgba(255,244,214,0.10)', shaft: 'rgba(255,246,220,0.04)', bloom: 'rgba(255,240,200,0.07)', key: '255,248,226', bounce: '150,170,200', shadowRgb: '30,36,52' },

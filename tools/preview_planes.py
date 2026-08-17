@@ -39,11 +39,31 @@ def load_depths(stage):
     had already gone 2 against 3 before anyone noticed. The renderer is the
     authority on depth; a verification tool that checks against its own
     private numbers verifies nothing.
+
+    ⚠️ AND IT HAS TO FIND THE DAY HALVES. There is no `id: 'eav-day'` in
+    stages.js — a daytime variant is a `day: { bg: { cards: [...] } }` block
+    inside its parent stage — so this looked up `id: '<stage>-day'`, threw
+    ValueError, and every day cut in this project went unchecked by the one
+    tool that exists to check it. Four plates' worth. The suffix is stripped,
+    the `day:` block is found inside the parent, and the card list is closed by
+    counting brackets instead of matching an indent, because the day block is
+    nested two levels deeper than the night one and a hardcoded '\\n      ],'
+    only ever finds the night list.
     """
     src = open(os.path.join(ROOT, 'src', 'world', 'stages.js')).read()
-    i = src.index(f"id: '{stage}'")
+    parent = stage[:-4] if stage.endswith('-day') else stage
+    i = src.index(f"id: '{parent}'")
+    if stage.endswith('-day'):
+        i = src.index('day: {', i)
     j = src.index('cards: [', i)
-    k = src.index('\n      ],', j)
+    k = j + len('cards: [')
+    depth = 1
+    while depth:
+        if src[k] == '[':
+            depth += 1
+        elif src[k] == ']':
+            depth -= 1
+        k += 1
     # ⚠️ THE BASE IS AT NEUTRAL DEPTH, 0.5 — NOT 0. The renderer draws the
     # plate at BASE_DEPTH so the doubling error splits between near and far
     # cards (backdrop.js). This file had it at 0.0 for a generation, which

@@ -30,6 +30,23 @@ vertically than horizontally), zero-mean grain matched to the plate's own sky
 noise so the patch doesn't sit flat inside pixel-art dither, and a coarse
 vertical blend where a row has sky on only one side.
 
+⚠️ RUN THIS AFTER cut_planes.py, NEVER BEFORE. Two orderings, both wrong in
+different ways, and getting it backwards on Underground cost a round trip:
+
+  * scrub then cut — cut_planes REWRITES `<stage>-base.webp` from the original
+    plate, so it silently puts every lifted cloud straight back into the base.
+    The clouds card is then a SECOND copy: one static cloud baked into the
+    plate and one drifting over it. Nothing catches this on its own — the
+    recompose check does not stack the clouds card (it is not in PLANES) and
+    cloudseal grades leaks onto buildings, not doubling.
+  * cut with no cards on disk — the seal below deliberately skips any pixel
+    another card already owns, because those cards draw after the weather
+    anyway. With no cards present it claims the whole sky band (133909 px on
+    this plate); with the fifteen real cards present it claims 297. Both are
+    right for their input and only the second is right for the game.
+
+So: cut the cards, then scrub. The seal has to be able to see them.
+
 Dry run writes previews + per-blob stats and touches nothing:
     python3 tools/scrub_stage_clouds.py eav-day
 Write into src/ (base, clouds card) and print the new span for stages.js:

@@ -38,7 +38,155 @@ OUT = os.path.join(ROOT, 'tools', 'sam_groups')
 # tools/captures/sam/<stage>_proposals.png for the numbered mask sheet these
 # were read against.
 REGIONS = {
+    # ══ FIVE POINTS, ON THE CLIENT'S WIDE PLATE ══════════════════════════
+    #
+    # ⚠️ THESE ARE MEASURED AGAINST 1535x727, AND EVERY OLDER UNDERGROUND BOX
+    # IN THIS FILE IS DEAD. The plate was replaced with his wide 1535x1024 pair
+    # (crop 0.71 -> 727 rows); the boxes further down this file belong to the
+    # 1122x1402 portrait painting and its 0.78 crop, which is a different
+    # picture at a different scale. They are kept only as a record of what the
+    # night set used to be — nothing reads them.
+    #
+    # Read off a 100px grid laid over tools/captures/sam/*_proposals.png, then
+    # checked against the group map before anything was cut. Day and night are
+    # the same composition relit — his pair cross-correlates at dx 0, dy 2 —
+    # so the two tables are close but NOT shared: the night columns sit about
+    # 10px left of the day ones and the arch spans 610-900 against 585-965, and
+    # a box that is 10px out at 70% containment silently drops a card.
+    #
+    # SMALLEST FIRST, which is what most-specific-first actually means. The 6th
+    # element is a MAX AREA, which is what lifts lettering off the panel it is
+    # painted on.
+    #
+    # NO `street` CARD ON EITHER, deliberately, and this is the one place the
+    # old table was actively wrong rather than merely stale. A ground strip has
+    # no landmark inside it but it has a hard edge along the top and things
+    # stand on that edge; giving the plaza its own card is how the pavement
+    # walks out from under the columns planted in it. The plaza is the base.
+    'underground-day': [
+        # ── Signs, lifted off what they are painted on ───────────────────
+        # ⚠️ NO `letters` CARD, AND THE REASON IS WORTH KEEPING. UNDERGROUND on
+        # the marquee was cut as its own card so the day glow could be bolted to
+        # the word rather than the whole sign — and the cut came back with six
+        # of the eleven glyphs: "U D R R U", scattered. SAM's fine pass finds
+        # some letters on this plate and not others, and the ones it misses are
+        # not recoverable by lowering a threshold that is already at the floor.
+        # A partial word is worse than no card: the letters are painted FLAT on
+        # the drum with no gap behind them, so they were never a depth layer,
+        # and the glow rides `arch` instead — the whole sign, which is the thing
+        # actually emitting. Same call on the night half's `marquee`.
+        ('coke',      838, 322,  932, 418),
+        ('dirsign',   720, 345,  824, 428),
+        ('waffle',    860, 442,  930, 498),
+        # ⚠️ LOANS AND CHECKS CASHED ARE `midbuild`, NOT THEIR OWN CARDS.
+        # They are painted flat on that facade with no gap behind them, so a
+        # separate depth buys no parallax, and neither carries a practical in
+        # `lights` — the only other reason a detail earns a card. Two fewer
+        # full-frame blits a frame.
+        ('midbuild',  476, 315,  564, 390),
+        ('midbuild',  472, 396,  560, 448),
+        ('park',      108,  38,  182, 318),
+        # ── Street furniture, in front of the buildings and not on them ──
+        # ⚠️ ONE `furniture` CARD, NOT THREE. News boxes, the mail box, the
+        # hydrant and the parked cars all sit on the plaza at the same distance,
+        # and three cards at one depth is three blits doing one card's job.
+        ('furniture', 758, 492,  848, 588),
+        ('furniture',1152, 497, 1242, 582),
+        # ⚠️ TO x0, NOT TO x36. A 3882px mask at x 0..77 y 437..511 — the
+        # shopfront behind the shelter — fell out of a box that started at 36.
+        ('shelter',     0, 388,  270, 596),
+        ('lamps',    1172, 122, 1348, 608),
+        ('lamps',     338, 408,  372, 462),
+        ('lamps',     648, 332,  688, 398),
+        ('furniture', 196, 482,  352, 548),
+        ('furniture', 616, 492,  714, 542),
+        # ── Structure, near to far ───────────────────────────────────────
+        ('columns',   552, 100,  636, 700),
+        ('columns',   894, 100,  962, 704),
+        ('arch',      582,  36,  968, 312),
+        ('trees',       0, 282,  118, 458),
+        ('trees',     982, 292, 1092, 492),
+        # The whole right-hand street-tree line, as one box. A 17960px mask
+        # running x 1144..1449 is that line in a single piece, and the tight
+        # 1136..1218 box it used to have contained about a third of it.
+        # ⚠️ This box overlaps the Peachtree building's and is listed BEFORE
+        # it on purpose — checked on --map afterwards, and peachtree keeps its
+        # mass because its own masks are not 70% inside a box that stops at
+        # y 476.
+        ('trees',    1136, 220, 1460, 476),
+        ('peachtree',1254, 206, 1535, 584),
+        ('midbuild',  366, 286,  774, 552),
+        ('midbuild',  760, 380, 1000, 552),
+        # The far skyline: the spire behind the right column, the tower group
+        # right of it, the low blocks framed inside the arch, and the pale
+        # slabs at the right edge.
+        ('towers',    902,  92,  988, 344),
+        # ⚠️ TO x1420, NOT x1274. Four masks totalling 18k px sat in the gap
+        # between 1274 and the right-edge box — the tower group above the
+        # Peachtree roofline — and came out magenta on the map.
+        ('towers',    986,  10, 1420, 344),
+        ('towers',     756, 286,  902, 414),
+        ('towers',   1416,   0, 1535, 334),
+        ('leftblock',   0,   0,  384, 442),
+        # ⚠️ THE HERO'S BACKDROP, AND THE BIGGEST THING THE FIRST PASS MISSED.
+        # One 152581px mask running x 372..906 y 0..530 is the tall beige
+        # office block the arch stands in front of — the second largest mask on
+        # the plate after the plaza — and with no box wide enough to contain it
+        # the whole centre of the picture came out unassigned. Listed after the
+        # arch and the columns so it cannot swallow them.
+        ('backdrop',  360,   0,  914, 540),
+    ],
     'underground': [
+        # Same scene at night. The Coca-Cola disc and the Waffle House
+        # frontage are cards because the night `lights` entries are bolted to
+        # them by name — a practical with no card rides the base plate and
+        # slides off the thing that emits it. The marquee's bulbs are bolted to
+        # `arch` for the reason given on the day half above: cut as its own
+        # card the sign came back reading "N ERGROU D".
+        ('coke',      840, 330,  918, 410),
+        ('dirsign',   716, 340,  812, 406),
+        ('waffle',    856, 432,  922, 486),
+        ('midbuild',  478, 310,  552, 362),
+        ('midbuild',  470, 392,  546, 434),
+        ('park',      114,  40,  184, 312),
+        ('furniture', 740, 500,  838, 588),
+        ('furniture',1150, 508, 1252, 590),
+        # Same widenings the day table needed, found the same way — by listing
+        # the unassigned masks and their boxes rather than by looking at the
+        # picture again. To x0 for the shopfront behind the shelter, to x1420
+        # for the tower group above the Peachtree roofline, the right-hand
+        # street trees as ONE box because that is how SAM returns them, and
+        # both midbuild boxes out to the Waffle House frontage.
+        ('shelter',     0, 396,  266, 590),
+        ('lamps',    1190, 128, 1350, 600),
+        ('lamps',     344, 410,  372, 452),
+        ('lamps',     632, 348,  700, 400),
+        ('furniture', 272, 486,  360, 538),
+        ('furniture', 612, 494,  712, 540),
+        ('columns',   532, 104,  614, 704),
+        ('columns',   898, 104,  954, 708),
+        ('arch',      600,  30,  916, 300),
+        ('trees',       0, 288,  110, 452),
+        ('trees',     976, 300, 1092, 496),
+        ('trees',    1130, 200, 1462, 512),
+        ('peachtree',1272, 210, 1535, 578),
+        ('midbuild',  296, 288,  770, 548),
+        ('midbuild',  748, 374, 1000, 548),
+        ('towers',    896,  86,  986, 340),
+        ('towers',    984,   4, 1420, 340),
+        ('towers',     754, 284,  896, 410),
+        ('towers',   1416,   0, 1535, 330),
+        ('leftblock',   0,   0,  380, 438),
+        # The block the arch stands in front of. At night SAM does not return
+        # it as one piece the way it does in daylight — it is dark and its
+        # windows are the only thing with edges — so this catches the pieces
+        # instead of one hero mask. Listed after the arch and the columns.
+        ('backdrop',  356,   0,  912, 536),
+    ],
+    # ── DEAD: the 1122x1402 portrait painting, two plates ago ────────────
+    # Kept as a record of the set that shipped against it. The key is
+    # deliberately not a stage name, so nothing can read it by accident.
+    '_old-underground-portrait': [
         ('spire',    900, 120, 1000, 400),
         ('coke',     735, 690,  875, 835),
         ('waffle',   780, 840,  895, 950),
@@ -62,13 +210,8 @@ REGIONS = {
         ('midbuild', 280, 560,  980, 1000),
         ('backdrop', 280,   0,  980,  585),   # buildings behind the arch
     ],
-    # ── DAYTIME FIVE POINTS ──────────────────────────────────────────────
-    # Read off tools/captures/sam/underground-day_proposals.png against a
-    # 100px grid laid over the plate. The day composition is NOT the night
-    # one — the arch sits higher, the columns are narrower and further apart,
-    # and there is real sky behind everything instead of black — so none of
-    # the night boxes below transfer and these are measured fresh.
-    'underground-day': [
+    # ── DEAD: the portrait painting's DAY twin, same vintage ─────────────
+    '_old-underground-day-portrait': [
         # Small, specific things first: each is inside something bigger, and
         # most-specific-first is what stops the parent swallowing it. The
         # 6th element is a MAX AREA, which is what lifts lettering off the

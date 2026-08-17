@@ -28,15 +28,32 @@ from PIL import Image, ImageDraw
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BG = os.path.join(ROOT, 'src', 'assets', 'backgrounds')
 SAM = os.path.join(ROOT, 'tools', 'captures', 'sam')
-GROUND_FRAC = {'eav': 0.88, 'underground': 0.78, 'l5p': 0.80, 'edgewood': 0.82}
+
+# ⚠️ THE CROP COMES FROM sam_segment, IT IS NOT COPIED HERE. This file used to
+# carry its own four-stage table with underground at 0.78 — the fraction that
+# belonged to the old 1122x1402 portrait painting, two plates ago. So the check
+# that exists to catch what the segmenter missed would have graded a DIFFERENT
+# crop than the segmenter read, reported phantom gaps along one edge and real
+# ones off the other, and had nothing at all to say about any of the four
+# daytime plates because they were never added to it.
+#
+# A verification tool holding its own copy of the thing it verifies against
+# grades its own memory. Same class of bug as preview_planes.py drifting a
+# generation behind the renderer's parallax law. One table, in the tool that
+# does the cutting.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from sam_segment import GROUND_FRAC, load_plate     # noqa: E402
 
 
 def main():
     stage = sys.argv[1]
-    im = Image.open(os.path.join(BG, f'{stage}.webp')).convert('RGB')
-    w, h = im.size
-    rgb = np.array(im.crop((0, 0, w, int(h * GROUND_FRAC[stage]))))
+    if stage not in GROUND_FRAC:
+        raise SystemExit(f'no crop known for {stage!r} — add it to '
+                         f'GROUND_FRAC in tools/sam_segment.py. Known: '
+                         f'{", ".join(sorted(GROUND_FRAC))}')
+    rgb = load_plate(stage)
     H, W = rgb.shape[:2]
+    im = Image.fromarray(rgb)
 
     M = np.load(os.path.join(SAM, f'{stage}_masks.npy'))
     claimed = M.any(0) if len(M) else np.zeros((H, W), bool)
