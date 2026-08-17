@@ -422,6 +422,42 @@ cancelled the very ramp that did the muting. **State that is only correct
 because something else is switched off is not state, it is a coincidence** —
 and a second mechanism will find it.
 
+## 20. Four fixes to a mechanism nobody had proved existed
+
+He said it plainly, more than once: *"I still haven't felt any haptic feedback
+from the game."* Then: *"Vibration is still not working."*
+
+Each time I found something real and fixed it. The switch was parked at
+`left:-9999px` with `opacity:0` where WebKit had nothing to animate. It was
+built and clicked in the same tick, before layout had ever run on it. It
+carried `pointer-events:none`. Then it clicked the input rather than a bound
+label. Four defects, four plausible fixes, four deploys, and not one of them
+could ever have worked — because a scripted click cannot produce that haptic
+at all. WebKit gates it to genuine user activation of the control.
+
+**The whole chain rested on an unproved premise, and the premise was the one
+thing never tested.** Every fix asked "why is the click not producing a
+haptic?" None asked "does a click produce one?" The file even carried a
+warning saying the path was unverified and could not be tested here — and that
+warning was treated as a caveat to ship with rather than a question to answer.
+
+What broke the loop was giving up on reasoning and building an instrument: a
+page of side-by-side routes, deployed, with **a control he operates himself**.
+One round came back "1 worked, 2-5 duds" and the mechanism was settled — no
+scripted route works, ever. The second round asked whether the working route
+could survive being a game pad, and killed that too: the haptic lands on
+release, and iOS throttles it under repeated taps. A D-PAD tick has to arrive
+when the thumb lands, hundreds of times a run, and gets neither.
+
+Two hours of guessing versus twenty minutes of asking. The client's thumb was
+the only instrument in the building that could answer, and it was available
+the entire time.
+
+⚠️ The tell was there from the first report: **a fix that does not change the
+symptom is evidence about the theory, not about the size of the fix** (see 16).
+Three consecutive fixes produced no change he could feel. That is not three
+partial fixes; that is the theory being wrong.
+
 ## The short version
 
 0. **Touch the thing before you describe it** — including when what you are
@@ -456,3 +492,6 @@ and a second mechanism will find it.
     two tools before suspecting either result.
 21. State that is only correct because something else is switched off is a
     coincidence, and the next mechanism will expose it.
+22. When a platform path cannot be tested here, build the instrument and hand
+    it to whoever has the device — before the second fix, not after the fourth.
+    An unverifiable premise is the first thing to test, not a caveat to ship.

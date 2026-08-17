@@ -76,10 +76,33 @@ They are the eyes-on tools; the graded set is the tripwire.
 
 ### Last sweep
 
-**FULL, and green.** All 32 harnesses run at `47249b3`, against a fresh dev
-server. **24 graded harnesses, 355 checks, zero failures.** The 8 report-only
-harnesses all ran clean — which means they produced their sheets, not that
-they graded anything.
+**Green at `bf73b6a`**, after the sign-up cabinet went in — 19 harnesses,
+against a fresh dev server: panelnav 13, optionsmenu 12, entrypaths 9,
+pausemenu 13, todlive 12, howswipe 10, share 12, introorder 4, relaytod 26,
+padlift 11, idleflex 8, endcue 11, finishrun 12, stageflag 6, outbox 13,
+barescars 8, and relay / joinshot / graphwire clean on their own wordings.
+**Zero failures.**
+
+⚠️ Read the verdict LINE, not the exit code, and not a grep for `ALL n PASS`
+either. Three of those harnesses end on a different wording — `ALL PASS` with
+no count, `ALL n/n PASS`, or a report with no verdict at all — so a sweep that
+greps one pattern prints `NO VERDICT` for perfectly green runs and looks like
+a failure. It happened again this session.
+
+An earlier full pass at `47249b3` ran all 32: **24 graded, 355 checks, zero
+failures.** The 8 report-only harnesses ran clean — which means they produced
+their sheets, not that they graded anything.
+
+### What no harness in here can tell you
+
+**Haptics on iOS.** Playwright's "iPhone" profile is Chromium wearing an iOS
+user-agent, and it reports `navigator.vibrate` as a function — which real
+Safari does not. Any check written against it grades the harness, not the
+product. The answer came from `public/haptic.html`, a deployed page of
+side-by-side routes with a control the client operates himself. Settled:
+a scripted click never produces a haptic; a real finger on a hidden switch
+does; the buzz lands on release; and iOS throttles it under repeated taps. See
+LESSONS.md 20 for how four fixes went in before anyone asked that question.
 
 ```
 barescars    8    ceiling     15    cloudseal    8    daylamps    12
