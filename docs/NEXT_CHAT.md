@@ -284,6 +284,37 @@ letter width. So the crumb printed a P one letter left of the base's own.
 Muting `trees`, which owns the whole board, did nothing. Muting `lamps` fixed
 it.
 
+### Fault C — a moving card ON TOP of a co-planar one
+
+EAV, in his words: *"the CITGO sign, you got it cut with the fence and it's
+moving. It shouldn't be cut at all. You got the line between that messed up
+and then the edge of the fence is messed up."*
+
+`fence` (x324–1183) overlaps `citgo` (x181–830) and draws **after** it. At
+depth 0.67 that is +11px at the far end, so the fence's left edge crawled
+across the sign and the occlusion boundary between them moved as the player
+ran. The same 11px also shifted the fence's own boards against the base's copy
+of them — vertical boards doubling against themselves.
+
+The depth was wrong from the start: **the sign is mounted on that fence.** Same
+distance, so same depth. Both are 0.50 now, day and night.
+
+This is different from A and B and needs its own check, because overlap alone
+is not the tell — a tree in front of a distant sign *should* slide against it.
+Three conditions have to hold together: shared opaque pixels, the mover drawn
+**after** (so it is the one occluding), and the two not genuinely at different
+distances in the painting. `tools/card_overlaps.py` prints the shortlist with
+the crawl distance for each pair; the third condition is a judgement call
+against the art and no tool makes it for you.
+
+Swept after the fix. What is left on the list is all legitimate near-over-far
+— EAV's tree, verge, shrub and pole over the fence and sign; Edgewood's
+pavement and lamps over the shopfronts; Underground's lamps over the trees and
+Peachtree; L5P's kerb and pole over the buildings. Those pairs are the effect
+working. One to look at with fresh eyes: `skyline d=0.05 drawn OVER trees` —
+a far card occluding a nearer one is backwards, though it may just be distant
+foliage.
+
 ### How to find the next one
 
 ```js
@@ -345,11 +376,22 @@ trashcan and the newspaper machine — I love that."*
 
 ## 7. Still on him (blocking the contest)
 
-1. **Contest dates.** `CONTEST_START` / `CONTEST_END` are still `0` in both
-   workers. **This is the blocker.** Nothing else matters until they are set.
-2. **Deploy the dashboard worker.** He has no `wrangler` on PATH; last attempt
-   failed with *"the term 'wrangler' is not recognized"*. There are no
-   Cloudflare credentials in this container, by design.
+Both workers are **deployed and live**, and the shipped game bundle really
+does point at `will-hill-leaderboard.prodbykctw.workers.dev` (grepped in the
+deployed JS, not the source). `/top` answers. The dashboard's bare-root 404 is
+its own `notFound()` at line 62 — correct for a request with no `?k=` token,
+not a missing worker.
+
+1. **Contest dates.** Still `0` in both workers, so
+   `leaderboard-worker.js:135` returns `true` unconditionally and the window
+   is unenforced. ⚠️ **DO NOT CHASE HIM FOR THESE.** Will Hill's team is in
+   Australia and nobody can give him the dates until they are back; he asked
+   directly to stop being asked. He will hand them over. When he does: two
+   epoch-ms values in `leaderboard-worker.js:50-51` and
+   `dashboard-worker.js:74-75`, then he redeploys both.
+2. **A test score is on the live board** — `KCTW, 29750`. Worth clearing
+   before the link goes public, or the first real entrant is playing for
+   second place.
 3. **Cloudflare hardening:** rate limiting, Turnstile, a billing alert.
 4. **Rotate `DASH_TOKEN`** when the contest closes.
 
@@ -359,6 +401,7 @@ trashcan and the newspaper machine — I love that."*
 
 | commit | what |
 |---|---|
+| `27ca8a4` | The fence and the CITGO sign are the same distance away |
 | `33b4a68` | The extra P was a crumb of the sign on the lamppost card |
 | `ca4e5a2` | Post-run, the board is the last stop — and the harnesses know the chain |
 
@@ -374,8 +417,10 @@ trashcan and the newspaper machine — I love that."*
   `touch-action: manipulation` on every panel control plus
   `gesturestart/change/end` and a multi-touch `touchmove` guard, inline in
   `index.html` so a pinch during asset load is covered.
-- New: `tools/drop_card_crumbs.py`, `tools/harness/startflow.mjs`,
-  `tools/harness/startchain.mjs`.
+- EAV's fence pinned to base depth with the CITGO sign it is mounted on (§6
+  fault C), both variants.
+- New: `tools/drop_card_crumbs.py`, `tools/card_overlaps.py`,
+  `tools/harness/startflow.mjs`, `tools/harness/startchain.mjs`.
 
 ### Answered for him this session
 
