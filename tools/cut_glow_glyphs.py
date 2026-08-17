@@ -60,8 +60,9 @@ an inset chosen to clear the frame he drew and keep the words inside it. Look at
 the preview before believing any of them.
 
 Usage:
-    python3 tools/cut_glow_glyphs.py                 # write the three layers
+    python3 tools/cut_glow_glyphs.py                 # write every layer
     python3 tools/cut_glow_glyphs.py --preview       # + contact sheets to /tmp
+    python3 tools/cut_glow_glyphs.py dash --b64      # base64, for the worker
 """
 import os
 import sys
@@ -130,6 +131,57 @@ SURFACES = {
             # and they are already unmistakably switches, with his own ON and
             # OFF states.
             ('btnBack',          6.61, 62.37, 87.17,  5.84, (.10, .24, .10, .24)),
+        ]),
+    # ── HIS CONTEST DASHBOARD ────────────────────────────────────────────
+    # Client: "The dashboard also needs to have the buttons that are actual
+    # working buttons more noticeably apparent."
+    #
+    # Exactly the same problem as the game's cabinet screens and exactly the
+    # same fix. His dashboard painting has a lot of boxes on it and only seven
+    # of them do anything: everything else — the ENTRANTS tile, the heatmap
+    # frame, STAGE PROGRESSION, the MARTA console at the foot — is a readout.
+    # A first-time reader has no way to tell which is which, and the two that
+    # matter most (the filter and DOWNLOAD CSV) sit in a row of identical
+    # panels.
+    #
+    # ⚠️ THE SOURCE IS THE CONCEPT PNG, NOT THE WORKER. The dashboard plate
+    # lives base64'd inside cloudflare/dashboard-worker.js, so the layer is cut
+    # from assets/ui-concept/dashboard-empty.png — the same file
+    # tools/cut_dash_cab.py and tools/cut_dash_chips.py read — and printed as
+    # base64 with --b64 to be pasted in beside it.
+    #
+    # Rects are the same percentages the worker's stylesheet positions the hit
+    # targets with, over an 853x1844 plate. Two copies of one measurement, as
+    # ever; the harness checks the bloom actually has ink inside each live
+    # control's rect, which is what catches a drift.
+    'dash': dict(
+        # ⚠️ BOTH PATHS ARE REPO-RELATIVE, not relative to src/assets/ui like
+        # the game's plates. This layer never ships as a file — it goes into the
+        # worker as base64 — so it is kept beside the concept art it was cut
+        # from rather than in the game's asset tree, where Vite would not bundle
+        # it anyway and it would only look like a live asset.
+        root=True,
+        src='assets/ui-concept/dashboard-empty.png',
+        out='assets/ui-concept/glow-dash.webp',
+        rects=[
+            # FILTER NAME OR PHONE, and DOWNLOAD CSV beside it. Both are drawn
+            # as bordered boxes, so both need the inset — glowing his border
+            # is the rectangle complaint again.
+            ('q',       45.838,  9.463, 24.912, 3.20, (.06, .22, .06, .22)),
+            ('csv',     73.153,  9.463, 12.544, 3.20, (.06, .22, .06, .22)),
+            # The three VIEW chips. Their lit/unlit sprites are drawn as CSS
+            # backgrounds OVER the plate, so this glows the plate's own painted
+            # copy underneath — which lands as a halo around whichever sprite is
+            # showing, since both were cut from the same glyphs.
+            ('mWorld',  20.281, 42.408,  6.448, 1.518, (.10, .22, .10, .22)),
+            ('mUS',     27.198, 42.408, 11.840, 1.518, (.10, .22, .10, .22)),
+            ('mATL',    39.976, 42.408,  7.737, 1.518, (.10, .22, .10, .22)),
+            # ALL ENTRANTS and RECENT REJECTIONS — tap either heading to open
+            # the full table. Nothing about a heading says "tappable", which is
+            # why he could not find them. The rule drawn under each one is
+            # killed by the unbroken-run rule, not by an inset.
+            ('xEnt',    13.013, 76.790, 73.388, 2.115, (.01, .06, .40, .10)),
+            ('xRej',    13.013, 84.707, 73.388, 1.844, (.01, .06, .40, .10)),
         ]),
 }
 
@@ -235,9 +287,12 @@ def blur(a, r):
                       .filter(ImageFilter.GaussianBlur(r))).astype(np.float32) / 255.0
 
 
-def build(name, cfg, preview=False):
-    src = os.path.join(UI, cfg['src'])
+def build(name, cfg, preview=False, b64=False):
+    home = ROOT if cfg.get('root') else UI
+    src = os.path.join(home, cfg['src'])
     im = Image.open(src)
+    if im.mode not in ('RGB', 'RGBA'):
+        im = im.convert('RGB')
     rgb = np.asarray(im.convert('RGB')).astype(np.float32)
     H, W, _ = rgb.shape
     v = value(rgb)
@@ -280,8 +335,21 @@ def build(name, cfg, preview=False):
 
     out = np.dstack([(np.clip(col, 0, 1) * 255).astype(np.uint8),
                      (alpha * 255).astype(np.uint8)])
-    dst = os.path.join(UI, cfg['out'])
+    dst = os.path.join(home, cfg['out'])
     Image.fromarray(out, 'RGBA').save(dst, 'WEBP', quality=88, method=6, exact=True)
+    if b64:
+        import base64
+        import io
+        buf = io.BytesIO()
+        Image.fromarray(out, 'RGBA').save(buf, 'WEBP', quality=86, method=6, exact=True)
+        enc = base64.b64encode(buf.getvalue()).decode()
+        # ⚠️ SAFE INSIDE THE WORKER'S TEMPLATE LITERAL. The base64 alphabet is
+        # A-Z a-z 0-9 + / = — no backtick and no `${`, both of which have broken
+        # the parse of dashboard-worker.js before.
+        bp = os.path.join(PREVIEW_DIR, os.path.basename(cfg['out']) + '.b64.txt')
+        print(f'  base64 {len(enc) / 1024:.1f} KB -> {bp}')
+        with open(bp, 'w') as f:
+            f.write(enc)
 
     print(f'\n{name}: {cfg["src"]} {W}x{H} -> {cfg["out"]} '
           f'{os.path.getsize(dst) / 1024:.0f}KB')
@@ -308,11 +376,12 @@ def build(name, cfg, preview=False):
 
 def main():
     preview = '--preview' in sys.argv
+    b64 = '--b64' in sys.argv
     only = [a for a in sys.argv[1:] if not a.startswith('-')]
     for name, cfg in SURFACES.items():
         if only and name not in only:
             continue
-        build(name, cfg, preview)
+        build(name, cfg, preview, b64)
 
 
 if __name__ == '__main__':
