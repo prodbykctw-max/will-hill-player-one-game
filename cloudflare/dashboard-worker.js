@@ -280,6 +280,14 @@ html,body{background:#07060c;color:#f2ead8;font-family:ui-monospace,SFMono-Regul
 #entrants .row{grid-template-columns:12.23% 12.23% 14.05% 13.22% 12.40% 7.93% 16.03% 11.90%}
 #rejects .row{grid-template-columns:16.91% 45.48% 37.60%}
 .bar{background:#ffd66e;height:100%;border-radius:1px}
+/* The halo breathes; the core never moves. transform-box makes the scale
+   happen about the circle's own centre instead of the SVG origin, which is
+   the difference between a pulse and a dot flying off the map. */
+.glo{transform-box:fill-box;transform-origin:center;
+  animation:glo 3.2s ease-in-out infinite}
+@keyframes glo{0%,100%{opacity:.55;transform:scale(.82)}
+               50%{opacity:1;transform:scale(1.12)}}
+@media (prefers-reduced-motion:reduce){.glo{animation:none}}
 /* ⚠️ HIS CONTROLS ARE PAINTED, SO THEY NEED REAL ELEMENTS ON TOP OF THEM.
    Swapping the page for his image left FILTER, DOWNLOAD CSV and the three
    VIEW chips as pixels: "none of the buttons or drop downs work". Same fix as
@@ -673,13 +681,45 @@ function drawMap(){
       + ' vector-effect="non-scaling-stroke"/>';
   }
   g += '</g>';
-  // The dots sit OUTSIDE the scaled group: scale(k,-1) with k != 1 turns a
-  // circle into an ellipse, so their coordinates are projected here instead.
-  const r = h * 0.022;
-  g += (data.geo || []).map((x) =>
-    '<circle cx="' + (Number(x.lon) * v.k).toFixed(4) + '" cy="' + (-Number(x.lat)).toFixed(4)
-    + '" r="' + (r * Math.min(2.2, 0.8 + Math.sqrt(x.players || 1) * 0.5)).toFixed(4)
-    + '" fill="#ffd66e" fill-opacity="0.85"><title>' + esc(x.city) + '</title></circle>').join('');
+  // ── THE DOTS ────────────────────────────────────────────────────────────
+  //
+  // "Those little dots to identify individuals are way too fucking big bro.
+  // That shit is gonna have to be pretty tiny. They're gonna have to glow and
+  // gleam or glisten."
+  //
+  // They were sized as a FRACTION OF THE VIEW, so zooming to Atlanta made
+  // them grow with it — a 2% blob at world zoom is a 2% blob at city zoom,
+  // which at city zoom is half a county. They are sized in SCREEN PIXELS now
+  // and converted back into view units, so a dot is the same small mark
+  // whatever the map is showing.
+  //
+  // The gleam is how a real map does it and it costs nothing: a hard bright
+  // core of 1.1px, a soft radial halo about six times that, and a slow pulse
+  // on the halo only. One gradient in defs, no library, no filter — a blur
+  // filter on a phone repaints the whole panel every frame.
+  //
+  // Size still says something: the core grows on the square root of how many
+  // PEOPLE played from that city, capped, so a big city reads bigger without
+  // one city swallowing the map.
+  const svgW = svg.clientWidth || 300;
+  const px = w / svgW;
+  g += '<defs><radialGradient id="glo">'
+    + '<stop offset="0" stop-color="#ffd66e" stop-opacity="0.55"/>'
+    + '<stop offset="0.45" stop-color="#ffb340" stop-opacity="0.20"/>'
+    + '<stop offset="1" stop-color="#ffb340" stop-opacity="0"/>'
+    + '</radialGradient></defs>';
+  g += (data.geo || []).map((x, i) => {
+    const cx = (Number(x.lon) * v.k).toFixed(5);
+    const cy = (-Number(x.lat)).toFixed(5);
+    const core = px * Math.min(2.3, 0.95 + Math.sqrt(x.players || 1) * 0.28);
+    return '<circle class="glo" cx="' + cx + '" cy="' + cy + '" r="' + (core * 6.5).toFixed(5)
+      + '" fill="url(#glo)" style="animation-delay:' + (i % 5) * 0.42 + 's"/>'
+      + '<circle cx="' + cx + '" cy="' + cy + '" r="' + core.toFixed(5)
+      + '" fill="#fff3cf"/>'
+      + '<circle cx="' + cx + '" cy="' + cy + '" r="' + (core * 2.1).toFixed(5)
+      + '" fill="none" stroke="#ffd66e" stroke-opacity="0.55" stroke-width="' + (px * 0.6).toFixed(5)
+      + '"><title>' + esc(x.city) + ' — ' + (x.players || 1) + '</title></circle>';
+  }).join('');
   svg.innerHTML = g;
 }
 
