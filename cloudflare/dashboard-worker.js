@@ -226,7 +226,10 @@ export default {
    background-size:10.79% auto,10.90% auto,100% auto,100% auto;
    background-attachment:scroll,scroll,scroll,scroll;
    /* clear the rails and the console. The rails are 92 and 93px of 853. */
-   padding:calc(100vw * 0.012) 11.4% calc(100vw * 0.105);}
+   /* ⚠️ The bottom pad is the CONSOLE'S OWN HEIGHT, 168 of 853 = 19.7% of
+      the width, plus a little air. At 10.5% the rejection rows rendered
+      underneath the joystick. */
+   padding:calc(100vw * 0.012) 11.4% calc(100vw * 0.225);}
  /* not sticky any more — it would slide over his top bezel */
  header{padding:14px 0 12px;border-bottom:1px solid var(--line)}
  h1{margin:0 0 4px;font-size:18px;letter-spacing:.06em;color:var(--gold)}
@@ -235,6 +238,11 @@ export default {
  input,select,a.btn{background:#1a1626;color:var(--fg);border:1px solid var(--line);
    border-radius:8px;padding:8px 10px;font:inherit;text-decoration:none}
  table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+ /* Eight columns including an email address do not fit between the cab's
+    rails on a phone. The table scrolls inside its own panel rather than
+    pushing the page sideways under the frame. */
+ .wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+ .wrap table{min-width:640px}
  /* ── the map, the cards, the board ─────────────────────────────────── */
  .strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));gap:8px;padding:14px 0 0}
  .stat{background:#161226;border:1px solid var(--line);border-radius:10px;padding:9px 11px}
@@ -259,6 +267,16 @@ export default {
  .mapbar button{background:#221c33;color:var(--fg);border:1px solid var(--line);border-radius:7px;
    padding:6px 9px;font:600 12px ui-sans-serif,system-ui;cursor:pointer}
  .mapbar button:hover{border-color:var(--gold)}
+ /* ⚠️ NO BACKTICKS IN HERE. This CSS lives inside the page's own template
+    literal, so a backtick in a comment ends the string and the worker stops
+    parsing — the same trap as a literal dollar-brace, which already bit
+    this file once.
+    THE ACTIVE PRESET HAS TO LOOK ACTIVE. The map already OPENED on the
+    world box (VIEWS.world, set at load) but all three buttons
+    rendered identically, so there was nothing on screen saying which one
+    you were looking at. Client: "the map should start at world view with
+    world selected." The geometry was right and the readout was missing. */
+ .mapbar button.on{background:var(--gold);color:#1a1408;border-color:var(--gold);font-weight:700}
  .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;padding:11px;
    max-height:330px;overflow:auto}
  .card{background:#1b1629;border:1px solid var(--line);border-radius:10px;padding:9px 10px;cursor:pointer}
@@ -540,6 +558,7 @@ function pick(c, fly) {
   picked = c ? keyOf(c) : null;
   if (c && fly) {
     const w = VIEWS.atl[2], h = w * (VIEWS.world[3] / VIEWS.world[2]);
+    markPreset(null);   // a city is its own view, not one of the three
     flyTo([MX(c.lon) - w / 2, MY(c.lat) - h / 2, w, h]);
   }
   drawDots(); drawCards();
@@ -692,9 +711,17 @@ function drawClock() {
 }
 setInterval(drawClock, 1000);
 
-document.getElementById('mWorld').onclick = () => { picked = null; flyTo(VIEWS.world); drawCards(); };
-document.getElementById('mUS').onclick = () => flyTo(VIEWS.us);
-document.getElementById('mATL').onclick = () => flyTo(VIEWS.atl);
+// One place decides which preset reads as selected, so a city tap and a
+// preset tap cannot disagree about it.
+function markPreset(which){
+  for (const [id, key] of [['mWorld','world'],['mUS','us'],['mATL','atl']]) {
+    document.getElementById(id).classList.toggle('on', key === which);
+  }
+}
+document.getElementById('mWorld').onclick = () => { picked = null; markPreset('world'); flyTo(VIEWS.world); drawCards(); };
+document.getElementById('mUS').onclick = () => { markPreset('us'); flyTo(VIEWS.us); };
+document.getElementById('mATL').onclick = () => { markPreset('atl'); flyTo(VIEWS.atl); };
+markPreset('world');   // the view starts here; now it says so
 function draw(){
   const q = document.getElementById('q').value.trim().toLowerCase();
   const lim = +document.getElementById('lim').value;
@@ -716,11 +743,37 @@ function draw(){
     : '';
 }
 async function pull(){
-  try{
-    const res = await fetch('/data?k='+encodeURIComponent(K));
-    data = await res.json(); draw();
-    document.getElementById('tick').textContent = 'updated ' + new Date().toLocaleTimeString();
-  }catch(e){ document.getElementById('tick').textContent = 'offline'; }
+  // ⚠️ "offline" WAS A DEAD END. This used to swallow every failure into one
+  // word, and when the page came up empty there was nothing to act on: the
+  // database was healthy, all eight queries returned rows, and the word said
+  // only that something threw. A status code and the first line of the body
+  // separate the three real cases — a 404 means the key in this URL is not the
+  // deployed DASH_TOKEN, a 500 means the query broke, and a network error
+  // means the fetch never landed.
+  const tick = document.getElementById('tick');
+  if (!K) { tick.textContent = 'no key in this URL — open the ?k=... link'; return; }
+  let res;
+  try {
+    res = await fetch('/data?k=' + encodeURIComponent(K));
+  } catch (e) {
+    tick.textContent = 'network error: ' + e.message;
+    return;
+  }
+  if (!res.ok) {
+    const body = (await res.text().catch(() => '')).slice(0, 80);
+    tick.textContent = res.status === 404
+      ? 'HTTP 404 — the key in this URL does not match DASH_TOKEN'
+      : 'HTTP ' + res.status + ' ' + body;
+    return;
+  }
+  try {
+    data = await res.json();
+  } catch (e) {
+    tick.textContent = 'bad JSON from /data: ' + e.message;
+    return;
+  }
+  draw();
+  tick.textContent = 'updated ' + new Date().toLocaleTimeString();
 }
 document.getElementById('q').oninput = draw;
 document.getElementById('lim').onchange = draw;
