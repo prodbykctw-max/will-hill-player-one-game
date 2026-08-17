@@ -139,11 +139,35 @@ const BASE_DEPTH = 0.5;
 // travelling clouds rely on. Kept SLOW: these read as weather at a distance,
 // not as a screensaver, and a cloud that visibly races the buildings breaks
 // the depth the rest of the multiplane set is buying.
-function cardParallax(camX, depth, card, tick) {
+// ⚠️ THE CAP IS PER STAGE NOW, AND SIGNAGE IS WHY. 16px is the right number for
+// a fence, a canopy or a tree — the base still carries its own copy of every
+// item a card re-draws, so every pixel a card moves prints that item twice, and
+// 16px of double on a fence plank reads as paint thickness. It does NOT read as
+// paint thickness on a WORD. Five Points is a street made of signs: PEACHTREE
+// FURNITURE, SALE, LOANS 555-0132, CHECKS CASHED, PARK ALL DAY, WAFFLE HOUSE,
+// UNDERGROUND. Rendered at 16px the client saw exactly what is there — "P
+// PEACHTREE", "SA SALE", a second street sign beside the first, and the arch's
+// lettering smeared into itself, which is what he reported as missing letters.
+// Photographed it with the cards on and off at the same camera: on, doubled;
+// off, clean.
+//
+// The letter height is the yardstick, not the plank width. SALE is about 45px
+// wide on a phone with 10px letters, so 16px is a third of a letter and a
+// second word; 4px is inside the stroke and reads as thickness. So a stage can
+// declare its own `bg.separation` and Underground takes 4. Nothing else changes
+// — the depth ORDER, the rates and the sway are untouched, the shift is simply
+// smaller, which is the lenticular effect this was always aiming at.
+function maxSep(stage) {
+  const s = stage && stage.bg && stage.bg.separation;
+  return typeof s === 'number' && s > 0 ? s : MAX_SEPARATION;
+}
+
+function cardParallax(camX, depth, card, tick, sep) {
+  const cap = sep || MAX_SEPARATION;
   const drift = card && card.drift ? card.drift * (tick || 0) : 0;
   const diff = camX * (depth - BASE_DEPTH) * DEPTH_SPREAD;
   return camX * PLATE_PARALLAX + drift
-    + MAX_SEPARATION * Math.tanh(diff / MAX_SEPARATION);
+    + cap * Math.tanh(diff / cap);
 }
 const RAIN_TIERS = [
   { n: 26, len: 26, speed: 5.2, alpha: 0.1, width: 1.0, par: 0.18 },
@@ -205,14 +229,41 @@ export function createBackdrop(ctx, canvas) {
   // and practical passes can map screen x back to plate-local coordinates.
   let _par = 0;
 
+  // ⚠️ THE SKY STOPS AT THE GROUND. IT USED TO BE PAINTED ALL THE WAY DOWN.
+  //
+  // The gradient is built to end at `groundY` and was then filled to
+  // `canvas.height`, so every pixel BELOW the street was the flat terminal
+  // stop — `stage.bg.horizon`. In daylight that is a saturated blue (#438fef
+  // on EAV, #3d8bf2 Edgewood, #2386fa Underground, #3885ee L5P); at night it
+  // is near-black, which is the only reason this went unseen for so long.
+  //
+  // Nothing is supposed to show there — the tiles cover it — but they do not
+  // cover it perfectly. Baked street chunks are blitted inside a fractional
+  // zoom transform, so adjacent chunks resample at independent subpixel phases
+  // and a boundary landing off-pixel leaves partial alpha. What came through
+  // was sky. Client: "out of nowhere there is a blue [seam] in the daytime
+  // that you can see in the street... at first it was just one solid street."
+  //
+  // The same leak was already found and fixed for PIT columns
+  // (renderer.js drawOnePitMouth, "the inside of a hole came out rgb(30,70,122),
+  // as blue as the sky above it"). That fix backed the pit throat with the
+  // section's own strata. This is the general case: below the ground line the
+  // page is SUB-GRADE, so it is painted in the stage's own asphalt rather than
+  // in its sky, and a seam that does slip through reads as a crack in the road
+  // instead of a window to the sky.
   function drawSky(stage, groundY) {
     const [top, upper] = stage.bg.sky;
-    const g = ctx.createLinearGradient(0, 0, 0, Math.max(1, groundY));
+    const gy = Math.max(1, groundY);
+    const g = ctx.createLinearGradient(0, 0, 0, gy);
     g.addColorStop(0, top);
     g.addColorStop(0.55, upper);
     g.addColorStop(1, stage.bg.horizon);
     ctx.fillStyle = g;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillRect(0, 0, canvas.width, gy);
+    if (gy < canvas.height) {
+      ctx.fillStyle = (stage.under && stage.under.asphalt) || '#2a2a2c';
+      ctx.fillRect(0, gy, canvas.width, canvas.height - gy);
+    }
   }
 
   // The painted plate, at real-world scale, mirror-tiled, welded to the
@@ -237,7 +288,7 @@ export function createBackdrop(ctx, canvas) {
     // copies of the carded items stay as close as possible to every card at
     // once (see the MAX_SEPARATION note). On a stage with no cards this is
     // just the old flat plate.
-    const par = cardParallax(camera.x * camera.zoom, BASE_DEPTH);
+    const par = cardParallax(camera.x * camera.zoom, BASE_DEPTH, null, 0, maxSep(stage));
     _par = par;
     // Straight repeat, NOT mirrored. Mirroring hides the seam on a
     // non-tiling image, but these plates are real Atlanta streetscapes full
@@ -397,7 +448,7 @@ export function createBackdrop(ctx, canvas) {
       const img = images[card.key];
       if (!img) continue;
       const srcH = Math.max(1, Math.round(img.height * stage.bg.groundFrac));
-      const par = cardParallax(camera.x * camera.zoom, card.depth, card, tick);
+      const par = cardParallax(camera.x * camera.zoom, card.depth, card, tick, maxSep(stage));
       const off = pmod(par, period);
       const [sx0, sx1] = card.span || [0, 1];
       for (let rep = -1; rep <= reps; rep++) {
@@ -420,7 +471,8 @@ export function createBackdrop(ctx, canvas) {
   // "tick is not defined" on the first frame of play.
   function lightParallax(stage, camera, light, tick) {
     const card = (stage.bg.cards || []).find((c) => c.key === light.layer);
-    return cardParallax(camera.x * camera.zoom, card ? card.depth : BASE_DEPTH, card, tick);
+    return cardParallax(camera.x * camera.zoom, card ? card.depth : BASE_DEPTH, card, tick,
+      maxSep(stage));
   }
 
   // Gust curve — two sines beaten together with a squared envelope, so the
