@@ -479,10 +479,17 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
       h.disabled = sup === 'none';
       const note = $('hapticsNote');
       if (note) {
+        // ⚠️ SAY WHAT IT ACTUALLY DOES. The old copy promised the Taptic
+        // Engine outright, on a route that turned out to be dead. On iOS the
+        // haptic only exists on menu buttons: it lands on release and gets
+        // throttled under repeated taps, so the game pad gets nothing and no
+        // amount of work will change that. Better to tell him than to let him
+        // keep reporting the pads as broken.
         note.textContent = sup === 'none'
           ? 'This device has no vibration for the browser to use.'
-          : (sup === 'ios-switch'
-            ? 'Uses the iPhone’s Taptic Engine. Needs iOS 17.4 or newer.'
+          : (sup === 'ios-buttons'
+            ? 'On iPhone, menu buttons only — Safari gives a web page no way '
+              + 'to buzz the controls mid-run. Needs iOS 17.4 or newer.'
             : '');
         note.hidden = !note.textContent;
       }
@@ -603,6 +610,21 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
     'btnFormRules', 'btnFormInfo', 'panelClose']) {
     $(id)?.addEventListener('mousedown', (e) => e.preventDefault());
   }
+
+  // ── THE iOS HAPTIC LIVES ON THE BUTTONS THEMSELVES ────────────────────
+  //
+  // "I still haven't felt any haptic feedback." / "Vibration is still not
+  // working." It could not have worked: there is no way to fire a haptic AT
+  // a player on iOS, only to put a real switch where their thumb is going to
+  // land. Three rounds of public/haptic.html settled it from his phone; see
+  // the notes at the top of src/core/haptics.js.
+  //
+  // Every button in the panel gets one. Doing it here rather than at each
+  // call site means the cabinet screens are covered too — his painted
+  // OPTIONS, SETTINGS and ENTER CONTEST controls are ordinary <button>s under
+  // the artwork, so they buzz like anything else. No-op off iOS, which is why
+  // no harness sees a difference.
+  haptics?.attachAll?.(el);
   // SAVE decides its own cue, because it has two outcomes. A rejected form
   // that played the happy triad would be lying to you, and on a phone — where
   // the keyboard is covering the error line — the sound may be the first thing

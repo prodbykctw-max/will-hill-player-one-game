@@ -51,73 +51,134 @@ export function createHaptics() {
     enabled = localStorage.getItem(KEY) !== 'off';
   } catch (_e) { /* private mode; default on */ }
 
-  // The iOS switch, built lazily and only on iOS. Kept out of the tab order
-  // and out of the accessibility tree: it is not a control, it is a noise
-  // maker, and a screen reader announcing "switch, off" before every button
-  // press would be worse than no haptics at all.
-  // ⚠️ THREE THINGS WERE WRONG WITH THIS AND THE CLIENT FELT ALL OF THEM:
-  // "I still haven't felt any haptic feedback from the game."
-  //
-  //  1. IT WAS PARKED AT left:-9999px WITH opacity:0. WebKit plays the switch
-  //     haptic as a side effect of ANIMATING a real control. A control parked
-  //     off-canvas at zero opacity is not something it has to draw, so there
-  //     is nothing to animate and nothing to feel. It now sits inside the
-  //     viewport at a hair above transparent, 1x1, under everything.
-  //  2. IT WAS BUILT LAZILY AND CLICKED IN THE SAME TICK. The element was
-  //     created and .click()ed before layout had ever run on it, so at the
-  //     moment of the first press it was not a laid-out control yet. It is
-  //     now built once up front and forced through layout immediately.
-  //  3. pointer-events:none. Harmless for a scripted click, but it is one
-  //     more signal that this is not an interactive control, so it is gone.
-  //
-  // This is still a hack against an undocumented side effect and it is still
-  // the only route a web page has to the Taptic Engine.
-  //  4. IT CLICKED THE INPUT. Client, after all of the above: "Vibration is
-  //     still not working." The route that is actually reported to work is
-  //     clicking a <label> BOUND to the switch, not the switch itself — the
-  //     haptic rides on the label-driven activation, and a direct .click() on
-  //     the input toggles the checked state without ever producing one. The
-  //     label wraps the input, so it is bound by nesting and needs no id.
-  //
-  // ⚠️ STILL UNVERIFIED FROM HERE, AND NOW MEASURED INSTEAD OF GUESSED AGAIN.
-  // public/haptic.html is a probe he can open on the phone: five routes side
-  // by side, including a real switch he flips himself as the control. If the
-  // control does not buzz, this iOS build has no switch haptic and no code
-  // change reaches the Taptic Engine. Whichever route he feels is the one
-  // that stays; the rest of this comment becomes history.
-  let sw = null;
-  let lab = null;
-  function buildIosSwitch() {
-    if (sw || !isIOS || typeof document === 'undefined' || !document.body) return sw;
-    sw = document.createElement('input');
-    sw.type = 'checkbox';
-    sw.setAttribute('switch', '');
-    sw.tabIndex = -1;
-    sw.setAttribute('aria-hidden', 'true');
-    sw.style.cssText = 'margin:0;padding:0;border:0;'
-      + 'appearance:auto;-webkit-appearance:auto';
-    // In the viewport, drawn, but invisible and un-hittable by a thumb.
-    lab = document.createElement('label');
-    lab.setAttribute('aria-hidden', 'true');
-    lab.style.cssText = 'position:fixed;left:0;top:0;width:1px;height:1px;'
-      + 'opacity:0.01;z-index:-1;display:block;overflow:hidden';
-    lab.appendChild(sw);
-    document.body.appendChild(lab);
-    void lab.offsetHeight;            // force layout NOW, not at first press
-    return sw;
-  }
-  function iosSwitch() { return sw || buildIosSwitch(); }
+  // ⚠️ THREE FIXES WENT IN HERE BEFORE ANYONE PROVED THE MECHANISM, and all
+  // three were real defects in a technique that could never have worked. Kept
+  // as a record because the shape of the mistake matters more than the code:
+  //   1. the switch was parked at left:-9999px with opacity:0, so WebKit had
+  //      nothing to draw and nothing to animate;
+  //   2. it was built and .click()ed in the same tick, before layout;
+  //   3. it carried pointer-events:none.
+  // Each fix answered "why is the click not producing a haptic?" None asked
+  // whether a click produces one. It does not, and never did. See
+  // docs/LESSONS.md 20.
 
-  // ⚠️ BUILT HERE, NOT UP WITH THE OTHER SETUP. `sw` is a `let` declared just
-  // above, so calling buildIosSwitch() before this point lands in the
-  // temporal dead zone and throws "Cannot access 'sw' before
-  // initialization" — and createHaptics() runs at module load, so that
-  // throw would have taken the whole game down ON iOS ONLY, which is the one
-  // platform this code path exists for and the one I cannot test here.
-  // Caught by asking each platform which route it reports.
-  if (isIOS && typeof document !== 'undefined') {
-    if (document.body) buildIosSwitch();
-    else document.addEventListener('DOMContentLoaded', buildIosSwitch, { once: true });
+  // ── WHAT HIS PHONE ACTUALLY SAYS ──────────────────────────────────────
+  //
+  // Three rounds of public/haptic.html, answered from the device:
+  //
+  //   round 1  a real switch under his own finger        BUZZED
+  //            switch.click() / label.click() / for=     ALL DEAD
+  //            navigator.vibrate                          does not exist
+  //   round 2  hidden switch (opacity 0.01)              BUZZED
+  //            ... with the control's art painted over it BUZZED
+  //            hold two seconds, then release             ON RELEASE ONLY
+  //            fifteen fast taps                          THROTTLED
+  //   round 3  switch INSIDE a real <button>              BUZZED, handler ran once
+  //            switch OVER a real <button>, forwarded     BUZZED, handler ran once
+  //            plain button, no switch                    silent (the control)
+  //
+  // So the whole `fire()` idea below is dead on iOS and always was: nothing
+  // can be fired AT the player. What works is putting a real switch under the
+  // thumb, so THEIR tap is the thing that buzzes.
+  //
+  // ⚠️ AND IT IS ONLY GOOD FOR BUTTONS. The haptic lands on release and iOS
+  // throttles it under repeated taps, so a movement pad — which needs a tick
+  // the moment the thumb lands, hundreds of times a run — gets nothing on
+  // iPhone and cannot be made to. Android keeps navigator.vibrate for all
+  // three cues. Saying so is better than shipping a switch that fires at the
+  // wrong end of a press and calling it haptics.
+  //
+  // INSIDE the button, not over it. Both buzzed and both kept the handler at
+  // exactly one call per tap, so the tie-break is layout: the cabinet's
+  // buttons are absolutely positioned at measured fractions of his artwork,
+  // and an overlay would mean wrapping every one of them and moving all of
+  // that geometry onto the wrappers. A child changes nothing. It is invalid
+  // HTML — interactive content inside a button — and every engine tolerates
+  // it; aria-hidden and tabIndex -1 keep it out of the accessibility tree and
+  // the tab order, because it is not a control, it is a noise maker.
+  //
+  // The switch is scaled to cover its button, because probe 2 established
+  // that a transform-scaled switch keeps its hit area, while stretching one
+  // with width/height was never tested and is not going to be assumed.
+  //
+  // ⚠️ MEASURE THE CONTROL, DO NOT ASSUME ITS SIZE. This first went in with
+  // 51x31 hardcoded — the size of a switch on iOS — and the harness caught it
+  // immediately: Chromium does not implement the switch attribute, renders a
+  // 13px checkbox instead, and every button ended up with a dot in the middle
+  // of it covering one of the five points a thumb might land on. Reading the
+  // rendered box back means the same code is right on both, and right again
+  // if either engine changes the control.
+  const attached = new Set();
+
+  function sizeTo(input, el) {
+    // ⚠️ RE-DECIDE THE CONTAINING BLOCK EVERY TIME, DO NOT SET IT ONCE.
+    // attach() runs while the panel is being built, before any cabinet class
+    // is on the card, so his OPTIONS / SETTINGS / ENTER CONTEST buttons are
+    // still plain flow items at that moment. Writing `position: relative`
+    // inline then is permanent — an inline style beats the stylesheet — so
+    // when `#panelCard.cabinet-entry #btnFormRules { position: absolute }`
+    // finally applied, it lost, and the button rendered at its flow position
+    // PLUS its top offset: measured 896px down a 932px screen for a control
+    // his artwork puts at 609. Clearing the inline value first lets the
+    // stylesheet speak, and only a genuinely static element gets one.
+    el.style.position = '';
+    if (getComputedStyle(el).position === 'static') el.style.position = 'relative';
+    input.style.transform = 'none';
+    const s = input.getBoundingClientRect();
+    const r = el.getBoundingClientRect();
+    if (!r.width || !r.height || !s.width || !s.height) {
+      input.style.transform = 'translate(-50%, -50%)';
+      return;
+    }
+    // 1.04 so a fractional device pixel cannot leave a hairline of his
+    // painted button silent along an edge.
+    const k = Math.max(r.width / s.width, r.height / s.height) * 1.04;
+    input.style.transform = 'translate(-50%, -50%) scale(' + k.toFixed(4) + ')';
+  }
+
+  // Exposed so a harness can exercise the iOS path on a desktop browser —
+  // everything except the haptic itself is testable, and the haptic is the one
+  // part his thumb has already settled.
+  let force = false;
+  try {
+    force = typeof location !== 'undefined'
+      && /[?&]haptest=1/.test(location.search);
+  } catch (_e) { /* no location; leave it off */ }
+
+  function attach(el) {
+    if (!(isIOS || force) || !el || attached.has(el)) return false;
+    if (typeof document === 'undefined') return false;
+    const input = document.createElement('input');
+    input.type = 'checkbox';
+    input.setAttribute('switch', '');
+    input.setAttribute('aria-hidden', 'true');
+    input.dataset.haptic = '1';
+    input.tabIndex = -1;
+    input.style.cssText = 'position:absolute;left:50%;top:50%;margin:0;'
+      + 'padding:0;border:0;opacity:0.01;z-index:0;'
+      + 'appearance:auto;-webkit-appearance:auto;'
+      + 'transform:translate(-50%,-50%)';
+    // ⚠️ AND IT HAS TO CLIP. The scale is uniform — a non-uniform one on a
+    // native control was never tested and is not going to be assumed — so on
+    // anything that is not square the switch massively over-covers the short
+    // axis. His CONTEST INFO column is 44x204 on a phone: scaled to cover its
+    // height, the switch comes out 212 wide and reaches 84px past each side,
+    // straight over LEADERBOARD and RULES & PRIZES next to it. The harness
+    // caught it as those two buttons no longer being what a thumb lands on.
+    // overflow:hidden clips descendants for hit-testing as well as painting,
+    // and it follows border-radius — which is what keeps his round SAVE &
+    // ENTER a disc rather than the square its switch would otherwise make.
+    el.style.overflow = 'hidden';
+    el.insertBefore(input, el.firstChild);
+    sizeTo(input, el);
+    attached.add(el);
+    // The cabinet resizes with the viewport, and a switch sized for the old
+    // box would leave part of the button dead.
+    if (typeof ResizeObserver === 'function') {
+      const ro = new ResizeObserver(() => sizeTo(input, el));
+      ro.observe(el);
+    }
+    return true;
   }
 
   function fire(pattern) {
@@ -129,31 +190,37 @@ export function createHaptics() {
         return nav.vibrate(pattern) !== false;
       } catch (_e) { return false; }
     }
-    const el = iosSwitch();
-    if (!el || !lab) return false;
-    try {
-      // ⚠️ THE LABEL, NOT THE INPUT. Clicking the input toggles the checked
-      // state and produces nothing to feel; the haptic rides on activating
-      // the label that owns it.
-      //
-      // Toggling is the haptic. Which way it ends up does not matter, so it
-      // is left wherever it lands rather than being toggled back — a second
-      // click would be a second haptic.
-      lab.click();
-      el.blur();
-      return true;
-    } catch (_e) { return false; }
+    // ⚠️ NOTHING TO DO ON iOS, AND THAT IS THE ANSWER, NOT A GAP. There is no
+    // programmatic route to the Taptic Engine — see the round-by-round notes
+    // above. A caller asking to be buzzed gets an honest false; the haptic on
+    // this platform comes from attach(), where his own thumb produces it.
+    return false;
   }
 
   return {
-    // A pad going down mid-run. Deliberately the shortest of the three: this
-    // one fires hundreds of times in a run and anything longer turns into a
-    // continuous buzz under the thumb.
+    // ⚠️ ANDROID ONLY, AND THAT IS NOT A BUG. A pad going down mid-run, the
+    // shortest of the three because it fires hundreds of times a run and
+    // anything longer becomes a continuous buzz under the thumb. On iOS it
+    // returns false and always will: the only haptic available there lands on
+    // RELEASE and is throttled under repeated taps, which is the exact
+    // opposite of what a movement pad needs. Measured on his phone, round 2.
     tick: () => fire(TICK),
     // A menu button, a screen tap, anything that is a decision.
     tap: () => fire(TAP),
     // A decision that committed something — the run starting, the form saving.
     confirm: () => fire(CONFIRM),
+
+    // ⚠️ THE iOS HAPTIC IS THIS, NOT tap()/confirm(). Give a real button a
+    // hidden switch so the player's own tap is what buzzes. Call it on every
+    // button that should answer a thumb; it is a no-op everywhere but iOS,
+    // which is why nothing here changes what the harnesses see.
+    attach,
+    attachAll(root) {
+      if (!root || typeof root.querySelectorAll !== 'function') return 0;
+      let n = 0;
+      root.querySelectorAll('button').forEach((el) => { if (attach(el)) n += 1; });
+      return n;
+    },
 
     setEnabled(v) {
       enabled = !!v;
@@ -161,7 +228,9 @@ export function createHaptics() {
     },
     isEnabled: () => enabled,
     // What route is actually available, for the settings copy and the harness.
-    support: () => (canVibrate ? 'vibrate' : (isIOS ? 'ios-switch' : 'none')),
+    // 'ios-buttons' rather than the old 'ios-switch': the distinction matters
+    // to the player, because it means menus buzz and the game pad does not.
+    support: () => (canVibrate ? 'vibrate' : ((isIOS || force) ? 'ios-buttons' : 'none')),
   };
 }
 

@@ -681,8 +681,19 @@
       left: 35.404%; top: 56.941%; width: 27.198%; height: 14.371%;
       border-radius: 50%;
     }
+    /* ⚠️ 3.634% TALL, NOT 4.881%. The first number came from the ink bbox of
+       his NOT NOW / CANCEL plate, and that bbox had swallowed the top rim of
+       the red button below it — so this control overlapped btnFormX by 12
+       plate pixels and, being earlier in the DOM, lost that strip to it. The
+       haptic-button grader found it by asking what a thumb actually lands on
+       at each corner, which is a question no rect comparison asks. Re-measured
+       off his plate afterwards from the plate's own borders rather than from
+       its lettering: x584-720, y710-818, stopping 3px clear of the red
+       button's rim at 817. Wider AND taller than the wrong version — the ink
+       bbox had been under-covering his plate on the left while overlapping
+       the button below it. */
     #panelCard.cabinet-entry #btnSkip {
-      left: 70.106%; top: 40.401%; width: 14.537%; height: 4.881%;
+      left: 68.464%; top: 38.612%; width: 15.944%; height: 5.531%;
     }
     #panelCard.cabinet-entry #btnFormX {
       left: 71.395%; top: 44.144%; width: 9.144%; height: 4.501%;
@@ -712,6 +723,69 @@
        NOW. Both halves have to move together or the cabinet loses them. */
     #panel .btn.cabOnly { display: none; }
     #panelCard.cabinet-entry .btn.cabOnly { display: block; }
+    /* ── HIS PAINTED CONTROLS HAVE TO LOOK LIVE ────────────────────────
+       "Can we make all tappable buttons a little more noticeable... maybe add
+       a little glow or something, it needs to be a lot more obvious they
+       could be clicked."
+
+       On these screens every control is HIS painting with a transparent box
+       over it, so there is nothing at all to say which parts answer a thumb —
+       the coin slot and the SAVE button look equally pressable. This is the
+       smallest thing that fixes that without putting any art of mine on his:
+       no shape, no border, no label, just his own amber breathing behind the
+       control he already drew. Same colour and the same slow cycle as the
+       glow he approved on the dashboard's map dots.
+
+       It follows border-radius, so his round SAVE & ENTER gets a round halo
+       and his NOT NOW plate gets a rectangular one. cqw, so it scales with
+       the cabinet instead of turning into a hard ring on a small phone.
+       Staggered a little per control so the panel breathes rather than
+       flashing all at once. */
+    #panelCard.cabinet .pv .btn,
+    #panelCard.cabinet #panelClose {
+      animation: liveglow 2.8s ease-in-out infinite;
+    }
+    #panelCard.cabinet .pv .btn:nth-of-type(2) { animation-delay: 0.35s; }
+    #panelCard.cabinet .pv .btn:nth-of-type(3) { animation-delay: 0.7s; }
+    #panelCard.cabinet .pv .btn:nth-of-type(4) { animation-delay: 1.05s; }
+    #panelCard.cabinet .pv .btn:nth-of-type(5) { animation-delay: 1.4s; }
+    #panelCard.cabinet #panelClose { animation-delay: 0.5s; }
+    @keyframes liveglow {
+      /* ⚠️ MOSTLY OUTER BLOOM, BARELY ANY INSET. The first pass leaned on an
+         inset shadow and it drew a hard bright line along the top and bottom
+         of the wide OPTIONS rows — a rectangle stencilled across his panel,
+         which is precisely the thing not to do to his artwork. A wide, weak
+         outer glow reads as the control being lit; a tight inset reads as a
+         box someone drew on it. */
+      0%, 100% {
+        box-shadow: 0 0 1.1cqw rgba(255,198,92,0.16),
+                    inset 0 0 0.5cqw rgba(255,198,92,0.07);
+      }
+      50% {
+        box-shadow: 0 0 2.8cqw rgba(255,198,92,0.40),
+                    inset 0 0 0.9cqw rgba(255,198,92,0.15);
+      }
+    }
+    /* A press is unmistakable: the glow snaps bright and the wash comes up. */
+    #panelCard.cabinet .pv .btn:active,
+    #panelCard.cabinet #panelClose:active {
+      animation: none;
+      background: rgba(255,198,92,0.20);
+      box-shadow: 0 0 2.6cqw rgba(255,214,110,0.75),
+                  inset 0 0 1.6cqw rgba(255,214,110,0.45);
+    }
+    /* ⚠️ A pulse is motion, and some people have that switched off at the OS.
+       They still need to know what is tappable, so the glow stays — it just
+       stops breathing. */
+    @media (prefers-reduced-motion: reduce) {
+      #panelCard.cabinet .pv .btn,
+      #panelCard.cabinet #panelClose {
+        animation: none;
+        box-shadow: 0 0 2.0cqw rgba(255,198,92,0.30),
+                    inset 0 0 0.7cqw rgba(255,198,92,0.12);
+      }
+    }
+
     /* ── THE ERROR TAKES THE CARD'S OWN HEADING ────────────────────────
        ⚠️ NOT THE MARQUEE, and that was measured rather than guessed. The
        marquee looked like the obvious home — a dot-matrix sign whose whole
