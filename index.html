@@ -772,7 +772,13 @@
          plate's own aspect-ratio, so the bloom lands on the ink it came off. */
       background-size: 100% 100%;
       mix-blend-mode: screen;
-      animation: glyphglow 2.8s ease-in-out infinite;
+      /* ⚠️ 3.6s, AND THE PULSE IS THE POINT. "All the buttons that are glowing,
+         they should slowly pulse so people can know that they're accessible."
+         A slow breath is what reads as a live control; a static glow reads as
+         part of the painting, which on plates that are ALL painting is no signal
+         at all. 2.8s was closer to a blink — long enough to notice, short enough
+         to feel like a flicker on a screen with six lit controls on it. */
+      animation: glyphglow 3.6s ease-in-out infinite;
     }
     #panelCard.cabinet-entry::after { background-image: var(--entry-glow); }
     #panelCard.cabinet-menu #panelScreen::after { background-image: var(--options-glow); }
@@ -789,26 +795,43 @@
       background: radial-gradient(closest-side,
                   rgba(255,214,110,0.34), rgba(255,214,110,0) 76%);
     }
-    /* ⚠️ A pulse is motion, and some people have that switched off at the OS.
-       They still need to know what is tappable, so the glow stays lit — it
-       just stops breathing. */
+    /* ⚠️ REDUCED MOTION STILL BREATHES — SLOWER AND SHALLOWER, NOT FROZEN.
+       The first version stopped the pulse dead under `prefers-reduced-motion`,
+       and that is very likely why he asked for a pulse he had already been
+       shipped: if Reduce Motion is on in iOS Accessibility settings, Safari
+       reports it and he would have seen a steady glow and nothing else, on both
+       this version and the box-glow before it.
+
+       He asked for the pulse explicitly, so the resolution is to honour the
+       spirit of the setting rather than its letter. What that setting is for is
+       vestibular triggers — parallax, sliding, zooming, anything that reads as
+       the world moving. A luminance drift over seven seconds moves nothing and
+       is the standard exception; halving the depth and doubling the period
+       keeps the affordance for him without putting motion in front of someone
+       who asked for less of it. */
     @media (prefers-reduced-motion: reduce) {
       #panelCard.cabinet-entry::after,
       #panelCard.cabinet-menu #panelScreen::after,
       #panelCard.cabinet-settings #panelScreen::after {
-        animation: none; opacity: 0.82;
+        animation-name: glyphglowcalm;
+        animation-duration: 7s;
+      }
+      @keyframes glyphglowcalm {
+        0%, 100% { opacity: 0.62; }
+        50%      { opacity: 1; }
       }
     }
     /* ── AND THE SAME IDEA WHERE THE TEXT IS REAL ──────────────────────
        The ticket's own action bar and the plain panel's ghost buttons have
        actual DOM text, so they need no bloom layer at all — `text-shadow` on
-       the glyphs IS the glow he described, and it costs nothing. Same 2.8s
-       cycle as the painted surfaces so the whole UI breathes together.
+       the glyphs IS the glow he described, and it costs nothing. Same 3.6s
+       cycle as the painted surfaces so the whole UI breathes together — one
+       rhythm across the interface, not two.
        ⚠️ NOT on `#panel .btn` — that one is dark text on solid amber, and a
        white glow behind black lettering is a smudge. Only the light-on-dark
        ones get it. */
     #lbActions .btn.card, #panel .btn.ghost {
-      animation: textglow 2.8s ease-in-out infinite;
+      animation: textglow 3.6s ease-in-out infinite;
     }
     @keyframes textglow {
       0%, 100% { text-shadow: 0 0 0.5cqw rgba(255,255,255,0.35); }
@@ -831,14 +854,23 @@
                              0 0 7px rgba(255,255,255,0.75),
                              0 0 14px rgba(255,214,110,0.45); }
     }
+    /* Same treatment as the painted layers: slower and shallower, still alive.
+       The keyframes only drop the widest, softest ring — the one doing the
+       visible travelling — and keep the tight core lit throughout. */
     @media (prefers-reduced-motion: reduce) {
-      #lbActions .btn.card {
-        animation: none;
-        text-shadow: 0 0 0.5cqw rgba(255,255,255,0.9), 0 0 1.6cqw rgba(255,255,255,0.6);
+      #lbActions .btn.card { animation-name: textglowcalm; animation-duration: 7s; }
+      #panel .btn.ghost { animation-name: textglowpxcalm; animation-duration: 7s; }
+      @keyframes textglowcalm {
+        0%, 100% { text-shadow: 0 0 0.5cqw rgba(255,255,255,0.75),
+                               0 0 1.6cqw rgba(255,255,255,0.40); }
+        50%      { text-shadow: 0 0 0.5cqw rgba(255,255,255,0.95),
+                               0 0 1.6cqw rgba(255,255,255,0.75); }
       }
-      #panel .btn.ghost {
-        animation: none;
-        text-shadow: 0 0 2px rgba(255,255,255,0.9), 0 0 7px rgba(255,255,255,0.6);
+      @keyframes textglowpxcalm {
+        0%, 100% { text-shadow: 0 0 2px rgba(255,255,255,0.75),
+                               0 0 7px rgba(255,255,255,0.40); }
+        50%      { text-shadow: 0 0 2px rgba(255,255,255,0.95),
+                               0 0 7px rgba(255,255,255,0.75); }
       }
     }
 

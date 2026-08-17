@@ -45,10 +45,19 @@ await p.goto(`${BASE}/?tod=night`, { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__game && window.__game.screen === 'title', null, { timeout: 25000 });
 await p.waitForTimeout(2600);
 
-const NAMES = ['glyphglow', 'textglow', 'textglowpx'];
+const NAMES = ['glyphglow', 'textglow', 'textglowpx',
+  'glyphglowcalm', 'textglowcalm', 'textglowpxcalm'];
+// ⚠️ THE PHASE IS A FRACTION OF EACH ANIMATION'S OWN DURATION, not of a number
+// written here. The cycle length is a thing he asks about ("they should slowly
+// pulse") and it has already changed once; a hardcoded 2800 would silently
+// freeze the layers at some arbitrary point in the cycle the next time it moves
+// and quietly weaken every measurement below.
 const freeze = (t) => p.evaluate(([names, tt]) => {
   document.getAnimations().forEach((a) => {
-    if (names.includes(a.animationName)) { a.pause(); a.currentTime = tt * 2800; }
+    if (!names.includes(a.animationName)) return;
+    const d = a.effect.getTiming().duration;
+    a.pause();
+    a.currentTime = tt * (typeof d === 'number' ? d : 2800);
   });
 }, [NAMES, t]);
 
@@ -267,13 +276,23 @@ const shadows = await p.evaluate(() => {
 });
 check('no box-shadow left on any painted control', shadows.length === 0, shadows.join(' | '));
 
-// The pulse itself has to be real and it has to be running.
+// The pulse itself has to be real, running, and SLOW — "they should slowly
+// pulse so people can know that they're accessible". A glow that does not move
+// is indistinguishable from paint on a screen that is entirely paint.
 const anims = await p.evaluate((names) => document.getAnimations()
   .filter((a) => names.includes(a.animationName))
-  .map((a) => a.animationName), NAMES);
-check('the pulse is running on the cabinet', anims.includes('glyphglow'), anims.join(' '));
+  .map((a) => ({ n: a.animationName, d: a.effect.getTiming().duration,
+    state: a.playState })), NAMES);
+const pulse = anims.find((a) => a.n === 'glyphglow');
+check('the pulse is running on the cabinet', !!pulse, JSON.stringify(anims));
+check('and it is a slow breath, not a blink', !!pulse && pulse.d >= 3000 && pulse.d <= 6000,
+  pulse ? `${pulse.d}ms` : 'absent');
 
-// And motion-off keeps the light without the movement.
+// ⚠️ AND IT STILL BREATHES WITH MOTION REDUCED. It used to stop dead there,
+// which is the likeliest reason he asked for a pulse he had already been sent:
+// with Reduce Motion on in iOS Accessibility, Safari reports it and the glow was
+// frozen. Slower and shallower honours the setting's purpose — no vestibular
+// motion — while keeping the affordance he asked for.
 const still = await ctx.newPage();
 await still.emulateMedia({ reducedMotion: 'reduce' });
 await still.goto(`${BASE}/?tod=night`, { waitUntil: 'networkidle' });
@@ -286,15 +305,22 @@ const rm = await still.evaluate(() => {
 await still.mouse.click(rm.x, rm.y);
 await still.waitForTimeout(500);
 const reduced = await still.evaluate(() => {
-  const sc = document.getElementById('panelScreen');
-  const cs = getComputedStyle(sc, '::after');
-  return {
-    op: parseFloat(cs.opacity),
-    running: document.getAnimations().filter((a) => a.animationName === 'glyphglow').length,
+  const a = document.getAnimations().find((x) => x.animationName === 'glyphglowcalm');
+  const fast = document.getAnimations().filter((x) => x.animationName === 'glyphglow').length;
+  // Sample the trough and the peak, so this measures the actual depth of the
+  // breath rather than trusting the keyframe text.
+  const at = (t) => {
+    a.pause(); a.currentTime = t * a.effect.getTiming().duration;
+    return parseFloat(getComputedStyle(document.getElementById('panelScreen'), '::after').opacity);
   };
+  return a
+    ? { dur: a.effect.getTiming().duration, low: at(0), high: at(0.5), fast }
+    : { missing: true, fast };
 });
-check('reduced motion keeps the glow lit and stops the pulse',
-  reduced.running === 0 && reduced.op > 0.5, JSON.stringify(reduced));
+check('reduced motion still breathes, slower and shallower',
+  !reduced.missing && reduced.fast === 0 && reduced.dur >= 6000
+  && reduced.low >= 0.5 && reduced.high > reduced.low + 0.15,
+  JSON.stringify(reduced));
 
 const bad = checks.filter(([, ok]) => !ok).length;
 console.log('\n' + (bad === 0 ? `ALL ${checks.length} PASS` : `${bad} of ${checks.length} FAIL`));
