@@ -72,7 +72,21 @@ export function createHaptics() {
   //
   // This is still a hack against an undocumented side effect and it is still
   // the only route a web page has to the Taptic Engine.
+  //  4. IT CLICKED THE INPUT. Client, after all of the above: "Vibration is
+  //     still not working." The route that is actually reported to work is
+  //     clicking a <label> BOUND to the switch, not the switch itself — the
+  //     haptic rides on the label-driven activation, and a direct .click() on
+  //     the input toggles the checked state without ever producing one. The
+  //     label wraps the input, so it is bound by nesting and needs no id.
+  //
+  // ⚠️ STILL UNVERIFIED FROM HERE, AND NOW MEASURED INSTEAD OF GUESSED AGAIN.
+  // public/haptic.html is a probe he can open on the phone: five routes side
+  // by side, including a real switch he flips himself as the control. If the
+  // control does not buzz, this iOS build has no switch haptic and no code
+  // change reaches the Taptic Engine. Whichever route he feels is the one
+  // that stays; the rest of this comment becomes history.
   let sw = null;
+  let lab = null;
   function buildIosSwitch() {
     if (sw || !isIOS || typeof document === 'undefined' || !document.body) return sw;
     sw = document.createElement('input');
@@ -80,12 +94,16 @@ export function createHaptics() {
     sw.setAttribute('switch', '');
     sw.tabIndex = -1;
     sw.setAttribute('aria-hidden', 'true');
-    // In the viewport, drawn, but invisible and un-hittable by a thumb.
-    sw.style.cssText = 'position:fixed;left:0;top:0;width:1px;height:1px;'
-      + 'opacity:0.01;z-index:-1;margin:0;padding:0;border:0;'
+    sw.style.cssText = 'margin:0;padding:0;border:0;'
       + 'appearance:auto;-webkit-appearance:auto';
-    document.body.appendChild(sw);
-    void sw.offsetHeight;             // force layout NOW, not at first press
+    // In the viewport, drawn, but invisible and un-hittable by a thumb.
+    lab = document.createElement('label');
+    lab.setAttribute('aria-hidden', 'true');
+    lab.style.cssText = 'position:fixed;left:0;top:0;width:1px;height:1px;'
+      + 'opacity:0.01;z-index:-1;display:block;overflow:hidden';
+    lab.appendChild(sw);
+    document.body.appendChild(lab);
+    void lab.offsetHeight;            // force layout NOW, not at first press
     return sw;
   }
   function iosSwitch() { return sw || buildIosSwitch(); }
@@ -112,12 +130,16 @@ export function createHaptics() {
       } catch (_e) { return false; }
     }
     const el = iosSwitch();
-    if (!el) return false;
+    if (!el || !lab) return false;
     try {
+      // ⚠️ THE LABEL, NOT THE INPUT. Clicking the input toggles the checked
+      // state and produces nothing to feel; the haptic rides on activating
+      // the label that owns it.
+      //
       // Toggling is the haptic. Which way it ends up does not matter, so it
       // is left wherever it lands rather than being toggled back — a second
       // click would be a second haptic.
-      el.click();
+      lab.click();
       el.blur();
       return true;
     } catch (_e) { return false; }

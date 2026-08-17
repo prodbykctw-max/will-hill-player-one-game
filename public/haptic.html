@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="robots" content="noindex,nofollow" />
+<title>WH:P1 — haptics probe</title>
+<!--
+  ⚠️ A DIAGNOSTIC, NOT PART OF THE GAME. Reachable only by typing /haptic.html,
+  never linked from anything a player sees.
+
+  Client: "Vibration is still not working."
+
+  It cannot be answered from this side. There is no Vibration API on iOS
+  Safari — there never has been — and the only route from a web page to the
+  Taptic Engine is a side effect of toggling <input type="checkbox" switch>,
+  which arrived in iOS 17.4 and is documented nowhere. Playwright cannot test
+  it: its "iPhone" profile is Chromium wearing an iOS user-agent, and it
+  reports navigator.vibrate as a function, which real Safari does not. So a
+  harness here can only ever tell me the harness is lying.
+
+  This page asks the only instrument that can answer: his thumb. Five buttons,
+  five different routes, one of which is the control. Whichever ones buzz, the
+  game uses; the rest get deleted.
+-->
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 20px 16px calc(28px + env(safe-area-inset-bottom, 0px));
+    background: #0b0a12; color: #f2ead8;
+    font: 16px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  h1 { font-size: 19px; margin: 0 0 4px; color: #ffd66e; letter-spacing: .04em; }
+  p.sub { margin: 0 0 18px; color: #a49b88; font-size: 13px; }
+  .env {
+    border: 1px solid #2a2740; border-radius: 8px; padding: 10px 12px;
+    margin: 0 0 20px; font-size: 12.5px; color: #cfc6b2; background: #12101d;
+  }
+  .env b { color: #ffd66e; font-weight: 700; }
+  .t { border-top: 1px solid #23203a; padding: 16px 0 4px; }
+  .t h2 { font-size: 14px; margin: 0 0 2px; color: #f2ead8; letter-spacing: .03em; }
+  .t p { margin: 0 0 10px; font-size: 12.5px; color: #9c9384; }
+  button.go {
+    width: 100%; padding: 15px; font: inherit; font-weight: 700;
+    background: #ffd66e; color: #17140c; border: 0; border-radius: 10px;
+    cursor: pointer; -webkit-tap-highlight-color: transparent;
+  }
+  button.go:active { filter: brightness(0.82); }
+  button.go[disabled] { background: #3a3650; color: #7d7794; }
+  .real { display: flex; align-items: center; gap: 14px; }
+  .real input { transform: scale(1.5); transform-origin: left center; }
+  .out { margin-top: 8px; font-size: 12px; color: #79d18a; min-height: 16px; }
+  .out.bad { color: #ff7a5e; }
+  footer { margin-top: 26px; font-size: 12px; color: #6f6858; }
+</style>
+</head>
+<body>
+<h1>HAPTICS PROBE</h1>
+<p class="sub">Tap each one. Tell me which ones you FEEL. Sound off, phone out of its case, Settings → Sounds &amp; Haptics → System Haptics ON.</p>
+
+<div class="env" id="env">reading device…</div>
+
+<div class="t">
+  <h2>1 — REAL SWITCH (the control)</h2>
+  <p>Flip this with your finger. If this one does not buzz, nothing on this page will, and no code change fixes it — it means this iOS build has no switch haptic and the game cannot reach the Taptic Engine at all.</p>
+  <label class="real"><input type="checkbox" switch id="realSwitch" /> <span>flip me</span></label>
+</div>
+
+<div class="t">
+  <h2>2 — CLICK THE INPUT</h2>
+  <p>What the game does today.</p>
+  <button class="go" id="b2">FIRE 2</button>
+  <div class="out" id="o2"></div>
+</div>
+
+<div class="t">
+  <h2>3 — CLICK A WRAPPING LABEL</h2>
+  <p>The switch inside a &lt;label&gt;, and the LABEL gets the click.</p>
+  <button class="go" id="b3">FIRE 3</button>
+  <div class="out" id="o3"></div>
+</div>
+
+<div class="t">
+  <h2>4 — CLICK A for= LABEL</h2>
+  <p>Same idea, associated by id instead of by nesting.</p>
+  <button class="go" id="b4">FIRE 4</button>
+  <div class="out" id="o4"></div>
+</div>
+
+<div class="t">
+  <h2>5 — navigator.vibrate(30)</h2>
+  <p>The real API. Expected to be missing on iPhone; this is here so we know for certain rather than assuming.</p>
+  <button class="go" id="b5">FIRE 5</button>
+  <div class="out" id="o5"></div>
+</div>
+
+<footer>Nothing here is stored or sent anywhere.</footer>
+
+<script>
+(function () {
+  var nav = navigator;
+  var hasVibrate = typeof nav.vibrate === 'function';
+  var hasSwitch = 'switch' in document.createElement('input');
+  var ua = nav.userAgent;
+  var m = ua.match(/OS (\d+)[_.](\d+)/);
+  document.getElementById('env').innerHTML =
+    'navigator.vibrate: <b>' + (hasVibrate ? 'present' : 'ABSENT') + '</b><br>' +
+    'switch attribute: <b>' + (hasSwitch ? 'supported' : 'NOT SUPPORTED') + '</b><br>' +
+    'reported iOS: <b>' + (m ? m[1] + '.' + m[2] : 'not iOS') + '</b><br>' +
+    'touch points: <b>' + (nav.maxTouchPoints || 0) + '</b>';
+
+  // Every switch is built the same way the game builds it: on screen, drawn,
+  // 1x1 and a hair above transparent. WebKit plays the haptic as a side effect
+  // of ANIMATING a real control, so an element parked off-canvas at opacity 0
+  // has nothing to animate and nothing to feel.
+  function mkSwitch() {
+    var i = document.createElement('input');
+    i.type = 'checkbox';
+    i.setAttribute('switch', '');
+    i.tabIndex = -1;
+    i.setAttribute('aria-hidden', 'true');
+    i.style.cssText = 'position:fixed;left:0;top:0;width:1px;height:1px;'
+      + 'opacity:0.01;z-index:-1;margin:0;padding:0;border:0;'
+      + 'appearance:auto;-webkit-appearance:auto';
+    return i;
+  }
+
+  // 2 — the input itself
+  var s2 = mkSwitch();
+  document.body.appendChild(s2);
+  void s2.offsetHeight;
+
+  // 3 — wrapped in a label, label gets the click
+  var l3 = document.createElement('label');
+  l3.style.cssText = 'position:fixed;left:0;top:1px;width:1px;height:1px;'
+    + 'opacity:0.01;z-index:-1;display:block';
+  var s3 = mkSwitch();
+  s3.style.position = 'static';
+  l3.appendChild(s3);
+  document.body.appendChild(l3);
+  void l3.offsetHeight;
+
+  // 4 — associated by for=
+  var s4 = mkSwitch();
+  s4.id = 'hapticFor';
+  document.body.appendChild(s4);
+  var l4 = document.createElement('label');
+  l4.setAttribute('for', 'hapticFor');
+  l4.style.cssText = 'position:fixed;left:1px;top:0;width:1px;height:1px;'
+    + 'opacity:0.01;z-index:-1;display:block';
+  document.body.appendChild(l4);
+  void l4.offsetHeight;
+
+  function say(id, text, bad) {
+    var el = document.getElementById(id);
+    el.textContent = text;
+    el.className = bad ? 'out bad' : 'out';
+  }
+
+  document.getElementById('b2').addEventListener('click', function () {
+    try { s2.click(); s2.blur(); say('o2', 'fired — checked=' + s2.checked); }
+    catch (e) { say('o2', 'threw: ' + e.message, true); }
+  });
+  document.getElementById('b3').addEventListener('click', function () {
+    try { l3.click(); s3.blur(); say('o3', 'fired — checked=' + s3.checked); }
+    catch (e) { say('o3', 'threw: ' + e.message, true); }
+  });
+  document.getElementById('b4').addEventListener('click', function () {
+    try { l4.click(); s4.blur(); say('o4', 'fired — checked=' + s4.checked); }
+    catch (e) { say('o4', 'threw: ' + e.message, true); }
+  });
+  document.getElementById('b5').addEventListener('click', function () {
+    if (!hasVibrate) { say('o5', 'navigator.vibrate does not exist here', true); return; }
+    try { say('o5', 'vibrate() returned ' + nav.vibrate(30)); }
+    catch (e) { say('o5', 'threw: ' + e.message, true); }
+  });
+  document.getElementById('realSwitch').addEventListener('change', function (e) {
+    e.target.blur();
+  });
+})();
+</script>
+</body>
+</html>
