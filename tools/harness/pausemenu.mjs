@@ -23,6 +23,7 @@
 //   PLAYWRIGHT=... CHROMIUM=... node tools/harness/pausemenu.mjs
 const _pw = await import(process.env.PLAYWRIGHT || 'playwright');
 const chromium = _pw.chromium || _pw.default?.chromium;
+const { startFromTitle } = await import('./startchain.mjs');
 const b = await chromium.launch(process.env.CHROMIUM ? { executablePath: process.env.CHROMIUM } : {});
 // Screenshots land in `shots/` unless SEAM_OUT says otherwise. It used to
 // default to the repo ROOT, so any run without that variable set dropped
@@ -44,7 +45,9 @@ await p.waitForFunction(() => window.__game && window.__game.screen === 'title',
 await p.waitForTimeout(2600);
 
 // ── into a run, then pause ───────────────────────────────────────────────
-await p.mouse.click(196, 300);
+// START is a chain now — contest, then how to play, then the run. See
+// startchain.mjs; this harness only needs to be on the other side of it.
+await startFromTitle(p, { x: 196, y: 300, tap: 'mouse' });
 await p.waitForFunction(() => window.__game.screen === 'playing', null, { timeout: 15000 });
 await p.waitForTimeout(600);
 // Bank some score so RESTART has something to visibly throw away.

@@ -158,33 +158,53 @@ const clickBtn = async (p, id) => {
   await p.context().close();
 }
 
-// ── 7. OFF THE BACK OF A RUN, NOT NOW MEANS THE TITLE — one tap, no board.
-//       The post-run call sites open the form with `formExit: 'close'`; this
-//       drives that contract directly rather than staging a death, because
-//       what changed is the routing, not the dying.
+// ── 7. OFF THE BACK OF A RUN, THE BOARD IS THE LAST STOP.
+//       Client: "die — leaderboard and registration... win? Ending scene then
+//       Leaderboard and registration. If already registered, no registration
+//       offer, only leaderboard." So the form is the offer and the board is
+//       where it lets out, and BACK off THAT board leaves — it does not step
+//       sideways into OPTIONS, which is a menu nobody asked for after a run.
+//
+//       Driven through `flow: 'post'` directly rather than by staging a
+//       death: what changed is the routing, not the dying.
 {
   const p = await fresh();
-  await p.evaluate(() => window.__panel.open('form', { formExit: 'close' }));
+  await p.evaluate(() => window.__panel.open('form', { flow: 'post' }));
   await p.waitForTimeout(500);
   check('the post-run form opens', (await view(p)) === 'form');
   await clickBtn(p, 'btnSkip');
   const v = await view(p);
+  check('NOT NOW there lets out onto the leaderboard', v === 'board', `view=${v}`);
+  await clickBtn(p, 'btnBoardBack');
+  const v2 = await view(p);
   const screen = await p.evaluate(() => window.__game.screen);
-  check('NOT NOW there closes straight out, no leaderboard detour',
-    v === 'none' && screen === 'title', `view=${v} screen=${screen}`);
+  check('and BACK off that board closes to the title, not to OPTIONS',
+    v2 === 'none' && screen === 'title', `view=${v2} screen=${screen}`);
 
-  // And the red ✕ on his cabinet is wired to the same thing NOT NOW is.
-  await p.evaluate(() => window.__panel.open('form', { formExit: 'close' }));
+  // The red ✕ on his cabinet is wired to the same thing NOT NOW is.
+  await p.evaluate(() => window.__panel.open('form', { flow: 'post' }));
   await p.waitForTimeout(400);
   await clickBtn(p, 'btnFormX');
-  check('so is the red ✕ beside it', (await view(p)) === 'none');
+  check('the red ✕ beside it agrees', (await view(p)) === 'board');
 
-  // The default is unchanged: REGISTER from the board comes back to the board.
-  await p.evaluate(() => window.__panel.open('form'));
+  // A REGISTERED player gets no offer at all — straight to the board.
+  await p.evaluate(() => {
+    localStorage.setItem('wh_contest_reg',
+      JSON.stringify({ phone: '4045551234', email: 't@e.com' }));
+  });
+  await p.evaluate(() => window.__panel.open('board', { flow: 'post' }));
   await p.waitForTimeout(400);
-  await clickBtn(p, 'btnSkip');
-  const v3 = await view(p);
-  check('but the plain form still steps back to the board', v3 === 'board', `view=${v3}`);
+  check('a registered player lands on the board with no form in the way',
+    (await view(p)) === 'board');
+  await clickBtn(p, 'btnBoardBack');
+  check('and one BACK takes them out', (await view(p)) === 'none');
+
+  // Reached from OPTIONS instead, the board still steps up to the menu.
+  await p.evaluate(() => window.__panel.open('board'));
+  await p.waitForTimeout(400);
+  await clickBtn(p, 'btnBoardBack');
+  const v4 = await view(p);
+  check('but from OPTIONS the board still steps back to the menu', v4 === 'menu', `view=${v4}`);
   await p.context().close();
 }
 
