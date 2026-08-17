@@ -221,10 +221,11 @@ html,body{background:#07060c;color:#f2ead8;font-family:ui-monospace,SFMono-Regul
    overflowing the box he drew for it. */
 .v{display:flex;align-items:center;justify-content:center;
    font-weight:700;font-size:3.4cqw;color:#ffd66e;font-variant-numeric:tabular-nums}
-.vs{font-size:2.1cqw}
+.vs{font-size:1.95cqw}
+.fv{font-size:1.6cqw;justify-content:flex-start}
 .r{justify-content:flex-end}
 .l{justify-content:flex-start}
-.rows{display:flex;flex-direction:column;font-size:1.9cqw;line-height:1.55;
+.rows{display:flex;flex-direction:column;font-size:1.85cqw;line-height:2.31;
       color:#e8dfcb;overflow-y:auto;scrollbar-width:none}
 .rows::-webkit-scrollbar{display:none}
 .rows .row{display:flex;gap:.6cqw;white-space:nowrap}
@@ -232,7 +233,7 @@ html,body{background:#07060c;color:#f2ead8;font-family:ui-monospace,SFMono-Regul
 .bar{background:#ffd66e;height:100%;border-radius:1px}
  #clockA{left:15.006%;top:7.05%;width:20.281%;height:1.681%}
  #clockB{left:40.563%;top:7.05%;width:20.516%;height:1.681%}
- #clockC{left:66.354%;top:7.05%;width:19.343%;height:1.681%}
+ #clockC{left:66.354%;top:8.677%;width:20.516%;height:0.922%}
  #tEntrants{left:13.482%;top:14.208%;width:35.287%;height:2.115%}
  #tRuns{left:50.645%;top:14.208%;width:35.287%;height:2.115%}
  #tBest{left:13.482%;top:18.438%;width:35.287%;height:2.115%}
@@ -243,16 +244,16 @@ html,body{background:#07060c;color:#f2ead8;font-family:ui-monospace,SFMono-Regul
  #dPot{left:63.892%;top:23.427%;width:9.496%;height:1.573%}
  #dFall{left:75.615%;top:23.427%;width:6.565%;height:1.573%}
  #map{left:13.834%;top:27.386%;width:71.864%;height:14.425%}
- #top10{left:13.834%;top:47.289%;width:34.584%;height:9.707%}
- #cities{left:50.645%;top:47.289%;width:35.053%;height:9.707%}
+ #top10{left:19.226%;top:46.53%;width:29.191%;height:9.924%}
+ #cities{left:50.645%;top:47.614%;width:35.053%;height:9.924%}
  #f1{left:24.033%;top:61.28%;width:17.351%;height:1.03%}
  #f2{left:24.033%;top:62.744%;width:17.351%;height:1.03%}
  #f3{left:24.033%;top:64.208%;width:17.351%;height:1.03%}
  #f4{left:24.033%;top:65.672%;width:17.351%;height:1.03%}
- #f1v{left:41.97%;top:61.28%;width:6.8%;height:1.03%}
- #f2v{left:41.97%;top:62.744%;width:6.8%;height:1.03%}
- #f3v{left:41.97%;top:64.208%;width:6.8%;height:1.03%}
- #f4v{left:41.97%;top:65.672%;width:6.8%;height:1.03%}
+ #f1v{left:41.735%;top:61.28%;width:9.144%;height:1.03%}
+ #f2v{left:41.735%;top:62.744%;width:9.144%;height:1.03%}
+ #f3v{left:41.735%;top:64.208%;width:9.144%;height:1.03%}
+ #f4v{left:41.735%;top:65.672%;width:9.144%;height:1.03%}
  #spark{left:52.169%;top:61.009%;width:32.356%;height:6.02%}
  #cTotal{left:35.17%;top:71.475%;width:13.247%;height:1.139%}
  #cPct{left:35.17%;top:72.722%;width:13.247%;height:1.139%}
@@ -260,8 +261,8 @@ html,body{background:#07060c;color:#f2ead8;font-family:ui-monospace,SFMono-Regul
  #mLen{left:72.685%;top:71.475%;width:13.013%;height:1.139%}
  #mBot{left:72.685%;top:72.722%;width:13.013%;height:1.139%}
  #mLost{left:72.685%;top:73.97%;width:13.013%;height:1.139%}
- #entrants{left:13.834%;top:79.284%;width:71.864%;height:4.935%}
- #rejects{left:13.834%;top:87.419%;width:71.864%;height:4.284%}
+ #entrants{left:13.834%;top:80.152%;width:71.864%;height:4.067%}
+ #rejects{left:13.834%;top:88.178%;width:71.864%;height:3.525%}
 </style></head><body>
 <div id="plate">
  <div class="v vs" id="clockA"></div><div class="v vs" id="clockB"></div><div class="v vs" id="clockC"></div>
@@ -275,8 +276,8 @@ html,body{background:#07060c;color:#f2ead8;font-family:ui-monospace,SFMono-Regul
  <div id="f2"><i class="bar" style="display:block;width:0"></i></div>
  <div id="f3"><i class="bar" style="display:block;width:0"></i></div>
  <div id="f4"><i class="bar" style="display:block;width:0"></i></div>
- <div class="v vs l" id="f1v"></div><div class="v vs l" id="f2v"></div>
- <div class="v vs l" id="f3v"></div><div class="v vs l" id="f4v"></div>
+ <div class="v fv" id="f1v"></div><div class="v fv" id="f2v"></div>
+ <div class="v fv" id="f3v"></div><div class="v fv" id="f4v"></div>
  <svg id="spark" viewBox="0 0 100 40" preserveAspectRatio="none"></svg>
  <div class="v vs r" id="cTotal"></div><div class="v vs r" id="cPct"></div><div class="v vs r" id="cRuns"></div>
  <div class="v vs r" id="mLen"></div><div class="v vs r" id="mBot"></div><div class="v vs r" id="mLost"></div>
