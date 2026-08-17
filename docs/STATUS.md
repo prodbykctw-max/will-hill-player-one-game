@@ -373,6 +373,28 @@ run actually reaches the board either way, which it did not before.
 
 ---
 
+## The database, as it actually stands
+
+**Content: one real entry.** KCTW, 29,750, 4 plays. Everything else in there
+has been load-test data, created and deleted the same day — verified back to
+`runs 1 / entrants 1 / run_stats 2 / seen_runs 4` after each run, not assumed.
+
+⚠️ **Two of those four plays have no stats row, permanently.** The old
+supersede path deleted a `run_stats` row unconditionally when a better score
+arrived, so the 29,750 run's stats went with it before the guard
+(`AND score <= ?`) went in. Consequences, so nobody reads them as live bugs:
+
+- HIGH SCORE, RUNS and CITIES are right — they read `runs`, the board table.
+- BAGS COLLECTED, ENEMIES STOMPED, DEATHS, STAGE PROGRESSION and RUNS OVER TIME
+  under-report by those two runs and always will. The data is gone.
+- Every run submitted from now on is intact; the guard is live and verified in
+  the deployed worker.
+
+If he wants those tiles to read clean before the contest, the honest fix is to
+empty the table and start the contest from zero — not to invent rows.
+
+---
+
 ## ON HOLD — his side
 
 Nothing on this list can be finished without him:

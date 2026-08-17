@@ -95,28 +95,53 @@ their sheets, not that they graded anything.
 
 ### Load, measured — not assumed
 
-`tools/loadtest.mjs`, run against the live worker. ⚠️ It writes to the real
-contest database; everything it creates is named `LOADTEST-` and `--clean`
-prints the SQL that removes it. Do that, and check the counts, before the
-contest opens.
+`tools/loadtest.mjs` against the live worker, and `tools/harness/dashload.mjs`
+against the page the worker serves. ⚠️ The load test writes to the REAL contest
+database; everything it creates is named `LOADTEST-` and `--clean` prints the
+SQL that removes it. Run it, then check the counts — his board must not launch
+with ten thousand fake people on it.
+
+⚠️ It also costs D1 write quota: **4 rows written per submit**, so 10,000
+entries is ~40k writes to create and ~40k to delete. On the free tier's
+100k/day that is most of a day. Do it on a day the contest is not live.
+
+**The worker, at 10,000 entrants**
 
 | test | result |
 |---|---|
-| 100 runs from ONE player, simultaneously | all 200; board kept **the true max** and counted **every** play |
-| the same run id posted 25 times at once | exactly **1** accepted, **24** refused 409 |
-| 1,000 distinct players at concurrency 50 | **1,000/1,000 accepted, zero errors**; p50 737ms, p99 1.3s, 62 submits/s |
-| 2,283 board reads during that flood | **98% edge-cache HIT**, p50 48ms, zero errors |
-| 1,000 malformed submits | all refused correctly at 156/s; the reject log took it |
+| 200 runs from ONE player, simultaneously | all 200; board kept the true max, counted **all 201** plays |
+| ... then a LOWER score arrived after | ignored, correctly — the max survived |
+| the same run id posted 50 times at once | exactly **1** accepted, **49** refused 409 |
+| **10,000 distinct players**, conc 50 | **10,000/10,000, zero errors** · p50 806ms, p99 1.8s, 58/s |
+| 23,415 board reads during that flood | **98% edge-cache HIT**, p50 47ms, zero errors |
+| the same at 1,000 players | p50 737ms — **throughput did not degrade 10x** |
+| heaviest dashboard query at 10,001 rows | 1.3ms of SQL |
+| `/top?n=20` with 10,001 rows behind it | 20 rows, 1.35KB, 884ms cold / 47ms cached |
 
-The race is the one that matters: it is the exact failure the KV design had,
-and `MAX()` inside the upsert holds under real concurrency. Nobody's winning
-run disappears.
+The race is the one worth having run: it is the exact failure the KV design
+had, where two players finishing together meant the second write erased the
+first. `MAX()` inside the upsert holds — and the accidental version of the test
+was better than the designed one, because the flood's phone range overlapped
+the race's, so a LOWER score landed after the high one and was correctly
+ignored.
 
-**What it found in the dashboard**, invisible at one row: the 5-second poll was
-rebuilding all 1,000 entrant rows into a window 3 rows tall — 133ms of
-main-thread work every 5 seconds — and opening the full table took 1.8s.
-Capping the inline list and skipping unchanged redraws took those to **16ms**
-and **451ms**, and the DOM from 10,080 nodes to 1,060.
+**The page, at 10,000 entrants** — three defects that one row cannot show:
+
+| | before | after |
+|---|---|---|
+| the 5s poll, forever | 133ms | **16ms** |
+| opening ALL ENTRANTS | 6,689ms | **1,281ms**, readable immediately |
+| DOM nodes | 10,080 | **1,140** |
+
+The poll was rebuilding every row into a window three rows tall; the inline
+lists are capped now. The open table only repaints when its data actually
+moved. And it paints the first 300 rows immediately and fills in behind him on
+animation frames — sorted by score, so the rows that matter are in the first
+batch by definition.
+
+**The game is insulated from contest size**, and that was checked rather than
+assumed: it reads `/top?n=20`, capped at 50 server-side, so its board renders
+5 rows in 1.2s with 10,001 rows in the table and no scrolling in either axis.
 
 ### What no harness in here can tell you
 
