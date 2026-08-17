@@ -837,20 +837,20 @@
        fractions like the score rows, so it tracks the artwork at any size —
        the dark body ends at 0.857 and the cream runs to 0.946. */
     #lbActions {
-      position: absolute; left: 6%; right: 6%;
-      top: 86.4%; height: 7.4%;
+      position: absolute; left: 2.184%; right: 2.184%;
+      top: 90.723%; height: 8.559%;
       display: flex; align-items: stretch;
     }
     #lbActions .btn.card {
       flex: 1; margin: 0; padding: 0;
       display: flex; align-items: center; justify-content: center;
-      font: 800 3.5cqw/1 system-ui, sans-serif; letter-spacing: 0.06em;
+      font: 800 3.8cqw/1 system-ui, sans-serif; letter-spacing: 0.06em;
       color: #f7f1e2; background: #16131f;
-      border: 0.5cqw solid rgba(255,214,110,0.75); border-radius: 2cqw;
-      box-shadow: 0 0.6cqw 0 rgba(0,0,0,0.45);
+      border: 0.54cqw solid rgba(255,214,110,0.75); border-radius: 2.17cqw;
+      box-shadow: 0 0.65cqw 0 rgba(0,0,0,0.45);
       cursor: pointer;
     }
-    #lbActions .btn.card:active { transform: translateY(0.3cqw); box-shadow: none; }
+    #lbActions .btn.card:active { transform: translateY(0.33cqw); box-shadow: none; }
     #lbActions .btn.card[hidden] { display: none; }
 
     /* ⚠️ THE HONEYPOT MUST BE INVISIBLE BUT NOT `display:none`. A capable bot
@@ -1001,7 +1001,7 @@
          stacked below; with the action moved onto the ticket only the title,
          the note and BACK are left outside, so the reserve is 196 and the
          card takes the difference. */
-      position: relative; aspect-ratio: 852 / 1846;
+      position: relative; aspect-ratio: 784 / 1596;
       /* ⚠️ THE RESERVE IS NOW ZERO, because nothing is stacked outside the
          card any more. It was 300 when a note, ENTER and BACK sat below the
          artwork, then 196 when ENTER moved onto the ticket's own footer. With
@@ -1019,11 +1019,15 @@
          plus whatever the notch and home indicator take. Forgetting it made
          the card exactly 28px too tall and put the scrollbar straight back. */
       height: min(calc(100dvh - 28px - env(safe-area-inset-top, 0px)
-                       - env(safe-area-inset-bottom, 0px)), 1846px);
+                       - env(safe-area-inset-bottom, 0px)), 1596px);
       width: auto; max-width: 100%; margin: 0 auto;
       container-type: inline-size;
       background: center/100% 100% no-repeat;   /* image set in panel.js */
-      border-radius: 14px; overflow: hidden;
+      /* ⚠️ NO border-radius NOW. The ticket carries its own rounded corners
+         in the alpha channel — see tools/trim_lb_card.py — so a CSS radius on
+         top of them would clip his card a second time, slightly differently,
+         and show as a flat chord across each corner. */
+      overflow: hidden;
     }
     /* The note used to sit under the card and cost it height. It lives on the
        ticket now, in the dark band just above the cream footer. */
@@ -1033,47 +1037,47 @@
        between them — right-aligned, because the rank line fills from the
        left and the two must never meet. */
     #pvBoard .note {
-      position: absolute; left: 6%; right: 6%; top: 84.5%;
+      position: absolute; left: 2.184%; right: 2.184%; top: 88.526%;
       margin: 0; text-align: right;
-      font: 700 2.6cqw/1 ui-monospace, Menlo, Consolas, monospace;
+      font: 700 2.83cqw/1 ui-monospace, Menlo, Consolas, monospace;
       color: rgba(255,214,110,0.85); text-shadow: 0 1px 2px rgba(0,0,0,0.85);
     }
     #pvBoard .note:empty { display: none; }
     #board { margin: 0; padding: 0; list-style: none; }
     #board li {
-      position: absolute; left: 0; right: 0; height: 4.4cqw;
+      position: absolute; left: 0; right: 0; height: 4.78cqw;
       display: flex; align-items: center;
       /* Monospace, not the panel's system-ui. His card is lettered in a
          pixel arcade face and a proportional sans over it reads as a caption
          someone stuck on top. Mono with wide tracking is the closest thing
          available without shipping a font file. */
-      font: 700 4.0cqw/1 ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+      font: 700 4.35cqw/1 ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
       letter-spacing: 0.06em; font-variant-numeric: tabular-nums;
-      color: #cfcabf; text-shadow: 0 0.25cqw 0 rgba(0,0,0,0.55);
+      color: #cfcabf; text-shadow: 0 0.27cqw 0 rgba(0,0,0,0.55);
     }
-    #board li .r { position: absolute; left: 12.7%; }
+    #board li .r { position: absolute; left: 9.465%; }
     #board li .n {
-      position: absolute; left: 28.6%; right: 13%;
+      position: absolute; left: 26.744%; right: 9.791%;
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
-    #board li .s { position: absolute; right: 12.0%; }
+    #board li .s { position: absolute; right: 8.704%; }
     /* Rank one is gold in his art, and so is whoever is reading it. */
     #board li:first-child, #board li.me { color: #f0b429; }
     #lbYou {
-      position: absolute; left: 0; right: 0; top: 79.5%; height: 5.2cqw;
+      position: absolute; left: 0; right: 0; top: 82.742%; height: 5.65cqw;
       display: flex; align-items: center;
-      font: 700 4.4cqw/1 ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+      font: 700 4.78cqw/1 ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
       letter-spacing: 0.06em; font-variant-numeric: tabular-nums;
-      color: #f0b429; text-shadow: 0 0.25cqw 0 rgba(0,0,0,0.55);
+      color: #f0b429; text-shadow: 0 0.27cqw 0 rgba(0,0,0,0.55);
     }
-    #lbYou .r { position: absolute; left: 12.7%; }
-    #lbYou .n { position: absolute; left: 28.6%; right: 13%;
+    #lbYou .r { position: absolute; left: 9.465%; }
+    #lbYou .n { position: absolute; left: 26.744%; right: 9.791%;
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    #lbYou .s { position: absolute; right: 12.0%; }
+    #lbYou .s { position: absolute; right: 8.704%; }
     #lbEmpty {
-      position: absolute; left: 8%; right: 8%; top: 57%; margin: 0;
+      position: absolute; left: 4.357%; right: 4.357%; top: 56.718%; margin: 0;
       text-align: center; color: rgba(242,234,216,0.62);
-      font: 600 3.4cqw/1.5 ui-monospace, Menlo, monospace; letter-spacing: 0.04em;
+      font: 600 3.69cqw/1.5 ui-monospace, Menlo, monospace; letter-spacing: 0.04em;
     }
 
     /* Landscape on a phone is short: shrink and tuck the pads in so they

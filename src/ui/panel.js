@@ -241,7 +241,13 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
   // the bands its placeholder rows were blanked out of. Positioning each `li`
   // absolutely means a name too long to fit ellipsises inside its own row
   // instead of pushing the ones below it off their measured line.
-  const ROW_TOP = [0.5385, 0.5850, 0.6300, 0.6745, 0.7180];
+  // ⚠️ REMAPPED FOR THE TRIMMED TICKET. These were fractions of the whole
+  // 852x1846 plate; the card is now cropped out of it at x34-818, y147-1743, so
+  // every one of them moved. tools/trim_lb_card.py prints the conversion —
+  // v' = (v * 1846 - 147) / 1596 — and re-running it prints them again if the
+  // crop ever changes. Old values, for the record:
+  // [0.5385, 0.5850, 0.6300, 0.6745, 0.7180]
+  const ROW_TOP = [0.53075, 0.58453, 0.63658, 0.68805, 0.73836];
 
   function render(runs, note) {
     const ol = $('board');

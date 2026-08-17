@@ -62,7 +62,7 @@ const GAME_URL = 'https://prodbykctw-max.github.io/will-hill-player-one-game/';
   await p.waitForTimeout(900);                    // prepareShareCard renders here
   await p.click('#btnShare');
   // ⚠️ POLL, DO NOT SLEEP — see the same note on the desktop block below.
-  // Encoding the 852x1846 card to PNG took ~4s on a loaded machine and this
+  // Encoding the 784x1596 card to PNG took ~4s on a loaded machine and this
   // fixed 400ms reported the whole share feature as dead.
   await p.waitForFunction(() => !!window.__shared, null, { timeout: 30000 }).catch(() => {});
   const s = await p.evaluate(() => window.__shared || null);
@@ -102,7 +102,7 @@ const GAME_URL = 'https://prodbykctw-max.github.io/will-hill-player-one-game/';
     return { w: bm.width, h: bm.height, inkPx: diff };
   });
   check('the card decodes at the artwork\'s own size',
-    !!img && img.w === 852 && img.h === 1846, img ? `${img.w}x${img.h}` : 'no file');
+    !!img && img.w === 784 && img.h === 1596, img ? `${img.w}x${img.h}` : 'no file');
   check('the YOUR-RANK band actually carries the drawn score',
     !!img && img.inkPx > 400, img ? `${img.inkPx} ink pixels vs the empty card` : '');
   await ctx.close();
@@ -140,7 +140,7 @@ const GAME_URL = 'https://prodbykctw-max.github.io/will-hill-player-one-game/';
   // This was `waitForTimeout(400)` and it started reporting the desktop
   // fallback as dead — no download, no clipboard, no error. Measured, the
   // click lands at 0ms and the file appears at about 4s: the card is an
-  // 852x1846 canvas encoded to a 2.5MB PNG, and how long that takes depends
+  // 784x1596 canvas encoded to a 2.5MB PNG, and how long that takes depends
   // on what else the machine is doing. 400ms was never a contract, just a
   // number that used to be enough. Poll the condition instead.
   await p.waitForFunction(() => window.__downloads.length > 0 && window.__clip,

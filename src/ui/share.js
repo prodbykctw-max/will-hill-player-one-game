@@ -11,7 +11,7 @@
 // take it, and it is the honest version rather than a button that pretends.
 //
 // THE CARD IS HIS OWN ART. The share image is the leaderboard MARTA card
-// (852x1846 — near-exactly the 9:16 of an Instagram Story) with the player's
+// (784x1596 — a 0.491 ticket, still close to a Story's 9:16) with the player's
 // run written into the same measured rows the on-screen board uses, and the
 // game's URL at the foot so a screenshot of a screenshot still leads home.
 //
@@ -33,14 +33,24 @@ export const GAME_URL = 'https://prodbykctw-max.github.io/will-hill-player-one-g
 // 28.6%, score right edge at 88.0%, YOUR RANK band at 79.5%). Three renderers
 // read one measurement of one painting; if the card art is ever re-measured,
 // change all three together.
-const ROW_TOP = [0.5385, 0.5850, 0.6300, 0.6745, 0.7180];
-const ROW_H = 0.044;            // of card WIDTH (the CSS is 4.4cqw)
-const FONT_F = 0.040;           // row font, of card width — 4.0cqw
-const YOU_TOP = 0.795;
-const YOU_FONT_F = 0.044;
-const COL_RANK = 0.127;
-const COL_NAME = 0.286;
-const COL_SCORE_R = 0.880;
+// ⚠️ REMAPPED FOR THE TRIMMED TICKET, and these are the numbers a player
+// POSTS — a share card with its rows off the printed lines goes out under his
+// name, to everybody. The card used to be the whole 852x1846 plate; it is now
+// cropped to the ticket alone at x34-818, y147-1743, so every fraction here
+// moved and every span expressed in card WIDTHS grew by 852/784.
+// tools/trim_lb_card.py prints the conversion and re-prints it if the crop
+// changes. These must stay in step with the same constants in index.html and
+// src/ui/panel.js — three copies of one geometry is the risk worth naming.
+// Old values: [0.5385, 0.5850, 0.6300, 0.6745, 0.7180], 0.044, 0.040, 0.795,
+// 0.044, 0.127, 0.286, 0.880.
+const ROW_TOP = [0.53075, 0.58453, 0.63658, 0.68805, 0.73836];
+const ROW_H = 0.04782;          // of card WIDTH (the CSS is 4.78cqw)
+const FONT_F = 0.04347;         // row font, of card width — 4.35cqw
+const YOU_TOP = 0.82742;
+const YOU_FONT_F = 0.04782;
+const COL_RANK = 0.09465;
+const COL_NAME = 0.26744;
+const COL_SCORE_R = 0.91296;
 const INK = '#cfcabf';
 const GOLD = '#f0b429';         // rank one, and whoever is reading it
 const MONO = 'ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace';
@@ -81,8 +91,8 @@ function shareData() {
 
 async function buildFile() {
   const im = await loadCard();
-  const W = im.naturalWidth || 852;
-  const H = im.naturalHeight || 1846;
+  const W = im.naturalWidth || 784;
+  const H = im.naturalHeight || 1596;
   const cv = document.createElement('canvas');
   cv.width = W;
   cv.height = H;
@@ -93,7 +103,7 @@ async function buildFile() {
   const px = Math.round(FONT_F * W);
   c.textBaseline = 'middle';
   c.shadowColor = 'rgba(0,0,0,0.55)';
-  c.shadowOffsetY = Math.max(1, 0.0025 * W);
+  c.shadowOffsetY = Math.max(1, 0.00272 * W);
 
   rows.slice(0, ROW_TOP.length).forEach((r, i) => {
     const y = (ROW_TOP[i] + (ROW_H * W) / H / 2) * H;
@@ -121,10 +131,10 @@ async function buildFile() {
   // The way back, small and out of the artwork's way, above the bottom
   // stripes. A shared image travels further than the post it rode in on.
   c.shadowColor = 'rgba(0,0,0,0.7)';
-  c.font = `700 ${Math.round(0.026 * W)}px ${MONO}`;
+  c.font = `700 ${Math.round(0.02826 * W)}px ${MONO}`;
   c.fillStyle = 'rgba(242,234,216,0.92)';
   c.textAlign = 'center';
-  c.fillText(GAME_URL.replace(/^https:\/\//, '').replace(/\/$/, ''), W / 2, 0.842 * H);
+  c.fillText(GAME_URL.replace(/^https:\/\//, '').replace(/\/$/, ''), W / 2, 0.88179 * H);
 
   const blob = await new Promise((res) => cv.toBlob(res, 'image/png'));
   if (!blob) throw new Error('toBlob failed');
