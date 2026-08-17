@@ -573,8 +573,11 @@ function pick(c, fly) {
 function drawStrip() {
   const t = data.totals || {}, c = data.counts || {};
   // ⚠️ THE BOARD'S BEST, NOT run_stats'. These two can differ and did.
-  // `runs` keeps MAX(score) forever; a run_stats row can be dropped by a later
-  // submission carrying `supersedes`. So this tile once read 20,200 sitting
+  // ⚠️ AND NO BACKTICKS IN THIS COMMENT — it lives inside the page's own
+  // template literal, so one ends the string and the worker stops parsing.
+  // That has now bitten this file twice in one sitting.
+  // The runs table keeps MAX(score) forever; a run_stats row can be dropped by
+  // a later submission carrying supersedes. So this tile once read 20,200
   // above a TOP 10 whose first line said 29,750 — the same page contradicting
   // itself on the screen that decides who gets paid. The board is the contest
   // record, so the tile quotes the very rows TOP 10 renders.
