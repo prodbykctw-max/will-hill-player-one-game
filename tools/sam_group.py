@@ -106,15 +106,23 @@ REGIONS = {
         ('arch',      582,  36,  968, 312),
         ('trees',       0, 282,  118, 458),
         ('trees',     982, 292, 1092, 492),
-        # The whole right-hand street-tree line, as one box. A 17960px mask
-        # running x 1144..1449 is that line in a single piece, and the tight
-        # 1136..1218 box it used to have contained about a third of it.
-        # ⚠️ This box overlaps the Peachtree building's and is listed BEFORE
-        # it on purpose — checked on --map afterwards, and peachtree keeps its
-        # mass because its own masks are not 70% inside a box that stops at
-        # y 476.
-        ('trees',    1136, 220, 1460, 476),
+        # ⚠️ THE BUILDING IS LISTED BEFORE THE TREES, and getting that backwards
+        # is what put a chunk of the Peachtree block on the tree card. The
+        # right-hand street trees come back from SAM as ONE 17960px mask running
+        # x 1144..1449, so the box that catches them has to be wide enough to
+        # reach x1449 — which also puts the PEACHTREE FURNITURE frontage inside
+        # it. With trees first, 9514px of that building (3424 at night) went to
+        # a card at a different depth.
+        #
+        # Building first fixes that. What it does NOT fix is the sign FACE
+        # itself: SAM returns the tree line and that sign as a single blob, so
+        # 78% of the face still rides `trees` whichever order these are in.
+        # Splitting it would need a finer segmentation pass. It is harmless as
+        # things stand because `peachtree` and `trees` now sit 0.02 apart in
+        # depth (0.50 and 0.48), which is about 2px of travel across a whole
+        # stage — see the lettering note in src/world/stages.js.
         ('peachtree',1254, 206, 1535, 584),
+        ('trees',    1136, 220, 1460, 476),
         ('midbuild',  366, 286,  774, 552),
         ('midbuild',  760, 380, 1000, 552),
         # The far skyline: the spire behind the right column, the tower group
@@ -168,8 +176,9 @@ REGIONS = {
         ('arch',      600,  30,  916, 300),
         ('trees',       0, 288,  110, 452),
         ('trees',     976, 300, 1092, 496),
-        ('trees',    1130, 200, 1462, 512),
+        # Building before trees, same reason as the day half above.
         ('peachtree',1272, 210, 1535, 578),
+        ('trees',    1130, 200, 1462, 512),
         ('midbuild',  296, 288,  770, 548),
         ('midbuild',  748, 374, 1000, 548),
         ('towers',    896,  86,  986, 340),
