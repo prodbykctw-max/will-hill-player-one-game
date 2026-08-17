@@ -93,6 +93,31 @@ An earlier full pass at `47249b3` ran all 32: **24 graded, 355 checks, zero
 failures.** The 8 report-only harnesses ran clean — which means they produced
 their sheets, not that they graded anything.
 
+### Load, measured — not assumed
+
+`tools/loadtest.mjs`, run against the live worker. ⚠️ It writes to the real
+contest database; everything it creates is named `LOADTEST-` and `--clean`
+prints the SQL that removes it. Do that, and check the counts, before the
+contest opens.
+
+| test | result |
+|---|---|
+| 100 runs from ONE player, simultaneously | all 200; board kept **the true max** and counted **every** play |
+| the same run id posted 25 times at once | exactly **1** accepted, **24** refused 409 |
+| 1,000 distinct players at concurrency 50 | **1,000/1,000 accepted, zero errors**; p50 737ms, p99 1.3s, 62 submits/s |
+| 2,283 board reads during that flood | **98% edge-cache HIT**, p50 48ms, zero errors |
+| 1,000 malformed submits | all refused correctly at 156/s; the reject log took it |
+
+The race is the one that matters: it is the exact failure the KV design had,
+and `MAX()` inside the upsert holds under real concurrency. Nobody's winning
+run disappears.
+
+**What it found in the dashboard**, invisible at one row: the 5-second poll was
+rebuilding all 1,000 entrant rows into a window 3 rows tall — 133ms of
+main-thread work every 5 seconds — and opening the full table took 1.8s.
+Capping the inline list and skipping unchanged redraws took those to **16ms**
+and **451ms**, and the DOM from 10,080 nodes to 1,060.
+
 ### What no harness in here can tell you
 
 **Haptics on iOS.** Playwright's "iPhone" profile is Chromium wearing an iOS
@@ -317,12 +342,9 @@ Everything here needs a real phone. The container cannot do any of it.
   (`loopseam` grades it off the master bus). What is genuinely open is where
   the loops should END — he hears stage one repeat two bars, which no seam
   measurement can see. That is his call at `/bench/`, not a check to write.
-- **The fall sprite wears a flannel** no other clip has — the only clip of the
-  nine that does. Blocked on an AutoSprite API key (re-checked 2026-08-16,
-  still `Unauthorized`), and **not fixable in code**: it is a whole jacket, and
-  a colour key cannot separate it from his skin — the flannel-free idle frame
-  measures 10.5% "brown" against fall's 12.2%. See `docs/STATUS.md` for the
-  interim.
+- ~~**The fall sprite wears a flannel**~~ — fixed. The pose was regenerated
+  with the scenery banned by name; every fall frame now matches idle's
+  wardrobe. Checked frame by frame, not assumed.
 - **Intro three-beat ordering** (environment → objects → title) is not built.
   `introorder` grades the ordering that *did* ship: his name before PLAYER ONE.
   The three-beat version needs the signs, hero and pole lifted cleanly off the

@@ -391,20 +391,13 @@ Nothing on this list can be finished without him:
 - **Cloudflare rate limiting + Turnstile rules**, and a billing alert.
 - **Contest dates** — `CONTEST_START`/`CONTEST_END` are still `0`, which the
   worker reads as "not configured, allow everything".
-- **AutoSprite API key** — the fall sprite wears a flannel no other clip has.
-  Re-checked 2026-08-16: still `Unauthorized: provide an MCP API key from
-  https://www.autosprite.io/apikey`. It is an AUTH failure, not an outage, so
-  it will not come back on its own — he pastes a key or it stays broken.
-  **And it cannot be worked around in code.** Scope is exactly one clip (all
-  nine sheets audited; the other eight are white tee / gold chain / red cap /
-  olive cargos), but the flannel is a full jacket — both sleeves over his arms
-  plus a trailing back flap — so it is not a recolour. A colour key cannot
-  find it either: the idle frame, which has NO flannel, measures 10.5% "brown"
-  against fall's 12.2%, because his skin and the cap's shading are the same
-  browns. Masking it would be hand pixel-art across 16 frames.
-  **Interim if he wants it gone before the key arrives:** route pit deaths to
-  `knockback` in `src/main.js` / `src/entities/player.js` — correct wardrobe,
-  but it loses the tumble that reads as final. Not done; his call.
+- ~~**AutoSprite API key / the flannel on the fall clip**~~ — **DONE.** The
+  pose was regenerated with the scenery banned by name and composed back into
+  the atlas; only the fall clip's three `fit` numbers changed, and `origin`,
+  `frameSize` and the cell are byte-identical. Verified frame by frame against
+  idle: white tee, red cap, olive cargos, no flannel, no manhole. This entry
+  sat here describing a fixed problem until the client asked "we already have
+  the new fall sprite, why is that even an issue" — he was right.
 - **The 317MB screen recording** needs "Anyone with the link" sharing.
 - **Longer MP3s**, if he prefers that to an engine crossfade.
 - **RARƎ + prodbyKCTW logos**, and the original artist for menu art.
