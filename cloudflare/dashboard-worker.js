@@ -63,6 +63,16 @@ const notFound = () => new Response('Not found', { status: 404, headers: { 'Cont
 
 import { WORLD } from './worldmap.js';
 
+// ⚠️ THESE MUST MIRROR cloudflare/leaderboard-worker.js. They were REFERENCED
+// on the /data response and never DECLARED here, so every single call threw
+// a ReferenceError and returned 500 — which is why this dashboard had never
+// once shown a number since the day it was built. The page said "offline",
+// which named the symptom and hid the cause; it reports the status code now.
+// A worker has no access to the other worker's module scope, so the value is
+// duplicated on purpose. Change one, change both.
+const CONTEST_START = 0;  // ms epoch, 0 = not configured
+const CONTEST_END = 0;
+
 const esc = (s) => String(s == null ? '' : s)
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
   .replace(/"/g, '&quot;');
@@ -231,6 +241,27 @@ html,body{background:#07060c;color:#f2ead8;font-family:ui-monospace,SFMono-Regul
 .rows .row{display:flex;gap:.6cqw;white-space:nowrap}
 .rows .row .s{margin-left:auto;color:#ffd66e;font-weight:700}
 .bar{background:#ffd66e;height:100%;border-radius:1px}
+/* ⚠️ HIS CONTROLS ARE PAINTED, SO THEY NEED REAL ELEMENTS ON TOP OF THEM.
+   Swapping the page for his image left FILTER, DOWNLOAD CSV and the three
+   VIEW chips as pixels: "none of the buttons or drop downs work". Same fix as
+   the game's OPTIONS screen — a transparent control at the rect he drew, so
+   his art is the button and the browser still gets a real input, a real link
+   and real buttons with accessible names. Rects measured off the plate:
+   filter x391-603 y188-219, CSV x624-730 y189-218, and the chips at
+   x174-227 / x232-301 / x341-405 across y782-812. */
+#q,#csv,#mWorld,#mUS,#mATL{background:none;border:0;padding:0;color:#f2ead8;
+  font:inherit;font-size:1.9cqw;cursor:pointer;-webkit-tap-highlight-color:transparent}
+#q{color:#ffd66e;text-align:center;outline:none}
+#csv,#mWorld,#mUS,#mATL{font-size:0;color:transparent}
+/* ⚠️ The hit area is TALLER than the chip he painted, on purpose. His
+   chips measure 14-16px on a 430px phone — measured, not guessed — and a
+   14px target is not tappable with a thumb. These are transparent, so
+   growing them moves nothing visible; each stays centred on his rect. */
+#q{left:45.838%;top:9.463%;width:24.912%;height:3.2%}
+#csv{left:73.153%;top:9.463%;width:12.544%;height:3.2%}
+#mWorld{left:20.399%;top:41.622%;width:6.331%;height:3.2%}
+#mUS{left:27.198%;top:41.703%;width:8.206%;height:3.2%}
+#mATL{left:39.976%;top:41.648%;width:7.620%;height:3.2%}
  #clockA{left:15.006%;top:7.05%;width:20.281%;height:1.681%}
  #clockB{left:40.563%;top:7.05%;width:20.516%;height:1.681%}
  #clockC{left:66.354%;top:8.677%;width:20.516%;height:0.922%}
@@ -271,6 +302,11 @@ html,body{background:#07060c;color:#f2ead8;font-family:ui-monospace,SFMono-Regul
  <div class="v" id="tKills"></div><div class="v" id="tDeaths"></div>
  <div class="v vs" id="dEnemy"></div><div class="v vs" id="dPot"></div><div class="v vs" id="dFall"></div>
  <svg id="map" viewBox="0 0 100 100" preserveAspectRatio="none"></svg>
+ <input id="q" placeholder="" aria-label="Filter by name or phone">
+ <a id="csv" href="#" aria-label="Download CSV"></a>
+ <button id="mWorld" aria-label="World view"></button>
+ <button id="mUS" aria-label="North America view"></button>
+ <button id="mATL" aria-label="Atlanta view"></button>
  <div class="rows" id="top10"></div><div class="rows" id="cities"></div>
  <div id="f1"><i class="bar" style="display:block;width:0"></i></div>
  <div id="f2"><i class="bar" style="display:block;width:0"></i></div>
@@ -315,7 +351,12 @@ function draw(){
 
   // TOP 10 — his painting already letters the ranks 1. to 10., so only the
   // name and the score go in.
-  const rows = (data.rows || []).slice(0, 10);
+  const qEl = document.getElementById('q');
+  const q = (qEl && qEl.value || '').trim().toLowerCase();
+  const all = (data.rows || []).filter((r) => !q
+    || String(r.name || '').toLowerCase().includes(q)
+    || String(r.phone || '').includes(q));
+  const rows = all.slice(0, 10);
   $('top10').innerHTML = rows.map((r) =>
     '<div class="row"><span>' + esc(r.name) + '</span><span class="s">' + n(r.score) + '</span></div>'
   ).join('') || '';
@@ -357,7 +398,7 @@ function draw(){
       + sp.map((s) => ((s.hour||0)/72*100).toFixed(1) + ',' + (40 - (s.n||0)/mx*38).toFixed(1)).join(' ') + '"/>'
     : '';
 
-  $('entrants').innerHTML = (data.rows || []).map((r, i) =>
+  $('entrants').innerHTML = all.map((r, i) =>
     '<div class="row"><span>' + (i+1) + '</span><span>' + esc(r.name) + '</span>'
     + '<span>' + esc(r.phone) + '</span><span class="s">' + n(r.score) + '</span></div>').join('');
   $('rejects').innerHTML = (data.rejects || []).slice(0, 8).map((x) =>
@@ -373,6 +414,20 @@ async function pull(){
   try { data = await res.json(); } catch (e) { $('clockC').textContent = 'BAD JSON'; return; }
   draw();
 }
+// His painted chips, made live. The map opens on world, so world starts lit.
+let picked = null;
+function view(which){
+  picked = which;
+  draw();
+}
+document.getElementById('mWorld').onclick = () => view(null);
+document.getElementById('mUS').onclick = () => view('us');
+document.getElementById('mATL').onclick = () => view('atl');
+document.getElementById('q').oninput = draw;
+document.getElementById('csv').onclick = (e) => {
+  e.preventDefault();
+  location.href = '/csv?k=' + encodeURIComponent(K);
+};
 draw(); pull(); setInterval(pull, 5000); setInterval(() => { $('clockA').textContent = atlanta(); }, 1000);
 </script></body></html>`;
     return new Response(html, { headers: HEADERS });
