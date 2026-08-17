@@ -87,9 +87,16 @@ export default {
     // The one place in the system that joins the public board to the contact
     // details, and the only reason this worker exists.
     if (url.pathname === '/data') {
+      // best_ms fills the BEST-RUN TIME column he painted into ALL ENTRANTS.
+      // It is the duration of that player's highest-scoring run, so it is the
+      // length of the run the board is showing and not an average. Correlated
+      // subquery rather than another round trip: run_stats.id is indexed, and
+      // a player has a handful of rows, not thousands.
       const { results } = await env.DB.prepare(
         `SELECT r.id, r.name, r.score, r.updated, r.created, r.plays,
-                e.phone, e.email
+                e.phone, e.email,
+                (SELECT s.duration FROM run_stats s
+                  WHERE s.id = r.id ORDER BY s.score DESC LIMIT 1) AS best_ms
            FROM runs r LEFT JOIN entrants e ON e.id = r.id
           ORDER BY r.score DESC, r.updated ASC`,
       ).all();
@@ -235,11 +242,30 @@ html,body{background:#07060c;color:#f2ead8;font-family:ui-monospace,SFMono-Regul
 .fv{font-size:1.6cqw;justify-content:flex-start}
 .r{justify-content:flex-end}
 .l{justify-content:flex-start}
-.rows{display:flex;flex-direction:column;font-size:1.85cqw;line-height:2.31;
-      color:#e8dfcb;overflow-y:auto;scrollbar-width:none}
+/* ⚠️ THE ROW PITCH IS HIS, NOT MINE. He drew TOP 10 as ten numbered rows on
+   a 20.1px pitch — measured off the plate, dividers at y891, 911, 932 ...
+   1053 — and this was rendering on a 36px pitch. Five of his ten painted
+   ranks had nothing beside them and the other five had scrolled out of the
+   window. line-height is a LENGTH in cqw so the pitch stays locked to his
+   painting at every screen width instead of drifting with the font. */
+.rows{display:flex;flex-direction:column;font-size:1.6cqw;line-height:2.36cqw;
+      color:#e8dfcb;overflow-y:auto;overscroll-behavior:contain;
+      scrollbar-width:none;-webkit-overflow-scrolling:touch}
 .rows::-webkit-scrollbar{display:none}
 .rows .row{display:flex;gap:.6cqw;white-space:nowrap}
 .rows .row .s{margin-left:auto;color:#ffd66e;font-weight:700}
+/* The two tables sit under column headings he painted at fixed x. These
+   percentages ARE his headings: RANK 129, SCORE 203, NAME 277, PHONE 362,
+   EMAIL 442, PLAYS 517, BEST-RUN TIME 565, LAST PLAYED 662, panel ends 734;
+   and TIME 125, REASON 228, DETAIL 505 on the rejection log. */
+.tbl .row{display:grid;gap:0}
+/* nowrap is what makes the ellipsis work at all, and it is what keeps every
+   row exactly one pitch tall. Without it a long email wraps, the row grows to
+   two lines and nothing lines up with the headings above it any more. A value
+   too long for the column he drew is clipped here and complete in the CSV. */
+.tbl .row>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#entrants .row{grid-template-columns:12.23% 12.23% 14.05% 13.22% 12.40% 7.93% 16.03% 11.90%}
+#rejects .row{grid-template-columns:16.91% 45.48% 37.60%}
 .bar{background:#ffd66e;height:100%;border-radius:1px}
 /* ⚠️ HIS CONTROLS ARE PAINTED, SO THEY NEED REAL ELEMENTS ON TOP OF THEM.
    Swapping the page for his image left FILTER, DOWNLOAD CSV and the three
@@ -275,8 +301,8 @@ html,body{background:#07060c;color:#f2ead8;font-family:ui-monospace,SFMono-Regul
  #dPot{left:63.892%;top:23.427%;width:9.496%;height:1.573%}
  #dFall{left:75.615%;top:23.427%;width:6.565%;height:1.573%}
  #map{left:13.834%;top:27.386%;width:71.864%;height:14.425%}
- #top10{left:19.226%;top:46.53%;width:29.191%;height:9.924%}
- #cities{left:50.645%;top:47.614%;width:35.053%;height:9.924%}
+ #top10{left:18.054%;top:47.234%;width:30.598%;height:10.955%}
+ #cities{left:51.583%;top:46.964%;width:33.998%;height:11.334%}
  #f1{left:24.033%;top:61.28%;width:17.351%;height:1.03%}
  #f2{left:24.033%;top:62.744%;width:17.351%;height:1.03%}
  #f3{left:24.033%;top:64.208%;width:17.351%;height:1.03%}
@@ -292,8 +318,53 @@ html,body{background:#07060c;color:#f2ead8;font-family:ui-monospace,SFMono-Regul
  #mLen{left:72.685%;top:71.475%;width:13.013%;height:1.139%}
  #mBot{left:72.685%;top:72.722%;width:13.013%;height:1.139%}
  #mLost{left:72.685%;top:73.97%;width:13.013%;height:1.139%}
- #entrants{left:13.834%;top:80.152%;width:71.864%;height:4.067%}
- #rejects{left:13.834%;top:88.178%;width:71.864%;height:3.525%}
+ #entrants{left:15.123%;top:80.641%;width:70.926%;height:3.417%}
+ #rejects{left:14.654%;top:87.906%;width:71.395%;height:2.495%}
+/* ⚠️ TAP EITHER HEADING TO READ THE WHOLE TABLE.
+   "What about the ability to scroll once this fills up?" — the lists always
+   scrolled, but the two windows he painted are 63px and 46px tall on an
+   853-wide plate, which is 3 rows and 2 rows. The contest ends with fifty-odd
+   entrants in one and every refusal in the other, so three at a time is not
+   reading them. These two transparent buttons sit over his painted titles and
+   open that table full-screen. Nothing is drawn over his plate to advertise
+   it, because the alternative was drawing a control he did not paint. */
+ #xEnt,#xRej{background:none;border:0;padding:0;font-size:0;color:transparent;
+   cursor:pointer;-webkit-tap-highlight-color:transparent}
+ #entrants,#rejects{cursor:pointer}
+ /* The default focus ring is a fat white rectangle and it lands on his
+    painting. Keyboard focus still has to be visible, so it is his amber,
+    inset, and only for :focus-visible — a tap never draws it. */
+ #xEnt:focus-visible,#xRej:focus-visible{outline:1px solid #ffd66e;outline-offset:-1px}
+ #xEnt{left:13.013%;top:76.79%;width:73.388%;height:2.115%}
+ #xRej{left:13.013%;top:84.707%;width:73.388%;height:1.844%}
+/* THE FULL-SCREEN TABLE. Its heading is a crop of his own painting — panel
+   border, title, column headings, rule — cut by tools/cut_dash_heads.py, and
+   the body colour is his panel interior, sampled: rgb(2,7,16). The strip is
+   laid out at the 626px width he drew it at, so his lettering stays the size
+   he drew it and a narrow phone pans sideways instead of shrinking the type
+   to nothing. The only thing in this view he did not draw is the word CLOSE. */
+#exp{position:fixed;inset:0;z-index:9;background:#020710;overflow:auto;
+  -webkit-overflow-scrolling:touch}
+#exp[hidden]{display:none}
+#expIn{width:626px;min-width:100%}
+#expHead{width:100%;position:sticky;top:0;z-index:1;
+  background-size:100% 100%;background-repeat:no-repeat}
+/* 12px is not a guess. Every column is the width he painted it — PHONE is
+   80px of a 626px strip — and 12px monospace runs 7.2px a character, so a
+   ten-digit phone comes to 72px and lands inside its column instead of
+   ellipsing the last digit, which is the one thing on this page that has to
+   be readable on payout day. Measured with worst-case rows, not eyeballed. */
+#expRows{font-size:12px;line-height:19px;color:#e8dfcb;padding:2px 0 40px}
+#exp.eEnt #expRows .row{padding-left:2.875%;
+  grid-template-columns:12.17% 12.17% 13.98% 13.16% 12.34% 7.89% 15.95% 11.84%}
+#exp.eRej #expRows .row{padding-left:2.240%;
+  grid-template-columns:16.83% 45.26% 37.42%}
+#exp.eEnt #expHead{aspect-ratio:626/76;background-image:var(--head-ent)}
+#exp.eRej #expHead{aspect-ratio:626/61;background-image:var(--head-rej)}
+#exp{--head-ent:url(data:image/webp;base64,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);--head-rej:url(data:image/webp;base64,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)}
+#expClose{position:fixed;right:0;top:0;z-index:3;background:none;border:0;
+  color:#ffd66e;font:inherit;font-size:12px;font-weight:700;letter-spacing:.1em;
+  padding:10px 14px;cursor:pointer;-webkit-tap-highlight-color:transparent}
 </style></head><body>
 <div id="plate">
  <div class="v vs" id="clockA"></div><div class="v vs" id="clockB"></div><div class="v vs" id="clockC"></div>
@@ -317,7 +388,13 @@ html,body{background:#07060c;color:#f2ead8;font-family:ui-monospace,SFMono-Regul
  <svg id="spark" viewBox="0 0 100 40" preserveAspectRatio="none"></svg>
  <div class="v vs r" id="cTotal"></div><div class="v vs r" id="cPct"></div><div class="v vs r" id="cRuns"></div>
  <div class="v vs r" id="mLen"></div><div class="v vs r" id="mBot"></div><div class="v vs r" id="mLost"></div>
- <div class="rows" id="entrants"></div><div class="rows" id="rejects"></div>
+ <div class="rows tbl" id="entrants"></div><div class="rows tbl" id="rejects"></div>
+ <button id="xEnt" aria-label="Open the full entrants table"></button>
+ <button id="xRej" aria-label="Open the full rejection log"></button>
+</div>
+<div id="exp" hidden>
+ <div id="expIn"><div id="expHead"></div><div class="tbl" id="expRows"></div></div>
+ <button id="expClose">CLOSE</button>
 </div>
 <script>
 const K = new URLSearchParams(location.search).get('k');
@@ -398,13 +475,52 @@ function draw(){
       + sp.map((s) => ((s.hour||0)/72*100).toFixed(1) + ',' + (40 - (s.n||0)/mx*38).toFixed(1)).join(' ') + '"/>'
     : '';
 
-  $('entrants').innerHTML = all.map((r, i) =>
-    '<div class="row"><span>' + (i+1) + '</span><span>' + esc(r.name) + '</span>'
-    + '<span>' + esc(r.phone) + '</span><span class="s">' + n(r.score) + '</span></div>').join('');
-  $('rejects').innerHTML = (data.rejects || []).slice(0, 8).map((x) =>
-    '<div class="row"><span>' + new Date(x.t).toLocaleTimeString() + '</span><span>'
-    + esc(x.reason) + '</span></div>').join('');
+  // The two tables, in his eight and his three painted columns. Written once
+  // and rendered twice — into the little window he drew, and into the
+  // full-screen view that opens when the heading is tapped — so the expanded
+  // table keeps updating on the 5s poll instead of freezing when it opens.
+  const rejList = data.rejects || [];
+  $('entrants').innerHTML = entRows(all);
+  $('rejects').innerHTML = rejRows(rejList);
+  if (expWhich) $('expRows').innerHTML = expWhich === 'ent' ? entRows(all) : rejRows(rejList);
 }
+function mmss(ms){
+  const v = Number(ms) || 0;
+  return v ? Math.floor(v/60000) + ':' + String(Math.floor(v%60000/1000)).padStart(2,'0') : '';
+}
+// 24-hour, because LAST PLAYED is the narrowest column he painted (72px) and
+// a 12-hour stamp is 10 characters at 1am and 11 at 12pm — one width fits and
+// the other loses its AM/PM to the ellipsis. This is always M/D HH:MM.
+function stamp(t){
+  if (!t) return '';
+  const d = new Date(t);
+  return (d.getMonth()+1) + '/' + d.getDate() + ' '
+    + String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+}
+function entRows(list){
+  return list.map((r, i) => '<div class="row"><span>' + (i+1) + '</span>'
+    + '<span>' + n(r.score) + '</span><span>' + esc(r.name) + '</span>'
+    + '<span>' + esc(r.phone) + '</span><span>' + esc(r.email) + '</span>'
+    + '<span>' + n(r.plays) + '</span><span>' + mmss(r.best_ms) + '</span>'
+    + '<span>' + stamp(r.updated) + '</span></div>').join('');
+}
+function rejRows(list){
+  return list.map((x) => '<div class="row"><span>'
+    + new Date(x.t).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',second:'2-digit'})
+    + '</span><span>' + esc(x.reason) + '</span><span>' + esc(x.detail) + '</span></div>').join('');
+}
+// Tapping his painted heading opens that table full-screen over his own
+// heading crop. Esc and the CLOSE word both dismiss it.
+let expWhich = null;
+function openExp(which){
+  expWhich = which;
+  const e = $('exp');
+  e.className = which === 'ent' ? 'eEnt' : 'eRej';
+  e.hidden = false;
+  e.scrollTop = 0;
+  draw();
+}
+function closeExp(){ expWhich = null; $('exp').hidden = true; }
 async function pull(){
   if (!K) { $('clockC').textContent = 'NO KEY'; return; }
   let res;
@@ -428,6 +544,16 @@ document.getElementById('csv').onclick = (e) => {
   e.preventDefault();
   location.href = '/csv?k=' + encodeURIComponent(K);
 };
+// The heading AND the little window both open the full table — a tap inside
+// the window is a tap on a row he cannot read, so it should do the thing that
+// makes it readable. A scroll drag does not fire click, so dragging the tiny
+// list still just scrolls it.
+$('xEnt').onclick = () => openExp('ent');
+$('xRej').onclick = () => openExp('rej');
+$('entrants').onclick = () => openExp('ent');
+$('rejects').onclick = () => openExp('rej');
+$('expClose').onclick = closeExp;
+addEventListener('keydown', (e) => { if (e.key === 'Escape') closeExp(); });
 draw(); pull(); setInterval(pull, 5000); setInterval(() => { $('clockA').textContent = atlanta(); }, 1000);
 </script></body></html>`;
     return new Response(html, { headers: HEADERS });
