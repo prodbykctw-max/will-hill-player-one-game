@@ -108,7 +108,10 @@ export function createHaptics() {
   // of it covering one of the five points a thumb might land on. Reading the
   // rendered box back means the same code is right on both, and right again
   // if either engine changes the control.
-  const attached = new Set();
+  // el -> its switch. A Map rather than a Set because the switches have to
+  // come OUT again when he turns vibration off — see setEnabled.
+  const attached = new Map();
+  const always = new Set();
 
   function sizeTo(input, el) {
     // ⚠️ RE-DECIDE THE CONTAINING BLOCK EVERY TIME, DO NOT SET IT ONCE.
@@ -145,9 +148,13 @@ export function createHaptics() {
       && /[?&]haptest=1/.test(location.search);
   } catch (_e) { /* no location; leave it off */ }
 
-  function attach(el) {
+  function attach(el, opts) {
     if (!(isIOS || force) || !el || attached.has(el)) return false;
     if (typeof document === 'undefined') return false;
+    // The vibration switch itself keeps its haptic even while vibration is
+    // off, so he can feel the thing he is switching ON. Everything else
+    // obeys the setting.
+    if (opts && opts.always) always.add(el);
     const input = document.createElement('input');
     input.type = 'checkbox';
     input.setAttribute('switch', '');
@@ -169,9 +176,28 @@ export function createHaptics() {
     // and it follows border-radius — which is what keeps his round SAVE &
     // ENTER a disc rather than the square its switch would otherwise make.
     el.style.overflow = 'hidden';
-    el.insertBefore(input, el.firstChild);
-    sizeTo(input, el);
-    attached.add(el);
+    attached.set(el, input);
+    if (enabled || always.has(el)) {
+      el.insertBefore(input, el.firstChild);
+      sizeTo(input, el);
+    }
+    // ── A CHECKBOX NEEDS THE TAP HANDING ON ────────────────────────────
+    // On a button the click bubbles and the button's own handler runs. A
+    // checkbox is different: the switch is ON TOP of it, and a click landing
+    // on a nested interactive element does NOT trigger the label's control,
+    // so without this the pill would buzz and never change. This is probe 3's
+    // shape 11 — the switch toggles itself, which is the haptic, and forwards
+    // the state change on. No preventDefault anywhere near it: suppressing
+    // the switch's own activation is the likeliest way to suppress the very
+    // haptic it exists for.
+    if (opts && opts.toggles) {
+      const target = opts.toggles;
+      input.addEventListener('click', () => {
+        if (target.disabled) return;
+        target.checked = !target.checked;
+        target.dispatchEvent(new Event('change', { bubbles: true }));
+      });
+    }
     // The cabinet resizes with the viewport, and a switch sized for the old
     // box would leave part of the button dead.
     if (typeof ResizeObserver === 'function') {
@@ -221,10 +247,26 @@ export function createHaptics() {
       root.querySelectorAll('button').forEach((el) => { if (attach(el)) n += 1; });
       return n;
     },
+    // True when the buzz is coming from a real control under his thumb rather
+    // than from a call — which is the only case where turning the setting off
+    // has to physically remove something.
+    isSwitchRoute: () => !canVibrate && (isIOS || force),
 
     setEnabled(v) {
       enabled = !!v;
       try { localStorage.setItem(KEY, enabled ? 'on' : 'off'); } catch (_e) { /* */ }
+      // ⚠️ ON iOS THE SWITCH IS THE HAPTIC, SO TURNING IT OFF MEANS TAKING
+      // THE SWITCHES OUT. This flag used to gate fire(), which was the only
+      // route — now the buzz comes from WebKit reacting to his thumb landing
+      // on a real control, and nothing in JS can decline that. Leaving them
+      // in place would have left VIBRATION OFF still buzzing every button,
+      // which is worse than never having wired it.
+      attached.forEach((input, el) => {
+        const want = enabled || always.has(el);
+        const there = input.parentElement === el;
+        if (want && !there) { el.insertBefore(input, el.firstChild); sizeTo(input, el); }
+        else if (!want && there) { input.remove(); }
+      });
     },
     isEnabled: () => enabled,
     // What route is actually available, for the settings copy and the harness.

@@ -625,6 +625,29 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
   // the artwork, so they buzz like anything else. No-op off iOS, which is why
   // no harness sees a difference.
   haptics?.attachAll?.(el);
+  // ── AND THE THREE SETTINGS PILLS ──────────────────────────────────────
+  // "The haptics button should vibrate when turned on." Right, and it could
+  // not: tap() is dead on iOS, so the confirmation he was reaching for never
+  // fired. These are checkboxes, not buttons, so the switch goes OVER each
+  // pill and hands the toggle on — probe 3's shape 11, the one that buzzed
+  // and still moved the control exactly once.
+  //
+  // ⚠️ VIBRATION KEEPS ITS OWN HAPTIC WHILE VIBRATION IS OFF. Every other
+  // switch is pulled out of the DOM when he turns the setting off, because on
+  // iOS the buzz comes from WebKit reacting to a real control and no flag can
+  // decline it. This one has to stay: switching the feature ON is precisely
+  // when he needs to feel it work, and the pill he is pressing is the only
+  // thing that can tell him.
+  for (const [row, box, keep] of [
+    ['sSound', 'sSound', false],
+    ['sSfx', 'sSfx', false],
+    ['sHaptics', 'sHaptics', true],
+  ]) {
+    const input = $(box);
+    const label = input?.closest('label');
+    if (label) haptics?.attach?.(label, { toggles: input, always: keep });
+    void row;
+  }
   // SAVE decides its own cue, because it has two outcomes. A rejected form
   // that played the happy triad would be lying to you, and on a phone — where
   // the keyboard is covering the error line — the sound may be the first thing

@@ -140,6 +140,70 @@ ok(await page.evaluate(() =>
   await page.evaluate(() => [...document.querySelectorAll('#pvForm input')]
     .filter((i) => !i.dataset.haptic).length) + ' non-haptic inputs');
 
+// ── THE THREE PILLS ──────────────────────────────────────────────────────
+// "The haptics button should vibrate when turned on." A checkbox is not a
+// button: the switch sits OVER it and has to hand the toggle on, so the two
+// things to protect are that the pill still moves, and that it moves ONCE.
+console.log('\nTHE SETTINGS PILLS');
+await page.evaluate(() => window.__panel && window.__panel.open('settings'));
+await page.waitForTimeout(350);
+for (const id of ['sSound', 'sSfx', 'sHaptics']) {
+  const r = await page.evaluate((i) => {
+    const box = document.getElementById(i);
+    const lab = box.closest('label');
+    const sw = lab.querySelector('input[data-haptic]');
+    if (!sw) return { noSwitch: true };
+    const lr = lab.getBoundingClientRect();
+    const hit = document.elementFromPoint(lr.left + lr.width / 2, lr.top + lr.height / 2);
+    return { onTop: hit === sw, before: box.checked };
+  }, id);
+  ok(!r.noSwitch && r.onTop, id.padEnd(10) + ' pill has a switch and it is what the thumb hits',
+    JSON.stringify(r));
+}
+
+// One tap, one change event, one state flip — not two.
+const flip = await page.evaluate(async () => {
+  const box = document.getElementById('sSfx');
+  const before = box.checked;
+  let events = 0;
+  box.addEventListener('change', () => { events += 1; });
+  box.closest('label').querySelector('input[data-haptic]').click();
+  await new Promise((r) => setTimeout(r, 200));
+  return { before, after: box.checked, events };
+});
+ok(flip.after === !flip.before && flip.events === 1,
+  'tapping the pill flips it exactly once', JSON.stringify(flip));
+
+// ── TURNING VIBRATION OFF HAS TO TAKE THE SWITCHES OUT ───────────────────
+// The bug this guards: on iOS the buzz is WebKit reacting to a real control,
+// so a flag cannot decline it. If the switches stay in the DOM, VIBRATION OFF
+// still buzzes every button in the game.
+console.log('\nVIBRATION OFF ACTUALLY TURNS IT OFF');
+const off = await page.evaluate(async () => {
+  const box = document.getElementById('sHaptics');
+  if (box.checked) {
+    box.closest('label').querySelector('input[data-haptic]').click();
+    await new Promise((r) => setTimeout(r, 250));
+  }
+  return {
+    setting: box.checked,
+    switchesLeft: document.querySelectorAll('input[data-haptic]').length,
+    vibrationKeepsItsOwn: !!box.closest('label').querySelector('input[data-haptic]'),
+  };
+});
+ok(off.setting === false, 'the setting really went off', JSON.stringify(off));
+ok(off.switchesLeft === 1 && off.vibrationKeepsItsOwn,
+  'every switch is gone except the vibration pill\'s own', JSON.stringify(off));
+
+const back = await page.evaluate(async () => {
+  const box = document.getElementById('sHaptics');
+  box.closest('label').querySelector('input[data-haptic]').click();
+  await new Promise((r) => setTimeout(r, 250));
+  return { setting: box.checked, switches: document.querySelectorAll('input[data-haptic]').length };
+});
+ok(back.setting === true && back.switches > 5,
+  'and turning it back on puts them all back', JSON.stringify(back));
+
 console.log('\n' + (fail === 0 ? `ALL ${pass} PASS` : `${pass} pass, ${fail} FAIL`));
 await browser.close();
 process.exit(fail === 0 ? 0 : 1);
