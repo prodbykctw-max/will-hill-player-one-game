@@ -129,9 +129,9 @@
       "loop": true,
       "ticks": 2,
       "fit": {
-        "h": 0.9163,
-        "b": 0.9701,
-        "bLow": 0.9761
+        "h": 0.8247,
+        "b": 0.9343,
+        "bLow": 0.9402
       },
       "note": "tumbling down a hole; the drop lasts ~27 ticks"
     },
