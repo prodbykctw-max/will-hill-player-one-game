@@ -532,6 +532,196 @@
       color: transparent; font-size: 0; background: none; border: 0;
     }
 
+    /* ── ENTER CONTEST: HIS WHOLE MACHINE, MADE LIVE ────────────────────
+       "I want you to activate these buttons so I can use this as my contest
+       sign up page."
+
+       Unlike OPTIONS and SETTINGS — a shared housing with his panel dropped
+       into its opening — this arrived as a complete cabinet, marquee to
+       receipt slot. So it replaces the plate outright and every control is a
+       fraction OF THE WHOLE PLATE, not of a screen inset.
+
+       ⚠️ THIS IS HIS THIRD PASS AT THIS SCREEN AND THE RECTS BELONG TO IT
+       ALONE. Pass 1 (contest-entry-wide.png) was 1086x1448, landscape-ish,
+       and could not fill a phone without losing a third of its width. Pass 2
+       (contest-entry-console.png) went portrait but carried a MARTA driver's
+       console along the bottom. Pass 3 is 853x1844: no console, NOT NOW /
+       CANCEL lettered to match the code, and a CONTEST INFO panel added
+       beside the screen. Every number in this block was measured off pass 3.
+       If the plate is ever replaced again, re-measure — none of these carry
+       over, and the previous two passes are kept in assets/ui-concept/ so a
+       swap can be checked rather than guessed.
+
+       ⚠️ FITTED, NOT COVERED: "fit the whole cabinet, don't crop my art."
+       At 853x1844 (0.4626) against his 430x932 phone (0.4614) the two are
+       within a thousandth, so min() fills the screen to within a pixel AND
+       cannot crop — on any phone, not only his.
+
+       ⚠️ `dvh` here, and `lvh` on the covering cabinet — opposite choices for
+       opposite jobs. Cover wants the LARGEST the screen can get so it never
+       under-covers when the toolbars retract. Fit wants the CURRENT height,
+       or the cabinet is sized for a screen taller than the one it is on and
+       hangs off the bottom while the toolbars are showing.
+
+       ⚠️ Both classes in each selector, not just `.cabinet-entry`. These are
+       the same specificity as the `.cabinet` rules they override and win only
+       on source order today; a `.cabinet` rule added below would silently put
+       the 852/1846 aspect and the covering width back, which looks fine in
+       portrait and blows the card up in landscape. */
+    #panelCard.cabinet.cabinet-entry {
+      background-image: var(--entry-plate);
+      aspect-ratio: 853 / 1844;
+      width: min(100vw, calc((100dvh - env(safe-area-inset-top, 0px)
+                                     - env(safe-area-inset-bottom, 0px))
+                             * 853 / 1844));
+      transition: transform 0.18s ease-out;
+    }
+    /* Focusing a field slides the machine up so his SAVE & ENTER clears the
+       keyboard — see the focus/blur listeners in panel.js. Gated to a coarse
+       pointer in portrait, because that is the only place an on-screen
+       keyboard exists; on a desktop it would just be a lurch. */
+    @media (orientation: portrait) and (pointer: coarse) {
+      #panelCard.cabinet.cabinet-entry.typing { transform: translateY(-12%); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      #panelCard.cabinet.cabinet-entry { transition: none; }
+    }
+    /* His cabinet IS the screen, so the wrapper goes back to generating no
+       box and the form's children position against the plate itself. */
+    #panelCard.cabinet.cabinet-entry #panelScreen {
+      display: contents; position: static; background: none;
+    }
+    #panelCard.cabinet-entry #pvForm:not([hidden]) { display: contents; }
+    /* Every word in here is painted. A second copy in live text on top of his
+       would be the exact thing he objected to. */
+    #panelCard.cabinet-entry #pvForm .note,
+    #panelCard.cabinet-entry #pvForm label > span { display: none; }
+    #panelCard.cabinet-entry #pvForm label {
+      position: absolute; display: block; margin: 0; padding: 0; font-size: 0;
+    }
+    /* His three fields sit at x167–499 of 853, y616–679, 739–802 and 862–925.
+       The LABEL box is deliberately taller than the field: clicking a label
+       focuses the input it wraps, so the tap target is the tall box while the
+       paint stays exactly on the field he drew. */
+    #panelCard.cabinet-entry #pvForm label:has(#fName) {
+      left: 19.578%; top: 32.538%; width: 38.921%; height: 5.152%;
+    }
+    #panelCard.cabinet-entry #pvForm label:has(#fPhone) {
+      left: 19.578%; top: 39.208%; width: 38.921%; height: 5.152%;
+    }
+    #panelCard.cabinet-entry #pvForm label:has(#fEmail) {
+      left: 19.578%; top: 45.879%; width: 38.921%; height: 5.152%;
+    }
+    #panelCard.cabinet-entry #pvForm label input {
+      position: absolute; left: 0; top: 16.84%; width: 100%; height: 66.32%;
+      margin: 0; padding: 0 4%; border: 0; border-radius: 0.7cqw;
+      background: transparent; color: #dfe8f7;
+      /* Sized to sit in his field, with a floor so it stays legible on a
+         small phone — 3.1cqw is 15.5px at 430 but only 11.6px at 320.
+         ⚠️ iOS zooms into any focused input under 16px; what stops that here
+         is `maximum-scale=1.0, user-scalable=no` in the viewport meta at the
+         top of this file. If that line ever changes, this needs 16px. */
+      font: inherit; font-size: max(13px, 3.1cqw); line-height: 1;
+      appearance: none; -webkit-appearance: none; outline: none;
+    }
+    /* ⚠️ HIS PLACEHOLDER, NOT MINE — and this is why the field is see-through
+       until it is used. He painted "The name on the leaderboard", "10 digits
+       — how we reach a winner" and "Backup contact, never shown" into the
+       glass, word for word what index.html already had. So the input hides
+       its own placeholder and shows HIS through the transparent background;
+       the moment there is a value it paints the field's own interior and his
+       words are covered by the thing that replaces them. Empty screen: every
+       pixel his.
+       ⚠️ The placeholder ATTRIBUTE has to stay non-empty or
+       :placeholder-shown never matches and the fill is permanent. */
+    #panelCard.cabinet-entry #pvForm input::placeholder { color: transparent; }
+    #panelCard.cabinet-entry #pvForm input:not(:placeholder-shown),
+    #panelCard.cabinet-entry #pvForm input:focus { background: #0d2038; }
+    #panelCard.cabinet-entry #pvForm input:focus {
+      box-shadow: inset 0 0 0 0.18cqw rgba(120,170,255,0.6);
+    }
+    #panelCard.cabinet-entry #pvForm input.bad {
+      background: #24080a; box-shadow: inset 0 0 0 0.22cqw rgba(255,92,74,0.9);
+    }
+    /* His painted buttons. SAVE & ENTER is a disc — widest contiguous run
+       measured at y1180, x302–534, and 1041–1323 through its centre — so the
+       hit target is elliptical too; a rectangle would take taps on the panel
+       either side of it. */
+    #panelCard.cabinet-entry #btnSave {
+      left: 35.404%; top: 56.941%; width: 27.198%; height: 14.371%;
+      border-radius: 50%;
+    }
+    #panelCard.cabinet-entry #btnSkip {
+      left: 70.106%; top: 40.401%; width: 14.537%; height: 4.881%;
+    }
+    #panelCard.cabinet-entry #btnFormX {
+      left: 71.395%; top: 44.144%; width: 9.144%; height: 4.501%;
+      border-radius: 50%;
+    }
+    #panelCard.cabinet-entry #btnFormBoard {
+      left: 66.823%; top: 57.213%; width: 32.239%; height: 7.049%;
+    }
+    #panelCard.cabinet-entry #btnFormRules {
+      left: 66.823%; top: 65.347%; width: 32.239%; height: 7.049%;
+    }
+    /* New on pass 3: a CONTEST INFO column beside the screen, "See rules,
+       prizes and full details." Same destination as RULES & PRIZES — he drew
+       two doors to one room, so both open it. */
+    #panelCard.cabinet-entry #btnFormInfo {
+      left: 84.408%; top: 34.978%; width: 10.199%; height: 21.909%;
+    }
+    #panelCard.cabinet.cabinet-entry #panelClose {
+      position: absolute; z-index: 2;
+      left: 55.100%; top: 28.091%; width: 5.158%; height: 2.494%;
+      color: transparent; font-size: 0; background: none; border: 0;
+    }
+    /* ⚠️ `#panel .btn` is 1-1-0 and a bare `.cabOnly` is 0-1-0, so hiding
+       these needed the id too — without it the three cabinet-only buttons
+       were never hidden, and any view of the plain sign-up panel (a plate
+       404, a revert) would show three stray full-width buttons under NOT
+       NOW. Both halves have to move together or the cabinet loses them. */
+    #panel .btn.cabOnly { display: none; }
+    #panelCard.cabinet-entry .btn.cabOnly { display: block; }
+    /* ── THE ERROR TAKES THE CARD'S OWN HEADING ────────────────────────
+       ⚠️ NOT THE MARQUEE, and that was measured rather than guessed. The
+       marquee looked like the obvious home — a dot-matrix sign whose whole
+       job is to tell you something, on glass that is already black. But the
+       error appears the instant SAVE is refused, save() focuses the field
+       that is wrong, and focusing a field lifts the cabinet to clear the
+       keyboard. At 430x932 that lift is 112px and the marquee sits at screen
+       y10-50, so the message was pushed off the top of the screen at exactly
+       the moment it had to be read. On a 320x568 phone it is worse, and the
+       lift there is not optional: without it his SAVE button is entirely
+       behind the keyboard.
+
+       So the message goes where the eye already is — inside his card, in the
+       band from its top edge down to the NAME label, with his title inside
+       it. Painted in the card's own fill so it reads as the heading changing
+       rather than as a box dropped on top; cleared by the next keystroke,
+       and then his ENTER THE CONTEST is back. The field still goes red and
+       the refusal cue still plays — this is the third signal, not the only
+       one. */
+    #panelCard.cabinet-entry #formErr {
+      position: absolute; margin: 0; padding: 0.55cqw 2cqw; border: 0;
+      /* ⚠️ border-box, or the padding is ADDED to the width and the box
+         spills over the rounded corners of his card. There is no global
+         border-box in this stylesheet — only the rules that ask for it. */
+      box-sizing: border-box;
+      /* ⚠️ HEIGHT IS AUTO, not a fixed band. His pass-3 card is 367 plate px
+         wide against pass 2's 568, so the longest message this form can
+         produce needs two lines at 430px and three at 320. A fixed band
+         either clips the tail or sits permanently over his NAME label. Auto
+         height anchored at the card's top edge grows downward only as far as
+         the words need, so a one-line message never touches his label. */
+      left: 19.109%; top: 28.091%; width: 39.859%;
+      min-height: 3.362%;
+      display: flex; align-items: center; justify-content: center;
+      background: #0f2744; color: #ff7a5e; text-align: center;
+      font-weight: 700; font-size: max(11px, 2.6cqw); line-height: 1.15;
+      letter-spacing: 0.01em; border-radius: 0.6cqw;
+    }
+    #panelCard.cabinet-entry #formErr[hidden] { display: none; }
+
     #panelClose {
       position: absolute; top: 8px; right: 8px; width: 38px; height: 38px;
       background: none; border: 0; color: rgba(242,234,216,0.6);
@@ -1007,6 +1197,18 @@
         <p id="formErr" class="err" hidden></p>
         <button class="btn" id="btnSave" type="button">SAVE &amp; ENTER</button>
         <button class="btn ghost" id="btnSkip" type="button">NOT NOW</button>
+        <!-- ── THE THREE HE PAINTED THAT THE PLAIN PANEL NEVER HAD ────────
+             His ENTER CONTEST cabinet has a red X beside CANCEL, and an
+             OPTIONS column offering LEADERBOARD and RULES & PRIZES. They only
+             exist as controls when his artwork is on screen — outside the
+             cabinet there is nothing to sit on top of — so `.cabOnly` keeps
+             them out of the plain panel's layout and out of its tab order.
+             They still carry real text: the words here are in a painting, and
+             a screen reader cannot read a painting. -->
+        <button class="btn cabOnly" id="btnFormX" type="button">CANCEL</button>
+        <button class="btn cabOnly" id="btnFormBoard" type="button">LEADERBOARD</button>
+        <button class="btn cabOnly" id="btnFormRules" type="button">RULES &amp; PRIZES</button>
+        <button class="btn cabOnly" id="btnFormInfo" type="button">CONTEST INFO</button>
       </div>
 
       <div id="pvSettings" class="pv" hidden>

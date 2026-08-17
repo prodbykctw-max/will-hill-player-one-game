@@ -13,7 +13,9 @@ by measuring against them, so they are kept at full resolution.
 | `settings-tod-values.png` | 1024 x 1536 | the four TIME OF DAY values, drawn separately |
 | `dashboard.png` | 853 x 1844 | the contest dashboard, populated |
 | `dashboard-empty.png` | 853 x 1844 | the same dashboard with every value emptied — **this is the one that ships** |
-| `contest-entry.png` | 1086 x 1448 | the ENTER CONTEST sign-up cabinet |
+| `contest-entry.png` | 853 x 1844 | the ENTER CONTEST sign-up cabinet — **pass 3, the one that ships** |
+| `contest-entry-console.png` | 851 x 1849 | pass 2: portrait, but with a driver's console along the bottom |
+| `contest-entry-wide.png` | 1086 x 1448 | pass 1: too wide for a phone without cropping a third of it |
 | `underground-wide-day.png` | 1535 x 1024 | the wide Underground plate, day |
 | `underground-wide-night.png` | 1535 x 1024 | the wide Underground plate, night |
 | `underground-wide-stacked.png` | 1535 x 1024 | both, stacked, as he sent them |
@@ -86,34 +88,51 @@ asset weight as well.
 ## `contest-entry.png` — the sign-up cabinet
 
 His words: *"I want you to activate these buttons so I can use this as my
-contest sign up page."* Every rect below is measured off the 1086 x 1448
-plate, by colour, and verified by drawing the box back onto the image.
+contest sign up page."*
+
+⚠️ **Three passes, and only pass 3's numbers are live.** Pass 1 was 1086x1448
+— filling a 430x932 phone with a 3:4 plate would have thrown 418 plate pixels
+off the sides, taking the A–E buttons, the coin column and half the OPTIONS
+panel. He redrew it portrait (pass 2), then again without the driver's console
+(pass 3), adding a CONTEST INFO column and lettering the cancel plate NOT NOW
+/ CANCEL to match the code. All three are kept because Drive reuses the same
+filename — pass 1 and 2 are already gone from it.
+
+Every rect below is measured off **pass 3**, by colour, and verified by
+putting a live element on each one and asserting `elementFromPoint` returns it
+at five viewport sizes. If the plate changes again, none of these carry over.
 
 | control | x | y | maps to |
 |---|---|---|---|
-| card (the lit screen) | 207 – 635 | 500 – 824 | — |
-| NAME field | 225 – 619 | 581 – 625 | `#fName` |
-| PHONE field | 225 – 619 | 671 – 715 | `#fPhone` |
-| EMAIL field | 225 – 619 | 761 – 806 | `#fEmail` |
-| painted ✕ | 590 – 632 | 502 – 544 | `#panelClose` |
-| CANCEL | 735 – 870 | 672 – 724 | the same handler as NOT NOW |
-| red X button | 763 – 837 | 749 – 822 | the same handler as NOT NOW |
-| SAVE & ENTER | circle, centre 537, 1042 | radius 99 | `#btnSave` |
-| LEADERBOARD row | 705 – 975 | 945 – 1030 | the board view |
-| RULES & PRIZES row | 705 – 975 | 1040 – 1125 | HOW TO PLAY |
-| marquee glass | 117 – 999 | 41 – 149 | where a validation error goes |
+| card (the lit screen) | 151 – 518 | 511 – 959 | — |
+| NAME field | 167 – 499 | 616 – 679 | `#fName` |
+| PHONE field | 167 – 499 | 739 – 802 | `#fPhone` |
+| EMAIL field | 167 – 499 | 862 – 925 | `#fEmail` |
+| painted ✕ | 486 – 498 | 534 – 547 | `#panelClose` |
+| NOT NOW / CANCEL | 603 – 717 | 750 – 829 | `#btnSkip` |
+| red X button | 613 – 690 | 817 – 898 | `#btnFormX`, same handler |
+| SAVE & ENTER | 302 – 534 | 1050 – 1315 | `#btnSave` (a disc, so the hit target is one too) |
+| LEADERBOARD row | 573 – 842 | 1060 – 1179 | the board view |
+| RULES & PRIZES row | 591 – 841 | 1210 – 1329 | HOW TO PLAY |
+| CONTEST INFO panel | 720 – 807 | 645 – 1049 | HOW TO PLAY — he drew two doors to one room |
 
 His painted placeholders say exactly what the code's placeholders say — *The
 name on the leaderboard*, *10 digits — how we reach a winner*, *Backup
 contact, never shown*. So the inputs sit transparent over his lettering while
-they are empty, and paint their own interior (`rgb(4,12,21)`, sampled from the
-field) only once there is a value to show. Empty state is 100% his pixels.
+they are empty, and paint their own interior only once there is a value.
+Empty state is 100% his pixels.
+
+⚠️ **The error message has a character budget.** It renders inside his card,
+which is 367 plate px wide — about nineteen characters a line at a size that
+survives a phone. Anything over ~34 characters runs to three lines and covers
+his NAME label. The validators in `src/ui/panel.js` were shortened to fit and
+carry a comment saying so.
 
 ## Using them
 
-- Portrait, ~852x1845 — deliberate, so the cabinet fills a phone screen.
-  `contest-entry.png` is the exception at 3:4; it was drawn on his phone in a
-  different tool and does not have the same aspect ratio as the others.
+- Portrait, ~852x1845 — deliberate, so the cabinet fills a phone screen. Every
+  shipping plate now has that shape, `contest-entry.png` included; the 3:4
+  pass-1 sketch is kept only as `contest-entry-wide.png`.
 - `TIME OF DAY` shows `ATLANTA TIME` because that is the real worldwide
   default — the point of the feature, in the client's words *"the goal was to
   bring Atlanta to the world."*

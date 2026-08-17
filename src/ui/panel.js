@@ -35,6 +35,11 @@ import leaderboardCard from '../assets/backgrounds/leaderboard-card.webp';
 // Imported for the same reason the card above is: a literal path 404s under
 // the Pages subpath.
 import cabinetPlate from '../assets/ui/cabinet.webp';
+// The sign-up screen is his too, and it is a WHOLE cabinet rather than a
+// panel that drops into one — housing, marquee, coin column and all. It also
+// has its own aspect ratio, 1086x1448 against the other two at 852x1846, so
+// #panelCard.cabinet-entry overrides both the plate and the sizing.
+import entryPlate from '../assets/ui/contest-entry.webp';
 import panelOptionsPlate from '../assets/ui/panel-options.webp';
 import panelSettingsPlate from '../assets/ui/panel-settings.webp';
 import pillOn from '../assets/ui/pill-on.webp';
@@ -82,9 +87,15 @@ const $ = (id) => document.getElementById(id);
 //
 // Each check returns which FIELD failed as well as why, so the offending box
 // can be outlined and focused instead of the player hunting for it.
+//
+// ⚠️ KEEP THESE UNDER ~34 CHARACTERS. On his cabinet the message has to fit
+// inside the card he painted, which is 367 plate px wide — about nineteen
+// characters a line at the size that stays legible on a phone. The old
+// fifty-character phone message ran to three lines and covered his NAME
+// label to say something about the PHONE field. Two lines is the budget.
 function nameProblem(v) {
   const s = String(v || '').trim();
-  if (!s) return 'Pick a name — it is what shows on the leaderboard.';
+  if (!s) return 'Pick the name for the board.';
   if (s.replace(/[^\p{L}\p{N}]/gu, '').length < 2) return 'That name is too short.';
   return null;
 }
@@ -92,9 +103,9 @@ function nameProblem(v) {
 // A US ten-digit number, which is what a contest run out of Atlanta needs.
 function phoneProblem(v) {
   const d = phoneDigits(v);
-  if (!d) return 'A phone number is how we reach you if you win.';
-  if (d.length < 10) return 'That looks short — 10 digits, including area code.';
-  if (d.length > 11) return 'That looks long — 10 digits, including area code.';
+  if (!d) return 'A phone is how we reach you.';
+  if (d.length < 10) return 'Too short — 10 digits please.';
+  if (d.length > 11) return 'Too long — 10 digits please.';
   return null;
 }
 
@@ -103,8 +114,8 @@ function phoneProblem(v) {
 // than storing an address that turns out to be wrong.
 function emailProblem(v) {
   const s = String(v || '').trim();
-  if (!s) return 'An email is the backup way to reach you.';
-  return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(s) ? null : 'That does not look like an email address.';
+  if (!s) return 'An email is the backup contact.';
+  return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(s) ? null : 'That is not an email address.';
 }
 
 export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
@@ -139,6 +150,7 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
   const panelCard = $('panelCard');
   if (panelCard) {
     panelCard.style.setProperty('--cabinet-plate', `url(${cabinetPlate})`);
+    panelCard.style.setProperty('--entry-plate', `url(${entryPlate})`);
     panelCard.style.setProperty('--panel-options', `url(${panelOptionsPlate})`);
     panelCard.style.setProperty('--panel-settings', `url(${panelSettingsPlate})`);
     panelCard.style.setProperty('--pill-on', `url(${pillOn})`);
@@ -181,14 +193,28 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
     // plain panel, because a cabinet whose switches are invisible is worse
     // than one that has not arrived.
     //
-    // The board keeps his breeze card. HOW TO PLAY and the sign-up form keep
-    // the plain panel too: a four-page swipe pager and a three-field form
-    // inside a cabinet opening either scroll within a scroller or shrink the
-    // pictures to nothing.
-    const inCabinet = view === 'menu' || view === 'settings';
+    // THE SIGN-UP FORM IS A CABINET TOO, and a whole one — he drew ENTER
+    // CONTEST as its own machine, marquee to coin slot, and asked for it
+    // outright: "I want you to activate these buttons so I can use this as my
+    // contest sign up page." His painted fields are the fields, his SAVE &
+    // ENTER is the button, his CANCEL and his red X both mean not now.
+    //
+    // ⚠️ IT IS FITTED, NOT COVERED, and that is his call: "fit the whole
+    // cabinet, don't crop my art." The other two plates are 852x1846 — his
+    // phone's own shape — so growing them past the screen loses nothing.
+    // This one is 1086x1448, and covering a 430x932 screen with a 3:4 plate
+    // throws away about 210 plate pixels off each side: the A-E buttons, the
+    // coin column, and the right edge of the LEADERBOARD panel.
+    //
+    // The board keeps his breeze card, and HOW TO PLAY keeps the plain panel:
+    // a four-page swipe pager inside a cabinet opening either scrolls within a
+    // scroller or shrinks the pictures to nothing.
+    const inCabinet = view === 'menu' || view === 'settings' || view === 'form';
     $('panelCard').classList.toggle('cabinet', inCabinet);
     $('panelCard').classList.toggle('cabinet-menu', view === 'menu');
     $('panelCard').classList.toggle('cabinet-settings', view === 'settings');
+    $('panelCard').classList.toggle('cabinet-entry', view === 'form');
+    if (view !== 'form') $('panelCard').classList.remove('typing');
     // The cabinet is full-bleed, so the SCROLLER has to stop padding and
     // start clipping. On the element rather than the card, because it is the
     // container's own padding and overflow that leave the gap.
@@ -373,6 +399,12 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
   function fillForm() {
     const reg = contestRegistration() || {};
     const n = $('fName');
+    // ⚠️ CLEAR `bad` TOO. Setting .value does not fire `input`, so the
+    // listener that strips this class never runs — a refused entry, then NOT
+    // NOW, then re-opening left a field still flagged with no message beside
+    // it saying why. In the plain panel that was a one-pixel tint; in the
+    // cabinet it is a red field sitting on his artwork.
+    for (const id of ['fName', 'fPhone', 'fEmail']) $(id).classList.remove('bad');
     n.value = lbName() === 'PLAYER ONE' ? '' : lbName();
     $('fPhone').value = reg.phone || '';
     $('fEmail').value = reg.email || '';
@@ -411,6 +443,10 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
     // registered. leaderboard.js parks it instead; this is where it goes.
     flushPendingRun();
     feedback.commit();
+    // The field keeps focus through the tap now (see the mousedown handlers),
+    // so drop it here or the cabinet stays lifted on the way to the board and
+    // the phone keeps its keyboard up over a screen with no fields on it.
+    document.activeElement?.blur?.();
     show('board');
   }
 
@@ -542,7 +578,31 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
   // NOT NOW steps back to the board normally — but when a run is queued
   // behind this form (the pre-run offer), the way on is OUT, not deeper in.
   // isPendingRun is supplied by main.js, the same way onClose is.
-  on('btnSkip', 'back', () => (isPendingRun && isPendingRun() ? api.close() : show('board')));
+  const notNow = () => (isPendingRun && isPendingRun() ? api.close() : show('board'));
+  on('btnSkip', 'back', notNow);
+  // He painted TWO ways out of the sign-up cabinet — the CANCEL plate and the
+  // red X beside it — so both are wired, to the same thing NOT NOW does. The
+  // small x at the top of his card is #panelClose and closes the panel
+  // outright, which is what a x on a dialog means everywhere else.
+  on('btnFormX', 'back', notNow);
+  on('btnFormBoard', 'press', () => show('board'));
+  on('btnFormRules', 'press', () => show('how'));
+  // Pass 3 of his artwork added a CONTEST INFO column beside the screen —
+  // "See rules, prizes and full details" — which is the same room RULES &
+  // PRIZES opens. He drew two doors; both work.
+  on('btnFormInfo', 'press', () => show('how'));
+  // ⚠️ DO NOT LET A TAP MOVE THE CABINET OUT FROM UNDER THE THUMB.
+  // The machine slides up 12% while a field has focus. Tapping SAVE blurs the
+  // field, which drops the class, which starts a 180ms slide — and a real
+  // thumb is still on the way down. Measured: ~100px of travel against a
+  // 97px-tall button, so the click lands on the plate and nothing happens.
+  // Playwright's 10-20ms press never reproduces it, which is exactly why this
+  // needed reasoning rather than a green harness. Preventing the default on
+  // mousedown stops the blur without touching click synthesis.
+  for (const id of ['btnSave', 'btnSkip', 'btnFormX', 'btnFormBoard',
+    'btnFormRules', 'btnFormInfo', 'panelClose']) {
+    $(id)?.addEventListener('mousedown', (e) => e.preventDefault());
+  }
   // SAVE decides its own cue, because it has two outcomes. A rejected form
   // that played the happy triad would be lying to you, and on a phone — where
   // the keyboard is covering the error line — the sound may be the first thing
@@ -554,6 +614,15 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
       $(id).classList.remove('bad');
       $('formErr').hidden = true;
     });
+    // ── LIFT THE CABINET WHILE THE KEYBOARD IS UP ────────────────────────
+    // The cabinet is FITTED, so it is centred in the screen with space above
+    // and below — and #panel.cabinetView clips instead of scrolling, so the
+    // browser cannot nudge a covered field into view the way it would on an
+    // ordinary page. Focusing a field slides the whole machine up by 14% of
+    // its own height, which puts SAVE & ENTER clear of an iPhone keyboard
+    // (~340px of a 932px screen) and puts it straight back on blur.
+    $(id).addEventListener('focus', () => $('panelCard').classList.add('typing'));
+    $(id).addEventListener('blur', () => $('panelCard').classList.remove('typing'));
   }
   $('fEmail').addEventListener('keydown', (e) => { if (e.key === 'Enter') save(); });
   $('fPhone').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('fEmail').focus(); });
