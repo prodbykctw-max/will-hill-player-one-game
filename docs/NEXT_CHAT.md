@@ -529,11 +529,41 @@ not a missing worker.
    directly to stop being asked. He will hand them over. When he does: two
    epoch-ms values in `leaderboard-worker.js:50-51` and
    `dashboard-worker.js:74-75`, then he redeploys both.
-2. **A test score is on the live board** — `KCTW, 29750`. Worth clearing
-   before the link goes public, or the first real entrant is playing for
-   second place.
-3. **Cloudflare hardening:** rate limiting, Turnstile, a billing alert.
-4. **Rotate `DASH_TOKEN`** when the contest closes.
+2. **Cloudflare hardening:** rate limiting, Turnstile, a billing alert.
+3. **Rotate `DASH_TOKEN`** when the contest closes.
+
+### ✅ The test score is cleared — the empty board is CORRECT
+
+`KCTW, 29750` is gone. **He cleared it himself, from PowerShell**, which is
+exactly what the note that used to be here asked for. Recorded because an
+empty board looks alarming and the investigation is not free — this cost one
+round of exactly that:
+
+- All **five** tables are empty, not just `runs`. `entrants`, `run_stats`,
+  `seen_runs` and `rejects` too, so his own registration went with it. That is
+  a deliberate clear, not damage.
+- The **schema is intact** — five tables, ten indexes, verified against
+  `sqlite_master`. Nothing was dropped.
+- The database is **healthy**: `/top` answers 200 with `X-Cache: MISS`, which
+  means the worker really executed SQL against D1 and got a result. An empty
+  board is the correct render of empty tables.
+
+⚠️ **`d1_databases_list` reports `num_tables: 0` for this database and that is
+WRONG.** It is a stale summary field. Query `sqlite_master` before believing
+any claim that the schema is gone — the difference between "he cleared the
+rows" and "the schema was dropped" is the difference between nothing being
+wrong and a rebuild.
+
+⚠️ **Nothing in this repo can empty that database, so never suspect a deploy.**
+`tools/deploy.sh` publishes static files to `gh-pages` and never speaks to
+Cloudflare. `cloudflare/schema.sql` is all `CREATE TABLE IF NOT EXISTS` with no
+`DROP`. The only `DELETE` in either worker is the supersedes cleanup on
+`run_stats`. A wipe is always something a human ran.
+
+**Still genuinely unproven:** that a score can SAVE. The read path is
+demonstrated; the write path has had no run through it since the clear, and
+proving it means writing to the live database. Worth doing deliberately before
+the link goes public rather than finding out from the first real player.
 
 ---
 
