@@ -270,6 +270,37 @@ what made a comment-only commit look like undeployed work.
 acts on it, and nothing in the repo notices.** Re-derive from the account
 before repeating any claim in this section.
 
+## 📨 HANDOFF TO THE LOADER SESSION — two boot findings in your lane
+
+From the loading-issues investigation (full write-up: `docs/STATUS.md` top
+entry). Both live in the exact `main.js` boot region the images.js session is
+working, so they are handed over rather than fixed from elsewhere — evidence
+attached so nothing needs re-deriving:
+
+1. **The "ASSET LOAD FAILED" screen survives less than one frame.**
+   `main.js:1991-2001` paints it once from the asset `.catch` — but
+   `loop.start()` (line 1975) is already repainting 60×/sec, and with `images`
+   still null, `draw()`'s branch at `main.js:1645`
+   (`state.screen === 'loading' || !images`) covers it with the LOADING card
+   on the next rAF. Verified empirically: route-intercepting a 404 on a boot
+   asset leaves the canvas showing the LOADING palette (0.3% lit), never the
+   red one. **Every boot failure presents as "loading…" — which is verbatim
+   the client's complaint.** Fix shape: a `bootError` latch set in the catch,
+   checked in the draw branch, plus a tap-to-retry that reloads with a
+   cache-bust.
+2. **No timeout anywhere on the boot chain** (`main.js:1975-1990`). A
+   never-settling loader promise = LOADING… forever with no error path. A
+   watchdog that trips the same latch closes it.
+
+Also relevant to your retry work: retries cannot cure the 404 class — those
+were deleted files, fixed on the deploy side (`tools/deploy_union.py`, landed).
+Retry remains right for transient drops; the two changes share zero files.
+
+While in that region, cheap latent guards the boot audit flagged (all
+currently safe): `panel.js:802-852` bare `$(id).addEventListener` cluster;
+`enemy.js:65` unguarded atlas chain; a stage `day:` block without `bg` would
+brick day boots (`main.js:1915-1920`).
+
 ## ⛔ BLOCKED ON THE CLIENT'S CLIENT — not a task, not a to-do
 
 `CONTEST_START` / `CONTEST_END` are `0` at `leaderboard-worker.js:54-55` and
