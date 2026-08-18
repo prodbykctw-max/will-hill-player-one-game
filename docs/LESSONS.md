@@ -539,3 +539,33 @@ complains.
     them. A caller will otherwise reach for whatever scale is in scope, and two
     plates whose width constants are both called `SRC_W` will read as correct
     for as long as the thing being positioned is only decorative.
+
+## Two reads of one key is one bug waiting
+
+Client: *"if I don't turn on the music from home and go to settings, it shows
+music as on."*
+
+`src/ui/panel.js` exported `soundEnabled()` reading `wh_sound === 'on'` — music
+defaults OFF, deliberately, with a long comment at its definition explaining
+that the press which ticks the box is the gesture the browser needs to release
+audio. Eighty lines above it, `fillSettings()` read the same key itself as
+`!== 'off'`.
+
+They agree the moment anybody answers. They disagree on `null` — a device that
+has never been asked — which is every player's first visit. The game correctly
+played nothing and the panel drew a ticked box beside the silence.
+
+**The wrong tick was the smaller half.** MUSIC starts unticked so the press
+that ticks it is the one gesture the browser accepts. Showing it already on
+made his next press an *untick*, spending that gesture on writing `'off'`.
+
+Both reads and the panel's hand-rolled write now go through the accessors, so
+there is exactly one read of each key in the file. The general shape:
+
+**An exported accessor with a documented default is a promise. Re-implementing
+its read somewhere else in the same file breaks the promise silently, and only
+in the state you cannot see once you have used the app once — the fresh one.**
+
+Test it on a fresh profile or you will never see it. `musicbox.mjs` now opens a
+clean context specifically for that, and the check was confirmed to FAIL
+against the old line before being kept.

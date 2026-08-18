@@ -556,14 +556,32 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
     // stored value for "match my clock"; it maps to 'local' so anybody who
     // set it before this change keeps what they picked.
     let tod = 'atl';
-    let snd = true;
-    let sfx = true;
     try {
       const stored = localStorage.getItem('wh_tod');
       tod = stored === 'auto' ? 'local' : (stored || 'atl');
-      snd = localStorage.getItem('wh_sound') !== 'off';
-      sfx = localStorage.getItem('wh_sfx') !== 'off';
     } catch (_e) {}
+    // ⚠️ READ THROUGH THE ACCESSORS. NOT localStorage AGAIN.
+    //
+    // Client: "if I don't turn on the music from home and go to settings, it
+    // shows music as on."
+    //
+    // This read the key itself, as `!== 'off'`, while soundEnabled() eighty
+    // lines below reads it as `=== 'on'` — and that difference is the entire
+    // bug. They agree once somebody has answered; on a device that never has,
+    // the stored value is null, so the game correctly plays no music and this
+    // panel drew a ticked box next to the silence.
+    //
+    // Worse than a wrong tick: MUSIC starts unticked precisely so the press
+    // that ticks it is the gesture the browser needs to release audio. Showing
+    // it already on made his next press an UNtick — spending the one gesture
+    // that was supposed to start the theme on writing 'off'.
+    //
+    // soundEnabled()'s `=== 'on'` is deliberate and documented at its own
+    // definition; this line was simply never brought along. So it no longer
+    // has an opinion about the default. There is exactly one read of each key
+    // in this file now, and a checkbox cannot disagree with the audio again.
+    const snd = soundEnabled();
+    const sfx = sfxEnabled();
     $('sTod').value = tod;
     $('sSound').checked = snd;
     const sx = $('sSfx');
@@ -794,7 +812,11 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
 
   $('sSound').addEventListener('change', (e) => {
     const v = e.target.checked;
-    try { localStorage.setItem('wh_sound', v ? 'on' : 'off'); } catch (_e) {}
+    // Through the setter for the same reason fillSettings now reads through
+    // the getter: this had its own hand-rolled localStorage write sitting a
+    // hundred lines from setSoundEnabled, which is how the pair drifted apart
+    // in the first place.
+    setSoundEnabled(v);
     onSoundChange?.(v);
     // Only on the way ON, and after the mute has lifted — a click confirming
     // that you just turned the sound off would be a contradiction, and it
