@@ -460,6 +460,21 @@ bash tools/deploy_backend.sh              # macOS / Linux / Git Bash
 .\tools\deploy_backend.ps1                # Windows PowerShell
 ```
 
+⚠️ **It needs `wrangler`, and that is a one-time install** — the script's
+first preflight is what caught its absence on his machine:
+
+```
+npm i -g wrangler
+wrangler login          # opens a browser, authorise the Cloudflare account
+```
+
+⚠️ And `wrangler` can be visible to PowerShell while being invisible to Git
+Bash — npm puts global commands in `%APPDATA%\npm`, which PowerShell has on
+PATH and Git Bash often does not, so the script says "not installed" on a
+machine where `wrangler --version` answers fine. The `.ps1` now bridges that
+PATH across before it hands off, so the message can be trusted: if it says not
+installed, it is not installed.
+
 ⚠️ **He is on Windows PowerShell, where there is no `bash`** — this shipped as
 bash only and died on the first real run with *"The term 'bash' is not
 recognized"*. The `.ps1` is a locator, not a second implementation: it finds
