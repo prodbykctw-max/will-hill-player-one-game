@@ -537,6 +537,16 @@ deployed JS, not the source). `/top` answers. The dashboard's bare-root 404 is
 its own `notFound()` at line 62 — correct for a request with no `?k=` token,
 not a missing worker.
 
+⚠️ **THE BACKEND IS DONE — the migration ran and both workers are deployed.**
+Verified against the live account on 2026-08-18: `run_stats.max_combo` is
+present (and is the LAST column, which is the signature of the migration's
+`ALTER TABLE` rather than a fresh `CREATE TABLE`), both workers were deployed
+at 02:28Z, and the deployed leaderboard worker carries `MAX_COMBO`, the `combo`
+branch and `max_combo` in its INSERT. `docs/MERGE_STATE.md` said otherwise for
+a while and was simply out of date — he had to ask "are you sure the D1
+migration is needed?" to get it caught. Re-derive from the account, never from
+a doc.
+
 1. **Contest dates.** Still `0` in both workers, so
    `leaderboard-worker.js:135` returns `true` unconditionally and the window
    is unenforced. ⚠️ **DO NOT CHASE HIM FOR THESE.** Will Hill's team is in

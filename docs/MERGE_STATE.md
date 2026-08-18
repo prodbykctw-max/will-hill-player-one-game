@@ -121,23 +121,46 @@ result — and that means the OTHER chats' harnesses too. The registration
 merge ran `dashfit.mjs` (100 checks) for the first time on its own tree. And nothing on `gh-pages` is hand-made: deploys go through
 `bash tools/deploy.sh` only — see the guardrail in `CLAUDE.md`.
 
-## The contest backend still has ONE client-side step
+## ✅ The contest backend is DONE — stop telling him to deploy it
 
-`cloudflare/migrations/001-max-combo.sql` has **not** been run against D1, and
-the workers have **not** been redeployed — main is ahead of what is live. Both
-are one command on a machine with `wrangler` logged in:
+⚠️ **This section said the opposite and was wrong, and it cost a round of the
+client's time.** It claimed the migration had not been run and the workers had
+not been redeployed. Both had. He asked *"are you sure the D1 migration is
+needed?"* — he was right, and the doc was the reason anyone thought otherwise.
 
-```bash
-bash tools/deploy_backend.sh              # macOS / Linux / Git Bash
-.\tools\deploy_backend.ps1                # Windows PowerShell - his machine
+Verified against the live account, not against this file:
+
+| | evidence |
+|---|---|
+| `run_stats.max_combo` | **present** — `INTEGER NOT NULL DEFAULT 0`, read out of `pragma_table_info` |
+| it came from the MIGRATION | it is the **last** column (cid 23). `schema.sql` puts it mid-table before `city`, so a fresh `CREATE TABLE` would not place it there — `ALTER TABLE ADD COLUMN` appends |
+| both workers | deployed `2026-08-18T02:28Z` |
+| the deployed worker is CURRENT | its code carries `MAX_COMBO = 9999`, the `combo` branch in `statsFromEvents`, and `max_combo` in the `INSERT INTO run_stats` binding |
+| the one commit since (`d9e0bca`) | touches `cloudflare/` but is **comment-only** — behaviour is identical |
+
+So there is nothing to run. `tools/deploy_backend.sh` / `.ps1` remain the way
+to deploy any FUTURE worker change, and they are safe to re-run: they read the
+live columns first and skip applied migrations, and treat "duplicate column
+name" as success either way.
+
+⚠️ **HOW TO CHECK THIS RATHER THAN BELIEVE IT.** One query settles it, and the
+Cloudflare MCP can run it read-only:
+
+```sql
+SELECT name FROM pragma_table_info('run_stats');   -- is max_combo there?
 ```
 
-It migrates, reads the schema back to confirm the column landed, and only then
-deploys — dashboard first, game worker second. It refuses to deploy anything
-if the migration did not take, which is the failure that would otherwise blank
-his dashboard mid-contest. `--check` reports without changing anything.
+Then compare `workers_list`'s `modified_on` against the commit times of
+anything touching `cloudflare/` — and mind the timezone, because the commits
+are `-04:00` and the deploy stamps are `Z`. That four-hour offset is exactly
+what made a comment-only commit look like undeployed work.
 
-⚠️ **Order is not optional and the script is why.** Deploying the dashboard
-worker ahead of the column blanks every number behind his artwork; deploying
-the game worker ahead of it is quieter and worse — scores keep saving while
-every run in that window loses its stats row permanently.
+⚠️ **A doc that states live infrastructure state goes stale the moment someone
+acts on it, and nothing in the repo notices.** Re-derive from the account
+before repeating any claim in this section.
+
+## The only thing genuinely outstanding
+
+`CONTEST_START` / `CONTEST_END` are still `0` in both workers, so the window is
+unenforced. ⚠️ **DO NOT CHASE HIM FOR THE DATES** — Will Hill's team is in
+Australia, he asked directly to stop being asked, and he will hand them over.

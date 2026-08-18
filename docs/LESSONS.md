@@ -548,6 +548,45 @@ comparing against.** Had `howpage.mjs` asserted "the badge is
 `rgba(30,60,90,0.42)`" — the value the CSS *says* — it would have passed while
 both were wrong, and the how-to page would have faithfully mirrored a bug.
 
+## 23. Repeating a doc's claim about live infrastructure
+
+Three times across one session I told the client the D1 migration still needed
+running and the workers were behind. He asked *"Are you sure the D1 migration
+is needed?"* — and it had already been done, by him, before I ever said it.
+
+The source was `docs/MERGE_STATE.md`, written by another chat, accurate the
+hour it was written. Nothing in the repo notices when live infrastructure moves
+on; the doc simply keeps asserting. And I had **direct read-only access to the
+account the whole time** — the check is one query:
+
+```sql
+SELECT name FROM pragma_table_info('run_stats');
+```
+
+⚠️ **The tell was there and I walked past it.** In the same session I read
+`workers_list` and saw both workers `modified_on 02:28Z`. I used that timestamp
+to reason about something else and never asked the obvious next question —
+deployed *with what code?*
+
+### The timezone nearly produced a second wrong answer
+
+Checking properly, the commits print `-04:00` and the deploy stamps print `Z`.
+Compared naively, `d9e0bca` (22:59 local = 02:59Z) looks like it predates a
+02:28Z deploy. It does not — it lands 31 minutes after, and it touches
+`cloudflare/`. That would have been a fresh false alarm in the opposite
+direction. It was only harmless because the diff turned out to be
+**comment-only**, which took one more command to establish:
+
+```bash
+git show <sha> -- cloudflare/ | grep -E "^[+-]" | grep -v "^[+-][+-]" \
+  | grep -vE "^[+-]\s*(//|\*|/\*)"      # empty = behaviour unchanged
+```
+
+⚠️ **A file describing infrastructure is a claim with a timestamp on it, not a
+fact.** Verify against the system before repeating it — especially when you can,
+and most especially when the client is about to act on it. And when comparing
+times from two sources, normalise the zone before drawing any conclusion.
+
 ## The short version
 
 0. **Touch the thing before you describe it** — including when what you are
@@ -594,7 +633,11 @@ both were wrong, and the how-to page would have faithfully mirrored a bug.
     that fails PARTIALLY (right size, wrong shape) can outlive the whole
     project, because the part that works makes the part that does not look
     deliberate.
-25. Compare against the running product, never against the value you typed.
+25. A doc about live infrastructure is a timestamped claim, not a fact — check
+    the system before repeating it, especially when you have direct access and
+    the client is about to act on it. Normalise timezones before comparing a
+    commit time to a deploy time.
+26. Compare against the running product, never against the value you typed.
     Asserting the number in the stylesheet would have passed while the screen
     was wrong; reading the live element's computed style is what caught it.
 
