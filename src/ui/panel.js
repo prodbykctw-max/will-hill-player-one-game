@@ -620,13 +620,13 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
   // ONE LEVEL OF BACK PER VIEW, AND EVERY VIEW HAS ONE. Client: "when I'm
   // done the leaderboard, I need to be able to go back one level, and then
   // from there back another level... how can I get out of options? How can
-  // I get out of the leaderboard?" The board is the panel's home view
-  // (OPTIONS opens straight to it), so its "back" is the panel itself
-  // closing — same destination as ✕, same 'back' cue, just a second,
-  // thumb-reachable way to reach it instead of only the corner icon. Form
-  // and settings both already stepped back to the board; this is what was
-  // missing from the board's own step, not a new idea.
-  on('panelClose', 'back', () => api.close());
+  // I get out of the leaderboard?"
+  //
+  // ⚠️ AND NOW EXACTLY ONE. There used to be a ✕ in the corner as well —
+  // #panelClose — and he ruled it out: "basically exes don't need to be
+  // places to have back buttons." It is gone from index.html with this
+  // handler, so every view leaves by its own lettered control and no screen
+  // offers two ways out of itself.
   // OPTIONS is the shelf; every other view steps back to it, and it is the
   // one place BACK TO GAME lives.
   on('btnMenuBoard', 'press', () => show('board'));
@@ -708,15 +708,27 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
   // dismiss it. That is what a x on an overlay means, and it costs nothing,
   // because `notNow` lands on the view already painted underneath.
   on('btnFormX', 'back', notNow);
-  // The x on his card, third of the three. On the full-screen cabinet this was
-  // #panelClose and closed the panel outright; on an overlay a x means "close
-  // the overlay", and what that reveals is where NOT NOW was going to put the
-  // player anyway. So all three now agree.
-  on('entryClose', 'back', notNow);
-  // Pass 3 of his artwork added a CONTEST INFO column beside the screen —
-  // "See rules, prizes and full details" — which is the same room RULES &
-  // PRIZES opens. He drew two doors; both work.
-  on('btnFormInfo', 'press', () => show('how'));
+  // ⚠️ THE THIRD WAY OUT OF THIS CARD IS GONE. Client: "there is also an X on
+  // the screen of the contest entry thing that doesn't need to be an ex."
+  // He is right twice: NOT NOW / CANCEL and his red ✗ disc are one control
+  // (both are #btnFormX), and the tiny ✕ was a smaller unlabelled copy of it.
+  // Erased from the plate in tools/crop_entry_plate.py; the handler went with
+  // the paint. His two painted ones stay.
+  // ⚠️ CONTEST INFO IS UNWIRED ON PURPOSE, AND NOT REMOVED. Client: "the info
+  // about the contest goes to the how to play for some reason and it
+  // shouldn't be wired there — that may be wired to contest information or a
+  // contest pop-up soon, but in the meantime you can just get rid of that."
+  //
+  // It opened HOW TO PLAY, which is a different room wearing his CONTEST INFO
+  // lettering: rules and prizes are not the controls. So the handler is gone
+  // and the button does nothing.
+  //
+  // The BUTTON and his painted strip both stay. He said it may carry real
+  // contest information soon, so erasing that artwork would be throwing away
+  // the thing he is about to use — and keeping the element means the tap is
+  // SWALLOWED rather than falling through to the layer underneath, which is
+  // the difference between "nothing happens" and "the form shuts under your
+  // thumb". Wire it here when the contest pop-up exists.
   // ⚠️ DO NOT LET A TAP MOVE THE CARD OUT FROM UNDER THE THUMB.
   // The card slides up while a field has focus. Tapping the tick blurs the
   // field, which drops the class, which starts a 180ms slide — and a real
@@ -726,8 +738,7 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
   // Playwright's 10-20ms press never reproduces it, which is exactly why this
   // needed reasoning rather than a green harness. Preventing the default on
   // mousedown stops the blur without touching click synthesis.
-  for (const id of ['btnSave', 'btnSkip', 'btnFormX', 'btnFormInfo',
-    'entryClose', 'panelClose']) {
+  for (const id of ['btnSave', 'btnSkip', 'btnFormX', 'btnFormInfo']) {
     $(id)?.addEventListener('mousedown', (e) => e.preventDefault());
   }
 

@@ -308,6 +308,30 @@ def main():
     out.alpha_composite(tick, (int(round(kcx - tw / 2)), int(round(kcy - th / 2))))
 
     cropped = out.crop((0, 0, NEW_W, NEW_H)).convert('RGB')
+
+    # ── THE TINY ✕ COMES OFF THE ENTER THE CONTEST CARD ───────────────────
+    # Client: "there is also an X on the screen of the contest entry thing
+    # that doesn't need to be an ex — basically exes don't need to be places
+    # to have back buttons."
+    #
+    # He is right about this screen twice over: his own painted red disc a few
+    # hundred pixels away is already labelled NOT NOW / CANCEL and does the
+    # identical thing (both #entryClose and #btnFormX call notNow), so the ✕
+    # was a second, smaller, unlabelled copy of a control he had already drawn
+    # properly. #entryClose was only a transparent hit target over this paint.
+    #
+    # Measured, not eyeballed: the white ink is 13x14 at (486,534)-(498,547),
+    # and it carries a dark drop shadow that widens the real footprint to
+    # x484-499. The erase box takes the lot with margin. Outside that span the
+    # field is uniform 64-75 across every column checked, so nothing of his
+    # card border is anywhere near it — the dark pixels inside the box are the
+    # ✕'s own shadow, which is exactly what has to go with it.
+    ENTRY_X_BOX = (480, 528, 505, 554)
+    ENTRY_X_SRC_DX = -40      # flat blue, same rows: range of 17 levels
+    ex0, ey0, ex1, ey1 = ENTRY_X_BOX
+    patch = cropped.crop((ex0 + ENTRY_X_SRC_DX, ey0, ex1 + ENTRY_X_SRC_DX, ey1))
+    cropped.paste(patch, (ex0, ey0))
+
     cropped.save(OUT, 'WEBP', quality=82, method=6)
     print(f'wrote {OUT}  {NEW_W}x{NEW_H}  {os.path.getsize(OUT) / 1024:.0f}KB')
 

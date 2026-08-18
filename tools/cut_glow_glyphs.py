@@ -113,10 +113,8 @@ SURFACES = {
             ('btnSave',      70.692, 54.133, 10.668,  9.879, (.02, .02, .02, .02)),
             # The CONTEST INFO column beside the screen.
             ('btnFormInfo',  84.408, 65.020, 10.199, 34.480, (.05, .03, .05, .10)),
-            # The small x on the card's own heading. It is #entryClose now, not
-            # #panelClose — on an overlay the card's x closes the overlay and
-            # #panelClose went back to belonging to the panel underneath.
-            ('entryClose',   55.100, 52.218,  5.158,  4.636, (.02, .02, .02, .02)),
+            # (The tiny ✕ that sat here is erased from the plate — see
+            # tools/crop_entry_plate.py. Nothing left to light.)
         ]),
     # The OPTIONS screen that drops into the MARTA housing. Fractions of the
     # PLATE, which index.html expresses as fractions of #panelScreen.
