@@ -865,15 +865,23 @@ export function createTitle(ctx, canvas, still) {
   // fell to a different arrangement the moment 44px stopped fitting, which
   // handed the client a home page he had never seen on the two smallest
   // phones. His layout comes first; the pixels bend to it, not the reverse.
-  const HOME_FLOOR_H = 38;
+  // ⚠️ AND THE FLOOR CAME DOWN AGAIN WHEN THE HOME INDICATOR WAS COUNTED.
+  // 38 was tuned in the browser, where the strip is 0. Reserving a real 34px
+  // indicator takes that much straight out of the road, and at 38 the 15 Pro
+  // lost his bar to the very fix that made the controls reachable. 36 keeps
+  // it. It is under Apple's 44 and that is the deliberate trade: he has said
+  // twice, in his own words, that the layout he sent is what he wants — "I
+  // literally sent you an image so why did you not do that" — and 36px is
+  // still three times what these controls were before any of this.
+  const HOME_FLOOR_H = 36;
   const HOME_BOTTOM = 20;       // clear of the home indicator, where there is room
   const HOME_BOTTOM_MIN = 8;    // and this where there is not
   const HOME_GAP = 12;
-  const HOME_GAP_MIN = 8;
+  const HOME_GAP_MIN = 6;
   const HOME_SIDE = 16;
   const BANNER_H = 56;
   // Never thinner than this, even where the pavement runs out.
-  const BANNER_MIN_H = 38;
+  const BANNER_MIN_H = 34;
   // The floor when everything shares one row on a phone that truly cannot
   // hold the bar. See the note in homeLayout about what the label must say.
   const SHORT_MIN_H = 34;
@@ -885,7 +893,17 @@ export function createTitle(ctx, canvas, still) {
   function homeLayout(box) {
     if (!box) return null;
     const W = canvas.width;
-    const H = canvas.height;
+    // ⚠️ NOT canvas.height. The canvas deliberately runs BELOW the usable
+    // screen in the installed app — #game is
+    // `calc(100dvh + env(safe-area-inset-bottom))` and resize() stretches it
+    // further to screen.height — so the painting can reach the foot of the
+    // phone instead of leaving the black strip the client photographed. The
+    // first version of this layout anchored to canvas.height anyway and put
+    // OPTIONS and MUSIC under the home indicator: he sent a PWA screenshot
+    // with the top edge of both boxes just visible at the bottom of the
+    // screen and nothing else. In Safari the inset is 0, this is a no-op, and
+    // every check stayed green — which is how it shipped.
+    const H = canvas.height - still.reservedBottom(canvas.height);
     const S = box.dw / SRC_W;
     const side = Math.max(10, Math.min(HOME_SIDE, W * 0.05));
     const inner = W - side * 2;
@@ -929,10 +947,19 @@ export function createTitle(ctx, canvas, still) {
     const road = H - promptFoot;
     const twoRows = HOME_BOTTOM_MIN + BANNER_MIN_H + HOME_GAP_MIN + HOME_FLOOR_H;
 
+    // ⚠️ DO NOT PAY FOR THE HOME INDICATOR TWICE. HOME_BOTTOM's 20px exists to
+    // keep a control off the indicator, and H has already had the reserved
+    // strip taken out of it — so where a strip exists that 20px is pure
+    // duplicate padding, and it is the difference between the client keeping
+    // his layout on a Pro Max and being dropped to one row by the very fix
+    // that was supposed to make the controls reachable.
+    const ideal = still.reservedBottom(canvas.height) > 0
+      ? HOME_BOTTOM_MIN : HOME_BOTTOM;
+
     if (road >= twoRows) {
-      const spend = (ideal, floor, rest) =>
-        Math.max(floor, Math.min(ideal, road - rest));
-      const bottom = spend(HOME_BOTTOM, HOME_BOTTOM_MIN,
+      const spend = (want, floor, rest) =>
+        Math.max(floor, Math.min(want, road - rest));
+      const bottom = spend(ideal, HOME_BOTTOM_MIN,
         BANNER_MIN_H + HOME_GAP_MIN + HOME_FLOOR_H);
       const gap = spend(HOME_GAP, HOME_GAP_MIN,
         bottom + BANNER_MIN_H + HOME_FLOOR_H);
@@ -952,7 +979,7 @@ export function createTitle(ctx, canvas, still) {
 
     // ONE ROW, because the bar will not fit at any height. The contest keeps
     // the widest share and its label changes with it — see drawBanner.
-    const bottom = Math.min(HOME_BOTTOM, Math.max(6, road * 0.18));
+    const bottom = Math.min(ideal, Math.max(6, road * 0.18));
     const rowH = Math.max(SHORT_MIN_H, Math.min(HOME_MIN_H, road - bottom));
     const ry = H - bottom - rowH;
     const g = Math.max(6, HOME_GAP * 0.6);

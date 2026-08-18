@@ -129,6 +129,58 @@ export function createStillScene(ctx, canvas) {
     return px;
   }
 
+  // ── AND THE SAME QUESTION AT THE OTHER END ────────────────────────────
+  //
+  // Client, with a PWA screenshot: OPTIONS and MUSIC sliced off at the foot of
+  // the screen, only the top edge of each box showing.
+  //
+  // ⚠️ THE CANVAS IS TALLER THAN THE USABLE SCREEN ON PURPOSE, and anything
+  // laid out from `canvas.height` has to know it. #game is
+  // `calc(100dvh + env(safe-area-inset-bottom))` and resize() in main.js
+  // stretches it further to `screen.height` when a standalone launch still
+  // comes up short — both deliberate, both fixes for the black strip he kept
+  // photographing at the bottom of the installed app. The PAINTING is meant
+  // to run under the home indicator. A control is not.
+  //
+  // In Safari the inset is 0 and the stretch never fires, so this is a no-op
+  // and the browser looks identical — which is exactly why the home controls
+  // shipped broken with a green suite behind them.
+  //
+  // ONE MEASUREMENT COVERS BOTH CAUSES. A fixed probe at
+  // `bottom: env(safe-area-inset-bottom)` sits on the safe-area line, and its
+  // viewport y is `innerHeight - inset`. Everything on the canvas below that
+  // is unusable, whether it got there from the inset or from the stretch, and
+  // no term is counted twice.
+  let footCache = null;
+  let footFor = -1;
+  function reservedBottom(canvasH) {
+    const key = `${window.innerHeight}x${canvasH}`;
+    if (footFor === key && footCache != null) return footCache;
+    let px = 0;
+    try {
+      if (typeof window.__safeBottomOverride === 'number') {
+        // Raw unusable strip, so a harness can prove the installed-app path.
+        // Chromium cannot launch as a home-screen app, and "should be fine
+        // now" is not a standard this project accepts twice.
+        px = window.__safeBottomOverride;
+      } else {
+        const probe = document.createElement('div');
+        probe.style.cssText = 'position:fixed;left:0;width:0;height:0;'
+          + 'bottom:env(safe-area-inset-bottom,0px);pointer-events:none;visibility:hidden';
+        document.body.appendChild(probe);
+        const lineY = probe.getBoundingClientRect().top;
+        probe.remove();
+        px = Math.max(0, canvasH - lineY);
+      }
+    } catch (_e) { px = 0; }
+    // A sane ceiling: an inset is tens of px. Anything larger is a
+    // measurement gone wrong and must not eat the whole page.
+    px = Math.max(0, Math.min(px, canvasH * 0.25));
+    footCache = px;
+    footFor = key;
+    return px;
+  }
+
   function fit(img, zoom = 1, bias = 0, safe = null) {
     // ⚠️ THE RESERVED STRIP IS NOT DRAWABLE AREA — IN EITHER MODE.
     //
@@ -410,5 +462,5 @@ export function createStillScene(ctx, canvas) {
     ctx.restore();
   }
 
-  return { draw, fit, pulsePrompt, pulseRect };
+  return { draw, fit, pulsePrompt, pulseRect, reservedBottom };
 }

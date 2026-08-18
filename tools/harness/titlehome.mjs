@@ -63,7 +63,13 @@ const SHAPES = [
 // seen on the two smallest phones. He was unambiguous: "I literally sent you
 // an image so why did you not do that and who asked you to change the layout
 // based on the phone type."
-const TAP_MIN = 38;          // the two-row floor; 44 wherever the road allows
+// ⚠️ 34, and it came down TWICE for the same reason — the road below his
+// painted PRESS START is fixed by the artwork, and anything that takes a bite
+// out of it comes straight off these controls. First the two-row layout
+// (44 -> 38), then reserving the home-indicator strip in the installed app
+// (38 -> 34). Each step was the same trade, taken the same way: his layout is
+// the invariant, the pixels are what bend.
+const TAP_MIN = 34;          // the two-row floor; 44 wherever the road allows
 const TAP_MIN_SHORT = 34;    // only where the bar cannot exist at any height
 // PRESS START's painted foot, in source rows: PROMPT.y + PROMPT.h in
 // src/render/title.js. Nothing may cross it.
@@ -218,6 +224,74 @@ console.log('\n  the banner, already registered');
   s = await view(p);
   check('  BACK goes to the home page, not into OPTIONS',
     !s.open && s.screen === 'title', JSON.stringify(s));
+  await ctx.close();
+}
+
+// ── 4b. THE INSTALLED APP: NOTHING UNDER THE HOME INDICATOR ──────────────
+//
+// Client, with a PWA screenshot: OPTIONS and MUSIC sliced off at the foot of
+// the screen, the top edge of each box just visible and nothing else.
+//
+// ⚠️ AND EVERY CHECK IN THIS FILE WAS GREEN WHILE THAT SHIPPED. They all
+// measured against `canvas.height`, and on the installed app the canvas
+// deliberately runs BELOW the usable screen — #game is
+// `calc(100dvh + env(safe-area-inset-bottom))` and resize() stretches it
+// further to screen.height, both so the painting reaches the foot of the
+// phone. In Safari the inset is 0, so the browser and the harness agreed with
+// each other and both were blind.
+//
+// Chromium cannot launch as a home-screen app, so stillscene exposes
+// __safeBottomOverride and this asserts the invariant directly: with a strip
+// reserved, no control may cross into it. 34px is an iPhone home indicator;
+// 59 is what a Pro Max reports with the stretch on top.
+console.log('\n  the installed app — nothing under the home indicator');
+for (const reserve of [34, 59]) {
+  for (const [name, w, h] of [['iPhone 15 Pro', 393, 852], ['15 Pro Max', 430, 932],
+    ['Android 412', 412, 780], ['iPhone SE', 375, 667]]) {
+    const ctx = await b.newContext({ viewport: { width: w, height: h }, hasTouch: true });
+    const p = await ctx.newPage();
+    await p.addInitScript((r) => { window.__safeBottomOverride = r; }, reserve);
+    await p.goto('http://localhost:5199/?tod=night', { waitUntil: 'networkidle' });
+    await p.waitForFunction(() => window.__game && window.__game.titleBox, null, { timeout: 25000 });
+    await p.waitForTimeout(600);
+    const r = await p.evaluate(() => {
+      const t = window.__title, bx = window.__game.titleBox;
+      const cv = document.querySelector('canvas');
+      const l = t.homeLayout(bx);
+      const low = Math.max(l.banner.y + l.banner.h, l.options.y + l.options.h,
+        l.music.y + l.music.h);
+      return { low, ch: cv.height, rows: l.rows, minH: Math.min(l.banner.h, l.options.h, l.music.h) };
+    });
+    const floor = r.ch - reserve;
+    check(`  [PWA ${w}x${h}, ${reserve}px strip] every control clears the indicator`,
+      r.low <= floor + 0.5,
+      `lowest edge ${Math.round(r.low)} vs usable floor ${Math.round(floor)} of ${r.ch}`);
+    // And it must not have solved that by shrinking them into nothing.
+    check(`  [PWA ${w}x${h}, ${reserve}px strip] and they are still tap targets`,
+      r.minH >= TAP_MIN_SHORT - 0.5, `smallest ${Math.round(r.minH)}px, floor ${TAP_MIN_SHORT}`);
+    await ctx.close();
+  }
+}
+
+// ⚠️ AND IT MUST BE ABLE TO FAIL. If the layout ignored the strip — which is
+// exactly what shipped — a 59px reserve would leave the row hanging over the
+// floor. Prove the check sees that, by measuring against the RAW canvas
+// height the broken version used.
+{
+  const ctx = await b.newContext({ viewport: { width: 430, height: 932 }, hasTouch: true });
+  const p = await ctx.newPage();
+  await p.addInitScript(() => { window.__safeBottomOverride = 0; });   // the old blindness
+  await p.goto('http://localhost:5199/?tod=night', { waitUntil: 'networkidle' });
+  await p.waitForFunction(() => window.__game && window.__game.titleBox, null, { timeout: 25000 });
+  await p.waitForTimeout(600);
+  const r = await p.evaluate(() => {
+    const l = window.__title.homeLayout(window.__game.titleBox);
+    const cv = document.querySelector('canvas');
+    return { low: Math.max(l.banner.y + l.banner.h, l.options.y + l.options.h,
+      l.music.y + l.music.h), ch: cv.height };
+  });
+  check('  [break-test] ignoring the strip does put controls under it',
+    r.low > r.ch - 59, `lowest edge ${Math.round(r.low)} would sit below a 59px floor of ${Math.round(r.ch - 59)}`);
   await ctx.close();
 }
 
