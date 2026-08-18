@@ -102,6 +102,15 @@ CREATE TABLE IF NOT EXISTS run_stats (
   death_fall    INTEGER NOT NULL DEFAULT 0,
   stages     INTEGER NOT NULL DEFAULT 0,  -- stages cleared in this run
   best_stage INTEGER NOT NULL DEFAULT 0,  -- furthest stage reached (1-4)
+  -- ⚠️ MAX COMBO IS HERE BEFORE THE GAME CAN PRODUCE ONE, ON PURPOSE. Client:
+  -- "underneath BAGS LOST I wanna add MAX COMBO there, because I plan on
+  -- working a combo system into the game." There is no combo system yet, so
+  -- every row written today holds 0 and the dashboard shows 0. The column
+  -- costs nothing now and costs a migration on a live contest database later
+  -- — the same reason run_stats itself was created before the database was.
+  -- The contract the game has to meet is one `combo` event per run carrying
+  -- the best chain of that run in `n`; see statsFromEvents.
+  max_combo  INTEGER NOT NULL DEFAULT 0,  -- best chain in this run
   -- ── WHERE THE RUN CAME FROM ────────────────────────────────────────────
   --
   -- Client: "I want a world map that zooms in to city level and I wanna be
@@ -128,3 +137,24 @@ CREATE INDEX IF NOT EXISTS run_stats_city ON run_stats (country, region, city);
 -- The dashboard reads these two ways: newest first, and grouped per player.
 CREATE INDEX IF NOT EXISTS run_stats_t ON run_stats (t DESC);
 CREATE INDEX IF NOT EXISTS run_stats_id ON run_stats (id);
+
+
+-- ── MIGRATIONS ───────────────────────────────────────────────────────────
+--
+-- ⚠️ `CREATE TABLE IF NOT EXISTS` DOES NOTHING TO A TABLE THAT ALREADY
+-- EXISTS. Re-running this file against a database that already holds real
+-- runs will NOT add a column added above — it silently does nothing, and then
+-- the dashboard's funnel query fails with "no such column: max_combo", /data
+-- 500s, and the page goes blank with the contest live.
+--
+-- ⚠️ AND THE FIX DOES NOT LIVE IN THIS FILE. An `ALTER TABLE` here would make
+-- this file fail on a FRESH database, because the CREATE above already has
+-- the column — so the one command that has to keep working forever would
+-- stop. Each migration is its own file in cloudflare/migrations/, run once,
+-- BEFORE the worker that reads the new column is deployed:
+--
+--   wrangler d1 execute will-hill-contest --remote \
+--     --file=cloudflare/migrations/001-max-combo.sql
+--
+-- A second run errors with "duplicate column name", which is harmless and is
+-- how you know it already applied.

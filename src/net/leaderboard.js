@@ -308,7 +308,7 @@ const EMPTY_STATS = {
   runs: 0, bags: 0, bagsX2: 0, bagsLost: 0, kills: 0, bottles: 0,
   potholes: 0, continues: 0, deaths: 0,
   deathsEnemy: 0, deathsPothole: 0, deathsFall: 0,
-  stagesCleared: 0, bestStage: 0, gamesCompleted: 0,
+  stagesCleared: 0, bestStage: 0, gamesCompleted: 0, maxCombo: 0,
   bestScore: 0, totalScore: 0, totalMs: 0, firstT: 0, lastT: 0,
 };
 
@@ -328,7 +328,7 @@ export function readStats() {
 export function tallyLog(log) {
   const t = { bags: 0, bagsX2: 0, bagsLost: 0, kills: 0, bottles: 0,
     potholes: 0, continues: 0, deaths: 0, deathsEnemy: 0, deathsPothole: 0,
-    deathsFall: 0, stagesCleared: 0, bestStage: 0 };
+    deathsFall: 0, stagesCleared: 0, bestStage: 0, maxCombo: 0 };
   for (const ev of (log && log.events) || []) {
     const type = ev && ev.type;
     if (type === 'bag') t.bags++;
@@ -347,6 +347,16 @@ export function tallyLog(log) {
       t.stagesCleared++;
       const n = Number(type.slice('stage_clear_'.length)) || 0;
       if (n > t.bestStage) t.bestStage = n;
+    } else if (type === 'combo') {
+      // ⚠️ NOTHING EMITS THIS YET. The combo system is not in the game — the
+      // client asked for MAX COMBO on the dashboard "because I plan on
+      // working a combo system into the game", so the shape it has to emit is
+      // fixed here and on the Worker at the same time rather than guessed at
+      // twice later. ONE event per run, carrying that run's best chain in
+      // `n`; a per-link event would spend the log's whole event budget on a
+      // single good stretch. Until the game sends one this stays 0.
+      const c = Math.floor(Number(ev.n) || 0);
+      if (c > t.maxCombo) t.maxCombo = c;
     }
   }
   return t;
@@ -364,6 +374,9 @@ export function recordRunStats(log, score) {
   s.deathsFall += t.deathsFall;
   s.stagesCleared += t.stagesCleared;
   if (t.bestStage > s.bestStage) s.bestStage = t.bestStage;
+  // A lifetime best, so it is a max and not a sum — the same arithmetic the
+  // dashboard's MAX COMBO does across every run in the contest.
+  if (t.maxCombo > s.maxCombo) s.maxCombo = t.maxCombo;
   // Four stages cleared in one run is the whole game — the `complete` screen.
   if (t.bestStage >= 4) s.gamesCompleted += 1;
   const sc = Math.max(0, Math.floor(Number(score) || 0));

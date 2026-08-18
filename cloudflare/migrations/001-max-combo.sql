@@ -1,0 +1,18 @@
+-- 001 — max_combo on run_stats.
+--
+-- Client: "underneath BAGS LOST I wanna add MAX COMBO there, because I plan
+-- on working a combo system into the game."
+--
+-- Run this BEFORE deploying a dashboard worker that reads the column, or the
+-- funnel query fails with "no such column" and the whole page goes blank:
+--
+--   wrangler d1 execute will-hill-contest --remote \
+--     --file=cloudflare/migrations/001-max-combo.sql
+--
+-- Only needed on a database that already exists. A fresh one gets the column
+-- from schema.sql's CREATE TABLE, and running this on it errors with
+-- "duplicate column name" — harmless, and the sign it is already there.
+--
+-- Every existing row reads 0, which is correct: nothing in the game emitted a
+-- combo event when those runs were played.
+ALTER TABLE run_stats ADD COLUMN max_combo INTEGER NOT NULL DEFAULT 0;

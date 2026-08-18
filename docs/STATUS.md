@@ -395,6 +395,95 @@ empty the table and start the contest from zero — not to invent rows.
 
 ---
 
+## The DEATHS tile, MAX COMBO, and the migration that must go first
+
+**Committed, NOT deployed.** Both workers changed, and one of them cannot be
+deployed until the database is migrated — see the warning at the bottom.
+
+**Why.** He photographed the live dashboard: *"that three is just a little too
+tall for the space it occupied, and generally speaking there's gonna be
+multiple digits there — maybe millions of kills once this competition starts
+... it does have to fit in that space, and maybe a six digit number needs to
+be able to fit in that space also."*
+
+He was reading a real defect off a single-digit number. The DEATHS tile is the
+only place on his plate where four values share one panel with three painted
+labels, so it is the only place with boxes narrow enough to tear: the total
+had 111px and the three sub-numbers 63px each, against 268px or better
+everywhere else. Rendered at contest scale the total came out `.237.89` with
+both ends sheared and the three sub-numbers ran through each other.
+
+- All four boxes widened into the room his own lettering leaves — total to
+  118px (beside the word DEATHS, stopping 7px short of his D), the three to
+  74px each, still centred on his labels at x500.5 / 587 / 667.5.
+- Two new sizes on the type scale, `.vm` 2.45cqw and `.vt` 1.55cqw, both
+  picked from arithmetic and not taste: this monospace advances 0.602em a
+  character, so nine characters (`9,999,999`) come to 113px and 72px. Six
+  digits — what he asked to fit — clear both with a third of the box spare.
+  The 4% left over at nine digits is deliberate: his phone is Safari with its
+  own metrics, and a box that passes at 99.9% in Chrome has measured nothing.
+- The total stays 56% larger than the three it adds up, which is what he
+  asked for: *"it could be larger than those numbers, but it does have to fit
+  in that space."*
+
+**MAX COMBO**, a fourth row in OTHER METRICS: *"underneath BAGS LOST I wanna
+add MAX COMBO there, because I plan on working a combo system into the game."*
+
+⚠️ **This is the only label on that page not drawn by him**, and it is worth
+knowing why. The chips are cut out of his own pixels, the expanded table's
+heading is a crop of his panel — the only other lettering the stylesheet puts
+on screen is CLOSE, on an overlay that is not on his plate at all. OTHER
+METRICS is his painting and there is nowhere to put a fourth row except on it.
+So the label is his own type spec, measured rather than guessed: his labels
+start at x443, their caps are 10px, and they advance 7.45px a character
+(CHAMPAGNE BOTTLES is 17 chars over 125px, BAGS LOST 9 over 65 — 8 characters,
+60px). That is a 12.4px face, 1.454cqw of his 853px plate. The row lands at
+his own pitch (label inks y1317, 1343, 1370, so the fourth is y1394) and
+clears the panel border at y1411 by 6px. **It is the last row that panel
+holds** — a fifth would sit on the border.
+
+**There is no combo system in the game yet, so it reads 0.** The contract both
+tallies now agree on is one `combo` event per run carrying that run's best
+chain in `n` — one event, not one per link, so a 200-stomp chain costs the log
+one event instead of 200. Capped at 9,999 server-side; like every other column
+in `run_stats` it is player-reported and is not evidence.
+
+### ⚠️ The database must be migrated BEFORE the dashboard worker is deployed
+
+`schema.sql` is `CREATE TABLE IF NOT EXISTS`, which does **nothing** to the
+table that already holds his 29,750. Deploy the new dashboard worker without
+migrating and its funnel query fails with `no such column: max_combo`, `/data`
+500s, and the page goes blank.
+
+```
+wrangler d1 execute will-hill-contest --remote \
+  --file=cloudflare/migrations/001-max-combo.sql
+```
+
+Every existing row reads 0, which is correct — nothing emitted a combo event
+when those runs were played.
+
+### STAGE PROGRESSION — measured, reported, NOT changed
+
+*"Why did you mess with the stage progression? I wasn't even asking you to
+edit stage progression."* Correct, and it is back exactly as it was — one CSS
+line went in during this work and was reverted the moment he asked. **No stat
+anywhere was touched; the big numbers in the screenshots were stub JSON in a
+headless browser and never went near D1.**
+
+What is left is the measurement, because it is real and it is close. Those
+four values print `N (P%)`, where N is the run count, not the percent — the
+percent is indeed always 100 on the top row, but the count is not. His painted
+bar track ends at x353 and the panel ends at x418, so there are **62px** there
+for a string that wants 107px at six figures. It starts overflowing at a
+**three-digit run count**, and no font size fixes it — 62px cannot hold
+`444 (100%)` legibly at any size. The string has to lose either the count or
+the percent, and **which one he wants to read is his call.**
+`tools/harness/dashfit.mjs` lists these four as known-open and will tighten by
+itself the day the entry is deleted.
+
+---
+
 ## ON HOLD — his side
 
 Nothing on this list can be finished without him:
@@ -451,10 +540,17 @@ Nothing on this list can be finished without him:
 ## Harnesses
 
 ```
-ceiling daylamps daynight endcue entrypaths graphwire idleflex introorder
-joinshot musicbox musiccheck optionsmenu padlift panelnav pausemenu relay
-relaytod seamsweep share stageflag stagestrip stagesweep titlefit titleintro
+ceiling dashfit dashglow dashload daylamps daynight endcue entrypaths
+graphwire idleflex introorder joinshot musicbox musiccheck optionsmenu padlift
+panelnav pausemenu relay relaytod seamsweep share stageflag stagestrip
+stagesweep titlefit titleintro
 ```
+
+`dashfit` is the newest and the narrowest: it fills the dashboard from the
+worker itself at two data scales and two screen widths and fails if any value
+is wider than the box he painted for it. Nothing else could see that class of
+bug — `dashload` grades the page under a crowd of ROWS, and it is the DIGIT
+count, not the row count, that tears those boxes.
 
 **14 graded, 210 checks, all green:** ceiling 15, daylamps 12, endcue 11,
 idleflex 8, introorder 4, musicbox 11, optionsmenu 12, padlift 11, panelnav 13,

@@ -93,6 +93,34 @@ An earlier full pass at `47249b3` ran all 32: **24 graded, 355 checks, zero
 failures.** The 8 report-only harnesses ran clean — which means they produced
 their sheets, not that they graded anything.
 
+### Does the number fit the box he painted?
+
+`tools/harness/dashfit.mjs`. Every value on the dashboard is a transparent box
+positioned at a measured percentage of his artwork, and `#plate>*` is
+`overflow:hidden` — so a value that outgrows its rect is not wrapped or
+shrunk, it is **sheared**, and the page prints a wrong number with total
+confidence. At four million deaths the DEATHS total rendered `.237.89`.
+
+It fills the page from the worker itself at two data scales (what the board
+holds today, and seven figures in every column) across a phone width and the
+760px the stylesheet caps to, and it measures the RENDERED text with a Range
+over each element's own text node.
+
+⚠️ **Two ways this harness lied before it worked**, both worth knowing because
+they are the generic shapes of a lying harness:
+
+- Measuring a clone styled from `getComputedStyle(el).font` — that comes back
+  **empty** in Chromium, the clone falls back to 16px, and every box reports a
+  comfortable pass while the page is visibly torn.
+- Counting wrapped lines as `height / line-height` — computed `line-height` on
+  these elements is the string `normal`, `parseFloat` gives `NaN`, `NaN > 1`
+  is false, and a value it could see wrapping was reported green.
+
+Four boxes are listed as known-open rather than excluded — the STAGE
+PROGRESSION values, which cannot fit `N (P%)` at a three-digit run count in
+the 62px his panel leaves. That is a decision about what the string says, not
+a bug to fix silently. See `docs/STATUS.md`.
+
 ### Load, measured — not assumed
 
 `tools/loadtest.mjs` against the live worker, and `tools/harness/dashload.mjs`

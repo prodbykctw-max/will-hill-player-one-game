@@ -45,6 +45,10 @@ const CAP = 500;          // rows the public board will ever return
 const TOP_TTL = 2;        // seconds /top may be served from cache
 const MAX_BODY = 256 * 1024;
 const MAX_EVENTS = 5000;
+// The most a `combo` event is allowed to claim. A chain cannot outrun the
+// stomps that make it and the whole log is capped at MAX_EVENTS, so anything
+// near this is a claim rather than a run. See statsFromEvents.
+const MAX_COMBO = 9999;
 
 // TODO: set the real 3-day contest window before launch.
 const CONTEST_START = 0;  // Date.now()-style ms epoch
@@ -167,7 +171,7 @@ function statsFromEvents(events, durationMs) {
   const s = {
     bags: 0, bags_x2: 0, bags_lost: 0, kills: 0, bottles: 0, potholes: 0,
     continues: 0, deaths: 0, death_enemy: 0, death_pothole: 0, death_fall: 0,
-    stages: 0, best_stage: 0,
+    stages: 0, best_stage: 0, max_combo: 0,
   };
   if (!Array.isArray(events)) return s;
   let lastT = -1;
@@ -195,6 +199,18 @@ function statsFromEvents(events, durationMs) {
       s.stages++;
       const n = Number(type.slice('stage_clear_'.length)) || 0;
       if (n > s.best_stage) s.best_stage = n;
+    } else if (type === 'combo') {
+      // ⚠️ ONE EVENT PER RUN, CARRYING THE RUN'S BEST CHAIN — not one event
+      // per link. There is no combo system in the game yet; this is the shape
+      // it has to emit, chosen so a 200-stomp chain costs the log one event
+      // instead of 200 and cannot push real events past MAX_EVENTS.
+      // ⚠️ AND IT IS A NUMBER THE PLAYER HANDED US. The score is recomputed
+      // and can be refused; this cannot be — a cheat could claim any chain
+      // without gaining a point. CAP is what stops the dashboard printing a
+      // twelve-digit number through the panel he painted. Same caveat as
+      // every other column in run_stats: good for a dashboard, not evidence.
+      const c = Math.floor(Number(ev.n) || 0);
+      if (c > s.max_combo) s.max_combo = Math.min(c, MAX_COMBO);
     }
   }
   return s;
@@ -390,14 +406,14 @@ export default {
             `INSERT OR IGNORE INTO run_stats
                (run_id, id, t, score, duration, bags, bags_x2, bags_lost,
                 kills, bottles, potholes, continues, deaths, death_enemy,
-                death_pothole, death_fall, stages, best_stage,
+                death_pothole, death_fall, stages, best_stage, max_combo,
                 city, region, country, lat, lon)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                      ?, ?, ?, ?, ?)`,
           ).bind(runId, id, now, score, durationMs, st.bags, st.bags_x2,
             st.bags_lost, st.kills, st.bottles, st.potholes, st.continues,
             st.deaths, st.death_enemy, st.death_pothole, st.death_fall,
-            st.stages, st.best_stage,
+            st.stages, st.best_stage, st.max_combo,
             txt(cf.city), txt(cf.region), txt(cf.country),
             num(cf.latitude), num(cf.longitude)).run();
           // ⚠️ A CONTINUED RUN REPLACES ITS OWN PARTIAL ROW. The client
