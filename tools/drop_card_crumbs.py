@@ -86,7 +86,10 @@ def main():
         if check:
             continue
         a[y0:y1, x0:x1, 3] = 0
-        Image.fromarray(a).save(path, quality=92, method=6)
+        # 94 to match cut_planes.py. A card is lossy WebP; re-saving it at a
+        # lower quality than it was cut at degrades the whole card to erase
+        # one crumb.
+        Image.fromarray(a).save(path, 'WEBP', quality=94, method=6)
         print(f'    erased -> {os.path.relpath(path, ROOT)}')
     print(f'\n{total} px {"would be" if check else ""} erased')
 

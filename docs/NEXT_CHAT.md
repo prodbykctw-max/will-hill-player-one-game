@@ -374,6 +374,56 @@ trashcan and the newspaper machine — I love that."*
 
 ---
 
+## 6b. The daytime realism audit — mostly a false alarm
+
+The client asked for these plates to be reviewed as photographs of real
+Atlanta streets: find what would not exist in the real world. Worth recording
+what came out of it, because two of the findings were **wrong** and should not
+be re-opened.
+
+**The method that produced the errors:** judging detail off downscaled crops.
+A 1532px plate viewed at half width hides exactly the evidence that decides
+these calls. Everything below was re-checked at 3-4x on the native plate, and
+that is the only resolution at which any of it means anything.
+
+- ~~Nothing casts a shadow in daylight~~ — **WRONG.** The plates already carry
+  painted contact shading: under the cars, along the fence-to-grass line,
+  under the shrubs. A `tools/bake_ground_shadows.py` was built to add contact
+  patches (card alpha → ground line → soft patch, painted onto the RECEIVING
+  surface because the grass card draws over the fence card). It worked, and it
+  added nothing a viewer could see, because the shading was already there. The
+  tool was deleted rather than left lying around for a problem that does not
+  exist. Same disposition as `erase_carded.py`.
+- ~~Overhead wires end in mid-air~~ — **WRONG.** At 4x they run pole to pole
+  in proper catenary sags with insulators on the crossarms. At 1x the thin
+  wires fade against a bright sky and read as broken spans.
+- ~~The Edgewood neon~~ — a real sign carrying a real Atlanta phrase. It stays
+  exactly as painted. Flagging it was a content judgement smuggled into a
+  realism task; the client was right to reject it.
+- ~~L5P's wet road under a blue sky~~ — an ordinary afternoon after a shower.
+- The EAV pedestrian signal and the centre-line/traffic-direction mismatch
+  were over-called and never confirmed. The crosswalk may sit off-frame and
+  those cars may be parked.
+
+**What survives.** Two things, and only one of them is objective:
+
+1. **The Edgewood hours board is pixel mush.** Under `SOUL FOOD & SPIRITS`, a
+   HOURS header and three day rows rendered as noise. The client's ruling
+   allows fixing this: *"if you wanna make them legible, then we could do
+   that... but we're not trying to change anything text wise."* Legibility
+   only — same words, redrawn so they read. Nothing else in any plate.
+2. **Warm windows and bulbs render at night intensity in the day plates** —
+   a judgement call, not a defect. Lights being on in the day is real; whether
+   the bloom on them is too strong is the client's taste to rule on, and he
+   has not.
+
+**One real bug did come out of it.** `drop_card_crumbs.py` was writing cards
+back at `quality=92` when `cut_planes.py` cuts them at `94`. These are lossy
+WebP, so re-saving below the quality they were made at degrades the entire
+card to edit one strip of it — measured at ~16,000 px of pure recompression
+noise on a single pass, which briefly looked like shadows landing in the sky.
+Fixed. **Any future tool that rewrites a card must save `'WEBP', quality=94`.**
+
 ## 7. Still on him (blocking the contest)
 
 Both workers are **deployed and live**, and the shipped game bundle really
