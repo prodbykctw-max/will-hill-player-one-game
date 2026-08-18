@@ -696,6 +696,13 @@ canvas.addEventListener('pointerdown', (e) => {
     //
     // Somebody already in has nothing to fill in, so the same banner takes
     // them to the board instead — the rule everywhere else in this flow.
+    // ⚠️ THE NEAR-MISS BAND, CHECKED BEFORE THE BANNER. Client: "I keep
+    // entering the competition by accident when the button I'm trying to
+    // press is start." A tap in the strip just above the bar does nothing at
+    // all — it is not the bar, and it does not fall through to START either,
+    // because falling through would reward a miss with the thing he was
+    // aiming for and teach nothing. Doing nothing is what a miss should cost.
+    if (title.deadZone(state.titleBox, x, y)) return;
     if (title.hitBanner(state.titleBox, x, y)) {
       press();
       panel.open(isRegistered() ? 'board' : 'form', { flow: 'title' });

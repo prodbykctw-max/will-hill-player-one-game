@@ -900,8 +900,30 @@ export function createTitle(ctx, canvas, still) {
   // drops out of his layout any more — lifting PRESS START off the plate is
   // what removed the constraint that forced a second shape. Do not add one
   // back; see the note in homeLayout.
-  const PROMPT_GAP = 10;
-  const PROMPT_GAP_MIN = 4;
+  // ⚠️ 26, NOT 10, AND A DEAD BAND UNDER IT. Client: "I keep hitting the enter
+  // button by accident instead of press start... that press start button may
+  // need to come up a little higher to give it some space away from the enter
+  // button." START is "tap anywhere that is not a control", so a thumb aimed
+  // at PRESS START that lands a few pixels low was landing on the contest bar
+  // and entering the competition. Ten pixels of gap is not a thumb.
+  // 18 of gap plus the 10px dead band below is 28px of "not the contest bar"
+  // between his lettering and it. 26 was tried first and cost the banner 21px
+  // on a Pro Max — it came out SMALLER than the two buttons under it, which
+  // is the trade this file already refused once. The dead band is what
+  // actually stops the mis-tap; the gap only has to make the separation
+  // visible.
+  const PROMPT_GAP = 18;
+  // ⚠️ THE FLOOR STAYS SMALL. Raising it to 12 alongside the ideal cost the
+  // iPhone SE 8px of hero clearance in a standalone launch — the gap is the
+  // escape valve on a phone with no road left, and pinning it high just
+  // pushes the whole block up into his shoes. Roomy phones never see the
+  // floor; they get the 18.
+  const PROMPT_GAP_MIN = 6;
+  // And the gap alone does not fix it: a thumb that lands ON the bar's top
+  // edge still enters. This many pixels immediately above the banner are
+  // DEAD — not the bar, and not START either, so a near miss costs nothing
+  // instead of costing a contest entry. See deadZone.
+  const HIT_DEAD = 10;
   // The bottom of the hero's card, from title-portrait-planes.json
   // (`hero.frac[3]` = 0.7825). The block clamps against HIM now, not against
   // painted lettering that is no longer there.
@@ -991,16 +1013,22 @@ export function createTitle(ctx, canvas, still) {
 
     const spend = (want, floor, rest) =>
       Math.max(floor, Math.min(want, room - rest));
+    // ⚠️ THE BANNER IS TAKEN LAST, AND THAT ORDER IS THE POINT. It used to be
+    // taken before the prompt and the gap above it, so when PROMPT_GAP went
+    // from 10 to 26 the banner kept its full 56 and the gap was paid for by
+    // shrinking HIS LETTERING to its floor — 22px of PRESS START down to 13
+    // on a Pro Max. The banner is the biggest element on the block and has
+    // the most to give; the prompt is his artwork and gives last.
     const rowH = spend(HOME_MIN_H, HOME_FLOOR_H,
       promptFloor + PROMPT_GAP_MIN + BANNER_MIN_H + HOME_GAP_MIN);
     const gap = spend(HOME_GAP, HOME_GAP_MIN,
       promptFloor + PROMPT_GAP_MIN + BANNER_MIN_H + rowH);
-    const bannerH = spend(BANNER_H, BANNER_MIN_H,
-      promptFloor + PROMPT_GAP_MIN + gap + rowH);
-    const pGap = spend(PROMPT_GAP, PROMPT_GAP_MIN,
-      promptFloor + bannerH + gap + rowH);
     const promptH = spend(promptIdeal, promptFloor,
-      pGap + bannerH + gap + rowH);
+      PROMPT_GAP_MIN + BANNER_MIN_H + gap + rowH);
+    const pGap = spend(PROMPT_GAP, PROMPT_GAP_MIN,
+      promptH + BANNER_MIN_H + gap + rowH);
+    const bannerH = spend(BANNER_H, BANNER_MIN_H,
+      promptH + pGap + gap + rowH);
     const promptW = promptH / ratio;
 
     const ry = H - bottom - rowH;
@@ -1120,6 +1148,21 @@ export function createTitle(ctx, canvas, still) {
     ctx.beginPath();
     if (ctx.roundRect) ctx.roundRect(x, y, w, h, rad);
     else ctx.rect(x, y, w, h);
+  }
+
+  // ⚠️ A BAND THAT DOES NOTHING, ON PURPOSE, and only ABOVE the banner.
+  //
+  // Everything on this screen that is not a control is START, which is what
+  // makes a near miss expensive: aim at PRESS START, land 3px low, and you
+  // have entered the contest. A dead band absorbs exactly that miss.
+  //
+  // It is deliberately NOT applied below the banner. The row under it is
+  // OPTIONS and MUSIC, and eating taps there would trade one mis-tap for
+  // another — his complaint is specifically about reaching UP for PRESS START.
+  function deadZone(box, x, y) {
+    const r = bannerRect(box);
+    return !!r && x >= r.x && x <= r.x + r.w
+      && y >= r.y - HIT_DEAD && y < r.y;
   }
 
   function hitBanner(box, x, y) {
@@ -1393,5 +1436,5 @@ export function createTitle(ctx, canvas, still) {
   }
   return { draw, hitOptions, optionsRect,
     hitMusic, musicRect, drawMusic,
-    hitBanner, bannerRect, bannerLabel, promptRect, homeLayout };
+    hitBanner, bannerRect, bannerLabel, promptRect, deadZone, homeLayout };
 }

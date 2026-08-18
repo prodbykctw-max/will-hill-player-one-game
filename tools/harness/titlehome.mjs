@@ -257,6 +257,76 @@ console.log('\n  the banner, already registered');
   await ctx.close();
 }
 
+// ── 4a. THE NEAR MISS THAT KEPT ENTERING THE CONTEST ─────────────────────
+//
+// Client, on the live build: "I keep hitting the enter button by accident
+// instead of press start... that press start button may need to come up a
+// little higher to give it some space away from the enter button."
+//
+// Two things answer it and both are graded here. The GAP makes the separation
+// visible; the DEAD BAND is what actually absorbs the miss, because a thumb
+// landing on the bar's top edge is still a hit no matter how far away the
+// prompt is. Everything on this screen that is not a control is START, so
+// without the band a near miss is rewarded with a contest entry.
+console.log('\n  the gap above the contest bar, and the dead band under it');
+for (const [name, w, h] of [['15 Pro Max', 430, 932], ['iPhone 15 Pro', 393, 852],
+  ['Android 412', 412, 780], ['iPhone SE', 375, 667]]) {
+  const ctx = await b.newContext({ viewport: { width: w, height: h }, hasTouch: true });
+  const p = await openTitle(ctx);
+  const g = await p.evaluate(() => {
+    const t = window.__title, bx = window.__game.titleBox;
+    const l = t.homeLayout(bx);
+    return { gap: l.banner.y - (l.prompt.y + l.prompt.h),
+      bannerH: l.banner.h,
+      bx: l.banner.x + l.banner.w / 2, by: l.banner.y };
+  });
+  // ⚠️ KEYED ON SLACK, NOT ON VIEWPORT HEIGHT. The first version asked for
+  // 16px on anything 780 tall or more and Android 412x780 failed with 10 —
+  // correctly, because its banner is already at the 34px floor, so there was
+  // nothing left for the gap to take. The rule that is actually true: the gap
+  // never goes below its floor, and it reaches its ideal whenever the banner
+  // still had height to give.
+  const hadSlack = g.bannerH > 34.5;
+  check(`  [${name}] PRESS START is held off the bar`,
+    g.gap >= 6 - 0.5 && (g.gap >= 16 || !hadSlack),
+    `${Math.round(g.gap)}px of gap, banner ${Math.round(g.bannerH)}px`
+    + (hadSlack ? '' : ' (banner at its floor — nothing left to give)'));
+
+  // A tap 4px above the bar must do NOTHING — not the bar, and not START.
+  await p.mouse.click(g.bx, g.by - 4);
+  await p.waitForTimeout(450);
+  let s2 = await view(p);
+  check(`  [${name}] a near miss above the bar does nothing at all`,
+    !s2.open && s2.screen === 'title', JSON.stringify(s2));
+
+  // And the band has not swallowed the control it is protecting.
+  await p.mouse.click(g.bx, g.by + 12);
+  await p.waitForTimeout(450);
+  s2 = await view(p);
+  check(`  [${name}] the bar itself still opens the sign-up`,
+    s2.open && s2.view === 'pvForm', JSON.stringify(s2));
+  await ctx.close();
+}
+
+// ⚠️ AND THE BAND MUST BE ABLE TO FAIL. Without it, that same 4px-high tap
+// lands on the banner and opens the form — which is the bug. Prove the check
+// sees it by asking the geometry directly rather than trusting the routing.
+{
+  const ctx = await b.newContext({ viewport: { width: 430, height: 932 }, hasTouch: true });
+  const p = await openTitle(ctx);
+  const r = await p.evaluate(() => {
+    const t = window.__title, bx = window.__game.titleBox;
+    const l = t.homeLayout(bx);
+    const x = l.banner.x + l.banner.w / 2;
+    return { dead: t.deadZone(bx, x, l.banner.y - 4),
+      insideIsNotDead: t.deadZone(bx, x, l.banner.y + 12),
+      belowIsNotDead: t.deadZone(bx, x, l.banner.y + l.banner.h + 4) };
+  });
+  check('  [break-test] the band covers the near miss and nothing else',
+    r.dead && !r.insideIsNotDead && !r.belowIsNotDead, JSON.stringify(r));
+  await ctx.close();
+}
+
 // ── 4b. THE INSTALLED APP: NOTHING UNDER THE HOME INDICATOR ──────────────
 //
 // Client, with a PWA screenshot: OPTIONS and MUSIC sliced off at the foot of
