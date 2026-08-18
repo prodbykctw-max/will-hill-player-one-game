@@ -68,8 +68,21 @@ await p.waitForTimeout(1500); await show('game knocked');
 
 // Every cue, checked for a real decoded duration against what was cut.
 console.log('\nevery slot, loaded and measured:');
-const want = { title: 86.0, stage_01: 96.0, map_01_02: 44.4, stage_02: 99.0, map_02_03: 46.9,
-               stage_03: 102.4, map_03_04: 47.7, stage_04: 98.3, ui_pause: 78.4, credits: 41.4 };
+// ⚠️ READ FROM tools/cue_sheet.json, NEVER KEPT HERE. This used to be a
+// hardcoded table written 08-13; four cues were deliberately re-cut on 08-16
+// on the client's own ear ("his ear again", "on his tempo") and the table
+// went stale — the harness then reported the client-approved audio as
+// MISMATCHED for two days. A verification tool holding its own copy of the
+// thing it verifies against verifies nothing (LESSONS: card_overlaps'
+// MAX_SEPARATION, sam_coverage's crop table, and now this). The sheet's `dur`
+// is stamped from the shipped file when a cut is accepted; a re-cut updates
+// the sheet in the same commit or this check fails loudly — which is the
+// point: it is a tripwire for a silently swapped or truncated file.
+const { readFileSync } = await import('fs');
+const sheet = JSON.parse(readFileSync(new URL('../cue_sheet.json', import.meta.url), 'utf8'));
+const want = Object.fromEntries(
+  Object.entries(sheet.cues).filter(([, c]) => typeof c.dur === 'number')
+    .map(([k, c]) => [k, c.dur]));
 const durs = await p.evaluate(async () => {
   // Load each file on its OWN element, outside the game's player, so the loop
   // re-stating the current cue cannot overwrite what is being measured.
