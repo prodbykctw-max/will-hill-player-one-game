@@ -906,6 +906,14 @@ export function createTitle(ctx, canvas, still) {
   // (`hero.frac[3]` = 0.7825). The block clamps against HIM now, not against
   // painted lettering that is no longer there.
   const HERO_FOOT = Math.round(0.7825 * SRC_H);
+  // ⚠️ AND HE GETS AIR, NOT JUST CLEARANCE. Client, on the live PWA: "the
+  // start button cluster on the home screen seems to be a little too close to
+  // his feet." Measured at the time: 9px between his shoes and PRESS START on
+  // a 15 Pro. Not an overlap, and still wrong — the block was landing as
+  // close to him as arithmetic allowed because nothing asked it not to.
+  // Reserved BEFORE the block is measured out, so where there is slack the
+  // sizes are untouched and only the crowding goes.
+  const HERO_AIR = 22;
 
 
   function homeLayout(box) {
@@ -965,7 +973,7 @@ export function createTitle(ctx, canvas, still) {
     // with the painted word; what the block must never climb over is the hero
     // — planes.json puts the bottom of his card at 0.7825 of the plate.
     const feet = box.dy + HERO_FOOT * S;
-    const room = Math.max(0, H - bottom - feet);
+    const room = Math.max(0, H - bottom - feet - HERO_AIR);
 
     // The prompt keeps its painted proportions and lands near the size it was
     // painted at (446x39 source, ~225px wide on a Pro Max), so lifting it off

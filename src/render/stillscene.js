@@ -173,9 +173,24 @@ export function createStillScene(ctx, canvas) {
         px = Math.max(0, canvasH - lineY);
       }
     } catch (_e) { px = 0; }
-    // A sane ceiling: an inset is tens of px. Anything larger is a
-    // measurement gone wrong and must not eat the whole page.
-    px = Math.max(0, Math.min(px, canvasH * 0.25));
+    // ⚠️ 48px, NOT A PERCENTAGE. The first version capped at 25% of the canvas
+    // — 233px on a 932 screen, which is no cap at all — and the client's PWA
+    // showed exactly what that costs: about 90px of dead pavement under the
+    // buttons where ~42 was intended, and the whole block shoved up until
+    // PRESS START sat on the hero's sneakers. "The start button cluster on
+    // the home screen seems to be a little too close to his feet."
+    //
+    // The over-measure is this function counting the indicator twice. It
+    // reads `canvasH - (innerHeight - inset)`, which is correct when the
+    // viewport extends UNDER the indicator, and double-counts on a device
+    // where innerHeight already stops at the indicator line — the same sin
+    // this whole round of fixes exists to remove, committed here in the
+    // measurement meant to remove it.
+    //
+    // A real iOS home indicator is 34pt. 48 covers it with margin and turns
+    // anything beyond into what it is: noise. Over-reserving is not free —
+    // it comes straight out of the road the layout has to work in.
+    px = Math.max(0, Math.min(px, 48));
     footCache = px;
     footFor = key;
     return px;

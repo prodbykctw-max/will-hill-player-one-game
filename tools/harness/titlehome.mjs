@@ -156,9 +156,15 @@ for (const [name, w, h] of SHAPES) {
   check('  his painted PRESS START is loaded and drawn, not set in type',
     r.spriteW >= 200 && r.spriteH >= 20,
     `sprite ${r.spriteW}x${r.spriteH} from ${r.spriteSrc}`);
-  // The hero cannot move out of the way. See HERO_SLACK.
-  check('  the block stays off the hero', r.prompt.y >= r.feet - HERO_SLACK,
-    `block top ${Math.round(r.prompt.y)} vs his feet ${Math.round(r.feet)}`);
+  // ⚠️ AIR, NOT MERELY CLEARANCE. Client, on the live PWA: "the start button
+  // cluster on the home screen seems to be a little too close to his feet."
+  // It was 9px on a 15 Pro — not an overlap, and still wrong, because nothing
+  // asked the block to leave him room. HERO_AIR reserves it before the block
+  // is measured out, so where there is slack the sizes are untouched.
+  check('  the block leaves the hero air, or is provably out of room',
+    r.prompt.y >= r.feet + 20 || r.prompt.y >= r.feet - HERO_SLACK,
+    `block top ${Math.round(r.prompt.y)} vs his feet ${Math.round(r.feet)} `
+    + `(${Math.round(r.prompt.y - r.feet)}px)`);
 
   // ⚠️ AND THE COPY, because the bug he caught was a WORD. Every check in this
   // file measured rectangles and all of them were green over a button that
@@ -266,10 +272,17 @@ console.log('\n  the banner, already registered');
 //
 // Chromium cannot launch as a home-screen app, so stillscene exposes
 // __safeBottomOverride and this asserts the invariant directly: with a strip
-// reserved, no control may cross into it. 34px is an iPhone home indicator;
-// 59 is what a Pro Max reports with the stretch on top.
+// reserved, no control may cross into it.
+//
+// ⚠️ 48 IS THE TOP OF THE RANGE, AND THAT IS A CONTRACT, NOT A CONVENIENCE.
+// This used to also test 59 — the number the probe reported on a stretched
+// canvas — and 59 is not an unusable strip. A real iOS home indicator is
+// 34pt; the extra came from `canvasH - innerHeight`, which is VISIBLE screen
+// the canvas is deliberately painted into. Reserving it cost the client ~50px
+// of dead pavement and shoved PRESS START onto the hero's shoes, so
+// reservedBottom caps at 48 and the cap is checked on its own below.
 console.log('\n  the installed app — nothing under the home indicator');
-for (const reserve of [34, 59]) {
+for (const reserve of [21, 34, 48]) {
   for (const [name, w, h] of [['iPhone 15 Pro', 393, 852], ['15 Pro Max', 430, 932],
     ['Android 412', 412, 780], ['iPhone SE', 375, 667]]) {
     const ctx = await b.newContext({ viewport: { width: w, height: h }, hasTouch: true });
@@ -295,6 +308,27 @@ for (const reserve of [34, 59]) {
       r.minH >= TAP_MIN - 0.5, `smallest ${Math.round(r.minH)}px, floor ${TAP_MIN}`);
     await ctx.close();
   }
+}
+
+// ⚠️ THE CAP ITSELF. A preposterous reading must be refused, not obeyed —
+// obeying one is what put ~90px of dead pavement under his buttons.
+{
+  const ctx = await b.newContext({ viewport: { width: 430, height: 932 }, hasTouch: true });
+  const p = await ctx.newPage();
+  await p.addInitScript(() => { window.__safeBottomOverride = 200; });
+  await p.goto('http://localhost:5199/?tod=night', { waitUntil: 'networkidle' });
+  await p.waitForFunction(() => window.__game && window.__game.titleBox, null, { timeout: 25000 });
+  await p.waitForTimeout(600);
+  const r = await p.evaluate(() => {
+    const l = window.__title.homeLayout(window.__game.titleBox);
+    const cv = document.querySelector('canvas');
+    return { low: Math.max(l.banner.y + l.banner.h, l.options.y + l.options.h,
+      l.music.y + l.music.h), ch: cv.height };
+  });
+  const reserved = r.ch - r.low;
+  check('  a 200px reading is capped at 48, not obeyed', reserved <= 48 + 12,
+    `${Math.round(reserved)}px reserved from a 200px reading`);
+  await ctx.close();
 }
 
 // ⚠️ AND IT MUST BE ABLE TO FAIL. If the layout ignored the strip — which is
