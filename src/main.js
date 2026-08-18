@@ -22,7 +22,7 @@ import { createBackdrop } from './render/backdrop.js';
 import { createUndercroft } from './render/undercroft.js';
 import { createHud } from './render/hud.js';
 import { createMartaMap } from './render/martamap.js';
-import { createEnding, statsFrom, endingCards, ENDING_IMAGES, PROMPT as ENDING_PROMPT,
+import { createEnding, statsFrom, ENDING_IMAGES, RESTART as ENDING_RESTART,
   SRC_W as ENDING_W, SRC_H as ENDING_H } from './render/ending.js';
 import { createStillScene } from './render/stillscene.js';
 import { createTitle, TITLE_IMAGES,
@@ -450,6 +450,10 @@ function startRun() {
   state.distanceM = 0;
   state.runLog = createRunLog();
   state.runLog.start();
+  // The results are offered ONCE per run, on the ending. Without a latch,
+  // dismissing the board would reopen it on the next frame and the RESTART
+  // button underneath could never be reached.
+  state.resultsShown = false;
   startStage(startStageIndex());
 }
 
@@ -755,9 +759,37 @@ function getBackUp() {
 // BACK off that board closes out to the title in one tap rather than stepping
 // sideways into OPTIONS — showTitle() has already run, so the title card is
 // what the closing panel reveals.
+function showResults() {
+  panel.open(isRegistered() ? 'board' : 'form', { flow: 'post' });
+}
+
 function endRun() {
   showTitle();
-  panel.open(isRegistered() ? 'board' : 'form', { flow: 'post' });
+  showResults();
+}
+
+// ── AND WHEN THERE IS AN ENDING, THE BOARD OPENS ON TOP OF IT ────────────
+//
+// Client: "die or win? Ending scene then Leaderboard and registration." On a
+// knockdown there is no scene, so endRun() puts the title behind the board.
+// On a WIN there is one, and it is the best thing in the game — so the board
+// opens over the ending and the ending stays where it is. Dismissing it
+// reveals his painting again with RESTART on it, which is what that button
+// says and now what it does.
+//
+// ⚠️ IT IS THE SAME OVERLAY THE SIGN-UP CARD ALREADY IS. Nothing new was
+// needed: panel.open with flow 'post' already lays the card over the board,
+// and #panel has always drawn over whatever the canvas is showing. The only
+// change is not calling showTitle() first.
+//
+// ⚠️ AND screenT STOPS WHILE IT IS UP. update() returns early when the panel
+// is open, so the tally does not run on behind the board and the delay below
+// is measured in ticks the player actually saw.
+const RESULTS_AFTER = 140;      // ticks: the eight rows tally in 56, then a beat
+
+function restartRun() {
+  commit();
+  startRun();
 }
 
 // The buttons each screen offers, in order. First is the primary — it is what
@@ -776,6 +808,8 @@ function buttonsFor(screen) {
         { label: 'END RUN', action: endRun }]
       : [{ label: 'SEE YOUR SCORE', action: endRun }];
   }
+  // 'complete' is not here: its button is PAINTED, on his ending plate, and is
+  // registered where that plate is drawn. Nothing of mine goes on that artwork.
   return [];
 }
 
@@ -935,6 +969,14 @@ function update() {
   if (state.screen === 'stageClear' || state.screen === 'gameOver'
       || state.screen === 'complete') {
     state.screenT++;
+    // The ending plays, and then the board arrives on top of it — his order,
+    // not a tap. Once per run; see state.resultsShown in startRun().
+    if (state.screen === 'complete' && !state.resultsShown
+        && state.screenT > RESULTS_AFTER) {
+      state.resultsShown = true;
+      showResults();
+      return;
+    }
     if (state.screenT > 20 && confirmPressed()) { press(); advanceFromScreen(); }
     return;
   }
@@ -1517,42 +1559,37 @@ function draw() {
   // every frame you sat looking at your score, and a hard crash if it was
   // ever reached without a level built.
   if (state.screen === 'complete') {
-    // The painting first, with its swaying crowd, then the run's numbers
-    // drawn onto the panel the painting already has. `box` is where the
-    // painting landed, so everything lands on its own coordinates.
-    //
-    // The base is the INPAINTED plate (tools/cut_still.py), not the original:
-    // the crowd and Will Hill have been lifted off it onto cards so they can
-    // move, and leaving them in the base as well would show a second, still
-    // crowd behind the moving one the moment it swayed.
-    const box = still.draw(images.ending_base, endingCards(images), state.tick);
+    // ⚠️ ONE PLATE, NO CARDS. The old ending was cut into base/crowd/hero so
+    // the crowd could sway; those cards came off the LANDSCAPE painting and
+    // mean nothing on this one. His call was "ship it flat first, re-cut
+    // after", so the sway is a separate pass over the new art.
+    const box = still.draw(images.ending_base, [], state.tick);
+    // His plate carries its own SHOWTIME, its own eight stat LABELS and its
+    // own RESTART button. The only thing drawn onto it is eight numbers.
     ending.draw(statsFrom(state.finalLog, state.score, state.distanceM || 0),
       state.screenT, box);
-    // ⚠️ ENDING_W/ENDING_H, NOT STILL_W/STILL_H. This read the TITLE plate's
-    // 853x1844 against a 1536x1024 painting, which put the glow at x=605 on a
-    // 430px phone — off the right edge, so this prompt has never pulsed. Found
-    // by giving the same rect a hit target and watching it land off-screen.
-    still.pulsePrompt(box, ENDING_PROMPT, ENDING_W, ENDING_H, state.tick);
-    // ── AND HERE THE BUTTON IS ALREADY PAINTED ─────────────────────────
+    // ⚠️ ENDING_W/ENDING_H, NOT THE TITLE PLATE'S. Mapping this rect through
+    // title.js's SRC_W/SRC_H is what put the old ending's prompt glow at x=605
+    // on a 430px phone — off the right edge, so it never once appeared. Both
+    // constants were called SRC_W. docs/LESSONS.md 21.
+    still.pulsePrompt(box, ENDING_RESTART, ENDING_W, ENDING_H, state.tick);
+    // ── AND THE BUTTON HERE IS ALREADY PAINTED ─────────────────────────
     //
-    // PRESS START TO CONTINUE is lettered into the ending artwork and
-    // pulsePrompt is throbbing it. Drawing an amber plate on top would be a
-    // live copy of his own words sitting on his own painting — the exact
-    // objection that put every cabinet control under his lettering instead of
-    // beside it. So the painted prompt IS the hit target: registered at his
-    // rect, with nothing drawn.
+    // RESTART is a gold plate in his artwork and pulsePrompt is throbbing it.
+    // Drawing one of mine on top would be a live copy of his own control on
+    // his own painting — the objection that put every cabinet button under his
+    // lettering rather than beside it. So his plate IS the hit target, with
+    // nothing drawn.
     //
     // ⚠️ AND IT HAS TO BE REGISTERED, not left to tap-anywhere, because
-    // tap-anywhere is gone. Without this the ending is a dead end on a
-    // touchscreen. `box` is where the painting landed, so his plate
-    // coordinates map through the same scale pulsePrompt uses.
+    // tap-anywhere is gone. Without this the ending is a dead end on a phone.
     screenButtons.length = 0;
     if (box) {
       const S = box.dw / ENDING_W;
       screenButtons.push({
-        x: box.dx + ENDING_PROMPT.x * S, y: box.dy + ENDING_PROMPT.y * S,
-        w: ENDING_PROMPT.w * S, h: ENDING_PROMPT.h * S,
-        action: endRun, label: 'PRESS START TO CONTINUE',
+        x: box.dx + ENDING_RESTART.x * S, y: box.dy + ENDING_RESTART.y * S,
+        w: ENDING_RESTART.w * S, h: ENDING_RESTART.h * S,
+        action: restartRun, label: 'RESTART',
       });
     }
     return;

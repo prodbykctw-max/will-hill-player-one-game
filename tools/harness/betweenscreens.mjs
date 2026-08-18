@@ -189,18 +189,31 @@ await p.waitForTimeout(500);
 check('Space still presses the primary button',
   await screen() === 'riding', await screen());
 
-// ── THE ENDING KEEPS HIS PAINTED PROMPT ─────────────────────────────────
+// ── THE ENDING: HIS PLATE, HIS BUTTON, AND THE BOARD ON TOP OF IT ───────
+//
+// Client: "die or win? Ending scene then Leaderboard and registration." So on
+// a win the ending plays, the board arrives over it ON ITS OWN, and dismissing
+// the board reveals his painting again with RESTART on it. Three things have
+// to hold and none of them is visible from a single screenshot: the board must
+// arrive, it must arrive ONCE, and what is underneath must still be reachable.
 console.log('\nTHE ENDING');
-await p.evaluate(() => {
-  const g = window.__game;
-  g.finalLog = g.runLog.finish();
-  g.screen = 'complete';
-  g.screenT = 999;
-});
-await p.waitForTimeout(700);
+const toEnding = async (hold) => {
+  await p.evaluate((h) => {
+    const g = window.__game;
+    for (let i = 0; i < 12; i++) g.runLog.record('bag');
+    for (let i = 0; i < 9; i++) g.runLog.record('stomp');
+    g.score = 31200; g.distanceM = 1487;
+    g.finalLog = g.runLog.finish();
+    g.resultsShown = h;              // true = hold the board off
+    g.screen = 'complete';
+    g.screenT = 999;
+  }, hold);
+  await p.waitForTimeout(700);
+};
+await toEnding(true);
 bs = await buttons();
-check('the ending has exactly one target and it is his painted prompt',
-  bs.length === 1 && bs[0].label === 'PRESS START TO CONTINUE',
+check('the ending has exactly one target and it is his painted RESTART',
+  bs.length === 1 && bs[0].label === 'RESTART',
   bs.map((x) => x.label).join(' | '));
 check('and it is on screen, not off the edge of the painting',
   bs.length === 1 && bs[0].x >= 0 && bs[0].y >= 0
@@ -210,14 +223,101 @@ await p.mouse.click(20, 60);
 await p.waitForTimeout(400);
 check('a tap off it does nothing on the ending too',
   await screen() === 'complete', await screen());
-await p.mouse.click(bs[0].x + bs[0].w / 2, bs[0].y + bs[0].h / 2);
-await p.waitForTimeout(800);
-const fin = await p.evaluate(() => ({
+
+// THE EIGHT VALUES ARE DRAWN, and they are the run's.
+//
+// ⚠️ AGAINST A NOISE FLOOR, because this screen is never still. His RESTART
+// plate is throbbing under pulsePrompt, so ANY two frames differ by thousands
+// of pixels and a plain "did anything change" test passes whatever the stats
+// do. The control is two frames at the SAME score: whatever changes between
+// those is the pulse, and the score's own contribution is what beats it.
+const endFrame = async (score) => {
+  await p.evaluate((sc) => { window.__game.score = sc; }, score);
+  await p.waitForTimeout(140);
+  return (await p.screenshot()).toString('base64');
+};
+const diffIn = (a, c) => p.evaluate(async ([x, y]) => {
+  const load = (bytes) => new Promise((res, rej) => {
+    const im = new Image(); im.onload = () => res(im); im.onerror = rej;
+    im.src = 'data:image/png;base64,' + bytes;
+  });
+  const grid = async (bytes) => {
+    const im = await load(bytes);
+    const cv = document.createElement('canvas');
+    cv.width = im.naturalWidth; cv.height = im.naturalHeight;
+    const g = cv.getContext('2d'); g.drawImage(im, 0, 0);
+    return { w: cv.width, h: cv.height,
+      d: g.getImageData(0, 0, cv.width, cv.height).data };
+  };
+  const A = await grid(x); const B = await grid(y);
+  // ⚠️ MAP IT PROPERLY. The first version multiplied and divided by the same
+  // device-pixel ratio — which cancels — then compared a device-pixel y to a
+  // plate-pixel one, and reported zero changed pixels inside the block while
+  // the numbers were plainly on screen. The plate covers the full WIDTH, so
+  // its scale is screenshot width over plate width and its vertical offset is
+  // what is left over, halved.
+  const S = A.w / 853;
+  const oy = (A.h - 1843 * S) / 2;
+  const X0 = 500 * S; const X1 = 800 * S;
+  const Y0 = oy + 450 * S; const Y1 = oy + 730 * S;
+  let n = 0;
+  for (let i = 0; i < A.d.length; i += 4) {
+    if (Math.abs(A.d[i] - B.d[i]) < 14) continue;
+    const px = (i / 4) % A.w; const py = Math.floor((i / 4) / A.w);
+    if (px >= X0 && px <= X1 && py >= Y0 && py <= Y1) n++;
+  }
+  return n;
+}, [a, c]);
+
+const same1 = await endFrame(31200);
+const same2 = await endFrame(31200);
+const floor = await diffIn(same1, same2);          // the pulse alone
+const other = await endFrame(7);
+const signal = await diffIn(same2, other);         // the pulse plus the score
+check("the run's own numbers are drawn, inside his stat block",
+  signal > floor * 3 + 20, `changed ${signal}px against a ${floor}px noise floor`);
+
+// ── the board arrives on its own, once ──────────────────────────────────
+await toEnding(false);
+await p.evaluate(() => { window.__game.screenT = 200; });
+await p.waitForTimeout(900);
+check('the board arrives over the ending without a tap',
+  await p.evaluate(() => !document.getElementById('panel').hidden));
+check('and the ending is still what is underneath',
+  await screen() === 'complete', await screen());
+
+// Dismiss the whole chain and his painting must come back — not the title,
+// and above all not a dead screen.
+for (const id of ['btnSkip', 'btnBack']) {
+  const shown = await p.evaluate((i) => {
+    const el = document.getElementById(i);
+    return !!(el && el.offsetParent);
+  }, id);
+  if (shown) { await p.evaluate((i) => document.getElementById(i).click(), id); }
+  await p.waitForTimeout(500);
+}
+await p.evaluate(() => { if (window.__panel.isOpen) window.__panel.close(); });
+await p.waitForTimeout(600);
+const back2 = await p.evaluate(() => ({
   screen: window.__game.screen,
   open: !document.getElementById('panel').hidden,
+  btn: (window.__screenButtons || [])[0]?.label,
 }));
-check('his prompt opens the results', fin.open && fin.screen === 'title',
-  JSON.stringify(fin));
+check('dismissing it lands back on the ending with RESTART',
+  back2.screen === 'complete' && !back2.open && back2.btn === 'RESTART',
+  JSON.stringify(back2));
+
+// ⚠️ AND IT MUST NOT COME BACK. The board is offered once per run; a latch
+// that failed would reopen it on the very next frame and RESTART could never
+// be pressed.
+await p.waitForTimeout(900);
+check('and it does not re-open itself',
+  await p.evaluate(() => document.getElementById('panel').hidden));
+
+bs = await buttons();
+await p.mouse.click(bs[0].x + bs[0].w / 2, bs[0].y + bs[0].h / 2);
+await p.waitForTimeout(1400);
+check('RESTART starts a fresh run', await screen() === 'playing', await screen());
 
 await b.close();
 const bad = checks.filter(([, ok]) => !ok);

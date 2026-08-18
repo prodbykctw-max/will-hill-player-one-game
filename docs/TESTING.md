@@ -77,7 +77,7 @@ They are the eyes-on tools; the graded set is the tripwire.
 ### Last sweep
 
 **Green after the sign-up cabinet became a card** — 32 harnesses against a
-fresh dev server, zero failures: betweenscreens 15, entryfit 44, optionsmenu
+fresh dev server, zero failures: betweenscreens 20, entryfit 44, optionsmenu
 15, btnglow 27, hapticbtn 24, panelnav 13, startflow 20, entrypaths 9,
 titlefit 76, titleintro 12, endcue 11, relaytod 26, dashglow 26, pausemenu 13,
 musicbox 11, share 12, outbox 13, ceiling 15, howswipe 10, idleflex 8,
@@ -196,7 +196,7 @@ does; the buzz lands on release; and iOS throttles it under repeated taps. See
 LESSONS.md 20 for how four fixes went in before anyone asked that question.
 
 ```
-barescars    8    betweenscreens 15  btnglow     27    ceiling     15
+barescars    8    betweenscreens 20  btnglow     27    ceiling     15
 cloudseal    8    daylamps    12    dashglow    26    endcue      11
 entryfit    44    entrypaths   9    finishrun   12    hapticbtn   24
 howswipe    10    idleflex     8    introorder   4    loopbench   32
@@ -291,7 +291,7 @@ drifts into grading last month's product and nobody notices.
 | `panelnav` | the panel's views and back-navigation |
 | `pausemenu` | pause layout and its buttons |
 | `entryfit` | the cropped sign-up card fits, its controls land on his paint, and the backdrop cannot be tapped through the scrim |
-| `betweenscreens` | STAGE CLEAR / GAME KNOCKED / the ending each have a reachable button — and a tap OFF one does nothing, which is the half nobody would notice until the game is a dead end |
+| `betweenscreens` | STAGE CLEAR / GAME KNOCKED / the ending each have a reachable button — and a tap OFF one does nothing, which is the half nobody would notice until the game is a dead end. Also that the ending's board arrives on its own, exactly once, and that dismissing it lands back on his painting rather than a dead screen |
 | `share` | the share card renders and is gated behind contest entry |
 | `ceiling` | he cannot jump out of the level |
 | `idleflex` | the idle animation |

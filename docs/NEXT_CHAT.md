@@ -259,6 +259,62 @@ Graded by `tools/harness/betweenscreens.mjs`, 15 checks — including that a tap
 OFF a button does nothing, on every one of the three screens, which is the half
 nobody would notice until the game is a dead end.
 
+## 4c. The ending is his painting now — BUILT
+
+He replaced the landscape mockup with **853x1843**, the same shape as the
+cabinet and the dashboard. Fitted to his phone the old 1536x1024 plate painted
+430x287 with more than half the screen black; this one covers it with three
+pixels to spare. He asked the generator for 1024x2212 and got 853x1843 — same
+ratio to four decimals, same pixel size as every other shipping plate, nothing
+resampled.
+
+`src/render/ending.js` went from ~300 lines to ~140 and now draws **eight
+numbers and nothing else**. No title repaint, no label table, no panel inpaint,
+no rank. Every word on screen is his.
+
+⚠️ **THE STAT LIST TOOK TWO PASSES AND IT IS THE SAME TRAP AS LAST TIME.** The
+plate first arrived listing ENEMIES DEFEATED / BOSSES DEFEATED / TIME / MAX
+COMBO / SCORE — the standard beat-em-up set, and word for word the list
+`ending.js` line 20 already recorded rejecting for the OLD mockup. This game
+has no bosses (three comments in `src/world/` say so) and no combo meter.
+Whatever is generating these plates reaches for that set by default, so
+**check the labels against the game before wiring any future pass.** He
+relettered it himself rather than have his artwork repainted, which is his
+standing preference and the better outcome.
+
+(MAX COMBO was the one that could have been real — every log event carries a
+millisecond stamp, so the chained-stomp run the punch sounds already escalate
+on is derivable with no new state. He picked the eight that exist.)
+
+**Geometry**, printed by `tools/cut_ending_plate.py` off the plate itself:
+labels x547 (never drawn over), values right-aligned at x780, baselines
+483/516/550/583/617/651/684/717, 25px face, ink `#e1bb88` sampled off his own
+`$31,200`. RESTART is x169-673, y1620-1761.
+
+⚠️ **Only the VALUES are emptied, and not by a column cut.** His longest label
+ends at x728 and his longest value starts at x696, so they overlap in x — a
+vertical erase eats the end of two labels. The tool goes per row, finds the
+widest gap in that row's ink, and erases outward from it.
+
+**The flow, his words** — *"die or win? Ending scene then Leaderboard and
+registration"*:
+
+```
+last stage cleared → 'complete' → his ending draws, stats tally (56 ticks)
+                   → at tick 140 the board opens OVER it, once per run
+                   → dismiss  → his painting again, with RESTART
+                   → RESTART  → a fresh run
+```
+
+`state.resultsShown` is the latch and it resets in `startRun()`. Without it the
+board reopens on the next frame and RESTART can never be pressed. `update()`
+returns early while the panel is open, so the tally does not run on behind it
+and the 140 is ticks the player actually saw.
+
+⚠️ `ending-crowd.webp` and `ending-hero.webp` are **deleted**. They were cut
+from the landscape plate and mean nothing on this one. The sway is a separate
+pass — *"ship it flat first"* — and `tools/cut_still.py` is what does it.
+
 ## 5. Also open
 
 **Contest screen glow harder.** *"The letters and shit aren't flashing hard
@@ -485,6 +541,7 @@ not a missing worker.
 
 | commit | what |
 |---|---|
+| (this one) | His SHOWTIME plate, and the board that arrives on top of it |
 | `e434a1a` | Buttons on the between-screens, and the score before the next level |
 | `cefe39b` | The harnesses know the card, and optionsmenu stops defending the old flow |
 | `df147ee` | His sign-up card, cropped out of the machine and laid over the room |

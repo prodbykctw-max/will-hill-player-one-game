@@ -368,6 +368,23 @@ carrying a green tick built out of his own red CANCEL button. LEADERBOARD and
 RULES & PRIZES went below the cut and are gone — CONTEST INFO opens what RULES
 & PRIZES opened, and NOT NOW already reaches the board.
 
+### CAT 8 — The ending is his painting, whole ✅ shipped
+He replaced the 1536x1024 landscape mockup with a **853x1843** SHOWTIME plate —
+the same shape as the cabinet and the dashboard, so it covers a phone instead of
+letterboxing more than half of it away. It carries its own title, its own eight
+stat labels and its own RESTART button, and `src/render/ending.js` now draws
+**nothing but eight numbers**.
+
+The stat list took two passes: the plate first arrived with the standard
+beat-em-up set (BOSSES DEFEATED, MAX COMBO), which this game cannot back, and he
+relettered it rather than have his art repainted. Every word on the shipped
+plate is his. RANK is gone with his say-so.
+
+Flow, his words — *"Ending scene then Leaderboard and registration"*: the ending
+plays, the board arrives over it on its own after the stats tally, and
+dismissing it reveals his painting again with RESTART, which now genuinely
+restarts. The crowd sway is a separate pass — *"ship it flat first"*.
+
 ### CAT 7 — The between-screens have buttons ✅ shipped
 PM: *"let's add a score here"* and *"we're really not pressing jump to continue,
 we're just tapping the screen."* STAGE CLEAR shows the score and a NEXT STAGE
@@ -378,7 +395,7 @@ and wiring that found a mapping bug that meant its glow had never once been on
 screen (`docs/LESSONS.md` 21).
 
 ### CAT 6 — Test section ✅ shipped
-`docs/TESTING.md`. Full suite green: **32 harnesses**, zero failures.
+`docs/TESTING.md`. Full suite green: **32 harnesses**, 458 checks, zero failures.
 
 ---
 

@@ -16,6 +16,7 @@ by measuring against them, so they are kept at full resolution.
 | `contest-entry.png` | 853 x 1844 | the ENTER CONTEST sign-up cabinet — pass 3, and the source the shipped **crop** is cut from |
 | `contest-entry-console.png` | 851 x 1849 | pass 2: portrait, but with a driver's console along the bottom |
 | `contest-entry-wide.png` | 1086 x 1448 | pass 1: too wide for a phone without cropping a third of it |
+| `ending-showtime-stats.png` | 853 x 1843 | the SHOWTIME results board — **pass 2, the one that ships** |
 | `underground-wide-day.png` | 1535 x 1024 | the wide Underground plate, day |
 | `underground-wide-night.png` | 1535 x 1024 | the wide Underground plate, night |
 | `underground-wide-stacked.png` | 1535 x 1024 | both, stacked, as he sent them |
@@ -174,3 +175,53 @@ carry a comment saying so.
 - `TIME OF DAY` shows `ATLANTA TIME` because that is the real worldwide
   default — the point of the feature, in the client's words *"the goal was to
   bring Atlanta to the world."*
+
+
+## `ending-showtime-stats.png` — the results board
+
+Replaced a 1536x1024 landscape mockup (`assets/refs/ending-mockup.webp`), and
+the shape is most of the win: fitted to his 430x932 phone the old one painted
+430x287 with more than half the screen black. This is 853x1843 and covers the
+phone with three pixels to spare. He asked the generator for 1024x2212 and it
+returned 853x1843 — the same ratio to four decimals, and the same pixel size as
+every other shipping plate, so nothing is resampled.
+
+⚠️ **TWO PASSES, AND THE FIRST ONE HAD THE WRONG STATS.** It arrived listing
+ENEMIES DEFEATED / BOSSES DEFEATED / TIME / MAX COMBO / SCORE — the standard
+beat-em-up set, and the same list `src/render/ending.js` already recorded
+rejecting once for the old mockup. This game has no bosses (three separate
+comments in `src/world/` say so) and no combo meter. Rather than have his
+artwork repainted he relettered it himself, which is his standing preference
+and the better outcome: **every word on the shipped plate is his**, and
+`src/render/ending.js` has no label table at all now.
+
+The eight are the ones the replay log actually carries:
+
+| # | row | drawn as |
+|---|---|---|
+| 1 | MONEY BAGS | count |
+| 2 | ENEMIES STOMPED | count |
+| 3 | CHAMPAGNE | count |
+| 4 | POTHOLES HIT | count |
+| 5 | BAGS ROBBED | count |
+| 6 | DISTANCE | `1487m` |
+| 7 | TIME | `0:41` |
+| 8 | SCORE | `$31,200` |
+
+RANK is gone — he dropped it. The old `rankFor()` docked 1500 a continue and
+250 a robbery before reading five thresholds; it is in git history.
+
+### Measured rects
+
+| thing | x | y | notes |
+|---|---|---|---|
+| stat labels | 547 – 728 | rows at y465–717 | **his**, never drawn over |
+| stat values | to 780, right-aligned | baselines 483, 516, 550, 583, 617, 651, 684, 717 | emptied by `tools/cut_ending_plate.py`, drawn live |
+| RESTART plate | 169 – 673 | 1620 – 1761 | the one control; `#e1bb88` value ink sampled off his own `$31,200` |
+
+Row pitch is 33px and the cap height is 18px, which is a 25px face.
+
+⚠️ **The values are emptied, not the labels.** A single vertical cut cannot
+separate them: ENEMIES STOMPED ends at x728 and `$31,200` starts at x696, so
+they overlap in x. The tool works per row instead, off the widest gap in that
+row's ink.
