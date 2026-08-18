@@ -328,7 +328,23 @@ html,body{background:#07060c;color:#f2ead8;font-family:ui-monospace,SFMono-Regul
    value is wider than the box he drew for it. */
 .vm{font-size:2.45cqw}
 .vt{font-size:1.55cqw}
-.fv{font-size:1.6cqw;justify-content:flex-start}
+/* ⚠️ THE STAGE PROGRESSION VALUES, AND WHY THE PERCENT IS GONE.
+   These four printed "N (P%)" and were the last boxes on the page that could
+   not hold a contest. His bar track ends at x353 and this panel's right
+   border is x420 — a continuous vertical line, checked down the whole panel,
+   not read off a screenshot — so there are 61px here. "812,445 (100%)" wants
+   115px. It tore at a THREE-digit run count, which the first afternoon
+   produces, and no font size fixes a 54px deficit: the string had to lose
+   the count or the percent.
+   The percent went, because he painted it twice already — the bar length IS
+   the percentage, and his own axis letters it 0% / 50% / 100% directly
+   underneath. The count is the only thing here his artwork does not already
+   say. Six figures now fit where three did not.
+   Right-aligned like every other value column on his page (.r), which also
+   makes the gap self-adjusting: a full bar and a seven-character number still
+   leave 8px between them, where flex-start left 3px and a 100% bar ran into
+   its own number. And the box no longer overhangs his border by 14px. */
+.fv{font-size:1.55cqw;white-space:nowrap}
 .r{justify-content:flex-end}
 .l{justify-content:flex-start}
 /* ⚠️ THE ROW PITCH IS HIS, NOT MINE. He drew TOP 10 as ten numbered rows on
@@ -465,10 +481,10 @@ html,body{background:#07060c;color:#f2ead8;font-family:ui-monospace,SFMono-Regul
  #f2{left:24.033%;top:62.744%;width:17.351%;height:1.03%}
  #f3{left:24.033%;top:64.208%;width:17.351%;height:1.03%}
  #f4{left:24.033%;top:65.672%;width:17.351%;height:1.03%}
- #f1v{left:41.735%;top:61.28%;width:9.144%;height:1.03%}
- #f2v{left:41.735%;top:62.744%;width:9.144%;height:1.03%}
- #f3v{left:41.735%;top:64.208%;width:9.144%;height:1.03%}
- #f4v{left:41.735%;top:65.672%;width:9.144%;height:1.03%}
+ #f1v{left:41.735%;top:61.28%;width:7.151%;height:1.03%}
+ #f2v{left:41.735%;top:62.744%;width:7.151%;height:1.03%}
+ #f3v{left:41.735%;top:64.208%;width:7.151%;height:1.03%}
+ #f4v{left:41.735%;top:65.672%;width:7.151%;height:1.03%}
  #spark{left:52.169%;top:61.009%;width:32.356%;height:6.02%}
  #cTotal{left:35.17%;top:71.475%;width:13.247%;height:1.139%}
  #cPct{left:35.17%;top:72.722%;width:13.247%;height:1.139%}
@@ -574,8 +590,8 @@ html,body{background:#07060c;color:#f2ead8;font-family:ui-monospace,SFMono-Regul
  <div id="f2"><i class="bar" style="display:block;width:0"></i></div>
  <div id="f3"><i class="bar" style="display:block;width:0"></i></div>
  <div id="f4"><i class="bar" style="display:block;width:0"></i></div>
- <div class="v fv" id="f1v"></div><div class="v fv" id="f2v"></div>
- <div class="v fv" id="f3v"></div><div class="v fv" id="f4v"></div>
+ <div class="v fv r" id="f1v"></div><div class="v fv r" id="f2v"></div>
+ <div class="v fv r" id="f3v"></div><div class="v fv r" id="f4v"></div>
  <svg id="spark" viewBox="0 0 100 40" preserveAspectRatio="none"></svg>
  <div class="v vs r" id="cTotal"></div><div class="v vs r" id="cPct"></div><div class="v vs r" id="cRuns"></div>
  <div class="v vs r" id="mLen"></div><div class="v vs r" id="mBot"></div><div class="v vs r" id="mLost"></div>
@@ -642,7 +658,11 @@ function draw(){
   [['f1', f.s1], ['f2', f.s2], ['f3', f.s3], ['f4', f.s4]].forEach(([id, v], i) => {
     const p = runs ? Math.round((v || 0) / runs * 100) : 0;
     $(id).firstElementChild.style.width = p + '%';
-    $(id + 'v').textContent = (v || 0) + ' (' + p + '%)';
+    // The COUNT only. The percent this used to print is already on screen
+    // twice — as the length of the bar beside it and as his painted 0/50/100
+    // axis under it — and printing it a third time is what pushed this string
+    // 54px past the panel he drew. The percent still drives the bar above.
+    $(id + 'v').textContent = n(v);
   });
 
   const cont = t.continues || 0;
