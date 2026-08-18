@@ -100,13 +100,30 @@ STAGES = ['eav', 'eav-day', 'edgewood', 'edgewood-day',
 # If a plate is ever re-cut, DELETE its entry — the verification was of that
 # cut, not of that card's name.
 VERIFIED_OK = {
-    ('edgewood-day', 'skyline'):
-        'flat top at y=34, but it is a distant skyline and the flat run is '
-        'almost all against open sky. Driven at 91m with the band in frame: '
-        '10.3% of pixels differ between 0.05 and 0.50, and all of it is the '
-        'card parallaxing as intended — no tear at the cut, buildings whole. '
-        'A far skyline is the most valuable slow-parallax on the stage and '
-        'pinning it would cost the sense of distance for nothing.',
+    # Every entry below was driven with tools/harness/cutcheck.mjs, which walks
+    # the stage, finds the camera stop where the card is most on-screen, and
+    # renders the frame three times — at the card's depth, at BASE_DEPTH, and
+    # at its depth again. The third shot is the control: the game keeps
+    # animating between captures, and without it the noise floor sat at 6-20%
+    # and buried everything. With the camera allowed to settle first it drops
+    # to 2-3%, and the number below is signal minus that noise.
+    #
+    # Every one of these came back as the card parallaxing and nothing else.
+    # No tear, no hard line, no object cut in half — checked by eye on the
+    # frames the sweep saved, not just by the number.
+    ('edgewood-day', 'skyline'):  'flat top at y=34, but almost all of that run is against open '
+                                  'sky. 10.3% differs between 0.05 and 0.50 at 91m, all of it the '
+                                  'card moving; buildings whole. A far skyline is the most valuable '
+                                  'slow parallax on the stage.',
+    ('edgewood', 'skyline'):      'net 3.6% over noise at x=9200. Shopfronts and neon continuous.',
+    ('edgewood', 'lamps'):        'net 2.8% over noise at x=3200. No line at the cut.',
+    ('edgewood-day', 'parapet'):  'net 2.2% over noise at x=3200. Brick reads continuous.',
+    ('edgewood-day', 'trees'):    'net 1.6% over noise at x=900.',
+    ('eav-day', 'pole'):          'net 2.1% over noise at x=2000. Foliage and fence continuous.',
+    ('eav', 'pole'):              'net 1.5% over noise at x=6800.',
+    ('eav-day', 'cars'):          'net 1.5% over noise at x=4400.',
+    ('eav-day', 'skyline'):       'net 1.7% over noise at x=5600.',
+    ('eav', 'skyline'):           'net 1.8% over noise at x=5600.',
 }
 
 
