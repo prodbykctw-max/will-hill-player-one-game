@@ -500,13 +500,23 @@
        `color: transparent` rather than empty text: the label has to stay in
        the DOM or a screen reader finds an unnamed button, since the words
        here live in a painting. */
-    #panelCard.cabinet .pv .btn {
+    /* ⚠️ #entryLayer TOO, and forgetting it is a silent, total failure. The
+       sign-up used to be the third cabinet, so it inherited this rule through
+       `.cabinet`; cropping it into an overlay took that class away and left
+       every one of its painted controls as a static, full-width, VISIBLE
+       button stacked down the card. `position: absolute` is what turns a
+       <button> into a hit target over a painting, and there is nothing else in
+       the stylesheet that does it. */
+    #panelCard.cabinet .pv .btn,
+    #entryLayer .pv .btn {
       position: absolute; margin: 0; padding: 0;
       background: none; border: 0; border-radius: 1.6cqw;
       color: transparent; font-size: 0;
       -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
     }
-    #panelCard.cabinet .pv .btn:active { background: rgba(240,168,58,0.16); }
+    #panelCard.cabinet .pv .btn:active,
+    #entryLayer .pv .btn:active { background: rgba(240,168,58,0.16); }
     #panelCard.cabinet #pvMenu:not([hidden]) { display: contents; }
     #panelCard.cabinet #btnMenuBoard {
       left: 6.59%; top: 21.06%; width: 86.81%; height: 14.77%;
@@ -532,122 +542,148 @@
       color: transparent; font-size: 0; background: none; border: 0;
     }
 
-    /* ── ENTER CONTEST: HIS WHOLE MACHINE, MADE LIVE ────────────────────
-       "I want you to activate these buttons so I can use this as my contest
-       sign up page."
+    /* ── ENTER CONTEST IS AN OVERLAY, AND THAT STARTS WITH THE CROP ─────
+       Client, in one message: "crop this image out of the contest registration
+       image. It will alone be the sole contest reg view." Before that: "an
+       overlay over how to play."
 
-       Unlike OPTIONS and SETTINGS — a shared housing with his panel dropped
-       into its opening — this arrived as a complete cabinet, marquee to
-       receipt slot. So it replaces the plate outright and every control is a
-       fraction OF THE WHOLE PLATE, not of a screen inset.
+       ⚠️ THE CROP IS WHAT MAKES THE OVERLAY POSSIBLE, and the order matters.
+       His plate arrived as a whole machine, 853x1844, marquee to receipt slot
+       — and against his 430x932 phone that shape can only fill the screen. A
+       full-height cabinet laid over HOW TO PLAY covers it completely, which is
+       the full-screen form with extra steps. Cropped at y992 (see
+       tools/crop_entry_plate.py — that row is a black rule he painted, not a
+       line chosen for it) the plate is 853x992, aspect 0.860, and a card of
+       that shape sits on a phone with the screen behind it still visible.
 
-       ⚠️ THIS IS HIS THIRD PASS AT THIS SCREEN AND THE RECTS BELONG TO IT
-       ALONE. Pass 1 (contest-entry-wide.png) was 1086x1448, landscape-ish,
-       and could not fill a phone without losing a third of its width. Pass 2
-       (contest-entry-console.png) went portrait but carried a MARTA driver's
-       console along the bottom. Pass 3 is 853x1844: no console, NOT NOW /
-       CANCEL lettered to match the code, and a CONTEST INFO panel added
-       beside the screen. Every number in this block was measured off pass 3.
-       If the plate is ever replaced again, re-measure — none of these carry
-       over, and the previous two passes are kept in assets/ui-concept/ so a
-       swap can be checked rather than guessed.
+       So this is no longer #panelCard's background. It is #entryLayer, a
+       sibling of the card inside #panel, and every fraction below is a
+       fraction of #entryPlate — which IS the plate, so they are fractions of
+       his artwork exactly as before.
 
-       ⚠️ IT FILLS THE SCREEN, and getting here took both answers from him.
-       Against pass 1 — a 1086x1448 plate, 0.750 — he said "fit the whole
-       cabinet, don't crop my art", because covering a 0.461 phone with a 3:4
-       painting throws 418 plate pixels off the sides. He then redrew it
-       portrait so it would not have to be cropped, and against THIS plate the
-       same fit rule left black bars top and bottom: "I made this to fill the
-       screen. You need to make sure it fills the screen."
+       ⚠️ EVERY VERTICAL FRACTION MOVED BY x1.8589 AND EVERY HORIZONTAL ONE DID
+       NOT MOVE AT ALL. The crop keeps full width and starts at y0, so the
+       remap is one factor: v' = v * 1844 / 992. `crop_entry_plate.py` prints
+       the table; do not re-measure these by hand.
 
-       Both are satisfied at once now only because the plate changed. At
-       853x1844 (0.4626) against his 430x932 phone (0.4614) the two agree to
-       about a thousandth, so covering costs roughly one pixel off the height
-       — his art is not meaningfully cropped and the screen is full.
-
-       ⚠️ `lvh`, NOT `dvh`, now that this covers — the same choice as the other
-       cabinet and for the same reason. dvh is the CURRENT viewport height,
-       which shrinks while Safari's toolbars are showing; sizing off it is
-       what put the bars in his screenshot, because the cabinet was built for
-       an 830px window and then centred in a 932px one. lvh is the height with
-       the bars hidden, so the cabinet is sized for the largest the screen can
-       get and over-covers the rest of the time. Over-covering is invisible;
-       under-covering is the gap he photographed.
-
-       ⚠️ Both classes in each selector, not just `.cabinet-entry`. These are
-       the same specificity as the `.cabinet` rules they override and win only
-       on source order today; a `.cabinet` rule added below would silently put
-       the 852/1846 aspect and the covering width back, which looks fine in
-       portrait and blows the card up in landscape. */
-    #panelCard.cabinet.cabinet-entry {
+       ⚠️ NO cqw CORRECTION, unlike the leaderboard ticket. When
+       tools/trim_lb_card.py cropped that card the element stayed
+       HEIGHT-constrained, so the artwork grew for the same box and type sized
+       in cqw had to grow with it. This card is WIDTH-constrained, so 1cqw
+       still buys the same painted width it always did and every font-size
+       below carries over untouched. The absence is the surprising part. */
+    #entryLayer {
+      /* `fixed`, not `absolute`: #panel is a scroll container, and a child
+         pinned to its padding box scrolls away with the card underneath. */
+      position: fixed; inset: 0; z-index: 3;
+      display: flex; align-items: center; justify-content: center;
+      padding: calc(10px + env(safe-area-inset-top, 0px)) 10px
+               calc(10px + env(safe-area-inset-bottom, 0px));
+      /* ⚠️ THE SCRIM IS LOAD-BEARING, NOT DECORATION. HOW TO PLAY is live
+         underneath with its footer button reading PLAY, and a tap that got
+         through would start the run out from under a half-filled form. An
+         opaque-to-pointers element is the whole guard; there is no
+         `pointer-events: none` anywhere in this layer except the bloom. */
+      background: rgba(6,5,10,0.62);
+    }
+    #entryLayer[hidden] { display: none; }
+    #entryPlate {
+      position: relative;
       background-image: var(--entry-plate);
-      aspect-ratio: 853 / 1844;
-      width: max(100vw, calc((100lvh + env(safe-area-inset-top, 0px)
-                                     + env(safe-area-inset-bottom, 0px))
-                             * 853 / 1844));
-      /* ⚠️ Without this the cover width is undone — #panel is a flex row and
-         a flex item defaults to flex-shrink:1, so an item deliberately grown
-         wider than the line is squeezed straight back to it. */
-      flex: none;
+      background-position: center; background-size: 100% 100%;
+      background-repeat: no-repeat;
+      aspect-ratio: 853 / 992;
+      /* Width-first, with a height fallback so a short landscape window fits
+         instead of overflowing, and a cap so it does not balloon on a desktop.
+         ⚠️ `dvh` IS RIGHT HERE and `lvh` was right on the full cabinet — the
+         opposite of the old rule, for the opposite reason. The cabinet was
+         sized to COVER, where under-covering leaves a visible gap and
+         over-covering is invisible, so it wanted the largest the screen gets.
+         This one is sized to FIT inside the screen, where over-sizing is what
+         shows. */
+      /* ⚠️ 86dvh, NOT 100dvh MINUS THE PADDING, and the 14% is the overlay
+         itself. On a phone held upright the width term wins and this never
+         binds; in a short landscape window it does, and at full height the
+         card came out 96% of the screen — fitting, not overflowing, but with
+         nothing of HOW TO PLAY visible around it, which is the full-screen
+         form again by another route. Measured at 900x600: 86dvh gives a
+         444x516 card with the view it is covering legible down both sides. */
+      width: min(96vw, 620px,
+                 calc((86dvh - env(safe-area-inset-top, 0px)
+                             - env(safe-area-inset-bottom, 0px)) * 853 / 992));
+      container-type: inline-size;
+      /* It has to READ as a layer, and on a phone it cannot do that by letting
+         you see round it: HOW TO PLAY's card is 402px wide on his 430px screen
+         and his artwork is 410, so the backdrop is covered whatever happens.
+         What makes it an overlay instead of a screen is the vertical space —
+         the old cabinet was 100% of the height and this is 51% — plus a shadow
+         with somewhere to fall. Both are visible; neither depends on seeing
+         the view underneath. */
+      box-shadow: 0 2.6cqw 6cqw rgba(0,0,0,0.72), 0 0.5cqw 1.4cqw rgba(0,0,0,0.5);
+      /* ⚠️ Or the bloom's screen blend reaches the dimmed street behind the
+         panel and lifts the game as well as his plate. */
+      isolation: isolate;
       transition: transform 0.18s ease-out;
     }
-    /* ⚠️ LANDSCAPE FITS INSTEAD OF COVERING. Cover is right on a phone held
-       upright — his case, and where the plate's aspect all but matches the
-       screen. On a wide, short window the same rule scales the cabinet to the
-       WIDTH and crops the ends off: measured at 900x600 the card comes out
-       900x1946 and his painted x lands 109px above the top of the screen,
-       leaving a dialog with no visible way out. Fitting there letterboxes the
-       sides, which nobody is looking at on a laptop, and keeps every control
-       reachable. */
-    @media (orientation: landscape) {
-      #panelCard.cabinet.cabinet-entry {
-        width: min(100vw, calc((100dvh - env(safe-area-inset-top, 0px)
-                                       - env(safe-area-inset-bottom, 0px))
-                               * 853 / 1844));
-      }
-    }
-    /* Focusing a field slides the machine up so his SAVE & ENTER clears the
-       keyboard — see the focus/blur listeners in panel.js. Gated to a coarse
-       pointer in portrait, because that is the only place an on-screen
-       keyboard exists; on a desktop it would just be a lurch. */
+    /* ── LIFT THE CARD WHILE THE KEYBOARD IS UP ────────────────────────
+       The card is centred with space above and below, and #panel clips rather
+       than scrolls under it, so the browser cannot nudge a covered field into
+       view the way it would on an ordinary page. Focusing a field slides the
+       whole card up so his tick clears an iPhone keyboard (~340px of a 932px
+       screen) and puts it straight back on blur.
+
+       17vh, and the binding case is the SMALL phone, not his. At 430x932 the
+       card is 410x477 and 14vh already cleared the keyboard by 45px; at
+       320x568 the card is 300x349 against a proportionally taller keyboard and
+       the same 14vh cleared it by three. 17vh holds both with room, and still
+       does not push the card's top off the screen (13px clear at 320x568,
+       which is the tighter of the two).
+
+       ⚠️ vh, NOT A PERCENTAGE OF THE CARD, and that changed with the crop. The
+       old rule was translateY(-12%) of an 1844-tall cabinet; the same 12% of a
+       992-tall card is roughly half the travel against exactly the same
+       keyboard, so a straight remap would have quietly under-lifted it. What
+       the lift has to clear is a fixed slab of SCREEN, so it is measured in
+       screen units. Tuned against the rects, not guessed — see
+       tools/harness/entryfit.mjs.
+
+       Gated to a coarse pointer in portrait, because that is the only place an
+       on-screen keyboard exists; on a desktop it would just be a lurch. */
     @media (orientation: portrait) and (pointer: coarse) {
-      #panelCard.cabinet.cabinet-entry.typing { transform: translateY(-12%); }
+      #entryPlate.typing { transform: translateY(-17vh); }
     }
     @media (prefers-reduced-motion: reduce) {
-      #panelCard.cabinet.cabinet-entry { transition: none; }
+      #entryPlate { transition: none; }
     }
-    /* His cabinet IS the screen, so the wrapper goes back to generating no
-       box and the form's children position against the plate itself. */
-    #panelCard.cabinet.cabinet-entry #panelScreen {
-      display: contents; position: static; background: none;
-    }
-    #panelCard.cabinet-entry #pvForm:not([hidden]) { display: contents; }
+    /* The form generates no box of its own; its children position against the
+       plate. */
+    #entryLayer #pvForm:not([hidden]) { display: contents; }
     /* Every word in here is painted. A second copy in live text on top of his
        would be the exact thing he objected to. */
-    #panelCard.cabinet-entry #pvForm .note,
-    #panelCard.cabinet-entry #pvForm label > span { display: none; }
-    #panelCard.cabinet-entry #pvForm label {
+    #entryLayer #pvForm .note,
+    #entryLayer #pvForm label > span { display: none; }
+    #entryLayer #pvForm label {
       position: absolute; display: block; margin: 0; padding: 0; font-size: 0;
     }
-    /* His three fields sit at x167–499 of 853, y616–679, 739–802 and 862–925.
-       The LABEL box is deliberately taller than the field: clicking a label
-       focuses the input it wraps, so the tap target is the tall box while the
-       paint stays exactly on the field he drew. */
-    #panelCard.cabinet-entry #pvForm label:has(#fName) {
-      left: 19.578%; top: 32.538%; width: 38.921%; height: 5.152%;
+    /* His three fields sat at x167-499 of 853, y616-679, 739-802 and 862-925 on
+       the uncropped plate. The LABEL box is deliberately taller than the field:
+       clicking a label focuses the input it wraps, so the tap target is the
+       tall box while the paint stays exactly on the field he drew. */
+    #entryLayer #pvForm label:has(#fName) {
+      left: 19.578%; top: 60.484%; width: 38.921%; height: 9.577%;
     }
-    #panelCard.cabinet-entry #pvForm label:has(#fPhone) {
-      left: 19.578%; top: 39.208%; width: 38.921%; height: 5.152%;
+    #entryLayer #pvForm label:has(#fPhone) {
+      left: 19.578%; top: 72.883%; width: 38.921%; height: 9.577%;
     }
-    #panelCard.cabinet-entry #pvForm label:has(#fEmail) {
-      left: 19.578%; top: 45.879%; width: 38.921%; height: 5.152%;
+    #entryLayer #pvForm label:has(#fEmail) {
+      left: 19.578%; top: 85.283%; width: 38.921%; height: 9.577%;
     }
-    #panelCard.cabinet-entry #pvForm label input {
+    #entryLayer #pvForm label input {
       position: absolute; left: 0; top: 16.84%; width: 100%; height: 66.32%;
       margin: 0; padding: 0 4%; border: 0; border-radius: 0.7cqw;
       background: transparent; color: #dfe8f7;
       /* Sized to sit in his field, with a floor so it stays legible on a
-         small phone — 3.1cqw is 15.5px at 430 but only 11.6px at 320.
+         small phone.
          ⚠️ iOS zooms into any focused input under 16px; what stops that here
          is `maximum-scale=1.0, user-scalable=no` in the viewport meta at the
          top of this file. If that line ever changes, this needs 16px. */
@@ -664,65 +700,79 @@
        pixel his.
        ⚠️ The placeholder ATTRIBUTE has to stay non-empty or
        :placeholder-shown never matches and the fill is permanent. */
-    #panelCard.cabinet-entry #pvForm input::placeholder { color: transparent; }
-    #panelCard.cabinet-entry #pvForm input:not(:placeholder-shown),
-    #panelCard.cabinet-entry #pvForm input:focus { background: #0d2038; }
-    #panelCard.cabinet-entry #pvForm input:focus {
+    #entryLayer #pvForm input::placeholder { color: transparent; }
+    #entryLayer #pvForm input:not(:placeholder-shown),
+    #entryLayer #pvForm input:focus { background: #0d2038; }
+    #entryLayer #pvForm input:focus {
       box-shadow: inset 0 0 0 0.18cqw rgba(120,170,255,0.6);
     }
-    #panelCard.cabinet-entry #pvForm input.bad {
+    #entryLayer #pvForm input.bad {
       background: #24080a; box-shadow: inset 0 0 0 0.22cqw rgba(255,92,74,0.9);
     }
-    /* His painted buttons. SAVE & ENTER is a disc — widest contiguous run
-       measured at y1180, x302–534, and 1041–1323 through its centre — so the
-       hit target is elliptical too; a rectangle would take taps on the panel
-       either side of it. */
-    #panelCard.cabinet-entry #btnSave {
-      left: 35.404%; top: 56.941%; width: 27.198%; height: 14.371%;
+    /* ── SAVE IS THE KNOB NOW, AND IT IS A GREEN TICK ───────────────────
+       The crop cut at y992 and his gold ENTER disc is centred at y1182, so
+       cropping the cabinet threw its own submit button away. The silver knob
+       survives at x603-694, y537-635 and is where the control goes.
+
+       A green tick rather than his gold ENTER shrunk onto it: his cabinet
+       already teaches that the round buttons in that column are the actions —
+       red X is cancel, so a green tick is confirm, and the pair reads
+       instantly with no words to translate. ENTER at knob size would be 232
+       plate px of lettering squeezed into 91, unreadable on a phone.
+
+       The button itself is HIS red CANCEL disc with the cross inpainted out
+       and the tick redrawn in his own measured ink, then R and G swapped —
+       see tools/crop_entry_plate.py. It is baked into the plate, so the bloom
+       cutter finds its ink and lights it exactly like the red X beside it.
+
+       Elliptical hit target, because the control is a disc: a rectangle would
+       take taps on the housing either side of it. */
+    #entryLayer #btnSave {
+      left: 70.692%; top: 54.133%; width: 10.668%; height: 9.879%;
       border-radius: 50%;
     }
-    /* ⚠️ 3.634% TALL, NOT 4.881%. The first number came from the ink bbox of
-       his NOT NOW / CANCEL plate, and that bbox had swallowed the top rim of
-       the red button below it — so this control overlapped btnFormX by 12
-       plate pixels and, being earlier in the DOM, lost that strip to it. The
-       haptic-button grader found it by asking what a thumb actually lands on
-       at each corner, which is a question no rect comparison asks. Re-measured
-       off his plate afterwards from the plate's own borders rather than from
-       its lettering: x584-720, y710-818, stopping 3px clear of the red
-       button's rim at 817. Wider AND taller than the wrong version — the ink
-       bbox had been under-covering his plate on the left while overlapping
-       the button below it. */
-    #panelCard.cabinet-entry #btnSkip {
-      left: 68.464%; top: 38.612%; width: 15.944%; height: 5.531%;
+    /* ⚠️ 3.634% TALL ON THE OLD PLATE, NOT 4.881%, and the reason survives the
+       remap. The first number came from the ink bbox of his NOT NOW / CANCEL
+       plate, and that bbox had swallowed the top rim of the red button below
+       it — so this control overlapped btnFormX by 12 plate pixels and, being
+       earlier in the DOM, lost that strip to it. The haptic-button grader
+       found it by asking what a thumb actually lands on at each corner, which
+       is a question no rect comparison asks. Re-measured off his plate
+       afterwards from the plate's own borders rather than from its lettering:
+       x584-720, y710-818, stopping 3px clear of the red button's rim at 817. */
+    #entryLayer #btnSkip {
+      left: 68.464%; top: 71.775%; width: 15.944%; height: 10.281%;
     }
-    #panelCard.cabinet-entry #btnFormX {
-      left: 71.395%; top: 44.144%; width: 9.144%; height: 4.501%;
+    #entryLayer #btnFormX {
+      left: 71.395%; top: 82.058%; width: 9.144%; height: 8.367%;
       border-radius: 50%;
     }
-    #panelCard.cabinet-entry #btnFormBoard {
-      left: 66.823%; top: 57.213%; width: 32.239%; height: 7.049%;
+    /* The CONTEST INFO column beside the screen, "See rules, prizes and full
+       details."
+       ⚠️ CLAMPED, NOT REMAPPED. Its rect ran to y1049 on the old plate — 57px
+       past the cut — so the honest conversion comes out 65.020% + 40.726% =
+       105.7% and would hang the hit target off the bottom of the card. The
+       height is cut to what is still on the plate. */
+    #entryLayer #btnFormInfo {
+      left: 84.408%; top: 65.020%; width: 10.199%; height: 34.480%;
     }
-    #panelCard.cabinet-entry #btnFormRules {
-      left: 66.823%; top: 65.347%; width: 32.239%; height: 7.049%;
-    }
-    /* New on pass 3: a CONTEST INFO column beside the screen, "See rules,
-       prizes and full details." Same destination as RULES & PRIZES — he drew
-       two doors to one room, so both open it. */
-    #panelCard.cabinet-entry #btnFormInfo {
-      left: 84.408%; top: 34.978%; width: 10.199%; height: 21.909%;
-    }
-    #panelCard.cabinet.cabinet-entry #panelClose {
+    /* His painted x on the card's own heading. On the full-screen cabinet this
+       was #panelClose closing the panel outright; on an overlay a x closes the
+       overlay, so it is its own button now and #panelClose goes back to
+       belonging to the card underneath. */
+    #entryLayer #entryClose {
       position: absolute; z-index: 2;
-      left: 55.100%; top: 28.091%; width: 5.158%; height: 2.494%;
+      left: 55.100%; top: 52.218%; width: 5.158%; height: 4.636%;
       color: transparent; font-size: 0; background: none; border: 0;
+      padding: 0; cursor: pointer; touch-action: manipulation;
     }
     /* ⚠️ `#panel .btn` is 1-1-0 and a bare `.cabOnly` is 0-1-0, so hiding
-       these needed the id too — without it the three cabinet-only buttons
-       were never hidden, and any view of the plain sign-up panel (a plate
-       404, a revert) would show three stray full-width buttons under NOT
-       NOW. Both halves have to move together or the cabinet loses them. */
+       these needed the id too — without it the cabinet-only buttons were never
+       hidden, and any view of the plain sign-up panel (a plate 404, a revert)
+       would show stray full-width buttons under NOT NOW. Both halves have to
+       move together or the cabinet loses them. */
     #panel .btn.cabOnly { display: none; }
-    #panelCard.cabinet-entry .btn.cabOnly { display: block; }
+    #entryLayer .btn.cabOnly { display: block; }
     /* ── HIS PAINTED WORDS ARE WHAT GLOWS ──────────────────────────────
        "Can we make all tappable buttons a little more noticeable... it needs
        to be a lot more obvious they could be clicked." Then, on the first
@@ -758,10 +808,9 @@
        it the blend's backdrop is everything painted below in the stacking
        context, which includes the dimmed street behind the panel — his glow
        would lift the game as well as his plate. */
-    #panelCard.cabinet-entry { isolation: isolate; }
     #panelCard.cabinet-menu #panelScreen,
     #panelCard.cabinet-settings #panelScreen { isolation: isolate; }
-    #panelCard.cabinet-entry::after,
+    #entryPlate::after,
     #panelCard.cabinet-menu #panelScreen::after,
     #panelCard.cabinet-settings #panelScreen::after {
       content: ''; position: absolute; inset: 0;
@@ -780,7 +829,7 @@
          to feel like a flicker on a screen with six lit controls on it. */
       animation: glyphglow 3.6s ease-in-out infinite;
     }
-    #panelCard.cabinet-entry::after { background-image: var(--entry-glow); }
+    #entryPlate::after { background-image: var(--entry-glow); }
     #panelCard.cabinet-menu #panelScreen::after { background-image: var(--options-glow); }
     #panelCard.cabinet-settings #panelScreen::after { background-image: var(--settings-glow); }
     @keyframes glyphglow {
@@ -791,7 +840,9 @@
        edge of its own, so it reads as the control lighting up under the thumb
        rather than as a box appearing around it. */
     #panelCard.cabinet .pv .btn:active,
-    #panelCard.cabinet #panelClose:active {
+    #panelCard.cabinet #panelClose:active,
+    #entryLayer .pv .btn:active,
+    #entryLayer #entryClose:active {
       background: radial-gradient(closest-side,
                   rgba(255,214,110,0.34), rgba(255,214,110,0) 76%);
     }
@@ -810,7 +861,7 @@
        keeps the affordance for him without putting motion in front of someone
        who asked for less of it. */
     @media (prefers-reduced-motion: reduce) {
-      #panelCard.cabinet-entry::after,
+      #entryPlate::after,
       #panelCard.cabinet-menu #panelScreen::after,
       #panelCard.cabinet-settings #panelScreen::after {
         animation-name: glyphglowcalm;
@@ -847,7 +898,8 @@
        transparent text — the words are in his painting — so a text-shadow there
        paints nothing while still running an animation per control on top of a
        live game. The bloom layer is their glow. */
-    #panelCard.cabinet .pv .btn { animation: none; }
+    #panelCard.cabinet .pv .btn,
+    #entryLayer .pv .btn { animation: none; }
     @keyframes textglowpx {
       0%, 100% { text-shadow: 0 0 2px rgba(255,255,255,0.35); }
       50%      { text-shadow: 0 0 2px rgba(255,255,255,0.95),
@@ -893,7 +945,7 @@
        and then his ENTER THE CONTEST is back. The field still goes red and
        the refusal cue still plays — this is the third signal, not the only
        one. */
-    #panelCard.cabinet-entry #formErr {
+    #entryLayer #formErr {
       position: absolute; margin: 0; padding: 0.55cqw 2cqw; border: 0;
       /* ⚠️ border-box, or the padding is ADDED to the width and the box
          spills over the rounded corners of his card. There is no global
@@ -905,14 +957,14 @@
          either clips the tail or sits permanently over his NAME label. Auto
          height anchored at the card's top edge grows downward only as far as
          the words need, so a one-line message never touches his label. */
-      left: 19.109%; top: 28.091%; width: 39.859%;
-      min-height: 3.362%;
+      left: 19.109%; top: 52.218%; width: 39.859%;
+      min-height: 6.250%;
       display: flex; align-items: center; justify-content: center;
       background: #0f2744; color: #ff7a5e; text-align: center;
       font-weight: 700; font-size: max(11px, 2.6cqw); line-height: 1.15;
       letter-spacing: 0.01em; border-radius: 0.6cqw;
     }
-    #panelCard.cabinet-entry #formErr[hidden] { display: none; }
+    #entryLayer #formErr[hidden] { display: none; }
 
     #panelClose {
       position: absolute; top: 8px; right: 8px; width: 38px; height: 38px;
@@ -1390,62 +1442,6 @@
              ticket's footer beside ENTER / SHARE — see #lbActions above. -->
       </div>
 
-      <div id="pvForm" class="pv" hidden>
-        <p class="note">
-          All three are required. Your <b>name</b> and score go on the board.
-          Your <b>phone</b> and <b>email</b> stay private — they are only how
-          Will Hill's team reaches you if you win.
-        </p>
-        <!-- The helper text lives INSIDE each field as a placeholder as well
-             as beside the label. On a phone the label scrolls out of view the
-             moment the keyboard opens and the field is all you can still see,
-             so a placeholder that only repeats the label wastes the one line
-             the player is actually looking at. Each says what to type and, on
-             the two private ones, why it is being asked for. -->
-        <label>NAME <span class="req">required</span> <span class="sub">shown publicly</span>
-          <input id="fName" type="text" maxlength="16" autocomplete="nickname" required
-                 enterkeyhint="next" placeholder="The name on the leaderboard" />
-        </label>
-        <label>PHONE <span class="req">required</span> <span class="sub">private</span>
-          <input id="fPhone" type="tel" inputmode="tel" maxlength="20" required
-                 autocomplete="tel" enterkeyhint="next"
-                 placeholder="10 digits — how we reach a winner" />
-        </label>
-        <label>EMAIL <span class="req">required</span> <span class="sub">private</span>
-          <input id="fEmail" type="email" inputmode="email" maxlength="128" required
-                 autocomplete="email" enterkeyhint="done"
-                 placeholder="Backup contact, never shown" />
-        </label>
-        <!-- ⚠️ HONEYPOT. Not a real field and never shown to anybody: no
-             human can see it, tab to it or type in it, so any value arriving
-             here came from an automated form-filler. The Worker drops that
-             entry and answers as though it succeeded, so a bot cannot tell it
-             failed and come back with something different.
-             `aria-hidden` and `tabindex=-1` keep it away from screen readers
-             and the keyboard — a honeypot that traps a blind user is just a
-             broken form. -->
-        <div class="hp" aria-hidden="true">
-          <label>Website
-            <input id="fWebsite" type="text" tabindex="-1" autocomplete="off" />
-          </label>
-        </div>
-        <p id="formErr" class="err" hidden></p>
-        <button class="btn" id="btnSave" type="button">SAVE &amp; ENTER</button>
-        <button class="btn ghost" id="btnSkip" type="button">NOT NOW</button>
-        <!-- ── THE THREE HE PAINTED THAT THE PLAIN PANEL NEVER HAD ────────
-             His ENTER CONTEST cabinet has a red X beside CANCEL, and an
-             OPTIONS column offering LEADERBOARD and RULES & PRIZES. They only
-             exist as controls when his artwork is on screen — outside the
-             cabinet there is nothing to sit on top of — so `.cabOnly` keeps
-             them out of the plain panel's layout and out of its tab order.
-             They still carry real text: the words here are in a painting, and
-             a screen reader cannot read a painting. -->
-        <button class="btn cabOnly" id="btnFormX" type="button">CANCEL</button>
-        <button class="btn cabOnly" id="btnFormBoard" type="button">LEADERBOARD</button>
-        <button class="btn cabOnly" id="btnFormRules" type="button">RULES &amp; PRIZES</button>
-        <button class="btn cabOnly" id="btnFormInfo" type="button">CONTEST INFO</button>
-      </div>
-
       <div id="pvSettings" class="pv" hidden>
         <!-- Two switches, not one. See setSfxEnabled in src/ui/panel.js:
              the song and the effects are separable because most people at a
@@ -1474,6 +1470,98 @@
         <p class="note" id="todNote"></p>
         <button class="btn ghost" id="btnBack" type="button">BACK</button>
       </div>
+      </div>
+    </div>
+
+    <!-- ── THE SIGN-UP IS AN OVERLAY NOW, NOT A SCREEN ───────────────────
+         Client: "crop this image out of the contest registration image. It
+         will alone be the sole contest reg view", and before that "an overlay
+         over how to play."
+
+         Those two are one instruction. His cabinet arrived as a whole machine
+         and filled the screen, which is the only thing a 853x1844 plate CAN
+         do on a phone — and a full-height cabinet laid over HOW TO PLAY covers
+         it completely, which is the full-screen form with extra steps. Cropped
+         to 853x992 it is a card, and a card can sit on top of something.
+
+         ⚠️ IT CANNOT LIVE IN #panelCard, and that is why this is a sibling
+         rather than another `.pv`. The plate used to be #panelCard's own
+         background — the card WAS the cabinet — and a card cannot show another
+         view through its own background. #panelScreen's single-view show()
+         machinery has one job and does it well; this layer just sits over
+         whatever that machinery is already displaying.
+
+         ⚠️ THE SCRIM EATS TAPS ON PURPOSE. HOW TO PLAY is live underneath with
+         its footer reading PLAY, and a tap that reaches it starts the run out
+         from under a half-filled form. -->
+    <div id="entryLayer" hidden>
+      <div id="entryPlate">
+        <!-- His painted x, top right of the card. On a full-screen cabinet
+             this was #panelClose and closed the panel outright; on an overlay
+             a x means "close the overlay", so all three of his ways out —
+             this, the NOT NOW / CANCEL plate and the red X — now do the same
+             thing, and what they reveal is the view he was going to land on
+             anyway. -->
+        <button id="entryClose" type="button" aria-label="Not now">✕</button>
+        <div id="pvForm" class="pv" hidden>
+          <p class="note">
+            All three are required. Your <b>name</b> and score go on the board.
+            Your <b>phone</b> and <b>email</b> stay private — they are only how
+            Will Hill's team reaches you if you win.
+          </p>
+          <!-- The helper text lives INSIDE each field as a placeholder as well
+               as beside the label. On a phone the label scrolls out of view the
+               moment the keyboard opens and the field is all you can still see,
+               so a placeholder that only repeats the label wastes the one line
+               the player is actually looking at. Each says what to type and, on
+               the two private ones, why it is being asked for. -->
+          <label>NAME <span class="req">required</span> <span class="sub">shown publicly</span>
+            <input id="fName" type="text" maxlength="16" autocomplete="nickname" required
+                   enterkeyhint="next" placeholder="The name on the leaderboard" />
+          </label>
+          <label>PHONE <span class="req">required</span> <span class="sub">private</span>
+            <input id="fPhone" type="tel" inputmode="tel" maxlength="20" required
+                   autocomplete="tel" enterkeyhint="next"
+                   placeholder="10 digits — how we reach a winner" />
+          </label>
+          <label>EMAIL <span class="req">required</span> <span class="sub">private</span>
+            <input id="fEmail" type="email" inputmode="email" maxlength="128" required
+                   autocomplete="email" enterkeyhint="done"
+                   placeholder="Backup contact, never shown" />
+          </label>
+          <!-- ⚠️ HONEYPOT. Not a real field and never shown to anybody: no
+               human can see it, tab to it or type in it, so any value arriving
+               here came from an automated form-filler. The Worker drops that
+               entry and answers as though it succeeded, so a bot cannot tell it
+               failed and come back with something different.
+               `aria-hidden` and `tabindex=-1` keep it away from screen readers
+               and the keyboard — a honeypot that traps a blind user is just a
+               broken form. -->
+          <div class="hp" aria-hidden="true">
+            <label>Website
+              <input id="fWebsite" type="text" tabindex="-1" autocomplete="off" />
+            </label>
+          </div>
+          <p id="formErr" class="err" hidden></p>
+          <button class="btn" id="btnSave" type="button">SAVE &amp; ENTER</button>
+          <button class="btn ghost" id="btnSkip" type="button">NOT NOW</button>
+          <!-- ── THE TWO HE PAINTED THAT THE PLAIN PANEL NEVER HAD ──────────
+               His ENTER CONTEST cabinet has a red X beside CANCEL, and a
+               CONTEST INFO column down the right-hand side. They only exist as
+               controls when his artwork is on screen — outside the cabinet
+               there is nothing to sit on top of — so `.cabOnly` keeps them out
+               of the plain panel's layout and out of its tab order. They still
+               carry real text: the words here are in a painting, and a screen
+               reader cannot read a painting.
+
+               ⚠️ LEADERBOARD AND RULES & PRIZES USED TO BE HERE AND ARE GONE.
+               Both sat below y992 and went with the crop. Neither was a door
+               of its own: CONTEST INFO opens exactly what RULES & PRIZES
+               opened — he drew two doors to one room — and after a run NOT NOW
+               already lands on the board. Nothing became unreachable. -->
+          <button class="btn cabOnly" id="btnFormX" type="button">CANCEL</button>
+          <button class="btn cabOnly" id="btnFormInfo" type="button">CONTEST INFO</button>
+        </div>
       </div>
     </div>
   </div>

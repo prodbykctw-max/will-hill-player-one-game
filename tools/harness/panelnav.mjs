@@ -44,10 +44,15 @@ const openPanel = async () => {
   await p.waitForTimeout(400);
 };
 
+// ⚠️ THE SIGN-UP IS A LAYER, NOT A VIEW, so it is asked about first. It sits
+// OVER whichever view the panel is showing — pvHow before a run, pvBoard after
+// one — and a `.find()` over the views returns that backdrop, which reads as
+// "the form never opened" when the form is right there on top of it.
 const shown = () => p.evaluate(() => ({
   open: !document.getElementById('panel').hidden,
-  view: ['pvMenu', 'pvBoard', 'pvHow', 'pvForm', 'pvSettings']
-    .find((id) => !document.getElementById(id).hidden),
+  view: !document.getElementById('entryLayer').hidden ? 'pvForm'
+    : ['pvMenu', 'pvBoard', 'pvHow', 'pvSettings']
+      .find((id) => !document.getElementById(id).hidden),
   screen: window.__game.screen,
 }));
 

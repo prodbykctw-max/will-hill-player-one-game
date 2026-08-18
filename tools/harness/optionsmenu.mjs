@@ -124,7 +124,12 @@ await p.waitForTimeout(150);
 await p.mouse.click(215, 700);
 await p.waitForTimeout(450);
 const offered = await p.evaluate(() => ({
-  view: document.getElementById('panelTitle').textContent,
+  // ⚠️ NOT THE PANEL TITLE ANY MORE FOR THE SIGN-UP. His card is lettered
+  // ENTER THE CONTEST in the artwork, so with the form as an overlay the
+  // panel's own heading belongs to the view BEHIND it and reads HOW TO PLAY
+  // or LEADERBOARD. The layer is the thing to ask.
+  view: !document.getElementById('entryLayer').hidden ? 'ENTER THE CONTEST'
+    : document.getElementById('panelTitle').textContent,
   open: !document.getElementById('panel').hidden,
   asked: localStorage.getItem('wh_signup_asked'),
 }));
@@ -163,7 +168,12 @@ await p2.mouse.click(215, 500);
 await p2.waitForTimeout(500);
 const after = await p2.evaluate(() => ({
   open: !document.getElementById('panel').hidden,
-  view: document.getElementById('panelTitle').textContent,
+  // ⚠️ NOT THE PANEL TITLE ANY MORE FOR THE SIGN-UP. His card is lettered
+  // ENTER THE CONTEST in the artwork, so with the form as an overlay the
+  // panel's own heading belongs to the view BEHIND it and reads HOW TO PLAY
+  // or LEADERBOARD. The layer is the thing to ask.
+  view: !document.getElementById('entryLayer').hidden ? 'ENTER THE CONTEST'
+    : document.getElementById('panelTitle').textContent,
 }));
 check('and after death, when the score is fresh',
   dead === 'gameOver' && after.open && after.view === 'ENTER THE CONTEST',

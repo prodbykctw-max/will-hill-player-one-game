@@ -90,21 +90,33 @@ PREVIEW_DIR = os.environ.get('PREVIEW_DIR', '/tmp')
 SURFACES = {
     # His sign-up cabinet. Fractions of the whole plate == fractions of
     # #panelCard.cabinet-entry, because the plate IS the card here.
+    # His sign-up card. Fractions of the CROPPED plate == fractions of
+    # #entryPlate, because the plate IS the card here.
+    #
+    # ⚠️ RE-MEASURED FOR THE 853x992 CROP, and every vertical number moved.
+    # tools/crop_entry_plate.py cut the cabinet at y992 and prints the remap
+    # (v' = v * 1844 / 992); horizontal fractions did not move at all. Two of
+    # the old rects are simply gone — btnFormBoard and btnFormRules were below
+    # the cut — and SAVE is somewhere else entirely.
     'entry': dict(
         src='contest-entry.webp', out='glow-entry.webp',
         rects=[
             # NOT NOW / CANCEL — white on blue, inside a drawn border.
-            ('btnSkip',      68.464, 38.612, 15.944,  5.531, (.09, .16, .09, .16)),
-            # The red ✕ disc. No inset: the disc is the control.
-            ('btnFormX',     71.395, 44.144,  9.144,  4.501, (.02, .02, .02, .02)),
-            # ENTER — a filled disc, so this comes out as its rim.
-            ('btnSave',      35.404, 56.941, 27.198, 14.371, (.02, .02, .02, .02)),
-            ('btnFormBoard', 66.823, 57.213, 32.239,  7.049, (.02, .06, .13, .06)),
-            ('btnFormRules', 66.823, 65.347, 32.239,  7.049, (.02, .06, .13, .06)),
+            ('btnSkip',      68.464, 71.775, 15.944, 10.281, (.09, .16, .09, .16)),
+            # The red X disc. No inset: the disc is the control.
+            ('btnFormX',     71.395, 82.058,  9.144,  8.367, (.02, .02, .02, .02)),
+            # SAVE, which is the knob now — his CANCEL button recoloured green
+            # with a tick in it, baked into the plate by crop_entry_plate.py so
+            # this finds it exactly like the red one beside it. The local
+            # background rule gives the rim plus the tick, which is what you
+            # want: a filled disc's interior is its own background.
+            ('btnSave',      70.692, 54.133, 10.668,  9.879, (.02, .02, .02, .02)),
             # The CONTEST INFO column beside the screen.
-            ('btnFormInfo',  84.408, 34.978, 10.199, 21.909, (.05, .03, .05, .10)),
-            # The small ✕ on the card's own heading.
-            ('panelClose',   55.100, 28.091,  5.158,  2.494, (.02, .02, .02, .02)),
+            ('btnFormInfo',  84.408, 65.020, 10.199, 34.480, (.05, .03, .05, .10)),
+            # The small x on the card's own heading. It is #entryClose now, not
+            # #panelClose — on an overlay the card's x closes the overlay and
+            # #panelClose went back to belonging to the panel underneath.
+            ('entryClose',   55.100, 52.218,  5.158,  4.636, (.02, .02, .02, .02)),
         ]),
     # The OPTIONS screen that drops into the MARTA housing. Fractions of the
     # PLATE, which index.html expresses as fractions of #panelScreen.

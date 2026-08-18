@@ -161,23 +161,35 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
   // the single thing that decides whether the housing shows — and the URL is
   // assigned once, so switching views never re-decodes it.
   const panelCard = $('panelCard');
+  // ⚠️ ON #panel, NOT ON #panelCard — the sign-up plate moved out of the card.
+  // A custom property inherits, and since the crop turned ENTER CONTEST into
+  // #entryLayer (a SIBLING of the card, not a view inside it) anything set on
+  // the card can no longer reach it. #panel is the common ancestor of both, so
+  // that is where the URLs live now; the `.cabinet` rules still read them from
+  // the card by inheritance exactly as before.
+  const layer = $('entryLayer');
+  if (el) {
+    el.style.setProperty('--entry-plate', `url(${entryPlate})`);
+    el.style.setProperty('--entry-glow', `url(${entryGlow})`);
+  }
   if (panelCard) {
     panelCard.style.setProperty('--cabinet-plate', `url(${cabinetPlate})`);
-    panelCard.style.setProperty('--entry-plate', `url(${entryPlate})`);
     panelCard.style.setProperty('--panel-options', `url(${panelOptionsPlate})`);
     panelCard.style.setProperty('--panel-settings', `url(${panelSettingsPlate})`);
     panelCard.style.setProperty('--pill-on', `url(${pillOn})`);
     panelCard.style.setProperty('--pill-off', `url(${pillOff})`);
-    // The three bloom layers. Set on the card even though two of them are read
-    // by #panelScreen — a custom property inherits, and keeping every plate URL
+    // The bloom layers. Set on the card even though they are read by
+    // #panelScreen — a custom property inherits, and keeping every plate URL
     // in one place is what stops a view switching to a plate whose glow was
-    // never wired.
-    panelCard.style.setProperty('--entry-glow', `url(${entryGlow})`);
+    // never wired. (--entry-glow is on #panel with its plate; see above.)
     panelCard.style.setProperty('--options-glow', `url(${optionsGlow})`);
     panelCard.style.setProperty('--settings-glow', `url(${settingsGlow})`);
   }
+  // ⚠️ NO `form` IN HERE ANY MORE. show() hides every view but one, and the
+  // sign-up is no longer one of them — it is a layer OVER whichever of these
+  // is showing. Leaving it in the map meant the loop hid it on every call.
   const views = { menu: $('pvMenu'), board: $('pvBoard'), how: $('pvHow'),
-    form: $('pvForm'), settings: $('pvSettings') };
+    settings: $('pvSettings') };
   const title = $('panelTitle');
   let open = false;
   // ── WHICH JOURNEY THE PANEL IS ON ──────────────────────────────────────
@@ -202,7 +214,32 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
   // Set by api.open(view, { flow }).
   let flow = 'menu';
 
+  // ── AND WHAT THE SIGN-UP SITS ON ───────────────────────────────────────
+  //
+  // Client: "an overlay over how to play." Which view goes underneath falls
+  // straight out of `flow`, because it is the same place NOT NOW was already
+  // going to land:
+  //
+  //   'start'          -> HOW TO PLAY   (his words, exactly)
+  //   'post' | 'menu'  -> the board
+  //
+  // That is the tidy part of the change rather than a coincidence. All three
+  // of his painted ways out — the x on the card, the NOT NOW / CANCEL plate
+  // and the red X — now just dismiss the layer, and what is revealed is where
+  // the player was going anyway. Nothing has to navigate.
+  const under = () => (flow === 'start' ? 'how' : 'board');
+
   function show(view) {
+    // The sign-up is a LAYER, not a view. `view` still reads 'form' at every
+    // call site — that is the vocabulary the rest of the game speaks — but
+    // what it selects here is the backdrop plus the overlay on top of it.
+    const overlay = view === 'form';
+    const base = overlay ? under() : view;
+    if (layer) layer.hidden = !overlay;
+    const form = $('pvForm');
+    if (form) form.hidden = !overlay;
+    if (!overlay) $('entryPlate')?.classList.remove('typing');
+    view = base;
     for (const [k, v] of Object.entries(views)) if (v) v.hidden = k !== view;
     // ── THE BOARD IS THE TICKET, NOT A TICKET INSIDE A BOX ───────────────
     //
@@ -250,21 +287,25 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
     // The board keeps his breeze card, and HOW TO PLAY keeps the plain panel:
     // a four-page swipe pager inside a cabinet opening either scrolls within a
     // scroller or shrinks the pictures to nothing.
-    const inCabinet = view === 'menu' || view === 'settings' || view === 'form';
+    // ⚠️ THE SIGN-UP IS NOT IN HERE ANY MORE. It used to be the third cabinet
+    // — his whole machine as the card's own background — and cropping it to a
+    // card took it out of the card entirely. `view` has already been folded to
+    // the backdrop above, so this only ever sees menu / settings / how / board.
+    const inCabinet = view === 'menu' || view === 'settings';
     $('panelCard').classList.toggle('cabinet', inCabinet);
     $('panelCard').classList.toggle('cabinet-menu', view === 'menu');
     $('panelCard').classList.toggle('cabinet-settings', view === 'settings');
-    $('panelCard').classList.toggle('cabinet-entry', view === 'form');
-    if (view !== 'form') $('panelCard').classList.remove('typing');
     // The cabinet is full-bleed, so the SCROLLER has to stop padding and
     // start clipping. On the element rather than the card, because it is the
     // container's own padding and overflow that leave the gap.
     el.classList.toggle('cabinetView', inCabinet);
     title.hidden = view === 'board';   // the ticket is lettered LEADERBOARD
-    title.textContent = view === 'form' ? 'ENTER THE CONTEST'
-      : view === 'settings' ? 'SETTINGS'
-        : view === 'menu' ? 'OPTIONS'
-          : view === 'how' ? 'HOW TO PLAY' : 'LEADERBOARD';
+    // The heading belongs to whatever is BEHIND the overlay now. His card is
+    // lettered ENTER THE CONTEST in the artwork, so a live copy of those words
+    // on the panel behind it would be the duplication he objected to.
+    title.textContent = view === 'settings' ? 'SETTINGS'
+      : view === 'menu' ? 'OPTIONS'
+        : view === 'how' ? 'HOW TO PLAY' : 'LEADERBOARD';
     // The footer button on HOW TO PLAY is the launch control when a run is
     // queued behind the panel, and the plain way back to OPTIONS when it is
     // not. Set here rather than in fillHow() because it depends on how the
@@ -275,7 +316,7 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
     }
     if (view === 'how') fillHow();
     if (view === 'board') fillBoard();
-    if (view === 'form') fillForm();
+    if (overlay) fillForm();
     if (view === 'settings') fillSettings();
   }
 
@@ -660,27 +701,32 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
   // 'board' — the default, for REGISTER pressed from the leaderboard.
   const notNow = () => show(flow === 'start' ? 'how' : 'board');
   on('btnSkip', 'back', notNow);
-  // He painted TWO ways out of the sign-up cabinet — the CANCEL plate and the
-  // red X beside it — so both are wired, to the same thing NOT NOW does. The
-  // small x at the top of his card is #panelClose and closes the panel
-  // outright, which is what a x on a dialog means everywhere else.
+  // He painted THREE ways out of the sign-up card — the CANCEL plate, the red
+  // X beside it, and the small x on the card's own heading — and now that this
+  // is an overlay rather than a whole screen, all three mean the same thing:
+  // dismiss it. That is what a x on an overlay means, and it costs nothing,
+  // because `notNow` lands on the view already painted underneath.
   on('btnFormX', 'back', notNow);
-  on('btnFormBoard', 'press', () => show('board'));
-  on('btnFormRules', 'press', () => show('how'));
+  // The x on his card, third of the three. On the full-screen cabinet this was
+  // #panelClose and closed the panel outright; on an overlay a x means "close
+  // the overlay", and what that reveals is where NOT NOW was going to put the
+  // player anyway. So all three now agree.
+  on('entryClose', 'back', notNow);
   // Pass 3 of his artwork added a CONTEST INFO column beside the screen —
   // "See rules, prizes and full details" — which is the same room RULES &
   // PRIZES opens. He drew two doors; both work.
   on('btnFormInfo', 'press', () => show('how'));
-  // ⚠️ DO NOT LET A TAP MOVE THE CABINET OUT FROM UNDER THE THUMB.
-  // The machine slides up 12% while a field has focus. Tapping SAVE blurs the
+  // ⚠️ DO NOT LET A TAP MOVE THE CARD OUT FROM UNDER THE THUMB.
+  // The card slides up while a field has focus. Tapping the tick blurs the
   // field, which drops the class, which starts a 180ms slide — and a real
-  // thumb is still on the way down. Measured: ~100px of travel against a
-  // 97px-tall button, so the click lands on the plate and nothing happens.
+  // thumb is still on the way down. Measured on the full-height cabinet at
+  // ~100px of travel against a 97px-tall button, so the click landed on the
+  // plate and nothing happened. Shorter card, same failure.
   // Playwright's 10-20ms press never reproduces it, which is exactly why this
   // needed reasoning rather than a green harness. Preventing the default on
   // mousedown stops the blur without touching click synthesis.
-  for (const id of ['btnSave', 'btnSkip', 'btnFormX', 'btnFormBoard',
-    'btnFormRules', 'btnFormInfo', 'panelClose']) {
+  for (const id of ['btnSave', 'btnSkip', 'btnFormX', 'btnFormInfo',
+    'entryClose', 'panelClose']) {
     $(id)?.addEventListener('mousedown', (e) => e.preventDefault());
   }
 
@@ -739,8 +785,8 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
     // ordinary page. Focusing a field slides the whole machine up by 14% of
     // its own height, which puts SAVE & ENTER clear of an iPhone keyboard
     // (~340px of a 932px screen) and puts it straight back on blur.
-    $(id).addEventListener('focus', () => $('panelCard').classList.add('typing'));
-    $(id).addEventListener('blur', () => $('panelCard').classList.remove('typing'));
+    $(id).addEventListener('focus', () => $('entryPlate')?.classList.add('typing'));
+    $(id).addEventListener('blur', () => $('entryPlate')?.classList.remove('typing'));
   }
   $('fEmail').addEventListener('keydown', (e) => { if (e.key === 'Enter') save(); });
   $('fPhone').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('fEmail').focus(); });

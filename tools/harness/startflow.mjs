@@ -33,9 +33,18 @@ const check = (what, pass, detail = '') => {
 
 // Which view is up, read off the DOM rather than off any variable the code
 // keeps — the player sees the DOM, not the variable.
+//
+// ⚠️ THE SIGN-UP IS NOT A VIEW ANY MORE AND THIS HAS TO ASK FOR IT FIRST.
+// Cropping his cabinet to a card turned ENTER CONTEST into #entryLayer, a
+// layer OVER whichever view the panel is showing — so when the form is up,
+// pvHow or pvBoard is legitimately up as well, and a loop that returns the
+// first unhidden view returns the BACKDROP. Every check in this file about
+// the sign-up gate then reads 'how' and fails while the gate is working
+// perfectly. The layer is asked about before the views, not after.
 const view = (p) => p.evaluate(() => {
   if (document.getElementById('panel').hidden) return 'none';
-  for (const id of ['pvMenu', 'pvHow', 'pvBoard', 'pvForm', 'pvSettings']) {
+  if (!document.getElementById('entryLayer').hidden) return 'form';
+  for (const id of ['pvMenu', 'pvHow', 'pvBoard', 'pvSettings']) {
     if (!document.getElementById(id).hidden) return id.slice(2).toLowerCase();
   }
   return 'none';
