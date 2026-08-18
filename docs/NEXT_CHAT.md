@@ -12,7 +12,7 @@ lines), the traps are in `docs/LESSONS.md`, the methods in
 
 ---
 
-# 🟢 CATCH-UP — main `361c333`, everything merged, everything live
+# 🟢 CATCH-UP — main `aec476b`, everything merged, everything live
 
 Client, and he is right to be annoyed: *"I'm so fucking confused, it's too many
 chats bro. I need all three of you chats to be caught up so I can finish with
@@ -28,7 +28,7 @@ check at the top of `docs/MERGE_STATE.md`.
 | `claude/contest-reg-image-crop-d4y6c0` | **0 ahead of main** |
 | `claude/dashboard-kills-display-sizing-wgufbm` | **0 ahead of main** |
 | `claude/last-markdown-game-link-lvk1n6` | **0 ahead of main** |
-| `gh-pages` | rebuilt from main — a build from `361c333` gives **196 assets all matching by content-hashed name, `index.html` byte-identical** |
+| `gh-pages` | `627020d`, rebuilt from main — a build from `aec476b` gives **196 assets all matching by content-hashed name, `index.html` byte-identical at 34,527 bytes**. Live bundle `index-mTnpEOyP.js`, confirmed at the CDN |
 | Cloudflare | both workers deployed `2026-08-18T02:28Z`, `GET /top` → `200`, D1 `run_stats.max_combo` present |
 
 ⚠️ **If you are about to tell him something is undeployed, diff the build, not

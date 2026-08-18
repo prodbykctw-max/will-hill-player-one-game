@@ -37,26 +37,37 @@ in a commit of its own.** And for any quote this file attributes to a source
 file, grep the quote — one of them had been deleted from the source and was
 still being repeated here as current.
 
-## State at main `555efbe` — ALL THREE BRANCHES ARE FULLY MERGED
+## State at main `aec476b` — ALL THREE BRANCHES ARE FULLY MERGED
 
 Re-derived, not remembered. Every branch is an ancestor of main; none of them
 holds anything.
 
 | branch | ahead | behind | tip |
 |---|---|---|---|
-| `claude/contest-reg-image-crop-d4y6c0` | 0 | 1 | `323f812` |
-| `claude/dashboard-kills-display-sizing-wgufbm` | 0 | 6 | `dad801d` |
-| `claude/last-markdown-game-link-lvk1n6` | 0 | 3 | `b4f9f9d` |
+| `claude/contest-reg-image-crop-d4y6c0` | 0 | 6 | `323f812` |
+| `claude/dashboard-kills-display-sizing-wgufbm` | 0 | 11 | `dad801d` |
+| `claude/last-markdown-game-link-lvk1n6` | 0 | 1 | `32ca22f` |
 
-`gh-pages` carries **206 files, none of them source**, built from main by
-`tools/deploy.sh`. Proof that the live game is current is a rebuild, not the
-commit hash: `npm run build` from main produces **196 assets, all matching the
-206-file branch's `assets/` by content-hashed name, with `index.html`
-byte-identical**. Bundle `index-b1G7z0XG.js`.
+`gh-pages` is at `627020d`, built from main by `tools/deploy.sh`. Proof that
+the live game is current is a rebuild, not the commit hash: `npm run build`
+from main produces **196 assets, every one matching the branch's `assets/` by
+content-hashed name, with `index.html` byte-identical at 34,527 bytes**.
+Bundle `index-mTnpEOyP.js`, confirmed being served by the CDN.
+
+⚠️ **`git fetch origin main` DOES NOT UPDATE `origin/gh-pages`, and reading the
+stale ref makes a current deploy look wildly rotten.** Step 3 of the check
+above ran against a `refs/remotes/origin/gh-pages` from several deploys back
+and reported **175 assets against 196, with almost every hash different** — a
+result that reads as "the live game is months behind" and is pure artefact.
+Step 1 says `git fetch origin`, all refs, for exactly this reason; shortening
+it to `git fetch origin main` is what produced the false alarm. If step 3 ever
+looks catastrophic, re-run `git fetch origin '+refs/heads/*:refs/remotes/origin/*'`
+and diff again BEFORE telling him anything.
 
 ⚠️ **A docs-only commit on main does NOT make the deploy stale**, and counting
-commits will tell you it does. `555efbe` touches only this file; the build from
-it is identical to the build that was deployed at `323f812`. Diff the build,
+commits will tell you it does. `555efbe` touched only this file and the build
+from it was identical to the one deployed at `323f812`; `aec476b` adds a
+harness and a Worker comment and ships nothing either. Diff the build,
 not the log.
 
 ### The ghost is gone — but the lesson it taught is the reason this file exists
