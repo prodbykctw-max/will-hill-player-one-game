@@ -460,20 +460,28 @@ bash tools/deploy_backend.sh              # macOS / Linux / Git Bash
 .\tools\deploy_backend.ps1                # Windows PowerShell
 ```
 
-⚠️ **It needs `wrangler`, and that is a one-time install** — the script's
-first preflight is what caught its absence on his machine:
+**It needs no install.** `wrangler` was not on his machine and the script
+stopped dead on it; the usual fix, `npm i -g wrangler`, then needs a NEW
+terminal before PowerShell finds the command, which is a second dead end at
+the same hour. So the script uses a global `wrangler` when there is one and
+falls back to `npx --yes wrangler` when there is not — no install, no PATH
+change, one download into the npm cache on first use. Node.js is the only real
+prerequisite, and this repo already builds with Vite, so it is there.
+
+The one thing it cannot do for him is authorise:
 
 ```
-npm i -g wrangler
-wrangler login          # opens a browser, authorise the Cloudflare account
+wrangler login          # or: npx wrangler login
 ```
 
-⚠️ And `wrangler` can be visible to PowerShell while being invisible to Git
+It opens a browser — authorise the Cloudflare account that owns the contest.
+The script names the right form of that command in its own error if the
+database read comes back unauthorised.
+
+⚠️ A global `wrangler` can also be visible to PowerShell and invisible to Git
 Bash — npm puts global commands in `%APPDATA%\npm`, which PowerShell has on
-PATH and Git Bash often does not, so the script says "not installed" on a
-machine where `wrangler --version` answers fine. The `.ps1` now bridges that
-PATH across before it hands off, so the message can be trusted: if it says not
-installed, it is not installed.
+PATH and Git Bash often does not. The `.ps1` bridges that PATH across before
+it hands off, so if the script says wrangler is missing, it is missing.
 
 ⚠️ **He is on Windows PowerShell, where there is no `bash`** — this shipped as
 bash only and died on the first real run with *"The term 'bash' is not
