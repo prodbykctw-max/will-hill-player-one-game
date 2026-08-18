@@ -53,6 +53,51 @@ check at the top of `docs/MERGE_STATE.md`.
 | `gh-pages` | `ab5d05a`, deployed `13:31:28Z`. ⚠️ **CURRENT — verified by diff, not by counting.** A fresh `npm run build` off `afe1930` produces an asset list IDENTICAL to the live tree, and `assets/index-SzTflqL2.js` is byte-identical (md5 `6c2989b6…`). The four `*-day-skystruct` hashes match too, so the night-cloud work IS live. |
 | Cloudflare | both workers deployed `2026-08-18T02:28Z` and **still current** — the only repo change to `leaderboard-worker.js` since (`aec476b`) added an `export` keyword for `statsync.mjs`, which esbuild strips from a default-only bundle. Deployed dashboard verified to carry MAX COMBO, `.vm/.vt` type scale, `#tDeaths`, `#f1v`, `panelClose` gone, stage progression count-only. D1 `run_stats.max_combo` present. |
 
+## 🚀 THE BOOT: a service worker, a retry, and an error you can actually see
+
+Shipped by the **DASHBOARD / BACKEND chat** and **live** (main `2cbaba7`).
+Composes with the BACKDROPS / DEPLOY chat's `deploy_union.py` rather than
+overlapping it — that one stops a deploy stranding live players, this one stops
+the refetching.
+
+| | first visit | second | third |
+|---|---|---|---|
+| requests over the network | 104 | **0** | **0** |
+| bytes over the network | 9.61 MB | **0.00 MB** | **0.00 MB** |
+
+- **Service worker** (`vite.config.js` generates `dist/sw.js` from the real
+  bundle). Hashed `/assets/` cache-first with NO revalidation — sound because
+  the hash IS the version. Document, manifest and icons network-first, so a
+  deploy lands on the next launch and nobody is pinned to an old build.
+  `activate` purges anything the current build no longer names.
+  ⚠️ `apply: 'build'` is load-bearing: no `sw.js` in dev, registration behind
+  `import.meta.env.PROD`, so the harnesses never see one.
+- **The loader had no timeout and no retry.** A stalled image fires neither
+  `onload` nor `onerror`, so the boot hung on LOADING… forever. Now a 15s
+  deadline and one cache-busting retry, proven against the production build by
+  holding a request open: deadline fired at +15,238ms, retry served 200.
+- **Every boot failure used to present as "loading…"** — the error card was
+  painted once from outside the loop and covered on the next rAF. `bootError`
+  is a latch `draw()` tests first, with a RETRY that cache-busts the document.
+  `tools/harness/booterror.mjs`, 9 checks, graded from pixels.
+
+**And the question this all came from — "what change made it heavy?" Nothing
+did.** Measured across all 105 commits by what the code IMPORTS (Vite only
+ships imported assets): **20.69 MB at the first commit, 21.58 MB now.** It was
+never light. What changed on 2026-08-18 was cache VALIDITY — 3.86 MB of shipped
+assets took new content hashes that day, the heaviest of them in boot pass 1,
+and a content hash is the URL. See `docs/LESSONS.md` #25.
+
+⚠️ **STILL OPEN, AND UNCLAIMED:** ~2.2 MB could come off the FIRST load by
+deferring stages 2-4 and the MARTA map (the worker cannot help a first-ever
+visit). Keep the ending art in the boot — 0.36 MB guarding the one screen that
+must never be wrong. Failure modes are already traced: `martamap.js:172` calls
+`ctx.drawImage(map, 0, 0)` **unguarded** and throws every frame if the map is
+late — worth fixing on its own account — while `backdrop.js:272` already has
+`if (!img) return;` so a late stage plate merely draws no backdrop. Gate the
+ride on the next stage's art and hold on the map rather than enter a stage
+bare. Needs its own harness.
+
 ## ⚠️ "BEHIND" IS NOT A DEBT — it cost him a round
 
 He challenged a claim that a branch was *"13 behind"*, and he was right to.
