@@ -601,7 +601,18 @@ const STAGE_DEFS = [
         { key: 'neon_ourbar', img: ewNeonOurbar, depth: 0.47, span: [0.107, 0.200] },
         { key: 'neon_dis', img: ewNeonDis, depth: 0.47, span: [0.827, 0.894] },
         { key: 'lamps', img: ewLamps, depth: 0.62, span: [0.003, 0.997] },
-        { key: 'pavement', img: ewPavement, depth: 0.84, span: [0.001, 1.000] },
+        // ⚠️ 0.50 — A GUILLOTINED GROUND STRIP, SAME AS EAV'S VERGE. Found by
+        // tools/cut_audit.py, which grades every card's boundary against the
+        // painting it was cut from. This one's edge is a straight line for
+        // ~99% of its columns, which is a ruler mark and not a traced object.
+        // A strip sliced out of the continuous ground and then run at a
+        // different rate shears away from the ground it is part of, and takes
+        // the bottom of whatever stands on it along for the ride — here the
+        // shopfront bases it overlaps. At BASE_DEPTH the seam cannot be
+        // observed at all, which is why this costs one number instead of a
+        // re-cut. Client: "the cutting is really bad... that has to be the
+        // most accurate shit."
+        { key: 'pavement', img: ewPavement, depth: 0.50, span: [0.001, 1.000] },
       ],
       lights: [
         // OUR BAR ATL — the amber/violet tube, the steadiest of the three
@@ -721,7 +732,7 @@ const STAGE_DEFS = [
           { key: 'neon_ourbar', img: edgewoodDayNeonOurbar, depth: 0.47, span: [0.109, 0.201] },
           { key: 'neon_dis', img: edgewoodDayNeonDis, depth: 0.47, span: [0.823, 0.890] },
           { key: 'lamps', img: edgewoodDayLamps, depth: 0.62, span: [0.004, 0.992] },
-          { key: 'pavement', img: edgewoodDayPavement, depth: 0.84, span: [0.003, 0.995] },
+          { key: 'pavement', img: edgewoodDayPavement, depth: 0.50, span: [0.003, 0.995] },
         ],
         lights: [],
       },
@@ -1019,7 +1030,7 @@ const STAGE_DEFS = [
         { key: 'awning', img: l5pAwning, depth: 0.56, span: [0.768, 0.891] },
         { key: 'bayright', img: l5pBayright, depth: 0.56, span: [0.726, 0.969] },
         { key: 'poster', img: l5pPoster, depth: 0.57, span: [0.794, 0.899] },
-        { key: 'kerb', img: l5pKerb, depth: 0.82, span: [0.004, 0.965] },
+        { key: 'kerb', img: l5pKerb, depth: 0.50, span: [0.004, 0.965] },
         // ⚠️ PLANTED IN THE GROUND STRIP, SO IT SITS AT THE GROUND'S DEPTH.
           // Client, on an earlier build: "the street on the left of that pole,
           // as you move to the right it separates from the pole." A thing
@@ -1121,7 +1132,7 @@ const STAGE_DEFS = [
           { key: 'awning', img: l5pDayAwning, depth: 0.56, span: [0.776, 0.898] },
           { key: 'bayright', img: l5pDayBayright, depth: 0.56, span: [0.736, 0.975] },
           { key: 'poster', img: l5pDayPoster, depth: 0.57, span: [0.802, 0.906] },
-          { key: 'kerb', img: l5pDayKerb, depth: 0.82, span: [0.022, 0.971] },
+          { key: 'kerb', img: l5pDayKerb, depth: 0.50, span: [0.022, 0.971] },
           // ⚠️ PLANTED IN THE GROUND STRIP, SO IT SITS AT THE GROUND'S DEPTH.
           // Client, on an earlier build: "the street on the left of that pole,
           // as you move to the right it separates from the pole." A thing
