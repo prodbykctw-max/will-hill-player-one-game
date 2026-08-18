@@ -587,6 +587,60 @@ fact.** Verify against the system before repeating it — especially when you ca
 and most especially when the client is about to act on it. And when comparing
 times from two sources, normalise the zone before drawing any conclusion.
 
+## 24. The asset measured clean and the word was still on the screen
+
+`tools/cut_title_options_out.py` painted his OPTIONS off `title-portrait.webp`
+and wrote `title-portrait-nooptions.webp`. Measured: the band's contrast went
+from 164 to 28, the file was visually checked, the page confirmed in the
+browser that it had loaded that exact file. The word was still on the road.
+
+An hour went into the wrong places before the right question got asked. Vite's
+cache got cleared. Every `titlep-*.webp` card was checked for coverage of row
+1609 and none of them covered it. The decoded bitmap was re-read *inside the
+browser* and came back clean. A `drawImage` trace over one frame showed the
+base going down as `title-portrait-nooptions.webp` and nothing else obviously
+touching those rows.
+
+The answer was in that trace and got skimmed past:
+
+```
+DI title-portrait-nooptions.webp n=5 0,-80,412,891
+DI title-portrait-skyline.webp   n=5 0,-80,412,891      <- this one
+```
+
+**`title-portrait-skyline.webp` is not the towers. Below the sky it is a
+byte-exact copy of the entire plate** — `meandiff 0.00, max 0` over the OPTIONS
+band — drawn full-frame at depth 0.020 so the far clouds can pass behind the
+skyline. Its own comment in `CARD_SPEC` says so plainly and has for months:
+*"the SAME PIXELS the base already has, drawn again on top of the far clouds
+and landing exactly over its own position — so it needs no inpainting and can
+never reveal anything behind it."* True right up until the base changed and
+the card did not. At depth 0.020 it has essentially no parallax offset, so it
+put the word back in the same place, at the same size, with the same lighting.
+Indistinguishable from the patch never having run.
+
+Three things to take from it:
+
+- **A file's NAME is a claim about its contents.** "skyline" cost the hour.
+  `git ls-files` and a name are not an inventory; measure the pixels.
+- **Patch every carrier, and have a tool that can list them.** The cutter now
+  does the plate, the bare plate and the skyline card, and `--audit` reports
+  the band contrast for every plate-shaped asset in the directory. That
+  listing is what makes the next one findable in a minute instead of an hour.
+- **Read the composited canvas, not the asset.** `titlehome.mjs`'s ghost check
+  reads the live canvas for exactly this reason. Its break-test swaps the
+  pristine plate onto the SKYLINE card, not onto the base — putting the word
+  back on the base changes nothing on screen, because the skyline is drawn
+  over it. A break-test aimed at the wrong layer would have passed while
+  proving nothing, and did, on the first attempt.
+
+And a fourth, cheaper one: the first fix re-saved all three files at
+`quality=94` because "cards in this project are cut at 94". The skyline is
+written **lossless** by its own cutter; that pass took it from 1.41 MB to
+397 KB — a full lossy re-encode of every tower on the plate to patch 184×48
+pixels of pavement. Match the tool that authored the file, per file, not the
+project's general habit.
+
 ## The short version
 
 0. **Touch the thing before you describe it** — including when what you are

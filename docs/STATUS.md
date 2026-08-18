@@ -281,6 +281,22 @@ Settings works smoothly."*
   stage: day 57.7→2.9, 37.1→1.9, 69.1→2.2, 22.6→1.7; night all under 2.2.
 
 ### UX
+- **The home page has real buttons, and a way straight into the contest**
+  (`7e2e493`, `cec447e`). Client: *"I'm not really comfortable with how start
+  game, options and music buttons are sitting. And also, from that page, I want
+  someone to be able to immediately enter the contest."* Both had one cause —
+  the controls were anchored to the PAINTING (OPTIONS was his painted word at
+  source row 1609 of 1844), so where they landed depended entirely on how the
+  cover-crop fell: 12–14px tall on every phone measured, and simultaneously
+  bunched high with 73–82px of dead pavement underneath on a tall one and
+  crushed against the bottom edge with a 6px gap on an SE. `homeLayout()` lays
+  them out from the SCREEN instead — 44px targets, ENTER THE CONTEST as a
+  highway-sign banner across the pavement with OPTIONS and MUSIC in a row
+  beneath it, a one-row fallback at 34px where the road runs out, and a clamp
+  so nothing ever reaches PRESS START. PRESS START stays painted; that was his
+  call. Registered players get YOU'RE IN · SEE THE BOARD instead, and both
+  routes use a new `flow: 'title'` so NOT NOW and BACK land back on the home
+  page. ⚠️ The painted word lived in THREE files, not one — see LESSONS.
 - **The leaderboard IS the ticket** (`1e8e894`, fixed `55075d2`). No plate, no
   border, no padding, no duplicate heading; BACK moved onto the cream footer
   beside ENTER. 259×561 → 336×904 on a 430px phone, zero overflow.
@@ -295,7 +311,11 @@ Settings works smoothly."*
 ### Tooling
 - **`docs/TESTING.md`** — the test section he asked for as CAT 6.
 - **New harnesses:** `endcue` `entrypaths` `introorder` `padlift` `stageflag`
-  `stagesweep`.
+  `stagesweep` `titlehome`.
+- **`cut_title_options_out.py`** paints his OPTIONS off every plate that
+  carries it and has an `--audit` that reports the band's contrast for every
+  plate-shaped asset in `src/assets/backgrounds/` — because "the plate is
+  clean" was true and the word was still on screen.
 - **`stagesweep.mjs`** sweeps every screen of every stage, day and night, at
   identical camera positions — 27/30/32/34 screens — for background review.
 

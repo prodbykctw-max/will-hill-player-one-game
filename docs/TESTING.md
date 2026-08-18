@@ -61,7 +61,7 @@ read them mechanically:
 
 `barescars` · `betweenscreens` · `btnglow` · `ceiling` · `cloudseal` · `daylamps` · `endcue` · `entryfit` · `entrypaths` · `finishrun` · `howpage` · `idleflex` · `introorder` ·
 `loopbench` · `loopseam` · `musicbox` · `outbox` · `todlive` · `optionsmenu` · `padlift` · `panelnav` · `pausemenu` · `relaytod` ·
-`share` · `stageflag` · `titlefit` · `titleintro`
+`share` · `stageflag` · `titlefit` · `titlehome` · `titleintro`
 
 **Report-only** — they print a table or a contact sheet for a human to read,
 and have no pass/fail line at all:
@@ -246,9 +246,16 @@ entryfit    44    entrypaths   9    finishrun   12    hapticbtn   24
 howpage     24    idleflex     8    introorder   4    loopbench   32
 loopseam     9    musicbox    11    optionsmenu 15    outbox      13
 padlift     11    panelnav    13    pausemenu   13    relaytod    26
-share       12    stageflag    6    startflow   23    titlefit    76
-titleintro  12    todlive     12
+share       12    stageflag    6    startflow   23    titlefit    48
+titlehome   69    titleintro  12    todlive     12
 ```
+
+⚠️ `titlefit` reads **48 now, not 76**, and that is not a loss of coverage.
+Three of its per-shape checks measured where OPTIONS and MUSIC sat relative to
+each other, from when OPTIONS was his painted word with a box stacked under it.
+The controls are laid out from the SCREEN now and there are three of them in a
+row, so that geometry moved to `titlehome` — which grades 69 — along with
+`relaytod`'s stacked-MUSIC assertion. 76 → 48 + 69 is the shape of the move.
 
 ⚠️ **Do not sweep on exit codes alone.** A first pass here graded all 32 by
 `$?` and reported "32 of 32". That number is true and it is not the claim that
@@ -305,10 +312,24 @@ hear every wrap.** Ranked as of 2026-08-16 — `stage_01` 3.36× is the worst an
 is waiting on its BPM, `stage_04` 1.37× and `ui_pause` 1.17× are re-cut,
 `title` 0.53× was already the cleanest in the set.
 
-`titlefit` grew 60 → 76: five shapes day and night asserting the box spans the
-viewport, the plate reaches both edges, and no row at either end is the clear
-colour — plus a break-test that shortens the box by 34px and proves the band
-comes back, since Chromium cannot launch as an installed iOS app.
+`titlefit` grew 60 → 76 and then narrowed to 48: five shapes day and night
+asserting the box spans the viewport, the plate reaches both edges, and no row
+at either end is the clear colour — plus a break-test that shortens the box by
+34px and proves the band comes back, since Chromium cannot launch as an
+installed iOS app. What it shed is the control geometry, which is `titlehome`'s
+subject now. This file asks about the PAINTING; that one asks about the buttons.
+
+`titlehome` is the newer one and it carries a lesson worth reading before
+writing any pixel check on this card. Its ghost test reads the old OPTIONS
+rows off the LIVE canvas, not off the asset, because the asset measured clean
+while the word was plainly on screen: `title-portrait-skyline.webp` reads as
+"the towers" but below the sky it is a byte-exact copy of the whole plate,
+drawn full-frame at depth 0.020, and it repainted the word straight back on
+top at no parallax offset. Only the composited canvas has every layer in it.
+On the two shapes whose controls happen to cover those rows there is nothing
+left to measure and the check says so rather than passing quietly, and a
+break-test swaps the pristine plate onto the SKYLINE card — not the base, which
+changes nothing — to prove the metric can still go red.
 
 The one failure the sweep surfaced was `ceiling` still demanding WILL HILL
 pinned at 50,000 — a decision the client reversed. The harness was wrong, not
@@ -326,6 +347,7 @@ drifts into grading last month's product and nobody notices.
 | `relaytod` | the champagne relay survives a time-of-day switch mid-run |
 | `seamsweep` | the plate's tiling join, swept across every stage |
 | `stagestrip` | the whole stage as one strip, day above night, for eyeballing |
+| `titlehome` | the home page's three controls: 44px targets on six shapes, nothing over PRESS START, the contest banner routes both ways, and only ONE OPTIONS on screen |
 | `titleintro` | the title assembly, including a far cloud crossing a tower |
 | `introorder` | his name lands before PLAYER ONE, measured off the canvas |
 | `endcue` | each finish line hands to the next scene's music, no restart |

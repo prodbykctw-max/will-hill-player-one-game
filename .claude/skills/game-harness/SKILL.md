@@ -132,6 +132,41 @@ across frames, never one reading.**
 
 ---
 
+## ⚠️ Read the COMPOSITE, not the source asset
+
+A pixel check that opens the file it thinks is being drawn is checking the
+wrong thing. On this project a painted word was removed from the background
+plate, the plate measured clean (band contrast 164 → 28), the browser
+confirmed it had decoded that exact patched file, and the word was still on
+screen — a parallax card, drawn over the plate at nearly zero depth, carried
+its own copy and put it back in the same place.
+
+**Only the composited canvas has every layer in it.** Read the region back off
+the running `<canvas>` with `getImageData`, at coordinates mapped through
+whatever the current crop did with the source, and grade a robust statistic —
+`p99 − p1` of luminance separates high-contrast lettering from the noise of a
+photographic background without any template matching.
+
+Two things this forces you to be honest about:
+
+- **Say when there was nothing to measure.** On two of three phone shapes the
+  UI happened to sit exactly over the rows under test, leaving nothing
+  exposed. The check reports `nothing exposed to measure` instead of passing
+  quietly, because a pass there would mean "hidden", not "gone".
+- **Aim the break-test at the layer that actually paints.** The first
+  break-test swapped the un-patched image in for the BASE and the check stayed
+  green — correctly, because the card is drawn over the base and wins. Aimed
+  at the card, contrast went 25 → 155. A break-test pointed at the wrong layer
+  passes while proving nothing, which is worse than no break-test: it is a
+  green light with a reason attached.
+
+**And when a pixel check surprises you, trace the draw calls before theorising.**
+Wrapping `CanvasRenderingContext2D.prototype.drawImage` for a single frame and
+logging `img.src` plus the arguments takes two minutes and prints the whole
+layer stack in order. That list contained the answer an hour before it was read.
+
+---
+
 ## Telling a harness bug from a product bug
 
 The default assumption when a check goes red should be "the product broke".

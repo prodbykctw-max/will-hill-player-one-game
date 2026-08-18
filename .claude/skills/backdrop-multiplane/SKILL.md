@@ -67,6 +67,27 @@ disjoint rectangular planes — they work, and they read as hard cuts.
   into the bound and the relative shear between neighbours compresses instead
   of accumulating. 16px of double reads as paint thickness; 34px reads as a
   second fence, and the client photographed exactly that.
+- **⚠️ AND BECAUSE A CARD IS A COPY, THE BASE CAN NEVER BE EDITED ALONE.**
+  The same fact that makes double vision — every card carries a copy of what
+  is under it — makes the plate uneditable in isolation. Paint something out
+  of the base and any OPAQUE card covering those pixels will put it straight
+  back, at that card's own depth. The shallower the card, the less it moves,
+  and a card near depth 0 restores the pixels so exactly that the edit looks
+  like it never ran. This cost an hour on the title screen: a word was painted
+  off the plate, the plate measured clean, the browser confirmed it had loaded
+  the patched file, and the word was still on screen — put back by a card named
+  for the towers that was, below the sky, a byte-exact copy of the whole
+  painting. So:
+    - **Any edit to a plate is an edit to every card cut from it.** Write the
+      tool to take a LIST of targets, not one path.
+    - **Give that tool an `--audit` that measures the edited region in every
+      plate-shaped file in the directory** and prints a table. That listing is
+      the difference between finding the next one in a minute and in an hour.
+    - **Re-save each file the way its OWN cutter saves it.** A "cards are cut
+      at quality 94" habit re-encoded a LOSSLESS card at 94 and took it from
+      1.41 MB to 397 KB, to patch 184×48 pixels.
+    - **Verify on the composited canvas, never on the asset.** The asset is
+      not what the player sees; the stack is.
 - **It only shows in daylight.** The same offsets sat in the night plates for
   weeks. Dark planks have no contrast to read a double edge against. Do not
   conclude a layering bug is absent because the night stage looks fine.
@@ -346,6 +367,9 @@ Full write-up in `docs/LESSONS.md`. The ones that will bite again:
 - **Look at the assignment map BEFORE wiring anything.** Two cards were cut
   and wired as solid rectangles — the exact failure mode this pipeline
   exists to avoid.
+- **A card's NAME is a claim about its contents, not a fact.** One called
+  "skyline" was a full copy of the plate below the sky line. Measure what is
+  in a file before reasoning about what it can and cannot be painting.
 - **Correctness before scale.** A wide rate spread and full-frame blits both
   shipped as regressions before being dialled back.
 - **"I can't" is a claim too.** Before saying something is impossible,
