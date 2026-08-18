@@ -420,6 +420,70 @@ working. One to look at with fresh eyes: `skyline d=0.05 drawn OVER trees` —
 a far card occluding a nearer one is backwards, though it may just be distant
 foliage.
 
+### Fault D — the number that was never wired up (this is the big one)
+
+**`bg.separation` did not exist in `stages.js`, on any stage, ever.**
+
+`src/render/backdrop.js` has carried `maxSep(stage)` since `ca206e4`, reading
+`bg.separation` per stage and falling back to `MAX_SEPARATION = 16`. That same
+commit wrote, in the comment directly above it: *"a stage can declare its own
+`bg.separation` and **Underground takes 4**."* The renderer half shipped. The
+stage-table half was never written — `git log -S separation -- src/world/stages.js`
+returned **nothing, not one commit**, right up until this session.
+
+So the stage of signs ran at the 16px cap for its whole life, and the comment
+that introduced the mechanism names the exact symptoms the client kept
+reporting: *"'P PEACHTREE', 'SA SALE', a second street sign beside the first,
+and the arch's lettering smeared into itself."*
+
+Measured on Underground at 82% of the stage, before and after, off the live
+game rather than off the formula:
+
+| card | before | after |
+|---|---|---|
+| `towers` | **−15.3px** | 0.0 |
+| `backdrop` | **−14.9px** | 0.0 |
+| `leftblock` | **−14.1px** | 0.0 |
+| `furniture` | **+13.0px** | +4.0 |
+| `lamps` | **+13.4px** | +4.0 |
+
+⚠️ **The far three all SATURATED the clamp, so they were within 1.2px of each
+other — there was no parallax between them at all.** The whole far group walked
+15px off the base as one block and printed a second skyline beside the first.
+It was buying a doubled downtown and nothing else, which is why moving all
+three to `BASE_DEPTH` costs the picture nothing you can see. The near two keep
+their depth and now double by 4px, inside a lamppost's own width.
+
+**And Fault A's fix had only ever been applied to half of a matched pair.** The
+night `trees` card — which owns the PEACHTREE FURNITURE signboard, exactly like
+the day one — was still at `depth: 0.48` with the third sway band running
+across the board, while the comment block above it described the fix as done.
+The two `bg` objects are separate and `?tod=day` REPLACES `bg` wholesale
+(`bg: day.bg`, no merge), so anything applied by eye lands on whichever variant
+happened to be open. **Grep both halves. Every time.**
+
+### ⚠️ Fault E — the seal defers to a card that moves
+
+`tools/scrub_stage_clouds.py` builds the sky seal as `struct & ~others`:
+structure another card already owns is deliberately LEFT OUT of the seal,
+because that card will redraw it over the weather. Sound, with one unstated
+premise — that the owning card redraws it **in the same place**. A card away
+from `BASE_DEPTH` does not.
+
+That is why Underground's seal is **297 opaque px** against 10,776 on
+`eav-day`, 22,775 on `edgewood-day` and 5,849 on `l5p-day`. Its whole sky band
+was owned by `towers`/`backdrop`/`leftblock` at 0.07/0.12/0.18, so the seal was
+told to skip all of it, and the cards then slid out from under the gap they had
+been trusted to fill. `towers` shares 9,887px with the clouds card.
+
+`tools/card_overlaps.py` now prints a **SEAL ASSUMPTION** section for this: any
+card intersecting the clouds card and not at 0.50. It is clean as of this
+session. ⚠️ It compares against the clouds card's STATIC alpha; the clouds
+DRIFT, so the honest question is which ROWS a cloud can occupy, and against
+that sweep `eav-day`'s `tree` (11,365px) and `pole` (8,602px) and `l5p-day`'s
+`pole` (1,813px) are all still moving in the cloud band. Those are the two
+leaks the travelled harness now measures — see below.
+
 ### How to find the next one
 
 ```js
@@ -466,12 +530,66 @@ Both of these graded their own memory at one point. Fixed, but know the shape:
   l5p-day 0.412%, edgewood-day 0.338%.
 
 A verification tool holding its own copy of the thing it verifies against
-verifies nothing.
+verifies nothing. `tools/card_overlaps.py` was the third: it hardcoded
+`MAX_SEPARATION = 16`, so the moment a stage declared its own cap every crawl
+distance it printed became fiction. It reads `bg.separation` now.
 
-### The plate never wraps
+### ⚠️ AND A HARNESS THAT DOES NOT TRAVEL CANNOT SEE ANY OF THIS
 
-The backdrop travels ~743px across a whole stage — less than one plate width.
-There is no repeat problem, and he was explicit that the wide plates exist so
+`tools/harness/cloudseal.mjs` — the regression test for the longest-running bug
+on the project — called `__startStage`, let the camera converge **at spawn**,
+and sampled six ticks there. Card separation is `camX * (depth - BASE_DEPTH) *
+DEPTH_SPREAD`, so **at spawn every card's offset is zero.** Ticks move `drift`
+and `sway`; they do not move the camera. The one test written to catch clouds
+crossing buildings was measuring the single camera position at which the fault
+cannot exist, and it stayed green for weeks while the client photographed the
+bug off his phone.
+
+It travels now — five positions from spawn to the finish line — and three
+things had to be got right to make that a measurement rather than a number:
+
+1. **Hold him at his STANDING height, not at `y=-40000`.** `stagesweep.mjs`
+   parks him far above the level to clear him out of a picture; that is wrong
+   for a measurement. The camera lerps toward the player every update and the
+   update runs on a fixed-timestep accumulator, so a slow frame takes two
+   sub-steps. With a 40,000px error one doubled sub-step moved the backdrop
+   38px for exactly one grab, and the harness reported 127,196 px of a
+   143,190 px band as cloud on a building. Held at his standing y the error is
+   zero and the sub-step count stops mattering.
+2. **Converge the camera FREE, then lock it at the point it chose.** Forcing a
+   value the lerp is not already at re-opens the transient every frame. And the
+   lock applies at spawn too — converging is not the same as being still.
+3. **Sandwich the noise floor around the measurement**: off → ON → off, per
+   tick. Taking every off-frame in one pass and every on-frame in another put
+   minutes between the two halves of a subtraction.
+
+**Two leaks it found the day it learned to travel, on stages nobody had
+reported:** `eav` 104px (biggest blob 82) at 11,290px into the stage, and `l5p`
+115px (blob 73) at 7,200px. Both predate this work. ⚠️ **eav's does not respond
+to the fix that closed Underground's** — measured directly, with `separation: 4`
+applied to all four stages Underground went 10 → 8px while eav went 104 → **142**
+and l5p 115 → 70. So eav's is a different fault and is still undiagnosed. Both
+are carried as a named `ALLOW` ratchet in the harness that may only ever go
+down, an order of magnitude under the 1,259px / 734px-blob crossing the file
+was built to catch.
+
+### The plate DOES wrap, and this claim was wrong
+
+~~The plate never wraps.~~ Underground's plate draws 984px wide against a 430px
+screen, and `par` reaches 694px by 82% of the stage — so the join crosses the
+screen from about two thirds in. Measured with `seamsweep.mjs`, which has known
+this all along and says so: **the plate join is on screen in 32 of 94 frames**
+on Underground. What saves it is the step size, not its absence — worst 13.9,
+median 12.4, and a ratio of 0.57x against that frame's own p99, i.e. quieter
+than the ordinary detail around it.
+
+⚠️ **L5P is the one to actually look at**: join step **194.1, median 190.8,
+ratio 7.29x**, on 26 of 100 frames. That is seven times the frame's own p99 and
+it is a real visible seam. Untouched this session and not reported by the
+client, but it is the worst number in that harness by a factor of fourteen.
+
+The rest of the original note stands: the wide plates exist so stages do not
+repeat, **not** so layering stops, and he was explicit that the wide plates exist so
 stages do not repeat, **not** so layering stops: *"I still want parallax
 scroll with depth… like how you had the underground stage with the layers,
 things at the bottom being closer, things at the top further away, the

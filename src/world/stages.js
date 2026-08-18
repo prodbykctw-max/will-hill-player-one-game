@@ -744,7 +744,15 @@ const STAGE_DEFS = [
             sway: [{ top: 0.0, pivot: 0.328, amp: 4, freq: 0.85,
               xRanges: [[0.000, 0.274]] }],
           },
-          { key: 'skyline', img: edgewoodDaySkyline, depth: 0.05, span: [0.021, 0.995] },
+          // BASE_DEPTH, and for the seal's sake rather than for a double the
+          // client has reported. tools/scrub_stage_clouds.py leaves out of the
+          // sky seal any structure another card owns; this card owns 4,073px
+          // that the clouds card passes over, and at 0.05 it slid 15.8px off
+          // the base's copy of it, so a cloud showed through that strip. Same
+          // fault as Underground's `towers`, one twentieth the size. Nothing
+          // is lost: at 0.05 it saturated the clamp, so it had no parallax
+          // against the other far cards to begin with.
+          { key: 'skyline', img: edgewoodDaySkyline, depth: 0.50, span: [0.021, 0.995] },
           { key: 'parapet', img: edgewoodDayParapet, depth: 0.20, span: [0.025, 0.992] },
           { key: 'facade', img: edgewoodDayFacade, depth: 0.46, span: [0.001, 0.995] },
           { key: 'bay_left', img: edgewoodDayBayLeft, depth: 0.47, span: [0.056, 0.244] },
@@ -809,6 +817,32 @@ const STAGE_DEFS = [
       // 512-tall resample, so the tod swap does not jump.
       meters: 8.6,
       groundFrac: 0.71,
+      // ⚠️ THE HALF OF THE SIGNAGE FIX THAT WAS NEVER WRITTEN.
+      // src/render/backdrop.js has carried `maxSep(stage)` and the sentence
+      // "a stage can declare its own `bg.separation` and Underground takes 4"
+      // since ca206e4 — and NO STAGE EVER DECLARED IT. `git log -S separation
+      // -- src/world/stages.js` returned nothing, not one commit, so maxSep
+      // fell through to MAX_SEPARATION 16 on every stage from the day it was
+      // written. The renderer half shipped; this line did not exist.
+      //
+      // 16px is right for a fence plank and wrong for a WORD, and Five Points
+      // is a street made of words: PEACHTREE FURNITURE, LOANS, CHECKS CASHED,
+      // PARK ALL DAY, WAFFLE HOUSE, UNDERGROUND. The client reported it four
+      // separate ways over four separate sessions — "P PEACHTREE", "SA SALE",
+      // "double building", "double pose" (the lampposts) — and every one of
+      // them is this number. Measured at the far end (camX ~8700) with the cap
+      // at 16: towers -15.7px, backdrop -15.6, leftblock -15.1, lamps +14.7,
+      // furniture +14.4. At 4 every one of those is 4.0px, which is inside a
+      // pole's own width and reads as paint thickness.
+      //
+      // ⚠️ IT MUST BE ON BOTH bg BLOCKS. `?tod=day` swaps `bg` wholesale
+      // (bg: day.bg, no merge), so a value set only here is silently absent in
+      // daylight — which is the half he photographs, because darkness hides a
+      // double edge and daylight does not.
+      //
+      // The clouds are NOT slowed by this: `drift` is added outside the tanh
+      // in cardParallax(), so weather keeps its full speed.
+      separation: 4,
       sky: ['#080818', '#06091e'],
       horizon: '#191a30',
       glow: 'rgba(220,60,60,0.10)',
@@ -838,9 +872,40 @@ const STAGE_DEFS = [
       // travelled 400px while the fence standing in it travelled 20 — 380px of
       // shear on a 430px screen. The plaza is the base plate.
       cards: [
-        { key: 'towers', img: ugTowers, depth: 0.07, span: [0.513, 0.999] },
-        { key: 'backdrop', img: ugBackdrop, depth: 0.12, span: [0.242, 0.589] },
-        { key: 'leftblock', img: ugLeftblock, depth: 0.18, span: [0.000, 0.242] },
+        // ── THE FAR THREE SIT AT BASE_DEPTH, AND THEY BUY NOTHING BY NOT ──
+        // These are the downtown skyline, the block behind the arch and the
+        // left-hand block: all of them meet the SKY along a hard silhouette,
+        // which is the one place a double edge has maximum contrast to read
+        // against. They were 0.07 / 0.12 / 0.18 and they all SATURATED the
+        // clamp — measured at the far end, -15.7 / -15.6 / -15.1px. Within
+        // 0.6px of each other, so there was never any parallax BETWEEN them;
+        // the whole far group walked 15.7px off the base as one block and
+        // printed a second skyline beside the first. That is the client's
+        // "double building", in daylight and at night.
+        //
+        // ⚠️ AND IT IS ALSO "clouds and buildings". tools/scrub_stage_clouds.py
+        // builds the sky seal as `struct & ~others` — structure another card
+        // already owns is deliberately LEFT OUT of the seal, because that card
+        // will redraw it. That is only true if the owning card is at
+        // BASE_DEPTH. Underground's entire sky band is owned by these three,
+        // so its seal came out at 297 opaque px against 10,776 on eav-day,
+        // 22,775 on edgewood-day and 5,849 on l5p-day — an empty seal. The
+        // drifting cloud painted over the base's own towers, the seal had
+        // nothing to put back, and the `towers` card that should have covered
+        // it had slid 15.7px left. `towers` shares 9,887px with the clouds
+        // card; that strip WAS the cloud coming through the building.
+        //
+        // At 0.50 they register with the base to the pixel, so all three
+        // faults close at once. THEY KEEP THEIR PLACE IN THIS ARRAY — position
+        // is what makes a card occlude the weather (drawCards iterates in
+        // order; depth only sets the rate), exactly as the skystruct seal's
+        // own comment explains. The cost is 15.7px of skyline-against-street
+        // motion. The depth the client actually praised — "the trashcan and
+        // the newspaper machine" — is `furniture` and `lamps`, and they keep
+        // theirs.
+        { key: 'towers', img: ugTowers, depth: 0.50, span: [0.513, 0.999] },
+        { key: 'backdrop', img: ugBackdrop, depth: 0.50, span: [0.242, 0.589] },
+        { key: 'leftblock', img: ugLeftblock, depth: 0.50, span: [0.000, 0.242] },
         // PARK / ALL DAY — a blade sign bolted to the left block's corner, so
         // it sits with the block rather than at the depth its position in the
         // draw order would suggest.
@@ -852,14 +917,32 @@ const STAGE_DEFS = [
         { key: 'waffle', img: ugWaffle, depth: 0.50, span: [0.558, 0.596] },
         { key: 'coke', img: ugCoke, depth: 0.50, span: [0.538, 0.593] },
         {
-          key: 'trees', img: ugTrees, depth: 0.48, span: [0.000, 0.948],
+          // ⚠️ THE PEACHTREE FURNITURE SIGNBOARD IS ON THIS CARD, at night too.
+          // The full reasoning is on the day half below — 27,046 opaque px of
+          // signboard here against 7,982 of bare parapet on `peachtree`, which
+          // makes this a LETTERING card whatever its name says.
+          //
+          // THE DAY HALF GOT THIS FIX AND THIS ONE DID NOT. Its comment block
+          // described the change as done while this line still read 0.48 with
+          // a third sway band over xRanges [0.730, 0.950] — plate x1120-1458,
+          // dead across the signboard. Half of a matched pair, which is the
+          // shape this project keeps producing: the two variants are separate
+          // objects and a fix applied by eye lands on whichever one was open.
+          //   * 0.48 -> 0.50 (BASE_DEPTH, the one value at which a card cannot
+          //     ghost).
+          //   * the third band is gone. Shearing painted lettering +/-3px
+          //     against a static copy of itself is the same fault in
+          //     miniature, and it only shows in motion — which is why still
+          //     frames of this plate kept coming back clean.
+          // The cost is that the trees at the right of the plate no longer
+          // float. Cheap against a shimmering sign.
+          key: 'trees', img: ugTrees, depth: 0.50, span: [0.000, 0.948],
           // Street trees, pivoted at the bottom of each canopy so the trunks
-          // stay put. Three windows rather than one, or the whole line leans
+          // stay put. Two windows rather than one, or the whole line leans
           // together like the single cutout it would otherwise be.
           sway: [
             { top: 0.30, pivot: 0.62, amp: 3.5, freq: 0.9, xRanges: [[0.000, 0.080]] },
             { top: 0.30, pivot: 0.66, amp: 3, freq: 1.1, xRanges: [[0.630, 0.720]] },
-            { top: 0.28, pivot: 0.64, amp: 3, freq: 0.8, xRanges: [[0.730, 0.950]] },
           ],
         },
         { key: 'dirsign', img: ugDirsign, depth: 0.50, span: [0.468, 0.527] },
@@ -895,6 +978,11 @@ const STAGE_DEFS = [
         img: bgUndergroundDayBase,
         meters: 8.6,
         groundFrac: 0.71,   // the yellow platform edge, measured at y 727/1024
+        // The day half of `separation`. Written out in full on the night bg
+        // above; the short version is that `bg` is REPLACED for the day
+        // variant, not merged, so this has to be stated twice or daylight —
+        // the half the doubling actually shows in — runs at the 16px default.
+        separation: 4,
         // ── THE SKY IS SAMPLED OFF THE PLATE, NOT PICKED ─────────────
         // The gradient is only ever visible ABOVE the plate's top edge, so
         // the colour it reaches THERE is the only one that matters — and it
@@ -946,9 +1034,13 @@ const STAGE_DEFS = [
           // cloud becomes visible through every building it passes behind,
           // which is the longest-running bug on this project.
           { key: 'skystruct', img: ugdSkystruct, depth: 0.5, span: [0.000, 1.000] },
-          { key: 'towers', img: ugdTowers, depth: 0.07, span: [0.511, 0.999] },
-          { key: 'backdrop', img: ugdBackdrop, depth: 0.12, span: [0.242, 0.539] },
-          { key: 'leftblock', img: ugdLeftblock, depth: 0.18, span: [0.000, 0.243] },
+          // BASE_DEPTH, for the reasons written out on the night half above —
+          // and this is the half where it matters most, because the 9,887px
+          // the `towers` card shares with `clouds` is the cloud-through-
+          // building strip and there is no cloud card at night.
+          { key: 'towers', img: ugdTowers, depth: 0.50, span: [0.511, 0.999] },
+          { key: 'backdrop', img: ugdBackdrop, depth: 0.50, span: [0.242, 0.539] },
+          { key: 'leftblock', img: ugdLeftblock, depth: 0.50, span: [0.000, 0.243] },
           { key: 'park', img: ugdPark, depth: 0.50, span: [0.079, 0.117] },
           { key: 'peachtree', img: ugdPeachtree, depth: 0.50, span: [0.827, 0.999] },
           { key: 'midbuild', img: ugdMidbuild, depth: 0.50, span: [0.248, 0.657] },

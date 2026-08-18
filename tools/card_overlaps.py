@@ -76,14 +76,37 @@ def cards(stage):
             for m in re.finditer(r"key: '(\w+)'.*?depth: ([\d.]+)", SRC[j:k], re.S)]
 
 
-def separation(depth, cam=CAM_END):
+def block(stage):
+    """The stage's `bg` object text, from its id down to its card list."""
+    parent = stage[:-4] if stage.endswith('-day') else stage
+    i = SRC.index(f"id: '{parent}'")
+    if stage.endswith('-day'):
+        i = SRC.index('day: {', i)
+    return SRC[i:SRC.index('cards: [', i)]
+
+
+def cap(stage):
+    """The stage's own separation clamp — `bg.separation`, else the default.
+
+    ⚠️ THIS USED TO BE HARDCODED AT 16 AND THAT MADE EVERY NUMBER BELOW A
+    GUESS. render/backdrop.js has had `maxSep(stage)` since ca206e4, reading
+    `bg.separation` per stage; Underground declares 4. A verification tool
+    holding its own copy of the thing it verifies against verifies nothing —
+    the same lesson sam_coverage.py and preview_planes.py both taught here.
+    """
+    m = re.search(r'separation: ([\d.]+)', block(stage))
+    return float(m.group(1)) if m else MAX_SEPARATION
+
+
+def separation(depth, cam=CAM_END, sep=MAX_SEPARATION):
     """Mirror of cardParallax in render/backdrop.js, minus the common term."""
     diff = cam * (depth - BASE_DEPTH) * DEPTH_SPREAD
-    return MAX_SEPARATION * math.tanh(diff / MAX_SEPARATION)
+    return sep * math.tanh(diff / sep)
 
 
 def report(stage):
     cs = cards(stage)
+    lim = cap(stage)
     masks = {}
     for key, _ in cs:
         path = os.path.join(BG, f'{stage}-{key}.webp')
@@ -95,7 +118,7 @@ def report(stage):
     for over, d_over in cs:
         if over not in masks:
             continue
-        sep = separation(d_over)
+        sep = separation(d_over, sep=lim)
         if abs(sep) < 3:
             continue                      # cannot crawl far enough to see
         for under, d_under in cs:
@@ -103,20 +126,59 @@ def report(stage):
                 continue
             if order[under] > order[over]:
                 continue                  # `under` is on top; not this pair
-            rel = sep - separation(d_under)
+            rel = sep - separation(d_under, sep=lim)
             if abs(rel) < 3:
                 continue                  # they travel together
             shared = int((masks[over] & masks[under]).sum())
             if shared >= 200:
                 hits.append((abs(rel) * shared, over, d_over, under, rel, shared))
 
-    print(f'\n{stage}')
+    print(f'\n{stage}   (separation cap {lim:g}px)')
     if not hits:
         print('   nothing on top of anything it can crawl across')
         return
     for _, over, d_over, under, rel, shared in sorted(hits, reverse=True):
         print(f'   {over:12s} d={d_over:<5} drawn OVER {under:12s} '
               f'sharing {shared:6d}px, crawling {rel:+6.1f}px')
+
+
+def seal(stage):
+    """Cards the CLOUD SEAL defers to, that are not at BASE_DEPTH.
+
+    THE FAULT. tools/scrub_stage_clouds.py builds the sky seal as
+    `struct & ~others`: structure another card already owns is deliberately
+    left OUT of the seal, because that card will redraw it over the weather.
+    Sound reasoning with one unstated premise — that the owning card redraws
+    it in the SAME PLACE. A card away from BASE_DEPTH does not. It slides off
+    the base's copy and leaves a strip that the seal was told not to cover and
+    the card no longer covers either, and a drifting cloud shows through it.
+
+    That is how Underground's seal came out at 297 opaque px — against 10,776
+    on eav-day, 22,775 on edgewood-day, 5,849 on l5p-day — while `towers` at
+    depth 0.07 shared 9,887px with the clouds card and slid 15.7px. The client
+    reported it for weeks as "clouds and buildings".
+
+    Any card that intersects the clouds card must be at 0.50. This finds the
+    ones that are not, and the answer is always the same: move it to 0.50. It
+    keeps its position in the array, which is what actually occludes the
+    weather; depth only sets the rate.
+    """
+    path = os.path.join(BG, f'{stage}-clouds.webp')
+    if not os.path.exists(path):
+        return []
+    sky = np.array(Image.open(path).convert('RGBA'))[..., 3] > 8
+    out = []
+    for key, depth in cards(stage):
+        if key == 'clouds' or abs(depth - BASE_DEPTH) < 1e-9:
+            continue
+        p2 = os.path.join(BG, f'{stage}-{key}.webp')
+        if not os.path.exists(p2):
+            continue
+        m = np.array(Image.open(p2).convert('RGBA'))[..., 3] > 8
+        shared = int((m & sky).sum())
+        if shared >= 200:
+            out.append((shared, key, depth, separation(depth, sep=cap(stage))))
+    return sorted(out, reverse=True)
 
 
 def main():
@@ -127,6 +189,20 @@ def main():
             print(f'\n{stage}: no such stage in stages.js')
     print('\nJudge each pair against the painting: same distance -> same depth '
           '(0.50). Genuinely nearer -> leave it, that pair is the effect.')
+
+    print('\n── SEAL ASSUMPTION ── cards the cloud seal defers to that move')
+    bad = 0
+    for stage in (sys.argv[1:] or STAGES):
+        try:
+            hits = seal(stage)
+        except ValueError:
+            continue
+        for shared, key, depth, sep in hits:
+            bad += 1
+            print(f'   {stage:16s} {key:12s} d={depth:<5} sliding {sep:+6.1f}px '
+                  f'across {shared:6d}px of cloud — must be 0.50')
+    if not bad:
+        print('   clean — every card the seal skips is at BASE_DEPTH')
 
 
 if __name__ == '__main__':

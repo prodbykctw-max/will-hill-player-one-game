@@ -67,6 +67,60 @@ scratchpad, never the repo root.
 
 ## DONE — shipped and live
 
+### The Underground doubling — one number that was never wired up
+
+Client, with four phone captures: *"It's always underground with double shit in
+there in the background double pose double building and all the issues day and
+night."* Then: *"Buildings and buildings clouds and buildings we gotta fix this
+man. We are almost done with the game."*
+
+Three complaints, one cause. `src/render/backdrop.js` has read
+`bg.separation` per stage since `ca206e4`, defaulting to 16px, and the comment
+in that same commit says *"Underground takes 4"* — **and no stage ever declared
+it.** `git log -S separation -- src/world/stages.js` returned nothing, ever. The
+stage of signs ran at the 16px cap its whole life.
+
+Measured off the live game at 82% of the stage, before → after:
+
+| card | before | after | what it is on screen |
+|---|---|---|---|
+| `towers` | −15.3px | **0.0** | the downtown skyline, doubled |
+| `backdrop` | −14.9px | **0.0** | doubled |
+| `leftblock` | −14.1px | **0.0** | doubled |
+| `furniture` | +13.0px | **+4.0** | bins, boxes, parked cars |
+| `lamps` | +13.4px | **+4.0** | "double pose" — the lampposts |
+
+Ten values in `src/world/stages.js` and no plate pixel touched:
+
+- `separation: 4` on **both** Underground `bg` blocks — `?tod=day` replaces
+  `bg` wholesale, so it has to be stated twice.
+- `towers` / `backdrop` / `leftblock` → `depth: 0.50`, night and day. They kept
+  their place in the array, which is what occludes the weather. They had all
+  saturated the clamp within 1.2px of each other, so there was no parallax
+  between them to lose.
+- Night `trees` → `0.50` and its third sway band dropped: the day half had this
+  fix and the night half never got it, under a comment describing both as done.
+- `edgewood-day` `skyline` → `0.50`, same fault, 4,073px of cloud overlap.
+
+Shown to him as a four-panel day/night before/after at the same camera: three
+lamp heads become two, the street sign stops reading twice, the towers resolve
+to one each, PEACHTREE loses its ghost P.
+
+**Why no harness caught it:** `cloudseal.mjs` measured at spawn only, and card
+separation is `camX * (depth - BASE_DEPTH) * DEPTH_SPREAD` — zero there by
+construction. It travels five positions now. See `docs/LESSONS.md` 27–30 and
+`docs/NEXT_CHAT.md` §6 faults D and E.
+
+⚠️ **Two leaks the travelled harness found on stages nobody reported**, both
+pre-existing and carried as a named ratchet in the harness: `eav` 104px at
+11,290m-in and `l5p` 115px at 7,200. eav's does NOT respond to this fix
+(measured: with `separation: 4` on all four stages it went 104 → 142) so it is
+a different fault and is undiagnosed. Separately, `seamsweep` has always
+reported **l5p's plate join at a 194.1 step, 7.29x that frame's own p99, on 26
+of 100 frames** — the worst number in that harness by a factor of fourteen, and
+untouched.
+
+
 ### Audio, settings and scores — the day he tested it live (`fa72781` … `b1a9dec`)
 
 Eight commits, all confirmed by him on the device: *"Everything plays well.

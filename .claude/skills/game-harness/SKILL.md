@@ -38,6 +38,17 @@ const shot = await page.evaluate(async (t) => {
 
 One `evaluate`, because anything that crosses the CDP boundary lets frames slip.
 
+## ⚠️ Name the axis the fault is a FUNCTION of, and vary THAT
+
+Before trusting a green check, write down what the defect actually depends on
+and confirm the harness moves along it.
+
+> A cloud-seal harness sampled six ticks at spawn and was green for weeks
+> against a bug in the client's own screenshots. Card separation is
+> `camX * (depth - BASE_DEPTH) * DEPTH_SPREAD` — **identically zero at spawn**.
+> Ticks move drift and sway; they do not move the camera. Six samples along the
+> wrong axis reads like thoroughness and proves nothing.
+
 ## ⚠️ Measure the noise floor, do not assume there isn't one
 
 Even pinned, things move: idle animations, HUD timers, swaying scenery.
@@ -45,6 +56,13 @@ Even pinned, things move: idle animations, HUD timers, swaying scenery.
 Capture the **same state twice**, diff those, and subtract that mask from your
 real comparison. One pair is not enough if anything cycles — take the union
 across every sample.
+
+**Sandwich it around the measurement — off → ON → off, per sample.** Taking
+every control frame in one pass and every measured frame in a second pass puts
+minutes of wall clock between the two halves of a subtraction, and anything
+that drifts with time rather than with your pinned counter lands entirely
+outside the floor that was supposed to cover it. That mistake reported
+**127,196 px of a 143,190 px band** as signal: the whole picture.
 
 > Skipping this reported **236 px of "cloud on a building"** that turned out to
 > be the player's own trousers, rows 508–569, his sprite box on every stage.
@@ -63,6 +81,29 @@ If a harness genuinely must walk him across a whole stage, the loop has to be
 defeated on purpose: re-state `hearts` and `screen` on **every** step, and
 prove the frames settled before trusting them. That is a real pattern, not a
 prohibition — `stagesweep.mjs` sweeps 27-34 screens per stage that way.
+
+### ⚠️ And teleporting for a MEASUREMENT is not teleporting for a PICTURE
+
+Parking him far above the level clears the frame beautifully, and it leaves the
+camera with an enormous lerp error. The update runs on a fixed-timestep
+accumulator, so a slow frame takes two sub-steps instead of one and the lerp
+lands somewhere else.
+
+> One doubled sub-step moved the whole backdrop **38px** for exactly one grab —
+> `camy -127.91` against `-68.77` on the frames either side. Retrying does not
+> help: the lerp settles on the new point and stays there.
+
+Three rules, in order:
+
+1. **Hold the subject where the camera already wants to be** — his standing
+   height, not the void. Zero error means the sub-step count stops mattering.
+   He is then IN frame, which is what the noise floor is for.
+2. **Converge the camera FREE, then lock it at the point it chose.** Forcing a
+   value the lerp is not already at re-opens the transient every single frame.
+   Lock at spawn too: converging is not the same as being still.
+3. **Record the camera with every grab and refuse to subtract frames that
+   disagree.** Report the discarded ones as discarded. A harness that quietly
+   drops what it could not measure is how one gets trusted while blind.
 
 ## Isolate a layer by DRAWING IT TWICE, not by colour-keying
 

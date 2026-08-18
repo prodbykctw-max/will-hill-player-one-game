@@ -724,3 +724,35 @@ in the state you cannot see once you have used the app once — the fresh one.**
 Test it on a fresh profile or you will never see it. `musicbox.mjs` now opens a
 clean context specifically for that, and the check was confirmed to FAIL
 against the old line before being kept.
+
+27. A mechanism is not a fix until something USES it. `maxSep(stage)` went into
+    `render/backdrop.js` reading `bg.separation`, with a comment in the same
+    commit saying "Underground takes 4" — and no stage ever declared it. The
+    default carried on applying, the comment read as a description of shipped
+    behaviour, and the client reported the resulting artefact four separate ways
+    over four sessions. `git log -S <field> -- <the file that must set it>`
+    settles it in one command; a comment about a value proves only that someone
+    intended to set it.
+
+28. A fix applied to one of two variants is a fix that will be reported again.
+    Underground's day and night are separate `bg` objects and `?tod=day`
+    replaces `bg` wholesale rather than merging, so `depth: 0.48` and a sway
+    band survived on the night `trees` card under a comment block that described
+    both as already changed. Anything set on one variant gets grepped on both,
+    and anything the renderer reads per-stage gets set per-variant.
+
+29. A harness that never moves cannot see a fault that depends on where you are.
+    `cloudseal.mjs` measured at spawn, and the quantity it exists to catch is
+    `camX * (depth - BASE_DEPTH) * DEPTH_SPREAD` — identically zero at spawn.
+    It was green for weeks against a bug in live screenshots. Before trusting a
+    green check, write down what the fault is a FUNCTION of, and confirm the
+    harness varies that axis. Varying some other axis six times (six ticks, in
+    this case) reads like thoroughness and is not.
+
+30. Teleporting for a measurement is not the same as teleporting for a picture.
+    Parking him at `y=-40000` clears the frame beautifully and leaves the camera
+    with a 40,000px lerp error, so one doubled fixed-timestep sub-step moves the
+    whole backdrop 38px — 127,196 px of a 143,190 px band read as "cloud on a
+    building". Hold the subject where the camera already wants to be, converge
+    the camera free, then lock it at the point it chose; and sandwich the noise
+    floor around the measurement rather than taking it in a separate pass.

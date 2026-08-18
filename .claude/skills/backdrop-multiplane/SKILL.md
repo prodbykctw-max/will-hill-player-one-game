@@ -45,6 +45,50 @@ disjoint rectangular planes — they work, and they read as hard cuts.
    no longer existed. A verification tool that models the dead law grades its
    own memory, not the game.
 
+## ⚠️ A per-stage clamp only exists if a stage sets it
+
+The renderer can read `bg.separation` per stage and fall back to a default. It
+had that hook, and the comment introducing it named the value one stage should
+use — and **no stage ever set it**. The default applied for the whole life of
+the project while the comment read like shipped behaviour, and the client
+reported the resulting doubling four separate ways over four sessions.
+
+`git log -S <field> -- <the table that must set it>` answers this in one
+command. A comment about a value proves only that someone intended to set it.
+
+And **the letter height is the yardstick, not the plank width.** 16px of double
+on a fence plank reads as paint thickness; on a word it is a second word. A
+street made of signage needs about 4px, and the whole cost of that is a smaller
+lenticular shift — the depth ORDER, the rates and the sway are untouched.
+
+## ⚠️ Far cards that saturate the clamp are not buying depth
+
+Check what each card's offset actually REACHES at the far end of the stage
+before defending its depth. Three far cards at 0.07 / 0.12 / 0.18 came out at
+−15.3 / −14.9 / −14.1px: all pinned against the clamp and **within 1.2px of
+each other**, so there was no parallax between them at all. They were printing
+a second skyline beside the first and returning nothing for it.
+
+Anything whose silhouette meets the SKY is the worst case for a double, because
+that is where the contrast to read it against is highest. If such a card
+saturates, put it at `BASE_DEPTH` — it keeps its place in the draw order, which
+is what actually occludes the weather; `depth` only sets the rate.
+
+## ⚠️ A cloud seal that defers to a moving card is not a seal
+
+The sane way to build a sky seal is `structure & ~(pixels another card owns)` —
+that card will redraw them. True only if the owning card redraws them **in the
+same place**, i.e. only if it is at `BASE_DEPTH`.
+
+Where a stage's whole sky band was owned by far cards, that reasoning emptied
+the seal: **297 opaque px against 5,849–22,775 on the sibling stages.** The
+tell is comparative — a seal an order of magnitude smaller than its siblings'
+is not a simple sky, it is a seal that was argued out of existence.
+
+Two checks worth owning: any card intersecting the clouds card must be at 0.50;
+and because clouds DRIFT, the honest test is which **rows** a cloud can reach,
+not where its static alpha happens to sit.
+
 ## Hard-won rules
 
 - **SAM finds, it does not rank.** It has no idea about depth. Something still
