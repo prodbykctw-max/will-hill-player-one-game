@@ -271,6 +271,23 @@ const state = {
   introTapped: false,
   introAt: 0,
   runLog: createRunLog(),
+  // ── THE COMBO CHAIN ────────────────────────────────────────────────────
+  // Client: "I plan on working a combo system into the game."
+  //
+  // `combo` is the chain in the air right now; `comboBest` is the best of
+  // this run, which is what the dashboard's MAX COMBO reads. Deliberately
+  // TWO numbers: the live one has to fall to zero the instant he lands, and
+  // the run's best must survive that, a death, and a continue.
+  //
+  // ⚠️ IT SCORES NOTHING, ON PURPOSE. Every point in this game is recomputed
+  // server-side and checked against a MEASURED ceiling (61,650 perfect,
+  // 70,000 refused) and a 400/second rate limit. A combo bonus would move
+  // both, re-open the Will Hill calibration, and risk refusing a genuinely
+  // great run mid-contest as "implausible-rate". So the chain is a flourish
+  // and a statistic — it changes what the run FEELS like and what the
+  // dashboard can say about it, and touches nothing that decides the prize.
+  combo: 0,
+  comboBest: 0,
 };
 
 // DEV ONLY — a handle on the live state, so a headless browser can drive the
@@ -448,6 +465,8 @@ function startRun() {
   // and resets with it, so the ending board needs its own running total or
   // it would report only the last stage he walked.
   state.distanceM = 0;
+  state.combo = 0;
+  state.comboBest = 0;
   state.runLog = createRunLog();
   state.runLog.start();
   // The results are offered ONCE per run, on the ending. Without a latch,
@@ -1030,6 +1049,20 @@ function update() {
     }
   }
 
+  // ⚠️ THE CHAIN BREAKS ON THE GROUND — AND THIS LINE LIVED INSIDE
+  // `if (isRelay())` FOR ONE COMMIT, WHICH IS WHY combo.mjs EXISTS.
+  // The relay block a few lines up ends with an onGround test of its own, and
+  // putting this beside it read perfectly and shipped a combo that never
+  // reset in the actual game — only in the dev flag nobody plays. It counted
+  // up all run and every check but one went green. The harness caught it.
+  //
+  // It sits BEFORE the enemy loop deliberately, and that is safe: a stomp
+  // requires !player.onGround and leaves him rising at vy -10.5, so he can
+  // never be on the ground in the same frame he stomps, and this can never
+  // zero a chain it is part of. Written as an assignment rather than a
+  // transition check because standing still should hold it at zero.
+  if (player.onGround) state.combo = 0;
+
   // enemies: patrol/defeat-timer update, then collision resolution
   for (let i = level.enemies.length - 1; i >= 0; i--) {
     const e = level.enemies[i];
@@ -1043,6 +1076,30 @@ function update() {
       audio.play('punch');
       state.score += 50; // matches SCORE_RULES.stomp in cloudflare/leaderboard-worker.js
       state.runLog.record('stomp');
+      // ── CHAIN ────────────────────────────────────────────────────────
+      // The mechanic this counts was ALREADY HERE and nobody was reading
+      // it: resolveEnemyCollision pogos him off a stomp at vy -10.5 and
+      // hands back an air jump. That bounce alone carries 258px at run
+      // speed (2*10.5/0.52 = 40 ticks x 6.4), and the generator's
+      // MIN_ENEMY_SPACING_COLS is 8 columns = 256px. So a chain clears the
+      // tightest spacing in the game by two pixels BEFORE the free air jump
+      // is spent. Measured, not hoped at — tools/harness/combo.mjs walks it.
+      // That is the whole reason the rule below is "without landing" rather
+      // than a forgiving timer: the jump arc already makes it exactly, and
+      // barely, possible, which is what a combo should be.
+      state.combo += 1;
+      if (state.combo > state.comboBest) {
+        state.comboBest = state.combo;
+        // ⚠️ LOGGED ON EACH NEW BEST, NOT ONCE AT THE END. A run can finish
+        // at a death, at a continue that renews the run id, or at the last
+        // stage clear, and an end-of-run hook would have to be right on all
+        // three — the continue path already cost this contest a real score
+        // once by being missed. Recording the new high as it happens is
+        // correct on every path with no hook at all, costs at most
+        // (best - 1) events, and the Worker takes MAX of what it finds.
+        if (state.comboBest >= 2) state.runLog.record('combo', { n: state.comboBest });
+        audio.combo(state.combo);
+      }
     } else if (result === 'contact') {
       // AN ENEMY KNOCKS THE MONEY OUT OF YOU. Deliberately different from a
       // pothole, which only trips you: a pothole is the street, an enemy robs
@@ -1683,6 +1740,7 @@ function draw() {
     maxHearts: player.maxHearts,
     stageName: stage.name,
     champagneFrac: champLeft / (CHAMPAGNE_SECONDS * 1000),
+    combo: state.combo,
     portraitImg: images.player,
     portraitAtlas: PLAYER_SPRITE.atlas,
   });

@@ -104,6 +104,33 @@ An earlier full pass at `47249b3` ran all 32: **24 graded, 355 checks, zero
 failures.** The 8 report-only harnesses ran clean — which means they produced
 their sheets, not that they graded anything.
 
+### The combo chain, and the point it must never score
+
+`tools/harness/combo.mjs` (12 checks). It drives the real update loop — nothing
+calls `resolveEnemyCollision` directly, or it would be grading a function
+rather than the game — and asserts the chain counts, that landing breaks it,
+that the run's best survives landing, and that the log carries each new best.
+
+**The load-bearing check is the negative one:** five stomps must move the score
+by exactly 250 and not one point more. A combo bonus would shift a ceiling that
+is measured (61,650) against a refusal threshold (70,000) and a 400/second rate
+check, and the symptom would not be a wrong number on screen — it would be a
+great run refused mid-contest as `implausible-rate`.
+
+It also measures the *design premise* rather than trusting arithmetic in a
+comment: a post-stomp bounce carries 256px, and the generator's tightest enemy
+spacing is 256px, so a chain is reachable by exactly nothing to spare.
+
+⚠️ **It earned its keep on the first run.** The chain-reset line had been
+written beside a near-identical `onGround` test that lives inside
+`if (isRelay())`, so it shipped resetting only under a dev flag nobody plays —
+the combo counted up all run and never cleared. Every other check went green.
+Two harness bugs surfaced first and are worth knowing as shapes: hand-built
+enemy objects with an invalid `variant` killed the renderer mid-chain and read
+exactly like the combo failing, and forcing `player.onGround = true` proved
+nothing because `updatePlayer` recomputes it from the map every frame — the
+test now lands him on real ground and asserts he got there.
+
 ### Does the number fit the box he painted?
 
 `tools/harness/dashfit.mjs`. Every value on the dashboard is a transparent box

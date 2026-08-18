@@ -168,8 +168,14 @@ export function createRunLog() {
       runId = (crypto.randomUUID && crypto.randomUUID())
         || `${Date.now().toString(16)}-${Math.floor(Math.random() * 1e16).toString(16)}`;
     },
-    record(type) {
-      events.push({ t: Math.round(performance.now() - startedAt), type });
+    // `extra` carries the few events that are more than their own name — the
+    // combo chain's length, so far the only one. Spread LAST but after `type`
+    // so a caller cannot rewrite `t` and hand the Worker a log whose events
+    // are out of order, which is a shape its scorer specifically refuses.
+    record(type, extra) {
+      const ev = { t: Math.round(performance.now() - startedAt), type };
+      if (extra) for (const k of Object.keys(extra)) if (k !== 't' && k !== 'type') ev[k] = extra[k];
+      events.push(ev);
     },
     finish() {
       return {
@@ -348,13 +354,16 @@ export function tallyLog(log) {
       const n = Number(type.slice('stage_clear_'.length)) || 0;
       if (n > t.bestStage) t.bestStage = n;
     } else if (type === 'combo') {
-      // ⚠️ NOTHING EMITS THIS YET. The combo system is not in the game — the
-      // client asked for MAX COMBO on the dashboard "because I plan on
-      // working a combo system into the game", so the shape it has to emit is
-      // fixed here and on the Worker at the same time rather than guessed at
-      // twice later. ONE event per run, carrying that run's best chain in
-      // `n`; a per-link event would spend the log's whole event budget on a
-      // single good stretch. Until the game sends one this stays 0.
+      // The chain: consecutive stomps without landing. main.js records one of
+      // these each time a run beats its own best, so `n` arrives already
+      // monotonic and this max is belt-and-braces rather than the mechanism.
+      // ⚠️ IT IS WORTH ZERO POINTS AND MUST STAY THAT WAY. There is no entry
+      // for it in scoreOf() above or in the Worker's SCORE_RULES, and
+      // tools/harness/combo.mjs fails if a chain ever moves the score. A
+      // bonus here would shift a ceiling that is MEASURED (61,650) against a
+      // refusal threshold (70,000) and a 400/second rate check — the visible
+      // symptom would not be a wrong number, it would be a great run refused
+      // mid-contest as implausible.
       const c = Math.floor(Number(ev.n) || 0);
       if (c > t.maxCombo) t.maxCombo = c;
     }

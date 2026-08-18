@@ -200,10 +200,15 @@ function statsFromEvents(events, durationMs) {
       const n = Number(type.slice('stage_clear_'.length)) || 0;
       if (n > s.best_stage) s.best_stage = n;
     } else if (type === 'combo') {
-      // ⚠️ ONE EVENT PER RUN, CARRYING THE RUN'S BEST CHAIN — not one event
-      // per link. There is no combo system in the game yet; this is the shape
-      // it has to emit, chosen so a 200-stomp chain costs the log one event
-      // instead of 200 and cannot push real events past MAX_EVENTS.
+      // ⚠️ ONE EVENT PER NEW RUN BEST — not one per link, and not one per
+      // run. The game (src/main.js, the stomp branch) records the chain only
+      // when it beats its own high for the run, so a best of 5 costs the log
+      // four events and a 200-link chain costs 199 rather than 200 per link.
+      // That shape was chosen over an end-of-run summary because a run can
+      // end at a death, at a continue that renews the run id, or at the last
+      // stage clear, and the continue path has already cost this contest a
+      // real score once by being missed. Taking MAX here is correct for all
+      // of them, and correct again if the client ever sends only one.
       // ⚠️ AND IT IS A NUMBER THE PLAYER HANDED US. The score is recomputed
       // and can be refused; this cannot be — a cheat could claim any chain
       // without gaining a point. CAP is what stops the dashboard printing a

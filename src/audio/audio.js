@@ -651,6 +651,26 @@ export function createAudio() {
     },
     stop() {},
 
+    // ⚠️ A CHAIN STEP RIDES ON TOP OF THE PUNCH, IT DOES NOT REPLACE IT.
+    // The punch is the sound of landing on someone and it has to stay exactly
+    // as loud as it is at x1 — a chain that quietly swapped it for a jingle
+    // would make the best move in the game feel weaker than the ordinary one.
+    // So this is one short chime layered over it, a step higher each link, and
+    // it is the only thing that changes.
+    //
+    // Capped at ten steps. The ratio is a semitone-ish 1.122, so an uncapped
+    // chain walks into the top of hearing within about twenty links; the cap
+    // holds the ceiling near 1.7kHz where a phone speaker can still produce
+    // it. Nothing about the game stops the chain there, only the pitch.
+    combo(n) {
+      if (sfxMuted) return;
+      const c = ensure();
+      if (!c) return;
+      if (c.state === 'suspended') c.resume().catch(() => {});
+      const step = Math.max(0, Math.min(10, (n || 2) - 2));
+      chime(c, c.currentTime, 660 * Math.pow(1.122, step), 0.16, 0.16);
+    },
+
     // Called when a champagne bottle is picked up, and when the power runs
     // out. See the arpeggio note above for why these are each other's mirror.
     powerUp() {

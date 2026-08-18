@@ -109,7 +109,7 @@ export function createHud(ctx, canvas) {
   function draw(state) {
     const {
       score, distanceM, hearts, maxHearts, stageName,
-      champagneFrac, portraitImg, portraitAtlas,
+      champagneFrac, combo, portraitImg, portraitAtlas,
     } = state;
 
     // Inset the whole cluster past the cutout and the rounded corners. The
@@ -155,6 +155,35 @@ export function createHud(ctx, canvas) {
     ctx.fillStyle = 'rgba(255,255,255,0.65)';
     ctx.textAlign = 'right';
     ctx.fillText(`${Math.round(distanceM)}m`, barX + barW, TOP + box - 1);
+
+    // ── THE COMBO CHAIN ──────────────────────────────────────────────────
+    // Only from x2. A "combo" of one is just a stomp, and a counter that
+    // reads x1 every time anybody touches an enemy is noise sitting on top
+    // of his game for the whole run.
+    //
+    // Centred, and BELOW the cluster: the top band is already his portrait,
+    // two bars and the score on the left and the pause control and stage
+    // name on the right, so this is the one place across the top that is his
+    // own artwork and nothing else. It is drawn in the score's amber and the
+    // score's font, because it belongs to the same family as the number it
+    // is not allowed to change.
+    if (combo >= 2) {
+      const cy = TOP + box + 20;
+      ctx.textAlign = 'center';
+      const cx = canvas.width / 2;
+      // Grows with the chain but stops growing, so a long chain cannot walk
+      // out over the HUD it is sitting under.
+      const size = Math.round(box * (0.42 + Math.min(combo, 6) * 0.04));
+      ctx.font = `800 ${size}px sans-serif`;
+      ctx.fillStyle = '#ffd66e';
+      ctx.shadowColor = 'rgba(0,0,0,0.75)';
+      ctx.shadowBlur = 6;
+      ctx.fillText(`x${combo}`, cx, cy + size * 0.8);
+      ctx.shadowBlur = 0;
+      ctx.font = `700 ${Math.round(box * 0.2)}px sans-serif`;
+      ctx.fillStyle = 'rgba(255,255,255,0.72)';
+      ctx.fillText('COMBO', cx, cy + size * 0.8 + Math.round(box * 0.24));
+    }
 
     pauseRect.x = canvas.width - RIGHT - box;
     pauseRect.y = TOP;
