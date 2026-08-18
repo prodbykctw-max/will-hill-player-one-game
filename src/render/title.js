@@ -57,8 +57,11 @@ import tpSignL from '../assets/backgrounds/titlep-signL.webp';
 import tpSignR from '../assets/backgrounds/titlep-signR.webp';
 import tpHero from '../assets/backgrounds/titlep-hero.webp';
 import tpPole from '../assets/backgrounds/titlep-pole.webp';
-import titleOptions from '../assets/backgrounds/title-options0.webp';
-import spriteManifest from '../assets/backgrounds/title-sprites.json';
+// ⚠️ title-sprites.json is NOT imported. It is the landscape card's sprite
+// manifest and its only live entry was the OPTIONS word, which nothing blits
+// any more; the portrait plate's clouds come from their own manifest below.
+// The file stays — cut_title_clouds.py writes it and it is the record of what
+// was cut — it just has no reader.
 import cloudManifest from '../assets/backgrounds/title-portrait-clouds.json';
 import titleSkyfill from '../assets/backgrounds/title-portrait-skyfill.webp';
 import titleSkyline from '../assets/backgrounds/title-portrait-skyline.webp';
@@ -142,7 +145,6 @@ export const TITLE_IMAGES = {
   tp_wordmark: tpWordmark, tp_logo: tpLogo, tp_stars: tpStars,
   tp_signL: tpSignL, tp_signR: tpSignR,
   tp_hero: tpHero, tp_pole: tpPole,
-  title_options: titleOptions,
   // The sky with every drifting cloud lifted out of it, and the towers on
   // their own so the far clouds can pass behind them.
   tp_skyfill: titleSkyfill,
@@ -173,12 +175,17 @@ const PROMPT = { x: 195, y: 1518, w: 462, h: 54 };
 // you are reading. A thumb is 40-50px across; there is no aiming inside that,
 // which is exactly what the client kept hitting.
 //
-// It replaces a drawn "LEADERBOARD · OPTIONS" button that sat in the black
-// below the card. That button worked and was the wrong answer twice over: it
-// was a system-ui rounded rectangle stuck under a hand-painted arcade card,
-// and it duplicated a control the painting already had. Same position, his
-// artwork, one control instead of two.
-const OPT = (spriteManifest.options || [])[0] || null;
+// It replaced a drawn "LEADERBOARD · OPTIONS" button that sat in the black
+// below the card, and then the wheel came round again: OPTIONS is a drawn
+// control once more, laid out from the bottom of the screen (see homeLayout).
+//
+// ⚠️ AND HIS PAINTED WORD IS NOT USED FOR IT. `title-options0.webp` is the
+// 189x40 sprite of the lettering, cut when the plan was to blit his own type
+// somewhere else on the card. With the drawn control on screen next to PRESS
+// START the answer is settled: it sets type, and his hero lettering above it
+// is the only painted word on the page. The sprite is still cut by
+// cut_title_clouds.py and still recorded in title-sprites.json, so nothing is
+// lost — it is simply no longer imported, which keeps it out of the bundle.
 
 // ── ZOOM, AND WHY THE TWO CONTROLS STOPPED BEING BOXES ───────────────────
 //
@@ -462,7 +469,7 @@ export function createTitle(ctx, canvas, still) {
       ctx.save();
       ctx.globalAlpha = a;
       drawBanner(box, tick, registered);
-      drawOptions(images.title_options, box, tick);
+      drawOptions(box, tick);
       drawMusic(box, musicOn, tick, musicPressAge);
       ctx.restore();
     }
@@ -1000,7 +1007,7 @@ export function createTitle(ctx, canvas, still) {
   // OPTIONS is a drawn control now, not his painted word — the painted one is
   // gone from the plate. Same weathered ink as the banner so the row reads as
   // one set of controls rather than three unrelated things.
-  function drawOptions(_img, box, tick) {
+  function drawOptions(box, tick) {
     const r = optionsRect(box);
     if (!r) return;
     ctx.save();
