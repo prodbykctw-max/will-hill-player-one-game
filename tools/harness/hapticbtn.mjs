@@ -65,7 +65,11 @@ await page.waitForTimeout(700);
 
 for (const [view, ids] of [
   ['menu', ['btnMenuBoard', 'btnMenuHow', 'btnMenuSettings', 'btnMenuClose', 'panelClose']],
-  ['form', ['btnSave', 'btnSkip', 'btnFormX', 'btnFormBoard', 'btnFormRules', 'btnFormInfo']],
+  // ⚠️ btnFormBoard AND btnFormRules ARE GONE. Both sat below y992 on his
+  // cabinet and went with the crop that turned the sign-up into a card; SAVE
+  // is the green tick on the knob now, and the x on his card is #entryClose
+  // rather than #panelClose. See tools/crop_entry_plate.py.
+  ['form', ['btnSave', 'btnSkip', 'btnFormX', 'btnFormInfo', 'entryClose']],
   ['settings', ['btnBack']],
 ]) {
   await page.evaluate((v) => window.__panel && window.__panel.open(v), view);
@@ -121,7 +125,7 @@ await page.evaluate(() => window.__panel && window.__panel.open('form'));
 await page.waitForTimeout(300);
 const runs = await page.evaluate(async () => {
   let n = 0;
-  const b = document.getElementById('btnFormRules');
+  const b = document.getElementById('btnFormInfo');
   b.addEventListener('click', () => { n += 1; });
   b.click();
   await new Promise((r) => setTimeout(r, 200));

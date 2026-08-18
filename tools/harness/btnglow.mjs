@@ -224,9 +224,14 @@ await p.click('#btnRegister');
 await p.waitForTimeout(650);
 console.log('\nENTER CONTEST cabinet');
 map = await litMap();
-rs = await rects(['btnSave', 'btnSkip', 'btnFormX', 'btnFormBoard', 'btnFormRules',
-  'btnFormInfo', 'panelClose']);
-check('all seven painted controls are on screen', Object.keys(rs).length === 7,
+rs = await rects(['btnSave', 'btnSkip', 'btnFormX',
+  'btnFormInfo', 'entryClose']);
+// ⚠️ FIVE, NOT SEVEN, since the sign-up cabinet became a card. LEADERBOARD
+// and RULES & PRIZES were below the y992 cut and are gone; SAVE moved onto the
+// knob as a green tick; the x on his card is #entryClose now, because on an
+// overlay a x closes the overlay and #panelClose went back to belonging to the
+// panel underneath. tools/crop_entry_plate.py holds the geometry.
+check('all five painted controls are on screen', Object.keys(rs).length === 5,
   Object.keys(rs).join(' '));
 for (const [id, r] of Object.entries(rs)) {
   const m2 = inRect(map, r);
@@ -243,8 +248,8 @@ check('the form fields are not lit', litField.length === 0,
   litField.map(([id, m2]) => `${id} ${(m2.cover * 100).toFixed(1)}%`).join(' '));
 const eaten2 = await p.evaluate(() => {
   const out = [];
-  for (const id of ['btnSave', 'btnSkip', 'btnFormX', 'btnFormBoard', 'btnFormRules',
-    'btnFormInfo', 'panelClose']) {
+  for (const id of ['btnSave', 'btnSkip', 'btnFormX',
+    'btnFormInfo', 'entryClose']) {
     const el = document.getElementById(id);
     const r = el.getBoundingClientRect();
     const hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
@@ -265,8 +270,8 @@ check('the glow layer eats no taps on the cabinet', eaten2.length === 0, eaten2.
 // controls.
 const shadows = await p.evaluate(() => {
   const out = [];
-  for (const id of ['btnSave', 'btnSkip', 'btnFormX', 'btnFormBoard', 'btnFormRules',
-    'btnFormInfo', 'panelClose']) {
+  for (const id of ['btnSave', 'btnSkip', 'btnFormX',
+    'btnFormInfo', 'entryClose']) {
     const el = document.getElementById(id);
     if (!el) continue;
     const cs = getComputedStyle(el);

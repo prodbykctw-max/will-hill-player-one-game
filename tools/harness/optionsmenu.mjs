@@ -101,21 +101,40 @@ check('HOW TO PLAY opens with its lessons', how.t === 'HOW TO PLAY' && how.n >= 
 await p.screenshot({ path: `${OUT}/ux-how.png` });
 await p.evaluate(() => window.__panel.close());
 
-// ── 2. the offer before a run — only once a run exists ────────────────────
-// A brand-new device must get straight into the game; the offer belongs to
-// the player who has already played and now has something to enter.
+// ── 2. the offer before a run — EVERY start, until they enter ─────────────
+//
+// ⚠️ THIS SECTION ASSERTED THE OPPOSITE UNTIL NOW, and it was wrong on
+// `origin/main` before the sign-up card was ever cropped — five checks red,
+// two of them only because the form stopped being a `.pv`. The other three
+// were testing a flow `ca4e5a2` deliberately replaced, and a harness that
+// defends a superseded decision is worse than no harness.
+//
+// What it used to assert: a brand-new device gets straight into the game, the
+// offer belongs to a player who already has a run banked, the offer is latched
+// in localStorage so it only happens once, and NOT NOW goes straight to
+// 'playing'. Every one of those is now deliberately false. His spec:
+//
+//   "Start — sign in or not — how to play — play game"
+//   "Ask again next time they start until they're registered."
+//
+// So the gate fires on the FIRST start, with nothing banked — that brand-new
+// player is exactly who it exists for, and the old `localRuns().length` guard
+// made it unreachable for them. It repeats every start, so the `wh_signup_asked`
+// latch is gone rather than merely unset. And NOT NOW lands on HOW TO PLAY,
+// because the lesson is the next link in the chain, not the run.
 await p.evaluate(() => { const g = window.__game; g.screenT = g.introAt + 999; });
 await p.waitForTimeout(120);
 await p.mouse.click(215, 700);
-await p.waitForTimeout(400);
-const fresh = await p.evaluate(() => ({
+await p.waitForTimeout(450);
+const firstRun = await p.evaluate(() => ({
   screen: window.__game.screen,
   open: !document.getElementById('panel').hidden,
+  form: !document.getElementById('entryLayer').hidden,
 }));
-check('a first-time player is never stopped by the form',
-  !fresh.open && fresh.screen !== 'title', JSON.stringify(fresh));
+check('the very first START offers the contest, with nothing banked',
+  firstRun.open && firstRun.form, JSON.stringify(firstRun));
 
-// Bank a run, come back to the title, and the offer is due.
+// Bank a run, come back to the title, and the offer is due again.
 await p.evaluate(() => {
   localStorage.setItem('wh_local_runs', JSON.stringify([{ name: 'X', score: 900, t: 1, me: true }]));
 });
@@ -135,12 +154,28 @@ const offered = await p.evaluate(() => ({
 }));
 check('a returning player is offered sign-up before the run',
   offered.open && offered.view === 'ENTER THE CONTEST', JSON.stringify(offered));
-check('and the offer is remembered on the device', offered.asked === '1');
+// ⚠️ NOT LATCHED, AND THAT IS THE FEATURE. "Ask again next time they start
+// until they're registered." A device that has been asked and said no must
+// still be asked, so nothing may be written that would stop it.
+check('the offer is NOT latched away on the device', offered.asked === null,
+  String(offered.asked));
 
-// NOT NOW must hand the run back, not strand them on a panel.
+// NOT NOW hands them on to the lesson, which is the next link in his chain —
+// not straight to the run, and above all not stranded on a panel.
 await p.click('#btnSkip');
-await p.waitForTimeout(500);
-check('NOT NOW still starts the run they asked for',
+await p.waitForTimeout(550);
+const afterSkip = await p.evaluate(() => ({
+  form: !document.getElementById('entryLayer').hidden,
+  how: !document.getElementById('pvHow').hidden,
+  back: document.getElementById('btnHowBack')?.textContent,
+}));
+check('NOT NOW dismisses the card and lands on HOW TO PLAY',
+  !afterSkip.form && afterSkip.how, JSON.stringify(afterSkip));
+check('and HOW TO PLAY is holding the run, so its footer reads PLAY',
+  afterSkip.back === 'PLAY', String(afterSkip.back));
+await p.click('#btnHowBack');
+await p.waitForTimeout(600);
+check('PLAY starts the run they asked for',
   await p.evaluate(() => window.__game.screen) === 'playing');
 await ctx.close();
 
