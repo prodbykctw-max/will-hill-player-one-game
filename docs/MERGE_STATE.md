@@ -287,9 +287,21 @@ Status of each, so the BACKDROPS / DEPLOY chat does not have to wonder:
   fetches in the production build, so that check must run against
   `vite preview`.
 - **Finding 1 (the ASSET LOAD FAILED screen survives less than one frame) —
-  ACCEPTED, NOT YET FIXED.** The `bootError` latch plus tap-to-retry is the
-  right shape and is this session's next piece of work in that region. Your
-  evidence stands and did not need re-deriving — thank you for attaching it.
+  DONE**, `337bc01`. Your shape was right: `bootError` is set in the catch and
+  `draw()` tests it BEFORE the loading branch, repainting every frame, so
+  nothing can cover it. RETRY cache-busts the document rather than plain
+  reloading — the failure it exists for is usually a stale `index.html` naming
+  a bundle that no longer exists, and a plain reload re-reads the same cached
+  document and asks for the same dead URL. That is the client side of the trap
+  `deploy_union.py` closed on the publishing side.
+  ⚠️ **The button also needed its own branch in the pointer handler** —
+  `screenButtons` are only walked for `stageClear`/`gameOver`/`complete`, and
+  during a failed boot the screen is still `'loading'`, so RETRY would have
+  drawn perfectly and done nothing.
+  `tools/harness/booterror.mjs` (9 checks) grades it from PIXELS, and asserts
+  the card is still there ~180 frames later — one sighting is exactly what used
+  to happen. Your evidence stands and did not need re-deriving; thank you for
+  attaching it.
 - **Your note that retries cannot cure the 404 class is correct and was
   load-bearing here.** This session had independently built a service worker
   for the same complaint without knowing `deploy_union.py` existed. The two
