@@ -828,3 +828,41 @@ against the old line before being kept.
     OPAQUE pixels: q85 moves 20-57% of them by >4 levels on dithered
     paintings — and a first measurement that included transparent pixels gave
     a nonsense answer that nearly justified it. The dither IS the artwork.
+
+## 25. GitHub Pages sends `max-age=600` on everything — content-hashed assets included
+
+Measured with `curl -I` against the live site, on a hashed bundle:
+
+```
+cache-control: max-age=600
+etag: "6a847325-25922"
+```
+
+**Ten minutes.** Pages has no cache-header configuration, so a content-hashed
+file — which can never change meaning, and which every other host would serve
+`immutable` for a year — is revalidated by the browser all day. On this game
+that is ~100 conditional requests per launch. Every answer is a 304 and no
+bytes move, and it is *still* slow on a phone, because the cost is round trips
+rather than bandwidth.
+
+Two consequences that looked like separate bugs:
+
+* An installed PWA was no faster than the browser. Without a service worker a
+  PWA precaches nothing, so "install" buys an icon and nothing else.
+* Deploy churn hurt far more than it should. A content hash IS the URL, so a
+  changed file is a new URL — and on 2026-08-18 three sessions deploying all
+  day handed returning players a cold cache for the heaviest, earliest-loading
+  files over and over. **The payload had not grown**: measured across all 105
+  commits by what the code actually imports, the game shipped 20.69 MB at its
+  first commit and 21.58 MB that day. It was never light, and nothing made it
+  heavy.
+
+**The only fix is a service worker**, because the header cannot be changed.
+Hashed assets under `/assets/` are served cache-first with no revalidation —
+correct, not merely fast, because the hash is the version. The document stays
+network-first so a deploy still lands on the next launch. Measured: first visit
+104 requests / 9.61 MB, second and third 0 requests / 0.00 MB.
+
+⚠️ **Do not diagnose "the game got heavy" from a payload number without
+checking what the code IMPORTS.** `src/assets` on disk includes files nothing
+imports; Vite only ships imported ones. The two differ by several MB here.
