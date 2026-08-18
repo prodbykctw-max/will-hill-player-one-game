@@ -412,6 +412,17 @@ let images = null; // { player, enemy, eav, edgewood, l5p, underground }
 // throw before a pixel appeared. This file has been bitten by exactly that
 // twice (the menuButtons hook, and buildIosSwitch).
 let bootPlate = null;
+// ⚠️ A LATCH, BECAUSE THE ERROR SCREEN USED TO SURVIVE LESS THAN ONE FRAME.
+// Handed over by the BACKDROPS / DEPLOY chat with the evidence attached: the
+// boot's .catch painted the red card ONCE, from outside the loop, while
+// loop.start() was already repainting at 60fps — and with `images` still null,
+// draw()'s `state.screen === 'loading' || !images` branch covered it with the
+// LOADING card on the very next rAF. So EVERY boot failure presented as
+// "loading…", which is verbatim what the client and his tester reported.
+// Measured by them: a 404 on a boot asset left the canvas at the LOADING
+// palette (0.3% lit), never the red one.
+// Setting a latch the draw loop checks is what makes the error stick.
+let bootError = null;
 
 function startStage(i) {
   const stage = STAGES[i];
@@ -732,6 +743,16 @@ canvas.addEventListener('pointerdown', (e) => {
   // ⚠️ `screenT > 20` STAYS, and it is not politeness. confirmPressed() is the
   // jump button, so without the arming delay the press that ends one screen
   // carries straight through into the next.
+  // ⚠️ THE BOOT ERROR IS NOT A `state.screen`, SO IT NEEDS ITS OWN BRANCH AND
+  // IT HAS TO BE FIRST. screenButtons are only walked for stageClear /
+  // gameOver / complete below; during a failed boot the screen is still
+  // 'loading', so without this the RETRY button draws and does nothing.
+  if (bootError) {
+    for (const b of screenButtons) {
+      if (hit(b, x, y)) { press(); b.action(); e.preventDefault(); return; }
+    }
+    return;
+  }
   if (state.screen === 'stageClear' || state.screen === 'gameOver'
       || state.screen === 'complete') {
     if (state.screenT > 20) {
@@ -1614,6 +1635,29 @@ function drawPauseMenu(stage) {
 // the thumb cannot drift apart — which is the failure the old version's own
 // comment warned about and then invited, by having two code paths agree on a
 // third function.
+// RETRY, AND WHY IT CACHE-BUSTS THE DOCUMENT RATHER THAN JUST RELOADING.
+//
+// The failure this button exists for is usually not a flaky connection — it is
+// a STALE index.html naming a bundle that no longer exists. GitHub Pages
+// serves the document `max-age=600` and an installed PWA can hold it far
+// longer, so a plain location.reload() re-reads the same cached document and
+// asks for the same dead URL again: the button would look broken while doing
+// exactly what it was told.
+//
+// The BACKDROPS / DEPLOY chat fixed the publishing side of this trap
+// (tools/deploy_union.py keeps recent generations' assets alive so the old
+// document still resolves). This is the client side of the same trap, for
+// anyone already holding a document from before that landed.
+function retryBoot() {
+  try {
+    const u = new URL(window.location.href);
+    u.searchParams.set('r', String(Date.now()));
+    window.location.replace(u.toString());
+  } catch (_e) {
+    window.location.reload();
+  }
+}
+
 function drawOverlayText(lines, buttons = []) {
   screenButtons.length = 0;
   ctx.save();
@@ -1657,6 +1701,18 @@ function draw() {
   // and a class set inside a rAF callback lands in that same paint, so this
   // costs nothing and there is no frame in between.
   syncPads();
+  // ⚠️ BEFORE THE LOADING BRANCH, NOT AFTER. The whole point is that this wins
+  // against the card that was covering it, so it has to be tested first. It
+  // repaints every frame, so nothing can paint over it either.
+  if (bootError) {
+    ctx.fillStyle = '#140a0a';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    drawOverlayText([
+      ['ASSET LOAD FAILED', 20, '#e0435f'],
+      ["the game could not finish loading", 13, 'rgba(255,255,255,0.7)'],
+    ], [{ label: 'RETRY', action: retryBoot }]);
+    return;
+  }
   if (state.screen === 'loading' || !images) {
     ctx.fillStyle = '#0a0810';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -2031,13 +2087,11 @@ loadImages({ ...TITLE_IMAGES })
     try { sessionStorage.removeItem('wh_reopen'); } catch (_e) {}
   })
   .catch((err) => {
-    // A rejected asset load used to leave a permanently black canvas with
-    // no clue why (loop.start() simply never ran). Fail loudly instead.
+    // A rejected asset load used to leave a permanently black canvas with no
+    // clue why (loop.start() simply never ran). Then it painted once and was
+    // instantly covered by the LOADING card. Now it sets a latch and draw()
+    // owns the screen — see `bootError` at the top of this file.
+    // console.error stays: on a remote report it is the only breadcrumb.
     console.error('Asset load failed:', err);
-    ctx.fillStyle = '#140a0a';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    drawOverlayText([
-      ['ASSET LOAD FAILED', 20, '#e0435f'],
-      ['check the console', 13, 'rgba(255,255,255,0.7)'],
-    ]);
+    bootError = err;
   });
