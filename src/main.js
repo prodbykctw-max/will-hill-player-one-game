@@ -209,6 +209,33 @@ function resize() {
   canvas.width = Math.max(1, Math.round(w));
   canvas.height = Math.max(1, Math.round(h));
   camera.resize(canvas.width, canvas.height);
+
+  // ⚠️ AND PUBLISH THE BOX, BECAUSE THE CABINET WAS GUESSING IT AND GETTING
+  // IT WRONG. #panelCard.cabinet cover-sizes itself off
+  // `100lvh + env(safe-area-inset-top) + env(safe-area-inset-bottom)`. In a
+  // standalone launch with viewport-fit=cover, lvh ALREADY contains both
+  // strips, so adding them inflated the height term by ~93px and the card by
+  // ~43px of width — wider than the screen, and the ALERT panel fell off the
+  // right edge. Client, with a PWA screenshot: "the cabinets on the PWA seem
+  // to be a tad bit large because of the alerts button is not visible."
+  //
+  // Everything above has already done this measurement properly, including
+  // the standalone shortfall the CSS was trying to compensate for. So the
+  // cabinet stops guessing and uses this. One number, one place, and the
+  // cabinet covers exactly the box the canvas covers — never more.
+  // ⚠️ THE VIEWPORT, NOT THE CANVAS. The canvas is deliberately stretched past
+  // the visible screen so the PAINTING reaches the foot of the phone; the
+  // cabinet must not inherit that. Sized off the stretched canvas it came out
+  // 457px wide on a 430px screen — 14px of the plate lost off each side,
+  // which is still the ALERT panel gone, just less of it.
+  //
+  // Covering only the viewport is safe because #panel is `inset: 0` with its
+  // own rgba(6,5,10,0.82) scrim: anything the card does not reach shows that
+  // scrim over the title art, never bare page. The strip in question is under
+  // the home indicator in any case.
+  try {
+    document.documentElement.style.setProperty('--vp-h', window.innerHeight + 'px');
+  } catch (_e) { /* the CSS fallback keeps the old behaviour */ }
 }
 // ── WHERE THE MOUSE IS, FOR HIS EYES TO FOLLOW ───────────────────────────
 //

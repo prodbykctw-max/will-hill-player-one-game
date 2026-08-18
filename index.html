@@ -400,17 +400,22 @@
       border: 0; box-shadow: none; padding: 0;
       container-type: inline-size;
       margin: 0; max-width: none;
-      /* ⚠️ `lvh`, NOT `dvh`. dvh is the CURRENT viewport height, which shrinks
-         while Safari's toolbars are showing — sizing the cover off it leaves
-         a strip of title screen along an edge the moment the bars retract.
-         lvh is the height with the bars hidden, so the cabinet is sized for
-         the largest the screen can get and over-covers the rest of the time.
-         Over-covering is invisible; under-covering is the gap he reported.
-         The safe-area term is belt and braces for a standalone PWA, where the
-         same shortfall once left a bare strip under the game canvas. */
-      width: max(100vw, calc((100lvh + env(safe-area-inset-top, 0px)
-                                     + env(safe-area-inset-bottom, 0px))
-                              * 852 / 1846));
+      /* ⚠️ `--vp-h` IS MEASURED, NOT COMPUTED HERE. resize() in src/main.js
+         sets it to the real viewport height every time the box changes.
+         The guess was wrong in the installed app and the client photographed
+         it: the old rule was
+           max(100vw, (100lvh + inset-top + inset-bottom) * 852/1846)
+         and with viewport-fit=cover a standalone `lvh` ALREADY includes both
+         strips. Adding them inflated the height term by ~93px, the width by
+         ~43px, and the ALERT panel on the right of the plate fell off the
+         screen — "the cabinets on the PWA seem to be a tad bit large because
+         of the alerts button is not visible."
+         The `100lvh` fallback is the old behaviour minus the double count, so
+         a frame drawn before the first resize() still covers. lvh and not
+         dvh, for the original reason: dvh shrinks while Safari's toolbars are
+         up and the cabinet would leave a strip of title screen the moment
+         they retract. */
+      width: max(100vw, calc(var(--vp-h, 100lvh) * 852 / 1846));
       /* ⚠️ Without this the cover width is undone. #panel is a flex row and a
          flex item defaults to `flex-shrink: 1`, so an item deliberately grown
          WIDER than the line gets squeezed straight back to it. Measured: at a

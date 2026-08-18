@@ -226,6 +226,61 @@ check('and after death, when the score is fresh',
   JSON.stringify({ dead, ...after }));
 await c2.close();
 
+// ── THE CABINET FITS THE SCREEN, INCLUDING IN THE INSTALLED APP ──────────
+//
+// Client, with a PWA screenshot of this very panel: "the cabinets on the PWA
+// seem to be a tad bit large because of the alerts button is not visible and
+// screen. I just want uniformity across all devices if possible."
+//
+// ⚠️ AN INSET COUNTED TWICE, exactly like the home controls. #panelCard.cabinet
+// cover-sizes off `100lvh + env(safe-area-inset-top) + env(safe-area-inset-
+// bottom)`, and a standalone launch with viewport-fit=cover has a `lvh` that
+// ALREADY contains both strips. Measured with the shipped rule and a 59/34
+// pair of insets: the card came out 473px wide on a 430px screen, 22px of the
+// plate gone off each side, which is the ALERT panel. It is sized from a
+// measured --vp-h now (resize() in src/main.js).
+//
+// Chromium cannot launch as a home-screen app, so this drives the same
+// overrides main.js exposes for the canvas path.
+console.log('\n=== THE CABINET FITS, BROWSER AND INSTALLED ===');
+for (const [name, w, h] of [['Pro Max', 430, 932], ['15 Pro', 393, 852],
+  ['SE', 375, 667], ['Android', 412, 780]]) {
+  for (const [tag, standalone] of [['browser', false], ['installed', true]]) {
+    const ctx = await b.newContext({ viewport: { width: w, height: h }, hasTouch: true });
+    const pg = await ctx.newPage();
+    await pg.addInitScript(([sa, scr]) => {
+      window.__standaloneOverride = sa;
+      if (sa) window.__screenHeightOverride = scr;      // the stretch resize() takes
+    }, [standalone, h + 59]);
+    await pg.goto('http://localhost:5199/?tod=night', { waitUntil: 'networkidle' });
+    await pg.waitForFunction(() => window.__game && window.__game.screen === 'title',
+      null, { timeout: 25000 });
+    await pg.waitForTimeout(1400);
+    const at = await pg.evaluate(() => {
+      const o = window.__title.optionsRect(window.__game.titleBox);
+      return { x: o.x + o.w / 2, y: o.y + o.h / 2 };
+    });
+    await pg.mouse.click(at.x, at.y);
+    await pg.waitForTimeout(700);
+    const m = await pg.evaluate(() => {
+      const c = document.getElementById('panelCard');
+      const r = c.getBoundingClientRect();
+      return { w: r.width, h: r.height, cabinet: c.classList.contains('cabinet'),
+        vw: window.innerWidth, vh: window.innerHeight };
+    });
+    const lost = (m.w - m.vw) / 2;
+    check(`[${name} ${tag}] the cabinet is not wider than the screen`,
+      m.cabinet && lost <= 1,
+      `card ${Math.round(m.w)} vs viewport ${m.vw} — ${Math.round(lost)}px of plate lost per side`);
+    // And it must still COVER — under-covering is the gap he reported before
+    // this rule existed, and shrinking the card is the lazy way to pass above.
+    check(`[${name} ${tag}] and it still covers the screen`,
+      m.w >= m.vw - 1 && m.h >= m.vh - 1,
+      `card ${Math.round(m.w)}x${Math.round(m.h)} vs ${m.vw}x${m.vh}`);
+    await ctx.close();
+  }
+}
+
 console.log('');
 console.log(checks.every(([, ok]) => ok)
   ? `ALL ${checks.length} PASS`
