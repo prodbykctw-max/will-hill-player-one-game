@@ -12,7 +12,7 @@ lines), the traps are in `docs/LESSONS.md`, the methods in
 
 ---
 
-# 🟢 CATCH-UP — main `aec476b`, everything merged, everything live
+# 🟢 CATCH-UP — main `afe1930`, everything merged, everything live
 
 Client, and he is right to be annoyed: *"I'm so fucking confused, it's too many
 chats bro. I need all three of you chats to be caught up so I can finish with
@@ -28,8 +28,19 @@ check at the top of `docs/MERGE_STATE.md`.
 | `claude/contest-reg-image-crop-d4y6c0` | **0 ahead of main** |
 | `claude/dashboard-kills-display-sizing-wgufbm` | **0 ahead of main** |
 | `claude/last-markdown-game-link-lvk1n6` | **0 ahead of main** |
-| `gh-pages` | `627020d`, built from `aec476b`. ⚠️ **BEHIND BY TWO src COMMITS as of `03fdc7f`** — `efcc1b1` (canvas under the home indicator, controls with it) and `9194ffc` (one home screen on every device, PRESS START off the plate). **This is the title chat mid-flight, not a missed deploy** — it deploys its own work and did so at 11:43. Measured, not counted: live **196** assets against a main build's **197**, differing in the JS bundle, three `title-portrait-*` webps re-cut, and one new `title-prompt-*.webp`. Live bundle `index-mTnpEOyP.js` |
-| Cloudflare | both workers deployed `2026-08-18T02:28Z`, `GET /top` → `200`, D1 `run_stats.max_combo` present |
+| `gh-pages` | `ab5d05a`, deployed `13:31:28Z`. ⚠️ **CURRENT — verified by diff, not by counting.** A fresh `npm run build` off `afe1930` produces an asset list IDENTICAL to the live tree, and `assets/index-SzTflqL2.js` is byte-identical (md5 `6c2989b6…`). The four `*-day-skystruct` hashes match too, so the night-cloud work IS live. |
+| Cloudflare | both workers deployed `2026-08-18T02:28Z` and **still current** — the only repo change to `leaderboard-worker.js` since (`aec476b`) added an `export` keyword for `statsync.mjs`, which esbuild strips from a default-only bundle. Deployed dashboard verified to carry MAX COMBO, `.vm/.vt` type scale, `#tDeaths`, `#f1v`, `panelClose` gone, stage progression count-only. D1 `run_stats.max_combo` present. |
+
+## ⚠️ "BEHIND" IS NOT A DEBT — it cost him a round
+
+He challenged a claim that a branch was *"13 behind"*, and he was right to.
+**Ahead** = commits the branch has that main does not — the only number that
+represents work at risk. **Behind** = commits MAIN has that the branch has not
+pulled — main moving underneath a branch that is heads-down. A branch at
+`0 ahead / 13 behind` owes nothing and is missing nothing; reporting it as
+lagging read as "that chat is stalled" while it was in fact mid-push, and it
+landed three commits minutes later. **Report `ahead`. Mention `behind` only if
+you are about to rebase.**
 
 ⚠️ **If you are about to tell him something is undeployed, diff the build, not
 the log.** A docs-only commit on main moves the hash and changes nothing that
@@ -54,7 +65,12 @@ ships. That misreading has already cost him a round.
 - **Dashboard / combo** — `eb0edd3`, `6954130`, `d9e0bca`, `dad801d`. DEATHS
   tile, MAX COMBO, the D1 migration, `deploy_backend.sh`, the combo chain, and
   the last stray ✕es off ENTER THE CONTEST.
-- **Backdrops / registration** — `4a1d0cc`, `323f812`. The Underground
+- **Backdrops / registration** — `4a1d0cc`, `323f812`, `bba56f6`, `6298e7d`,
+  `afe1930`. Night clouds on EAV (the game's only night cloud card had no
+  `drift`), the cloud seal deferring ground nothing then covered, a phase beat
+  in `cloudseal.mjs` that made it lie intermittently, and `tools/spread_clouds.py`
+  — ⚠️ **built and merged but deliberately NOT APPLIED**, see item 5 below
+  before running it. The Underground
   doubling (`bg.separation` was in the renderer and no stage ever set it) and
   the L5P seam (two corrupt columns at the plate's own left edge, fixed by a
   tool that had never been run on it). Plus `cloudseal.mjs` now TRAVELS — it

@@ -76,14 +76,29 @@ They are the eyes-on tools; the graded set is the tripwire.
 
 ### Last sweep
 
-**Green after the sign-up cabinet became a card** — 32 harnesses against a
-fresh dev server, zero failures: betweenscreens 20, entryfit 44, optionsmenu
-15, btnglow 27, hapticbtn 24, panelnav 13, startflow 23, entrypaths 9,
-titlefit 76, titleintro 12, endcue 11, relaytod 26, dashglow 26, pausemenu 13,
-musicbox 11, share 12, outbox 13, ceiling 15, howpage 24, idleflex 8,
-padlift 11, introorder 4, todlive 12, stageflag 6, dashload, and relay /
-joinshot / graphwire / daynight / barescars / finishrun / musiccheck clean on
-their own wordings.
+**Green at main `afe1930` — the whole suite, after all three chats' work was
+merged into one tree.** Every harness in `tools/harness/` run against a fresh
+dev server, zero failures:
+
+titlehome 163, dashfit 100, titlefit 48, optionsmenu 31, btnglow 26,
+dashglow 26, relaytod 26, howpage 24, hapticbtn 22, betweenscreens 20,
+musicbox 20, panelnav 16, ceiling 15, outbox 13, pausemenu 13, share 12,
+cloudseal 12, combo 12, daylamps 12, finishrun 12, titleintro 12, todlive 12,
+padlift 11, endcue 11, entryfit 41, startflow 23, loopseam 9, entrypaths 9,
+barescars 8, idleflex 8, pitsky 8, statsync 7, stageflag 6, introorder 4,
+skyleak 4, dashload and relay clean on their own wordings.
+
+⚠️ **`startchain.mjs` IS NOT A HARNESS** and printing nothing is correct — it
+is the shared library the others import to walk title → CONTEST → HOW TO PLAY
+→ run. A sweep that globs `tools/harness/*.mjs` will run it, get silence, and
+look like a failure. Same for `stagesweep` / `seamsweep` / `stagestrip` /
+`joinshot` / `graphwire` / `daynight` / `musiccheck`, which write captures
+rather than verdicts.
+
+⚠️ **`entryfit` and `startflow` end `n/n passed`, NOT `ALL n PASS`.** A sweep
+grepping `'^ALL|^FAILED'` prints them blank, which reads as a hang. Both were
+re-run individually to confirm — 41/41 and 23/23. This is the same trap the
+note further down names; it caught this sweep too.
 
 ⚠️ **`optionsmenu` was red on `origin/main` and had been for a while** — five
 checks, and only two of them were the sign-up becoming a layer. The other three

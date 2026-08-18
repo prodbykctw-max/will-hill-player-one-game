@@ -37,22 +37,35 @@ in a commit of its own.** And for any quote this file attributes to a source
 file, grep the quote — one of them had been deleted from the source and was
 still being repeated here as current.
 
-## State at main `aec476b` — ALL THREE BRANCHES ARE FULLY MERGED
+## State at main `afe1930` — ALL THREE BRANCHES ARE FULLY MERGED
 
 Re-derived, not remembered. Every branch is an ancestor of main; none of them
 holds anything.
 
 | branch | ahead | behind | tip |
 |---|---|---|---|
-| `claude/contest-reg-image-crop-d4y6c0` | 0 | 6 | `323f812` |
-| `claude/dashboard-kills-display-sizing-wgufbm` | 0 | 11 | `dad801d` |
-| `claude/last-markdown-game-link-lvk1n6` | 0 | 1 | `32ca22f` |
+| `claude/contest-reg-image-crop-d4y6c0` | 0 | 0 | `afe1930` |
+| `claude/dashboard-kills-display-sizing-wgufbm` | 0 | 0 | `afe1930` |
+| `claude/last-markdown-game-link-lvk1n6` | 0 | 3 | `0455b14` |
 
-`gh-pages` is at `627020d`, built from main by `tools/deploy.sh`. Proof that
-the live game is current is a rebuild, not the commit hash: `npm run build`
-from main produces **196 assets, every one matching the branch's `assets/` by
-content-hashed name, with `index.html` byte-identical at 34,527 bytes**.
-Bundle `index-mTnpEOyP.js`, confirmed being served by the CDN.
+`gh-pages` is at `ab5d05a`, deployed `2026-08-18T13:31:28Z`. Proof that the
+live game is current is a rebuild, not the commit hash: `npm run build` from
+`afe1930` produces an asset list **identical to the live tree**, and
+`assets/index-SzTflqL2.js` is **byte-identical** (md5 `6c2989b6d566a4d78dc1324f7d33bff9`).
+The four `*-day-skystruct` hashes match, which is the check that the night-cloud
+work actually shipped rather than merely merged.
+
+⚠️ **ONLY `ahead` IS A DEBT.** He caught a report of a branch as "13 behind"
+that read as a stalled chat; it was 0 ahead — owing nothing — and pushed three
+commits minutes later. `behind` is main moving under a branch that is working.
+Report `ahead`; mention `behind` only when you are about to rebase.
+
+⚠️ **AND IT RESOLVES ITSELF THE MOMENT YOU LOOK AWAY.** `contest-reg-image-crop`
+was 3 ahead at 13:16; that work was rebased and merged twice over inside ten
+minutes — once here, once by the chat that owns it — and `git rebase` correctly
+skipped the duplicate cherry-picks. If a merge you are about to make shows
+"nothing to do", check whether the owning chat just did it before assuming a
+mistake.
 
 ⚠️ **`git fetch origin main` DOES NOT UPDATE `origin/gh-pages`, and reading the
 stale ref makes a current deploy look wildly rotten.** Step 3 of the check
