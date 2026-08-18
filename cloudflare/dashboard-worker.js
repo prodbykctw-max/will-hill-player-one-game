@@ -177,6 +177,9 @@ export default {
                 COALESCE(SUM(death_fall),0)    AS d_fall,
                 COALESCE(SUM(bottles),0)       AS bottles,
                 COALESCE(SUM(bags_lost),0)     AS bags_lost,
+                -- MAX, not SUM: the panel says MAX COMBO, so it is the best
+                -- chain anybody has strung together, not everyone's added up.
+                COALESCE(MAX(max_combo),0)     AS max_combo,
                 COALESCE(AVG(duration),0)      AS avg_ms
            FROM run_stats`,
       ).first();
@@ -304,6 +307,27 @@ html,body{background:#07060c;color:#f2ead8;font-family:ui-monospace,SFMono-Regul
 .v{display:flex;align-items:center;justify-content:center;
    font-weight:700;font-size:3.4cqw;color:#ffd66e;font-variant-numeric:tabular-nums}
 .vs{font-size:1.95cqw}
+/* ⚠️ TWO SIZES BETWEEN 3.4 AND 1.95, AND THEY EXIST BECAUSE OF THE MATHS
+   BELOW, NOT BECAUSE THEY LOOK NICE. Client: "that three is just a little
+   too tall for the space it occupied, and generally speaking there's gonna
+   be multiple digits there — maybe millions of kills once this competition
+   starts... it does have to fit in that space, and maybe a six digit number
+   needs to be able to fit in that space also."
+   This page's monospace advances 0.602em a character, so a value of C
+   characters needs 0.602 * C * size. Every size here is picked so the WIDEST
+   value the contest can produce still lands inside the rect he painted:
+     .vm  2.45cqw in a 118px box -> 9 chars ("9,999,999") = 113px.
+     .vt  1.55cqw in a  74px box -> 9 chars               =  72px.
+   Six digits ("999,999", 7 chars) — the size he actually asked to fit — clear
+   both with a third of the box spare: 88px and 56px.
+   ⚠️ THE 4% LEFT OVER AT NINE DIGITS IS THE POINT, NOT SLOP. 0.602em is what
+   THIS container's monospace advances; his phone is Safari picking SF Mono,
+   and a check that passes at 99.9% of the box in Chrome is a check that has
+   measured nothing about the device the dashboard is read on.
+   Graded at contest scale by tools/harness/dashfit.mjs, which fails if any
+   value is wider than the box he drew for it. */
+.vm{font-size:2.45cqw}
+.vt{font-size:1.55cqw}
 .fv{font-size:1.6cqw;justify-content:flex-start}
 .r{justify-content:flex-end}
 .l{justify-content:flex-start}
@@ -413,14 +437,27 @@ html,body{background:#07060c;color:#f2ead8;font-family:ui-monospace,SFMono-Regul
    being drawn at full size straight over the word DEATHS: "some overlay of
    numbers is not scaled properly and it looks like it's not sitting in the
    zone". Measured off the plate: DEATHS 402-412, the three labels 424-434,
-   free band 438-462. The total now sits small and right-aligned on the label
-   row, clear of his centred word (which ends at x603), and the three numbers
-   sit in the band under the labels they belong to (ENEMY centred 501,
-   POTHOLE 587, FALL 667). */
- #tDeaths{left:72.685%;top:21.583%;width:13.013%;height:0.976%}
- #dEnemy{left:55.100%;top:23.753%;width:7.386%;height:1.302%}
- #dPot{left:65.182%;top:23.753%;width:7.386%;height:1.302%}
- #dFall{left:74.560%;top:23.753%;width:7.386%;height:1.302%}
+   free band 438-462. The total sits on the label row, clear of his centred
+   word (which ends at x603), and the three numbers sit in the band under the
+   labels they belong to (ENEMY ink 483-518, POTHOLE 562-612, FALL 654-681).
+   ⚠️ AND IT IS THE ONE TILE WHERE THE CONTEST'S OWN SCALE BREAKS THE
+   PAINTING. Every other value on this page has a box 268px wide or better and
+   could not overflow if it tried; these four share one panel with three
+   painted labels and had 111px and 63px. At four million deaths the total
+   rendered as ".237.89" with both ends sheared off and the three sub-numbers
+   ran straight through each other. So all four boxes are widened into the
+   room his own lettering leaves, and only then sized down:
+     total   x612-730 (118px), band y394-420 — it sits BESIDE the word DEATHS,
+             so its width stops 7px short of his D and its height is the gap
+             between the panel top (y386) and the sub-label row (y424).
+     the three  74px each, centred on the labels at 500.5 / 587 / 667.5, with
+             12.5px and 6.5px of gutter left between them.
+   The total stays 56% larger than the three it adds up: "larger than those
+   numbers, but it does have to fit in that space". */
+ #tDeaths{left:71.747%;top:21.367%;width:13.834%;height:1.410%}
+ #dEnemy{left:54.338%;top:23.753%;width:8.675%;height:1.302%}
+ #dPot{left:64.478%;top:23.753%;width:8.675%;height:1.302%}
+ #dFall{left:73.916%;top:23.753%;width:8.675%;height:1.302%}
  #map{left:13.834%;top:27.386%;width:71.864%;height:14.425%;background:#05060d}
  #top10{left:18.054%;top:47.234%;width:30.598%;height:10.955%}
  #cities{left:51.583%;top:46.964%;width:33.998%;height:11.334%}
@@ -439,6 +476,31 @@ html,body{background:#07060c;color:#f2ead8;font-family:ui-monospace,SFMono-Regul
  #mLen{left:72.685%;top:71.475%;width:13.013%;height:1.139%}
  #mBot{left:72.685%;top:72.722%;width:13.013%;height:1.139%}
  #mLost{left:72.685%;top:73.97%;width:13.013%;height:1.139%}
+/* ⚠️ MAX COMBO IS THE ONE LABEL ON THIS PAGE I DREW, AND I WOULD RATHER NOT
+   HAVE. Everything else lettered here is his: the chips are cut out of his
+   own pixels, the expanded table's heading is a crop of his panel, and the
+   only other words this stylesheet puts on screen are CLOSE on a full-screen
+   overlay that is not on his plate at all. He asked for this one directly —
+   "underneath BAGS LOST I wanna add MAX COMBO there, because I plan on
+   working a combo system into the game" — and OTHER METRICS is his painting,
+   so there is nowhere to put a fourth row except on it.
+   So it is his own type spec, measured off the three labels above it rather
+   than guessed: they start at x443, their caps are 10px tall, and they
+   advance 7.45px a character (CHAMPAGNE BOTTLES is 17 chars over 125px,
+   BAGS LOST 9 over 65 — the difference is 8 characters and 60px). 7.45px at
+   0.602em/char is a 12.4px face, which is 1.454cqw of his 853px plate, and
+   the ink colour is sampled off CHAMPAGNE BOTTLES and then taken DOWN a
+   step: his lettering is artwork being resampled (the plate is 853px drawn
+   into 760 at most, and into 430 on his phone), which softens its peaks,
+   while this is live text rendered crisp at whatever the device is. Sampled
+   at #c6bfb6 it read brighter than the three labels above it; #b0a9a1 lands
+   on them.
+   The row lands at his own pitch: label inks at y1317, 1343, 1370, so the
+   fourth is y1394 and clears the panel border at y1411 by 6px. That is the
+   last row this panel holds — a fifth would sit on the border. */
+ #mComboL{left:51.934%;top:75.325%;width:18.406%;height:1.139%;
+   font-size:1.454cqw;font-weight:400;color:#b0a9a1;justify-content:flex-start}
+ #mCombo{left:72.685%;top:75.325%;width:13.013%;height:1.139%}
  #entrants{left:15.123%;top:80.641%;width:70.926%;height:3.417%}
  #rejects{left:14.654%;top:87.906%;width:71.395%;height:2.495%}
 /* ⚠️ TAP EITHER HEADING TO READ THE WHOLE TABLE.
@@ -499,8 +561,8 @@ html,body{background:#07060c;color:#f2ead8;font-family:ui-monospace,SFMono-Regul
  <div class="v vs" id="clockA"></div><div class="v vs" id="clockB"></div><div class="v vs" id="clockC"></div>
  <div class="v" id="tEntrants"></div><div class="v" id="tRuns"></div>
  <div class="v" id="tBest"></div><div class="v" id="tBags"></div>
- <div class="v" id="tKills"></div><div class="v" id="tDeaths"></div>
- <div class="v vs" id="dEnemy"></div><div class="v vs" id="dPot"></div><div class="v vs" id="dFall"></div>
+ <div class="v" id="tKills"></div><div class="v vm" id="tDeaths"></div>
+ <div class="v vt" id="dEnemy"></div><div class="v vt" id="dPot"></div><div class="v vt" id="dFall"></div>
  <svg id="map" viewBox="0 0 100 100" preserveAspectRatio="none"></svg>
  <input id="q" placeholder="Filter name or phone" aria-label="Filter by name or phone">
  <a id="csv" href="#" aria-label="Download CSV"></a>
@@ -517,6 +579,7 @@ html,body{background:#07060c;color:#f2ead8;font-family:ui-monospace,SFMono-Regul
  <svg id="spark" viewBox="0 0 100 40" preserveAspectRatio="none"></svg>
  <div class="v vs r" id="cTotal"></div><div class="v vs r" id="cPct"></div><div class="v vs r" id="cRuns"></div>
  <div class="v vs r" id="mLen"></div><div class="v vs r" id="mBot"></div><div class="v vs r" id="mLost"></div>
+ <div class="v" id="mComboL">MAX COMBO</div><div class="v vs r" id="mCombo"></div>
  <div class="rows tbl" id="entrants"></div><div class="rows tbl" id="rejects"></div>
  <button id="xEnt" aria-label="Open the full entrants table"></button>
  <button id="xRej" aria-label="Open the full rejection log"></button>
@@ -590,6 +653,9 @@ function draw(){
   $('mLen').textContent = ms ? Math.floor(ms/60000) + ':' + String(Math.floor(ms%60000/1000)).padStart(2,'0') : '0:00';
   $('mBot').textContent = n(f.bottles);
   $('mLost').textContent = n(f.bags_lost);
+  // Zero until the game emits a combo event — see statsFromEvents in
+  // cloudflare/leaderboard-worker.js for the one it is waiting for.
+  $('mCombo').textContent = n(f.max_combo);
 
   drawMap();
 
