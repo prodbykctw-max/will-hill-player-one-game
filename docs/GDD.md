@@ -117,6 +117,43 @@ Backgrounds are **real Atlanta photos converted into a stylized night pixel-art 
 3. **Little 5 Points** — "Criminal Records" record shop storefront (a real Little 5 Points landmark): "NEW & USED", "BUY SELL TRADE", "OPEN" neon, a framed portrait poster, "RECORDS · TAPES · CDS", adjacent "Buy/Sell/Trade" pet shop signage.
 4. **The Underground (5 Points)** — large arched "UNDERGROUND" transit-style entrance sign with marquee lighting, directional signage ("Midtown / Westside" ← , "East Point / Airport" →), a Coca-Cola disc sign, a Waffle House storefront, city skyline behind, rain-slicked plaza.
 
+## Combos: chain them without landing
+
+Client: *"can you add the combo counter into the game so it actually counts?
+...or actually a combo system."*
+
+**Consecutive stomps without touching the ground.** Land and the chain is over;
+the run's best survives landing, dying and spending a continue. The HUD shows
+`xN COMBO` from x2 up — x1 is just a stomp — and each link lays a chime a
+semitone higher over the punch, which stays exactly as loud as it is at x1.
+
+**The mechanic was already in the game; nothing was reading it.** A stomp
+pogos the player off at vy -10.5 and hands back an air jump. That bounce alone
+flies 40 ticks and carries **256px** at run speed, and the generator's
+`MIN_ENEMY_SPACING_COLS` is 8 columns — **256px**. So a chain clears the
+tightest spacing in the game *exactly*, before the free air jump is even spent.
+Both numbers are measured by `tools/harness/combo.mjs`, not taken from the
+constants. That is why the rule is "without landing" rather than a forgiving
+timer: the arc already makes it barely possible, which is what a combo should
+be. Enemies patrol ±170px, so pairs that drift together are the real openings.
+
+### ⚠️ A combo is worth ZERO points, and that is a contest decision
+
+Every score here is recomputed server-side and checked against a **measured**
+ceiling (61,650 for a perfect run) with a refusal threshold at 70,000 and a
+400-points-per-second rate check. A combo bonus would move the ceiling, re-open
+the Will Hill calibration that the whole scoring table is built around, and —
+the real risk — could get a genuinely great run **refused mid-contest as
+`implausible-rate`**. The prize makes that unacceptable.
+
+So the chain changes what a run *feels* like and what the dashboard can *say*
+about it, and touches nothing that decides who wins. It surfaces as MAX COMBO
+on the admin dashboard and as a lifetime best on the device. `combo.mjs` fails
+if a chain ever moves the score by a single point — that check is the feature's
+actual contract, not a nicety.
+
+Points are a fine idea *after* the contest closes. See `docs/STATUS.md`.
+
 ## Enemy design
 
 A single base enemy archetype in 3 palette variations, matching the background art's pixel style: masked figure (black balaclava/ski mask), hoodie (up), jeans, sneakers, clenched fists, menacing stance.

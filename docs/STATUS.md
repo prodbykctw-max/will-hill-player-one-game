@@ -587,6 +587,56 @@ and a place it is written up.
 
 ---
 
+## The combo system — shipped, and deliberately worth nothing
+
+Client: *"can you add the combo counter into the game so it actually counts?
+...or actually a combo system."*
+
+**Consecutive stomps without landing.** HUD reads `xN COMBO` from x2 up, a
+chime a semitone higher per link layered over the punch, best-of-run carried
+to `MAX COMBO` on the dashboard and to lifetime stats on the device.
+
+**The mechanic was already in the game and nothing was reading it.** A stomp
+pogos him off at vy -10.5 with a fresh air jump; that bounce flies 40 ticks and
+carries **256px** at run speed, against a generator minimum enemy spacing of
+**256px**. A chain clears the tightest spacing by nothing at all, before the
+free air jump is spent — which is exactly the right difficulty, and is why the
+rule is "without landing" rather than a forgiving timer. Both numbers measured
+by `tools/harness/combo.mjs`, not read off the constants.
+
+### ⚠️ It scores ZERO, and that was his call
+
+Asked directly, with the trade-off: every score is recomputed server-side
+against a measured 61,650 ceiling, a 70,000 refusal threshold and a
+400-per-second rate check, so a combo bonus risks a great run being refused
+mid-contest as `implausible-rate`. He chose **no points**. The chain changes
+how a run feels and what the dashboard can say; it touches nothing that decides
+the prize. `ceiling.mjs` still measures 15/15 and `combo.mjs` fails if a chain
+ever moves the score by a single point.
+
+**Points are a fine idea once the contest closes** — combo multiplies the stomp
+value only, ceiling re-measured, the Will Hill calibration comments updated.
+Not while a prize is live.
+
+### ⚠️ The bug the harness caught, worth not repeating
+
+The chain-reset line was written beside a near-identical `player.onGround` test
+that lives inside `if (isRelay())`. It read perfectly and shipped a combo that
+**reset only under a dev flag nobody plays** — it counted up all run and never
+cleared. Every check but one went green. The generic lesson: `main.js` has more
+than one `onGround` test and they are not in the same block, so proximity is
+not membership.
+
+### Still to deploy
+
+Nothing server-side changed for this — the `max_combo` column and both workers
+are already live. The GAME is what needs publishing now:
+`bash tools/deploy.sh` (or Git Bash on Windows) to push `dist/` to `gh-pages`.
+Until then MAX COMBO on the dashboard stays 0, correctly: nothing in the live
+build emits a combo event yet.
+
+---
+
 ## ON HOLD — his side
 
 Nothing on this list can be finished without him:
