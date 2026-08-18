@@ -121,6 +121,45 @@ the test for it needs a profile that has never been used.
 The check was confirmed to FAIL against the old line before being kept. A
 regression test nobody has watched fail is a comment.
 
+### One log, both tallies, same answer
+
+`tools/harness/statsync.mjs` (7 checks, no browser and no dev server — both
+tallies are pure functions of the event log).
+
+The device's lifetime stats come from `tallyLog` in `src/net/leaderboard.js`;
+the contest dashboard's numbers come from `statsFromEvents` in the Worker. Two
+separately-written implementations of one rule, walking the same log. When they
+drift nothing throws — the phone and the dashboard simply disagree about the
+same run, and the first person to notice is whoever compares two numbers on
+payout day.
+
+⚠️ **The Worker's own comment claimed this file existed for weeks.** It did
+not, and `statsFromEvents` was not even exported, so nothing *could* have
+reached it. The risk widened the day MAX COMBO shipped: `max_combo` went into
+both sides by hand with no check they agreed. (They did. But that was luck, not
+process.)
+
+**The check that survives the next feature** is the completeness one. The field
+names differ by design — camelCase on the client, snake_case on the Worker
+because its columns are — so comparing them needs a map, and the map is the
+part that rots: add a field to one side and a hand-written pair list ignores it
+silently. So the map is asserted complete against **both** key sets before any
+value is compared.
+
+Three failure modes were confirmed to fail before the file was kept:
+
+| broken | reported |
+|---|---|
+| Worker counts a stomp twice | `kills/kills: client 4 vs worker 8` |
+| field added to the Worker only | `unpaired: brand_new_thing` |
+| field added to the client only | `unpaired: orphanField` |
+
+It also pins the two differences that are *intended*, so they stay deliberate
+rather than becoming folklore: the Worker drops events the scorer would drop
+(out of order, or past the run's duration) and caps a player-claimed combo at
+9,999. The client does neither, because it wrote those timestamps itself and is
+reporting a chain it watched happen.
+
 ### The combo chain, and the point it must never score
 
 `tools/harness/combo.mjs` (12 checks). It drives the real update loop — nothing
