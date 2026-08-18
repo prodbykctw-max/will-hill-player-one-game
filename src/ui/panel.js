@@ -204,6 +204,8 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
   //
   //   'start'  before a run.  form NOT NOW → how,  how PLAY → close (run)
   //   'post'   after a run.   form NOT NOW → board, board BACK → close (title)
+  //   'title'  from the home banner. everything closes straight back out —
+  //            they were on the home page and that is where they belong.
   //   'menu'   the default.   form NOT NOW → board, board BACK → menu
   //
   // One handler cannot guess which, and guessing is what this replaces: BACK
@@ -222,6 +224,11 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
   //
   //   'start'          -> HOW TO PLAY   (his words, exactly)
   //   'post' | 'menu'  -> the board
+  //   'title'          -> the board too. Opened from the contest banner on
+  //                       the home page, so there is no journey to reveal —
+  //                       but somebody who DOES enter from there has just
+  //                       earned the board, and NOT NOW closes the whole
+  //                       thing rather than revealing the backdrop.
   //
   // That is the tidy part of the change rather than a coincidence. All three
   // of his painted ways out — the x on the card, the NOT NOW / CANCEL plate
@@ -648,7 +655,8 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
   // BACK off the leaderboard closes outright when the board IS the end of the
   // journey — after a run, per his order: ending scene, then the board, then
   // out. Reached from OPTIONS it still steps one level up to the menu.
-  on('btnBoardBack', 'back', () => (flow === 'post' ? api.close() : show('menu')));
+  on('btnBoardBack', 'back', () =>
+    (flow === 'post' || flow === 'title' ? api.close() : show('menu')));
   on('btnRegister', 'press', () => show('form'));
   // SHARE decides its own note copy, because the same tap means different
   // things on different machines: a phone opens the OS sheet (nothing to
@@ -692,6 +700,9 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
   // 'how'   — the pre-run chain: skipping the contest still gets the lesson.
   // 'close' — off the back of a run: one tap out, straight to the title.
   // 'board' — the default, for REGISTER pressed from the leaderboard.
+  // 'title' — opened by the contest banner on the home page. There is no
+  //           journey to carry on with: the player was looking at the title
+  //           card, so that is where NOT NOW puts them back.
   // ⚠️ CLOSING IS HOW THE RUN STARTS, and that is deliberate reuse rather
   // than a second launch path: api.close() fires onClose in main.js, which
   // sees `state.pendingRun` and calls startRun(). A `startRun()` call from
@@ -700,7 +711,10 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
     if (howToSeen()) { api.close(); return; }
     show('how');
   };
-  const notNow = () => (flow === 'start' ? onwardFromStart() : show('board'));
+  const notNow = () => {
+    if (flow === 'title') { api.close(); return; }
+    return flow === 'start' ? onwardFromStart() : show('board');
+  };
   on('btnSkip', 'back', notNow);
   // He painted THREE ways out of the sign-up card — the CANCEL plate, the red
   // X beside it, and the small x on the card's own heading — and now that this

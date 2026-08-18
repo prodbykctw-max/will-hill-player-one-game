@@ -196,18 +196,23 @@ const up = await pd.evaluate(() => ({ screen: window.__game.screen,
     && typeof window.__title.hitRelay === 'undefined' }));
 check('no black card — the title is up with OPTIONS and MUSIC, and no relay pill',
   up.screen === 'title' && up.box && up.opts && up.music && up.noRelay, JSON.stringify(up));
-// Client: "that music button ultimately is going to be under the OPTIONS
-// button... stacked perfectly." MUSIC directly below OPTIONS, centred on the
-// same x, is that shape — checked here rather than trusted.
+// ⚠️ MUSIC IS BESIDE OPTIONS NOW, NOT STACKED UNDER IT. This used to assert
+// the stack — "that music button ultimately is going to be under the OPTIONS
+// button... stacked perfectly" — which was the shape when OPTIONS was his
+// painted word with a box hung below it. The controls are laid out from the
+// bottom of the SCREEN now (homeLayout in src/render/title.js) and sit in a
+// row with the contest banner above them; their full geometry is
+// tools/harness/titlehome.mjs's subject. All this file needs from them is
+// that the relay work above did not leave two controls on top of each other.
 const sep = await pd.evaluate(() => {
   const t = window.__title, b2 = window.__game.titleBox;
   const o = t.optionsRect(b2), m = t.musicRect(b2);
-  return { xDelta: Math.abs((o.x + o.w / 2) - (m.x + m.w / 2)),
-           below: m.y > o.y + o.h,
-           gap: Math.round(m.y - (o.y + o.h)) };
+  return { overlap: o.x < m.x + m.w && m.x < o.x + o.w
+                 && o.y < m.y + m.h && m.y < o.y + o.h,
+           optH: Math.round(o.h), musicH: Math.round(m.h) };
 });
-check('MUSIC is centred under OPTIONS, not overlapping it',
-  sep.xDelta <= 1 && sep.below && sep.gap > 0, JSON.stringify(sep));
+check('OPTIONS and MUSIC are two separate controls, both real tap targets',
+  !sep.overlap && sep.optH >= 34 && sep.musicH >= 34, JSON.stringify(sep));
 await pd.touchscreen.tap(215, 240); await pd.waitForTimeout(1700);
 check('open space is START', await pd.evaluate(() => window.__game.screen) === 'playing');
 

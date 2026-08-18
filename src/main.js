@@ -343,6 +343,9 @@ if (import.meta.env.DEV) {
   // point being that nothing restarts and nothing is thrown away.
   Object.defineProperty(window, '__tod', { get: () => (STAGES[0] ? STAGES[0].tod : null) });
   window.__panel = panel;
+  // A getter, not a value: `images` is declared with `let` further down and
+  // reading it here would hit the temporal dead zone and kill the module.
+  Object.defineProperty(window, '__titleImages', { get: () => images });
   // WHERE THE HOLES ARE, IN SCREEN SPACE — the same question drawPitMouths
   // answers, answered from the same numbers rather than re-derived. A harness
   // that recomputes FLOOR_R * T * zoom for itself is grading its own
@@ -656,6 +659,21 @@ canvas.addEventListener('pointerdown', (e) => {
     // options, the settings button should be found under the options, and
     // then back to the game should be filed under the options."
     if (title.hitOptions(state.titleBox, x, y)) { press(); panel.open('menu'); return; }
+    // ── STRAIGHT INTO THE CONTEST, FROM THE HOME PAGE ──────────────────────
+    //
+    // Client: "from that page, I want someone to be able to immediately enter
+    // the contest." Before this, entering meant PRESS START and sitting
+    // through the form on the way into a run, or OPTIONS -> LEADERBOARD ->
+    // ENTER THE CONTEST. Three taps, behind a menu, for the one action the
+    // whole build exists to drive.
+    //
+    // Somebody already in has nothing to fill in, so the same banner takes
+    // them to the board instead — the rule everywhere else in this flow.
+    if (title.hitBanner(state.titleBox, x, y)) {
+      press();
+      panel.open(isRegistered() ? 'board' : 'form', { flow: 'title' });
+      return;
+    }
     // The run starting is the biggest commitment on the screen, so it gets the
     // triad rather than the click.
     //
@@ -1669,7 +1687,9 @@ function draw() {
       // Ticks since the MUSIC box was last pressed, so it can flash back. A
       // press that has never happened is effectively infinitely old.
       state.musicPressTick == null ? 1e9 : state.tick - state.musicPressTick,
-      mousePos);
+      mousePos,
+      // The banner says ENTER THE CONTEST or SEE THE BOARD depending on this.
+      isRegistered());
     return;
   }
 

@@ -45,6 +45,9 @@ import titleBase from '../assets/backgrounds/title-portrait.webp';
 // The same painting with the title lettering lifted out and the sky closed
 // behind it — the intro's first beat. tools/cut_title_bare.py.
 import titleBare from '../assets/backgrounds/title-portrait-bare.webp';
+// The same plate with his painted OPTIONS painted out — the word is a drawn
+// control now and two of them would show. tools/cut_title_options_out.py.
+import titleNoOpts from '../assets/backgrounds/title-portrait-nooptions.webp';
 // The portrait plate's own cards, SAM-cut. The base is NOT cut — these are
 // drawn over a whole painting, which is the rule everywhere in this game now.
 import tpWordmark from '../assets/backgrounds/titlep-wordmark.webp';
@@ -135,6 +138,7 @@ export const CLOUD_SPRITES = CLOUD_LIST.map((s, i) => ({
 export const TITLE_IMAGES = {
   title_base: titleBase,
   title_bare: titleBare,
+  title_noopts: titleNoOpts,
   tp_wordmark: tpWordmark, tp_logo: tpLogo, tp_stars: tpStars,
   tp_signL: tpSignL, tp_signR: tpSignR,
   tp_hero: tpHero, tp_pole: tpPole,
@@ -407,7 +411,8 @@ const at = (t, t0, t1) => ease(Math.max(0, Math.min(1, (t - t0) / (t1 - t0))));
 export const INTRO_TICKS = INTRO_END;
 
 export function createTitle(ctx, canvas, still) {
-  function draw(images, tick, splash, introT, musicOn, musicPressAge, mouse) {
+  function draw(images, tick, splash, introT, musicOn, musicPressAge, mouse,
+                registered) {
     // THE INTRO PAGE. The card assembles itself out of an empty street and a
     // blank sky — see introFx — and that assembly IS the whole page. It has no
     // words of its own; his painting's own PRESS START is the prompt.
@@ -416,8 +421,14 @@ export function createTitle(ctx, canvas, still) {
     // land on a street that does not already have it. Everything else about
     // the painting is identical, and once the assembly ends the real plate
     // takes over with the lettering already covered — see BASE_IN.
+    // ⚠️ THE SETTLED PLATE IS THE ONE WITH HIS PAINTED "OPTIONS" REMOVED.
+    // OPTIONS is a drawn control now (see homeLayout), and leaving the painted
+    // word on the road would show two of them. PRESS START is untouched — it
+    // is above the patched band. tools/cut_title_options_out.py.
+    const settled = (images.title_noopts && images.title_noopts.width)
+      ? images.title_noopts : images.title_base;
     const plate = (fx && images.title_bare && images.title_bare.width)
-      ? images.title_bare : images.title_base;
+      ? images.title_bare : settled;
     // ⚠️ THE SKY-FILL GOES IN AS AN UNDERLAY, NOT AFTER THE FACT.
     //
     // Client: "clouds should never pass through buildings or inside of
@@ -435,11 +446,6 @@ export function createTitle(ctx, canvas, still) {
     // always said it belonged.
     const box = still.draw(plate, titleCards(images), tick,
       TITLE_ZOOM, TITLE_BIAS, fx, TITLE_SAFE, images.tp_skyfill);
-    // His OPTIONS, moved up into the dead road under PRESS START. Straight
-    // after the plate and before anything drawn over it, and on EVERY frame
-    // including the intro's — see liftOptions for why it needs the fade's
-    // own alpha rather than being held back until the fade finishes.
-    liftOptions(images.title_base, box, fx ? fx.base.a : 1);
     still.pulsePrompt(box, PROMPT, SRC_W, SRC_H, tick);
     // Client: "gleam off his chain... glimmer, glisten or glow off the red
     // stars." Held back until the card is fully settled — see drawGlints — so
@@ -455,6 +461,7 @@ export function createTitle(ctx, canvas, still) {
     if (a > 0.002) {
       ctx.save();
       ctx.globalAlpha = a;
+      drawBanner(box, tick, registered);
       drawOptions(images.title_options, box, tick);
       drawMusic(box, musicOn, tick, musicPressAge);
       ctx.restore();
@@ -800,168 +807,219 @@ export function createTitle(ctx, canvas, still) {
 
   // ── OPTIONS, WHERE HE PAINTED IT ─────────────────────────────────────
   //
-  // On the landscape plate this word had to be CUT OUT and moved: it rendered
-  // 54x9 px on a phone and sat thirteen screen pixels under PRESS START, which
-  // is no target at all. The portrait plate fixes that in the art — the two
-  // are 48 source pixels apart, which is 24 on a 430 phone, and the word comes
-  // out 84x14. So nothing is lifted, nothing is redrawn, and this is only a
-  // hit box: his lettering, in his position, left alone.
+  // ⚠️ THIS IS A RECORD, NOT A HIT BOX ANY MORE. It is where his painted
+  // OPTIONS used to sit on the plate, and tools/cut_title_options_out.py
+  // paints that rectangle out — the two have to agree, which is why the
+  // number stays here next to the code that used to use it. The live OPTIONS
+  // is a drawn control laid out by homeLayout() and has nothing to do with
+  // this position.
   //
   // Measured off the plate, not guessed: pale-neutral key over rows
   // 1600-1780, x 342-508, y 1609-1635.
   const OPTIONS_BOX = { x: 342, y: 1609, w: 167, h: 27 };
+  // ⚠️ THE BAND-LIFT MACHINERY IS GONE. OPTIONS used to be his painted word,
+  // shifted up 16 source rows by repainting a band of the plate every frame
+  // (OPTIONS_LIFT, buildBand, liftOptions and a cache), so it would clear the
+  // MUSIC control below it. That whole apparatus existed to buy a few pixels
+  // in a place where the amount of room is not knowable from the painting —
+  // see the note on homeLayout. The word is off the plate now and OPTIONS is
+  // drawn, so there is nothing to lift and nothing to cache.
 
-  // ── AND IT IS LIFTED OFF THE ROAD ────────────────────────────────────────
+  // ══ THE HOME CONTROLS ═════════════════════════════════════════════════
   //
-  // Client: "we just need to move the options up slightly... it's a bigger
-  // space underneath the PRESS START button, we could use that space as real
-  // estate... can you not just lift that, make it transparent and put it
-  // there?" Measured on his shape before touching anything: 22px of bare road
-  // between PRESS START's foot and OPTIONS' top, and only 14px under MUSIC.
-  // He is right — the empty space is above, and the crowding is below.
+  // Client, on the live build: "I'm not really comfortable with how start
+  // game, options and music buttons are sitting. And also, from that page, I
+  // want someone to be able to immediately enter the contest."
   //
-  // The word is PAINTED INTO HIS PLATE at rows 1609-1635, so there is no
-  // layer to nudge. The landscape plate solved this by SAM-cutting the word
-  // out and retexturing the hole behind it (see above) — a real piece of
-  // work, and it needed `retexture()` because the fill sat as a smooth patch
-  // in a speckled road.
+  // ⚠️ THE OLD LAYOUT WAS ANCHORED TO THE PAINTING, AND THAT WAS THE BUG.
+  // OPTIONS was his painted lettering at source row 1609 of 1844, so where it
+  // landed on screen depended entirely on how the cover-crop happened to
+  // fall. Measured across four phones: 12-14px tall — a third of a usable tap
+  // target — and simultaneously bunched high with 73-82px of dead pavement
+  // underneath on a tall phone, and crushed against the bottom edge with a
+  // 6px gap on an iPhone SE. Same layout, opposite failure, one cause.
   //
-  // NONE OF THAT IS NEEDED HERE, because of what is under the word: 208 rows
-  // of plain road and nothing else. So instead of cutting the word out and
-  // patching the gap it leaves, this REDRAWS THE WHOLE BOTTOM BAND of the
-  // plate shifted up by OPTIONS_LIFT rows. The word rides up with the band
-  // and the road closes behind it by itself — there is no hole to fill, and
-  // so nothing to retexture.
+  // musicRect had grown four layers of compensation for it: a 16-row lift of
+  // OPTIONS, a half-lift for MUSIC, a 25/75 crop weighting in stillscene.js
+  // bought purely to give MUSIC room, and a gap-versus-height solver so two
+  // floors could not contradict each other. All of it fighting the fact that
+  // the amount of room down there is not knowable from the painting.
   //
-  // ONE SEAM, and it lands on bare road between PRESS START and OPTIONS with
-  // only OPTIONS_LIFT rows of the plate's own vertical gradient across it —
-  // far under the tone step the landscape cut had to work around.
+  // So the controls are laid out from the SCREEN, upward from the bottom
+  // inset, at fixed sizes. Every phone gets the same real targets; only how
+  // much pavement shows above them varies. The painted OPTIONS is gone from
+  // the plate (tools/cut_title_options_out.py) so there is only one of it.
   //
-  // The band has room to slide into: the last plate row visible on any phone
-  // measured is ~1724 of 1844, so the shift never runs out of road.
-  const OPTIONS_LIFT = 16;                    // source rows, ~7px on his phone
+  // PRESS START stays painted and untouched — the client's call. It is his
+  // hero lettering and the layout below must never reach it.
+  const HOME_MIN_H = 44;        // the whole point: a real tap target
+  const HOME_BOTTOM = 20;       // clear of the home indicator
+  const HOME_GAP = 12;
+  const HOME_SIDE = 16;
+  const BANNER_H = 56;
+  // Never thinner than this, even where the pavement runs out.
+  const BANNER_MIN_H = 42;
+  // The floor when everything shares one row on a short phone.
+  const SHORT_MIN_H = 34;
+  // PRESS START's painted baseline in source rows. The stack is clamped to
+  // stay below it, so on a very short phone the controls stop rather than
+  // climbing over his lettering.
+  const PROMPT_FOOT = 1580;
 
-  // ⚠️ WHERE THE BAND STARTS IS MEASURED, NOT CHOSEN, AND IT IS PINNED BETWEEN
-  // TWO HARD LIMITS.
-  //
-  //   BAND_TOP - OPTIONS_LIFT  must stay BELOW PRESS START's foot, or the
-  //                            shift saws the bottom off his prompt. PROMPT
-  //                            is rows 1518-1572, so the earliest the band
-  //                            can land is 1573 — an earlier pass here read
-  //                            the foot as 1561 off a guess and picked a row
-  //                            that would have clipped it.
-  //   BAND_TOP                 must stay ABOVE the lettering at 1609, or the
-  //                            band does not carry the word it exists to move.
-  //
-  // That leaves rows 1589-1608, and inside that window the seam step was
-  // measured for every candidate (|row r-1| against |row r+LIFT|, mean
-  // luminance across the plate's width). The flattest is 1592 at 2.22 levels.
-  // NOTHING in the window is flat: the road under PRESS START carries a real
-  // lighting gradient, so a hard join anywhere here shows. Rows further up
-  // reach 0.01 and are unusable — they are inside PRESS START.
-  const BAND_TOP = 1592;
-  // So the join is CROSS-FADED rather than butted. Twelve rows is enough to
-  // dissolve a 2-level step below the plate's own dither, and the whole
-  // feather sits on bare road between the prompt and the word — clear of
-  // PRESS START's foot above and OPTIONS' top below.
-  const BAND_FEATHER = 12;
-  const BAND_DEST_TOP = BAND_TOP - OPTIONS_LIFT;
-  const BAND_H = SRC_H - BAND_DEST_TOP;
+  function homeLayout(box) {
+    if (!box) return null;
+    const W = canvas.width;
+    const H = canvas.height;
+    const S = box.dw / SRC_W;
+    const side = Math.max(10, Math.min(HOME_SIDE, W * 0.05));
+    const inner = W - side * 2;
 
-  // ── THE CORRECTION IS BUILT ONCE, IN THE PLATE'S OWN PIXELS ──────────────
-  //
-  // It depends only on the artwork, never on the window, so there is nothing
-  // in it to redo when the phone rotates or the browser chrome moves. Built
-  // at source resolution and scaled on the way out, exactly like the plate.
-  // Keyed on the image itself because day and night are different plates.
-  let bandCache = null;
-  let bandCacheFor = null;
+    // ⚠️ HOW MUCH ROAD IS ACTUALLY BELOW HIS LETTERING, MEASURED.
+    // PRESS START is painted into the plate and cannot move, so the controls
+    // get whatever is under it and no more. On an iPhone SE that is 45px —
+    // against 98px for a banner, a gap and a 44px row. Two earlier attempts
+    // ignored this: the first pushed the row 72px off the bottom of the
+    // screen, the second drew it straight over his lettering.
+    //
+    // Cropping harder does not rescue it either. The title plate is already
+    // cropped as far as its budget allows, and taking the top margin to zero
+    // (stillscene.js) bought six pixels.
+    //
+    // So the layout has two shapes, chosen by what fits:
+    //   TALL  — banner across the pavement, OPTIONS and MUSIC in a row below.
+    //   SHORT — all three share one row, contest first and widest.
+    // Both keep a real tap target and neither ever touches PRESS START.
+    const promptFoot = box.dy + PROMPT_FOOT * S;
+    const road = (H - HOME_BOTTOM) - promptFoot;
+    const twoRows = BANNER_MIN_H + HOME_GAP + HOME_MIN_H;
 
-  function buildBand(base) {
-    const cv = document.createElement('canvas');
-    cv.width = SRC_W;
-    cv.height = BAND_H;
-    const c = cv.getContext('2d');
-    c.imageSmoothingEnabled = false;
-    // The band, lifted: everything from BAND_TOP down, moved up by the lift.
-    const lifted = SRC_H - BAND_TOP;
-    c.drawImage(base, 0, BAND_TOP, SRC_W, lifted, 0, 0, SRC_W, lifted);
-    // The lift leaves OPTIONS_LIFT rows bare at the plate's very foot. Off
-    // screen on every phone measured, but a desktop contain-fit shows the
-    // whole card, so the last rows are repeated to close it — road over road.
-    c.drawImage(base, 0, SRC_H - OPTIONS_LIFT, SRC_W, OPTIONS_LIFT,
-      0, lifted, SRC_W, OPTIONS_LIFT);
-    // THE FEATHER. Lay the rows that genuinely belong at this destination
-    // back over the top edge, fading out downward — so the band OPENS as an
-    // exact continuation of the plate above it and has dissolved into the
-    // lifted content well before the word arrives. Masked with
-    // destination-out and a gradient, which is the only way to get a varying
-    // alpha out of drawImage.
-    const t = document.createElement('canvas');
-    t.width = SRC_W;
-    t.height = BAND_FEATHER;
-    const tc = t.getContext('2d');
-    tc.imageSmoothingEnabled = false;
-    tc.drawImage(base, 0, BAND_DEST_TOP, SRC_W, BAND_FEATHER, 0, 0, SRC_W, BAND_FEATHER);
-    tc.globalCompositeOperation = 'destination-out';
-    const g = tc.createLinearGradient(0, 0, 0, BAND_FEATHER);
-    g.addColorStop(0, 'rgba(0,0,0,0)');     // keep the original here
-    g.addColorStop(1, 'rgba(0,0,0,1)');     // and none of it by the bottom
-    tc.fillStyle = g;
-    tc.fillRect(0, 0, SRC_W, BAND_FEATHER);
-    c.drawImage(t, 0, 0);
-    return cv;
+    if (road >= twoRows) {
+      const rowH = HOME_MIN_H;
+      const ry = H - HOME_BOTTOM - rowH;
+      const bannerH = Math.max(BANNER_MIN_H,
+        Math.min(BANNER_H, (ry - HOME_GAP) - promptFoot));
+      const optW = Math.round((inner - HOME_GAP) * 0.44);
+      return {
+        banner: { x: side, y: ry - HOME_GAP - bannerH, w: inner, h: bannerH },
+        options: { x: side, y: ry, w: optW, h: rowH },
+        music: { x: side + optW + HOME_GAP, y: ry,
+                 w: inner - HOME_GAP - optW, h: rowH },
+        rows: 2,
+      };
+    }
+
+    // SHORT. One row, and the height is whatever the road gives down to a
+    // floor — 34px is still nearly three times the 12px these controls used
+    // to be, and it beats drawing over his lettering to keep a round number.
+    const bottom = Math.min(HOME_BOTTOM, Math.max(6, road * 0.18));
+    const rowH = Math.max(SHORT_MIN_H, Math.min(HOME_MIN_H, road - bottom));
+    const ry = H - bottom - rowH;
+    const g = Math.max(6, HOME_GAP * 0.6);
+    const bw = Math.round((inner - g * 2) * 0.46);
+    const rest = Math.round((inner - g * 2 - bw) / 2);
+    return {
+      banner: { x: side, y: ry, w: bw, h: rowH },
+      options: { x: side + bw + g, y: ry, w: rest, h: rowH },
+      music: { x: side + bw + g + rest + g, y: ry,
+               w: inner - bw - g * 2 - rest, h: rowH },
+      rows: 1,
+    };
   }
 
-  // Repaint the band, shifted. Called every frame straight after the plate so
-  // the word is NEVER drawn in its unlifted place — there is no frame where
-  // it jumps, and no state where the pulse and the lettering disagree.
-  //
-  // ⚠️ IT TAKES THE BASE'S OWN FADE ALPHA, AND CLEARS TO BLACK FIRST. The
-  // intro brings the plate up out of black (introFx: the base only fades, it
-  // never moves), so simply drawing the band over it at the same alpha would
-  // composite the shifted band ON TOP of the unshifted one and ghost a second
-  // OPTIONS underneath. Painting the region black and then laying the band
-  // down at `alpha` reproduces the fade exactly instead of doubling it — and
-  // because the feather's first row IS the original row, the two halves of
-  // the join stay identical at every alpha, not just at 1.
-  function liftOptions(base, box, alpha) {
-    if (!base || !base.width || !box || OPTIONS_LIFT <= 0) return;
-    if (bandCacheFor !== base) {
-      bandCache = buildBand(base);
-      bandCacheFor = base;
-    }
-    const S = box.dw / SRC_W;
-    const dy = box.dy + BAND_DEST_TOP * S;
-    ctx.save();
-    ctx.imageSmoothingEnabled = false;
-    // The same black the letterbox uses, so this is indistinguishable from
-    // the fill stillscene.draw() already laid down under the plate.
-    ctx.fillStyle = '#07060a';
-    ctx.fillRect(0, dy, canvas.width, canvas.height - dy);
-    ctx.globalAlpha = alpha;
-    ctx.drawImage(bandCache, 0, 0, SRC_W, BAND_H, box.dx, dy, box.dw, BAND_H * S);
-    ctx.restore();
+  function bannerRect(box) {
+    const l = homeLayout(box);
+    return l && l.banner;
   }
 
   function optionsRect(box) {
-    if (!box) return null;
-    const S = box.dw / SRC_W;
-    // The LIFTED position — this is where the word actually is on screen, so
-    // the hit box and the pulse both follow it without either being told.
-    return { x: box.dx + OPTIONS_BOX.x * S,
-             y: box.dy + (OPTIONS_BOX.y - OPTIONS_LIFT) * S,
-             w: OPTIONS_BOX.w * S, h: OPTIONS_BOX.h * S };
+    const l = homeLayout(box);
+    return l && l.options;
   }
 
+  // ── HIS OWN HIGHWAY SIGN, REUSED AS A BUTTON ──────────────────────────
+  //
+  // Client's call: the contest entry is "a banner across the pavement,
+  // styled like the road signage in your art."
+  //
+  // ⚠️ THE COLOURS ARE SAMPLED FROM THE PLATE, NOT INVENTED. Median of the
+  // WELCOME TO ATLANTA sign at source x55..340 y740..890: the green field is
+  // #022c17, and the type and border are #988d70 — a weathered warm white,
+  // not pure white, which is why a clean #fff button looked pasted on beside
+  // it. Re-sample if the title art is ever repainted.
+  const SIGN_FIELD = '#022c17';
+  const SIGN_INK = '#988d70';
+  const SIGN_SHADOW = 'rgba(2,23,6,0.85)';
+
+  function drawBanner(box, tick, registered) {
+    const r = bannerRect(box);
+    if (!r) return;
+    const l = homeLayout(box);
+    const tight = l && l.rows === 1;
+    const label = registered
+      ? (tight ? 'LEADERBOARD' : "YOU'RE IN  ·  SEE THE BOARD")
+      : (tight ? 'ENTER' : 'ENTER THE CONTEST');
+    const rad = Math.min(10, r.h * 0.18);
+    ctx.save();
+    // Drop shadow first, so the sign sits ON the road rather than floating.
+    ctx.fillStyle = SIGN_SHADOW;
+    rr(r.x + 2, r.y + 3, r.w, r.h, rad);
+    ctx.fill();
+    ctx.fillStyle = SIGN_FIELD;
+    rr(r.x, r.y, r.w, r.h, rad);
+    ctx.fill();
+    // The white keyline his signs all carry, inset the way they are.
+    ctx.strokeStyle = SIGN_INK;
+    ctx.lineWidth = Math.max(1.5, r.h * 0.045);
+    rr(r.x + r.h * 0.10, r.y + r.h * 0.10,
+       r.w - r.h * 0.20, r.h - r.h * 0.20, rad * 0.7);
+    ctx.stroke();
+    ctx.fillStyle = SIGN_INK;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const px = fitToWidth(label, r.h * 0.34, r.w - r.h * 0.9, () => 0);
+    ctx.font = `700 ${px}px ui-monospace, SFMono-Regular, Menlo, monospace`;
+    ctx.letterSpacing = '0.06em';
+    ctx.fillText(label, r.x + r.w / 2, r.y + r.h / 2 + 1);
+    ctx.restore();
+    // Its own beat, a third out of phase with PRESS START and OPTIONS, so the
+    // three read as three separate pressable things and not one blink.
+    still.pulseRect(r.x, r.y, r.w, r.h, tick + 114, '150,255,190');
+  }
+
+  function rr(x, y, w, h, rad) {
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(x, y, w, h, rad);
+    else ctx.rect(x, y, w, h);
+  }
+
+  function hitBanner(box, x, y) {
+    const r = bannerRect(box);
+    return !!r && x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
+  }
+
+  // OPTIONS is a drawn control now, not his painted word — the painted one is
+  // gone from the plate. Same weathered ink as the banner so the row reads as
+  // one set of controls rather than three unrelated things.
   function drawOptions(_img, box, tick) {
     const r = optionsRect(box);
     if (!r) return;
-    // STILL NOTHING IS BLITTED HERE. The word is his lettering, moved by
-    // liftOptions() above as part of the plate rather than lifted out of it.
-    // All this adds is the breath that marks it as pressable — opposite beat
-    // to PRESS START and cooler, so it reads as a second thing you can press
-    // rather than as a caption under the first.
+    ctx.save();
+    ctx.fillStyle = 'rgba(6,10,9,0.55)';
+    rr(r.x, r.y, r.w, r.h, 8);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(152,141,112,0.55)';
+    ctx.lineWidth = 1.5;
+    rr(r.x + 1, r.y + 1, r.w - 2, r.h - 2, 7);
+    ctx.stroke();
+    ctx.fillStyle = SIGN_INK;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const px = fitToWidth('OPTIONS', r.h * 0.36, r.w - 18, () => 0);
+    ctx.font = `700 ${px}px ui-monospace, SFMono-Regular, Menlo, monospace`;
+    ctx.letterSpacing = '0.08em';
+    ctx.fillText('OPTIONS', r.x + r.w / 2, r.y + r.h / 2 + 1);
+    ctx.restore();
+    // Opposite beat to PRESS START, as before.
     still.pulseRect(r.x, r.y, r.w, r.h, tick + 57, '150,210,255');
   }
 
@@ -1020,11 +1078,18 @@ export function createTitle(ctx, canvas, still) {
   // Step the font down from `maxPx` (the CAP ceiling — never taller than
   // OPTIONS) until `label` plus whatever else shares the row (`extra`, a
   // function of the trial px since a gap scales with type) fits `targetW`.
+  // ⚠️ IT MEASURES IN THE FONT IT WILL BE DRAWN IN. This used to size the
+  // label against `system-ui, sans-serif` while all three controls render in
+  // the monospace stack, which is materially wider — so the number it handed
+  // back was a fit for a font nobody uses. Same string here as in every
+  // fillText below; change one, change all of them.
+  const CONTROL_FONT = 'ui-monospace, SFMono-Regular, Menlo, monospace';
+
   function fitToWidth(label, maxPx, targetW, extra) {
     ctx.save();
     let px = maxPx;
     for (; px > 4; px -= 0.25) {
-      ctx.font = `700 ${px}px system-ui, sans-serif`;
+      ctx.font = `700 ${px}px ${CONTROL_FONT}`;
       if (ctx.measureText(label).width + extra(px) <= targetW) break;
     }
     ctx.restore();
@@ -1032,79 +1097,30 @@ export function createTitle(ctx, canvas, still) {
   }
 
   function musicRect(box) {
-    const o = optionsRect(box);
-    if (!o) return null;
-    // ⚠️ MUSIC MUST NEVER RUN OFF THE SCREEN, AND MUST NEVER TOUCH OPTIONS.
-    // The ideal is the same height as OPTIONS, stepped down by a full gap —
-    // but on the two tightest crops measured (iPhone SE, and the client's own
-    // screenshot) there is only 7-9px of road left below OPTIONS before the
-    // frame ends, LESS THAN OPTIONS' OWN HEIGHT. That is not a hypothetical:
-    // his own screenshot is one of the two shapes that hits it, at 6.9px.
-    //
-    // A first pass floored the height at a fixed minimum and clamped the
-    // position separately against the frame edge — on that 6.9px shape the
-    // two floors CONTRADICTED each other (the position clamp wanted MUSIC
-    // higher than the height floor allowed), and it landed a fraction of a
-    // pixel INSIDE Options' own box. The fix is to stop treating "how much
-    // height" and "where it sits" as two separate problems: gap and height
-    // are solved TOGETHER against the one number that actually exists — the
-    // raw room between OPTIONS' foot and the true bottom of the canvas — so
-    // their sum can never exceed what is physically there.
-    //
-    // On every shape with real room — which is every phone at full height,
-    // and most with the browser's own UI showing — none of this engages and
-    // MUSIC comes out at OPTIONS' own height, stacked perfectly underneath.
-    const idealH = o.h;
-    // ── MUSIC COMES UP HALF AS FAR AS OPTIONS DID ──────────────────────────
-    //
-    // Client, exactly: "move the options up slightly... and then move the
-    // music up half a pixel" — half of whatever OPTIONS moved, so the two
-    // do not travel together and the space between them OPENS instead of
-    // sliding along unchanged.
-    //
-    // MUSIC hangs off optionsRect, which now returns the LIFTED word, so it
-    // would otherwise follow the full lift for free. Adding half the lift
-    // back onto the gap is what leaves it behind by the other half: OPTIONS
-    // rises by LIFT, MUSIC by LIFT/2, the gap between them grows by LIFT/2,
-    // and MUSIC still gains LIFT/2 of clearance under it at the bottom —
-    // which is the edge he said it was being cut off against.
-    const halfLift = (OPTIONS_LIFT / 2) * (box.dw / SRC_W);
-    const idealGap = Math.max(14, idealH * 0.65) + halfLift;
-    const room = canvas.height - (o.y + o.h);          // to the TRUE edge, nothing assumed
-    // ⚠️ THE GAP GETS A SHARE FIRST, BUT A SMALL ONE — HEIGHT STILL WINS THE
-    // REST. A 0.5px floor read as one smear instead of two controls:
-    // "OPTIONS needs to be up a little bit above the music section." But
-    // giving the gap equal say with height went too far the other way on the
-    // tightest crop measured — MUSIC shrank to 3px and stopped being
-    // readable at all, which is worse than close-together. A quarter of
-    // whatever room is left is enough gap to read as a real seam without
-    // starving the label; height still takes whatever remains, which is
-    // most of it.
-    const MIN_GAP = 2.5;
-    let h = idealH, gap = idealGap;
-    if (gap + h > room) {
-      gap = Math.max(MIN_GAP, Math.min(idealGap, room * 0.25));
-      h = Math.max(0, room - gap);                      // whatever is left, however small
-    }
-    const boxSz = h * ICON_H;
-    // Bounded by the SCREEN's width too, not by a neighbour — "MUSIC" alone
-    // under OPTIONS has never needed to shrink on any phone measured, but a
-    // floor this generous still cannot run the label off a genuinely tiny
-    // display.
-    const maxW = Math.max(20, canvas.width - EDGE_PAD * 2);
-    const px = fitToWidth(MUSIC_LABEL, Math.max(4, h / CAP), maxW, (p) => boxSz + p * 0.40);
+    const l = homeLayout(box);
+    if (!l) return null;
+    const r = l.music;
+    // The checkbox and its label, centred together inside the control. No
+    // solver any more: the room is given, not fought for.
+    const boxSz = Math.round(r.h * 0.42);
+    // ⚠️ THE BOX IS SUBTRACTED ONCE, NOT TWICE. It used to come off the target
+    // width AND be added back by extra(), which on the one-row layout left
+    // "MUSIC" 32px to live in and sized it at 8px — small print again, beside
+    // a 44px tap target, which is the exact complaint this whole change is
+    // answering. The side padding scales with the control now too; a flat 26px
+    // is a third of the width on a short phone and nothing on a tall one.
+    const pad = Math.max(10, Math.round(r.h * 0.36));
+    const px = fitToWidth(MUSIC_LABEL, r.h * 0.36, r.w - pad,
+                          (q) => boxSz + q * 0.40);
     ctx.save();
-    ctx.font = `700 ${px}px system-ui, sans-serif`;
+    ctx.font = `700 ${px}px ui-monospace, SFMono-Regular, Menlo, monospace`;
     const tw = ctx.measureText(MUSIC_LABEL).width;
     ctx.restore();
-    const w = boxSz + px * 0.40 + tw;
-    return {
-      // y is a DIRECT sum, not a separately-clamped value — by construction
-      // o.y + o.h + gap + h can never exceed canvas.height, because gap and h
-      // were solved against exactly that budget above.
-      x: (o.x + o.w / 2) - w / 2, y: o.y + o.h + gap,
-      w, h, boxSz, gap: px * 0.40, fontPx: px,
-    };
+    const contentW = boxSz + px * 0.40 + tw;
+    return { x: r.x, y: r.y, w: r.w, h: r.h,
+             boxSz, gap: px * 0.40, fontPx: px,
+             // Where the content starts, so drawMusic can centre it.
+             inset: Math.max(8, (r.w - contentW) / 2) };
   }
 
   // ── AND IT ACKNOWLEDGES THE PRESS ────────────────────────────────────────
@@ -1127,7 +1143,16 @@ export function createTitle(ctx, canvas, still) {
     const r = musicRect(box);
     if (!r) return;
     const glow = 0.5 + 0.5 * Math.sin(tick / 52 + 4.2);
-    const bx = r.x;
+    // The control is a plate now, the same as OPTIONS, with the box and label
+    // centred inside it rather than being the whole of it.
+    ctx.fillStyle = 'rgba(6,10,9,0.55)';
+    rr(r.x, r.y, r.w, r.h, 8);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(152,141,112,0.55)';
+    ctx.lineWidth = 1.5;
+    rr(r.x + 1, r.y + 1, r.w - 2, r.h - 2, 7);
+    ctx.stroke();
+    const bx = r.x + r.inset;
     const by = r.y + (r.h - r.boxSz) / 2;
     // Cubic ease-out so it snaps in and drains away rather than blinking.
     const p = Math.max(0, 1 - pressAge / PRESS_FLASH);
@@ -1182,7 +1207,7 @@ export function createTitle(ctx, canvas, still) {
     ctx.font = `700 ${r.fontPx}px system-ui, sans-serif`;
     ctx.fillStyle = on ? 'rgba(255,236,190,0.95)'
       : `rgba(226,214,236,${0.58 + 0.30 * glow})`;
-    ctx.fillText(MUSIC_LABEL, bx + r.boxSz + r.h * 0.42, r.y + r.h / 2 + 1);
+    ctx.fillText(MUSIC_LABEL, bx + r.boxSz + r.gap, r.y + r.h / 2 + 1);
     ctx.restore();
   }
 
@@ -1237,5 +1262,6 @@ export function createTitle(ctx, canvas, still) {
       && y >= r.y - HIT_MARGIN_TOP && y <= r.y + r.h + HIT_MARGIN;
   }
   return { draw, hitOptions, optionsRect,
-    hitMusic, musicRect, drawMusic };
+    hitMusic, musicRect, drawMusic,
+    hitBanner, bannerRect, homeLayout };
 }

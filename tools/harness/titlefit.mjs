@@ -14,18 +14,30 @@
 // 165 spare rows above the title and 208 below OPTIONS and the worst phone
 // needs 350 of that 373.
 //
-// So there are five things to prove on every shape, and pixel-peeping one
-// screenshot proves none of them:
+// ⚠️ THIS FILE IS ABOUT THE PAINTING, NOT THE BUTTONS, AND IT DID NOT USE TO
+// BE. It carried three checks on where OPTIONS and MUSIC sat relative to each
+// other, from when those were his painted word and a box stacked under it —
+// including one asserting MUSIC is centred on OPTIONS' own x, which was the
+// literal shape of "stacked perfectly" at the time. The controls are laid out
+// from the SCREEN now (homeLayout in src/render/title.js), there are three of
+// them, and they sit in a row. Their geometry, their tap targets and where
+// they route moved to tools/harness/titlehome.mjs, which is where the client's
+// newer call — "I'm not really comfortable with how start game, options and
+// music buttons are sitting" — is defended. Nothing was dropped; it moved.
+//
+// What is left here is the question this file was opened to answer, which has
+// not changed: does his PAINTING fill the screen on every phone without
+// losing anything off an edge?
 //   1. no black bars at the sides,
 //   2. the top of WILL HILL: is on screen,
-//   3. the foot of OPTIONS is on screen,
-//   4. MUSIC does not overlap OPTIONS or run off the frame,
-//   5. MUSIC sits DIRECTLY under OPTIONS, centred on the same x. Client:
-//      "that music button ultimately is going to be under the OPTIONS button,
-//      and that will be stacked perfectly." CHAMPAGNE RELAY came off the card
-//      entirely after this — "that's like a dev/dashboard thing" — so this is
-//      also the file that has to prove it stays gone: `relayRect` must no
-//      longer exist on the title module at all.
+//   3. the foot of PRESS START is on screen — his hero lettering is painted
+//      into the plate and cannot be moved out of a bad crop's way, so it is
+//      the bottom-most thing the framing has to keep. It used to be OPTIONS'
+//      foot at row 1635; that word is off the plate now
+//      (tools/cut_title_options_out.py) and checking its row would be
+//      checking bare road.
+//   4. CHAMPAGNE RELAY stays off the card — "that's like a dev/dashboard
+//      thing" — so `relayRect` must not exist on the title module at all.
 const _pw = await import(process.env.PLAYWRIGHT || 'playwright');
 const chromium = _pw.chromium || _pw.default?.chromium;
 const b = await chromium.launch(process.env.CHROMIUM ? { executablePath: process.env.CHROMIUM } : {});
@@ -56,15 +68,8 @@ const SHAPES = [
 
 // Source rows, and they must match TITLE_SAFE in src/render/title.js.
 const NAME_TOP = 165;
-// ⚠️ OPTIONS IS NO LONGER WHERE IT IS PAINTED. liftOptions() redraws the
-// plate's bottom band OPTIONS_LIFT rows higher, so the word's foot lands at
-// 1635 - OPTIONS_LIFT. Checking the painted row would now be checking bare
-// road, and would pass while the word itself hung off the bottom.
-const OPTIONS_LIFT = 16;
-const OPT_BOTTOM = 1635 - OPTIONS_LIFT;
-
-const overlaps = (a, c) => a && c
-  && a.x < c.x + c.w && c.x < a.x + a.w && a.y < c.y + c.h && c.y < a.y + a.h;
+// PRESS START's painted foot: PROMPT.y + PROMPT.h in src/render/title.js.
+const PROMPT_BOTTOM = 1572;
 
 for (const [name, w, h] of SHAPES) {
   const p = await (await b.newContext({ viewport: { width: w, height: h }, hasTouch: true })).newPage();
@@ -73,7 +78,7 @@ for (const [name, w, h] of SHAPES) {
   await p.waitForFunction(() => window.__game && window.__game.titleBox, null, { timeout: 25000 });
   await p.waitForTimeout(3000);
 
-  const r = await p.evaluate(([nameTop, optBottom]) => {
+  const r = await p.evaluate(([nameTop, promptBottom]) => {
     const g = window.__game, t = window.__title, bx = g.titleBox;
     const cv = document.querySelector('canvas');
     const row = (src) => bx.dy + (src / 1844) * bx.dh;
@@ -81,32 +86,19 @@ for (const [name, w, h] of SHAPES) {
       bars: Math.round(bx.dx),
       fillsWidth: Math.round(bx.dw) >= cv.width - 1,
       nameTop: Math.round(row(nameTop)),
-      optBottom: Math.round(row(optBottom)),
+      promptFoot: Math.round(row(promptBottom)),
       ch: cv.height,
-      opt: t.optionsRect(bx), music: t.musicRect(bx),
       relayGone: typeof t.relayRect === 'undefined' && typeof t.hitRelay === 'undefined',
     };
-  }, [NAME_TOP, OPT_BOTTOM]);
+  }, [NAME_TOP, PROMPT_BOTTOM]);
 
   console.log(`\n  ${name}  ${w}x${h}`);
   check(`  no side bars`, r.bars <= 1 && r.fillsWidth, `dx=${r.bars}`);
   check(`  the top of WILL HILL: is on screen`, r.nameTop >= 0, `row 165 at y=${r.nameTop}`);
-  check(`  the foot of OPTIONS is on screen`, r.optBottom <= r.ch,
-    `row 1635 at y=${r.optBottom} of ${r.ch}`);
+  check(`  the foot of PRESS START is on screen`, r.promptFoot <= r.ch,
+    `row ${PROMPT_BOTTOM} at y=${r.promptFoot} of ${r.ch}`);
   check(`  CHAMPAGNE RELAY stays off the title card`, r.relayGone,
     `relayRect=${typeof r.relayGone}`);
-  check(`  MUSIC does not overlap OPTIONS`, !overlaps(r.music, r.opt));
-  // Everything drawn has to be inside the frame, or MUSIC is unreachable.
-  const inside = (x) => !x || (x.y >= 0 && x.y + x.h <= r.ch && x.x >= 0 && x.x + x.w <= 430 + 400);
-  check(`  MUSIC is inside the frame`, inside(r.music));
-  // Client: "that music button ultimately is going to be under the OPTIONS
-  // button... stacked perfectly." Directly under, on the SAME x-centre, is
-  // the literal shape of "stacked perfectly" — checked, not eyeballed.
-  const optCx = r.opt.x + r.opt.w / 2, musicCx = r.music.x + r.music.w / 2;
-  check(`  MUSIC is centred on OPTIONS' own x`, Math.abs(optCx - musicCx) <= 1,
-    `optCx=${optCx.toFixed(1)} musicCx=${musicCx.toFixed(1)}`);
-  check(`  MUSIC sits directly below OPTIONS, not above or beside it`,
-    r.music.y > r.opt.y + r.opt.h, `opt.y=${r.opt.y.toFixed(1)} music.y=${r.music.y.toFixed(1)}`);
 
   await p.screenshot({ path: `${OUT}/titlefit-${name.replace(/[^a-z0-9]+/gi, '_')}.png` });
   await p.context().close();

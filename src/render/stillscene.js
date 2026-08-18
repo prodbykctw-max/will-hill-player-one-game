@@ -187,8 +187,23 @@ export function createStillScene(ctx, canvas) {
       // margin survives the crop is split 25% top / 75% bottom instead of
       // proportionally, which on the tightest shape measured moves OPTIONS
       // up enough to roughly double the room musicRect has to work with.
+      // ⚠️ ALL OF THE SLACK GOES TO THE BOTTOM, NOT 75% OF IT.
+      //
+      // This used to be a 25/75 split, bought to give the old MUSIC control a
+      // few more pixels. The home page now carries a banner and a 44px control
+      // row laid out from the bottom of the screen (title.js homeLayout), and
+      // on an iPhone SE the measurement is unforgiving: PRESS START's painted
+      // foot landed at screen y627 with only 40px of canvas below it, against
+      // 98px of controls. The stack ended up drawn straight over his
+      // lettering.
+      //
+      // Every row of slack spent above WILL HILL: is a row of pavement not
+      // shown below PRESS START, and the sky above the wordmark is the one
+      // part of this painting with nothing in it to lose. So the top margin
+      // is zero: crop from the top as hard as the budget allows, and the
+      // controls get the room.
       const leftover = Math.max(0, budget - cropRows);
-      const topMargin = leftover * 0.25;
+      const topMargin = 0;
       const offTop = Math.max(0, Math.min(spareTop, cropRows, spareTop - topMargin));
       let dy = -offTop * s;
       // Keep the top of the safe band clear of the status bar / island. This
