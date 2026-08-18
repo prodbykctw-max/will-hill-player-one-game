@@ -67,6 +67,35 @@ scratchpad, never the repo root.
 
 ## DONE — shipped and live
 
+### The L5P seam was two corrupt pixels, not a repeat problem
+
+Client, long ago: *"that should be the first seam of the bg where it repeats."*
+`seamsweep` has carried it as the worst number in the suite ever since — L5P's
+plate join at a **194.1 step, 7.29x that frame's own p99, on 26 of 100 frames.**
+
+It was never a repeat problem. `l5p-base` opened with two columns at luma
+**251.6 and 142.4** in front of a plate whose next column is 5.0 — a white line
+down every row, printed again at every plate width. `edgewood-base` had one at
+its right edge. A resampling artifact at the frame border, and
+`tools/fix_seam.py` was written for exactly it, documents it in its own header,
+and **had never been run on these two plates.**
+
+`--repair` clamps the first good column outward — no crop, so plate width and
+every `span` / `xRanges` / `light.x` fraction stays valid.
+
+| | before | after |
+|---|---|---|
+| `l5p-base` seam ratio | 37.2 | **0.6** |
+| `edgewood-base` seam ratio | 9.8 | **0.5** |
+| `seamsweep` L5P worst join step | 194.1 | **6.0** |
+| `seamsweep` L5P median join | 190.8 | **3.7** |
+| `seamsweep` edgewood worst join | 26.2 | **9.8** |
+| worst edge anywhere in the sweep | 194.1 | **29.9** |
+
+Every stage's join now sits below its own frame's p99 — quieter than the
+painted detail around it. Underground's own join (13.6) was never the target
+and did not move.
+
 ### The Underground doubling — one number that was never wired up
 
 Client, with four phone captures: *"It's always underground with double shit in

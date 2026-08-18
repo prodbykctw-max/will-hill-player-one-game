@@ -756,3 +756,29 @@ against the old line before being kept.
     building". Hold the subject where the camera already wants to be, converge
     the camera free, then lock it at the point it chose; and sandwich the noise
     floor around the measurement rather than taking it in a separate pass.
+
+31. Before chasing a defect, run the tool that already exists for it. L5P's
+    plate seam was carried for weeks as the worst number in the seam harness
+    and treated as an open design problem — a candidate for mirroring, or for a
+    per-stage parallax rate. `tools/fix_seam.py --measure` named the real cause
+    in one read-only command: two corrupt columns at the plate's own left edge,
+    luma 251.6 and 142.4 against a next column of 5.0. The tool was written for
+    that exact defect, says so in its header, and had simply never been run on
+    those two plates. `--repair` took the join from 194.1 to 6.0. Check the
+    toolbox before designing a fix.
+
+32. A control that FAILS is still an answer, and often the more useful one.
+    Muting every card at once was supposed to be a sanity check before muting
+    them one at a time; EAV's cloud leak got WORSE with all cards muted (108 ->
+    507), which says the fault is not in any card's parallax at all. That
+    negative ruled out the two suspects a static analysis had produced and
+    redirected the search to the seal in one step. Run the control first and
+    believe it when it disagrees with you.
+
+33. A coordinate mapped with another stage's constant is not a coordinate.
+    Mapping a leak from canvas space back to plate space used `groundFrac 0.71`
+    — Underground's — against EAV's real 0.88. The region that came out looked
+    entirely plausible (a brick wall) and supported a confident wrong story
+    about alpha thresholds in the seal. Nothing about the arithmetic complains;
+    only reading the stage's own value does. Fetch the constant from the stage
+    you are actually measuring, every time.

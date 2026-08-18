@@ -563,9 +563,65 @@ things had to be got right to make that a measurement rather than a number:
    tick. Taking every off-frame in one pass and every on-frame in another put
    minutes between the two halves of a subtraction.
 
-**Two leaks it found the day it learned to travel, on stages nobody had
-reported:** `eav` 104px (biggest blob 82) at 11,290px into the stage, and `l5p`
-115px (blob 73) at 7,200px. Both predate this work. ⚠️ **eav's does not respond
+### ⚠️ THE L5P "SEAM" WAS NEVER A SEAM — and this claim above was wrong twice
+
+Two corrupt columns at the LEFT EDGE of `l5p-base`, luma **251.6 and 142.4** in
+front of a plate whose next column is 5.0: a white line down every row,
+repeated at every plate width. `edgewood-base` had one at its right edge (62.3
+against 3.0). Not a content discontinuity, not a repeat problem — a resampling
+artifact left at the frame border by whatever produced the plate.
+
+`tools/fix_seam.py` was written for exactly this, documents it in its own
+header, and **had never been run on these two plates.** One command:
+
+    python3 tools/fix_seam.py --measure     # l5p ratio 37.2, edgewood 9.8
+    python3 tools/fix_seam.py --repair      # -> 0.6 and 0.5
+
+`--repair` CLAMPS — the first good column is copied outward over the bad ones.
+No crop, so the plate width and every `span` / `xRanges` / `light.x` fraction
+in `stages.js` is untouched. `seamsweep` after: **L5P's worst join step 194.1 ->
+6.0** (median 190.8 -> 3.7), edgewood 26.2 -> 9.8, and every stage's join now
+sits BELOW its own frame's p99. The whole harness's worst edge fell from 194.1
+to 29.9.
+
+⚠️ **Do not reach for mirroring.** `drawPlate`'s own comment rules it out: these
+are real Atlanta streetscapes and a flipped copy renders CITGO and WELCOME TO
+EAST ATLANTA as backwards text.
+
+### The EAV leak — narrowed, still open
+
+**Two leaks the travelled harness found the day it learned to travel, on stages
+nobody had reported:** `eav` 104px (biggest blob 82) at 11,290px into the stage,
+and `l5p` 115px (blob 73) at 7,200px.
+
+`eav`'s was then run through the mute-one-card method at that exact camera and
+tick, and the answer is a NEGATIVE one worth having:
+
+| muted | leak |
+|---|---|
+| baseline (all cards) | 108 |
+| **CONTROL: every card muted** | **507** |
+| `skystruct` | 229 |
+| `fence` | 386 |
+| every other card, one at a time | 108 — unchanged |
+
+**It survives muting every card, so it is not a card's parallax** — which is
+what the control is for, and it rules out the `tree` (11,365px) and `pole`
+(8,602px) suspects the static cloud-row sweep had flagged. `skystruct` and
+`fence` both actively reduce it, so the seal is doing real work and what is
+left is a HOLE IN THE SEAL: base-plate structure in the sky band that
+`scrub_stage_clouds.py` did not seal and no card covers.
+
+The fix is therefore to regenerate `eav-day`'s seal, not to move a depth.
+⚠️ `scrub_stage_clouds.py` imports `scipy.ndimage` and **scipy is not installed
+in this container**, so that cannot be done here.
+
+⚠️ **And one dead end, recorded so it is not repeated:** mapping the leak box
+back to plate coordinates used `groundFrac 0.71` — Underground's — against
+EAV's real **0.88**. The plate region that produced (a brick wall fully covered
+by `eav-day-fence` at alpha 1.0) was therefore the WRONG REGION, and no
+conclusion from it stands. Redo the mapping with the stage's own `groundFrac`
+before believing any plate-space coordinate. Both predate this work. ⚠️ **eav's does not respond
 to the fix that closed Underground's** — measured directly, with `separation: 4`
 applied to all four stages Underground went 10 → 8px while eav went 104 → **142**
 and l5p 115 → 70. So eav's is a different fault and is still undiagnosed. Both
