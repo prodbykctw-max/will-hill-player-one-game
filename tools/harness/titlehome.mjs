@@ -69,8 +69,18 @@ const SHAPES = [
 // (44 -> 38), then reserving the home-indicator strip in the installed app
 // (38 -> 34). Each step was the same trade, taken the same way: his layout is
 // the invariant, the pixels are what bend.
-const TAP_MIN = 34;          // the two-row floor; 44 wherever the road allows
-const TAP_MIN_SHORT = 34;    // only where the bar cannot exist at any height
+const TAP_MIN = 34;          // the floor; 44 wherever the road allows
+// ⚠️ PRESS START IS PART OF THE BLOCK NOW. It used to be painted into the
+// plate at a fixed row, which is what made one layout impossible: the pavement
+// left under it varied 3x across phones. It is a drawn sprite of his own
+// lettering (tools/cut_title_prompt.py) and moves with everything else.
+// The hero cannot move, so HE is what the block clamps against.
+const HERO_FOOT = 0.7825;    // planes.json hero.frac[3]
+// On the two tightest shapes in the set the block reaches its floors and still
+// wants more room than exists between his shoes and the home indicator. That
+// is measured, not tolerated blindly — 30px is what an iPhone SE needs in a
+// standalone launch and anything past it means something regressed.
+const HERO_SLACK = 30;
 // PRESS START's painted foot, in source rows: PROMPT.y + PROMPT.h in
 // src/render/title.js. Nothing may cross it.
 const PROMPT_BOTTOM = 1572;
@@ -112,30 +122,43 @@ for (const [name, w, h] of SHAPES) {
     const l = t.homeLayout(bx);
     // PROMPT_FOOT (1580) is what homeLayout clamps against; promptBottom
     // (1572) is the painted foot this file grades against. Both, on purpose.
-    const clampFoot = bx.dy + (1580 / 1844) * bx.dh;
+    const sprite = (window.__titleImages || {}).tp_prompt || {};
     return {
       rows: l.rows,
+      prompt: t.promptRect(bx),
       banner: t.bannerRect(bx), opts: t.optionsRect(bx), music: t.musicRect(bx),
       label: t.bannerLabel(bx, false),
-      road: cv.height - clampFoot,
-      promptFoot: bx.dy + (promptBottom / 1844) * bx.dh,
+      feet: bx.dy + 0.7825 * bx.dh,
+      spriteW: sprite.width || 0, spriteH: sprite.height || 0,
+      spriteSrc: (sprite.src || '').split('/').pop(),
       cw: cv.width, ch: cv.height,
     };
   }, PROMPT_BOTTOM);
 
-  const min = r.rows === 1 ? TAP_MIN_SHORT : TAP_MIN;
+  const min = TAP_MIN;
   const all = [['the contest banner', r.banner], ['OPTIONS', r.opts], ['MUSIC', r.music]];
-  console.log(`\n  ${name}  ${w}x${h}   ${r.rows === 1 ? 'one row' : 'HIS LAYOUT'}`);
+  console.log(`\n  ${name}  ${w}x${h}`);
 
-  // ⚠️ THE CHECK THAT WOULD HAVE CAUGHT IT. His layout — the green contest bar
-  // across, OPTIONS and MUSIC in a row under it — is the ONLY layout, and a
-  // shape may only fall out of it when the road below PRESS START genuinely
-  // cannot hold it at the floor sizes. Measured, not asserted by eye: if the
-  // road is there and the layout is not, that is the bug he found.
-  const twoRowNeed = 8 + 38 + 8 + 38;      // bottom + banner + gap + row floors
-  check('  his layout is used, or the road provably cannot hold it',
-    r.rows === 2 || r.road < twoRowNeed,
-    `${r.rows === 1 ? 'one row' : 'his layout'}, road ${Math.round(r.road)}px, needs ${twoRowNeed}`);
+  // ⚠️ THERE IS ONE LAYOUT AND EVERY DEVICE GETS IT. Client: "I just want
+  // uniformity across all devices if possible." Two earlier versions shipped
+  // a second arrangement on the smallest phones — one of them with the
+  // contest button reading "ENTER" under PRESS START — and both times he
+  // found it before any check did. No shape may fall out of it now, at any
+  // size, for any reason.
+  check('  one layout: PRESS START, the bar, then the two buttons',
+    r.rows === 2 && !!r.prompt, JSON.stringify({ rows: r.rows, prompt: !!r.prompt }));
+  check('  and PRESS START is above the bar, which is above the row',
+    r.prompt.y + r.prompt.h <= r.banner.y + 0.5
+    && r.banner.y + r.banner.h <= r.opts.y + 0.5,
+    `prompt ${Math.round(r.prompt.y)}, banner ${Math.round(r.banner.y)}, row ${Math.round(r.opts.y)}`);
+  // His lettering is a sprite now; a missing or empty one would silently
+  // leave the page with no PRESS START at all.
+  check('  his painted PRESS START is loaded and drawn, not set in type',
+    r.spriteW >= 200 && r.spriteH >= 20,
+    `sprite ${r.spriteW}x${r.spriteH} from ${r.spriteSrc}`);
+  // The hero cannot move out of the way. See HERO_SLACK.
+  check('  the block stays off the hero', r.prompt.y >= r.feet - HERO_SLACK,
+    `block top ${Math.round(r.prompt.y)} vs his feet ${Math.round(r.feet)}`);
 
   // ⚠️ AND THE COPY, because the bug he caught was a WORD. Every check in this
   // file measured rectangles and all of them were green over a button that
@@ -155,11 +178,12 @@ for (const [name, w, h] of SHAPES) {
       rect ? `x ${Math.round(rect.x)}..${Math.round(rect.x + rect.w)} of ${r.cw}, `
         + `y ${Math.round(rect.y)}..${Math.round(rect.y + rect.h)} of ${r.ch}` : 'missing');
     // His lettering is painted into the plate and cannot move out of the way.
-    check(`  ${label} stays clear of PRESS START`, !!rect && rect.y >= r.promptFoot - 0.5,
-      rect ? `top ${Math.round(rect.y)} vs prompt foot ${Math.round(r.promptFoot)}` : 'missing');
+    check(`  ${label} sits below PRESS START`, !!rect && rect.y >= r.prompt.y - 0.5,
+      rect ? `top ${Math.round(rect.y)} vs PRESS START at ${Math.round(r.prompt.y)}` : 'missing');
   }
-  check('  no two controls overlap',
-    !overlaps(r.banner, r.opts) && !overlaps(r.banner, r.music) && !overlaps(r.opts, r.music));
+  check('  nothing in the block overlaps anything else in it',
+    !overlaps(r.banner, r.opts) && !overlaps(r.banner, r.music) && !overlaps(r.opts, r.music)
+    && !overlaps(r.prompt, r.banner) && !overlaps(r.prompt, r.opts) && !overlaps(r.prompt, r.music));
 
   await p.screenshot({ path: `${OUT}/titlehome-${name.replace(/[^a-z0-9]+/gi, '_')}.png` });
   await ctx.close();
@@ -258,8 +282,8 @@ for (const reserve of [34, 59]) {
       const t = window.__title, bx = window.__game.titleBox;
       const cv = document.querySelector('canvas');
       const l = t.homeLayout(bx);
-      const low = Math.max(l.banner.y + l.banner.h, l.options.y + l.options.h,
-        l.music.y + l.music.h);
+      const low = Math.max(l.prompt.y + l.prompt.h, l.banner.y + l.banner.h,
+        l.options.y + l.options.h, l.music.y + l.music.h);
       return { low, ch: cv.height, rows: l.rows, minH: Math.min(l.banner.h, l.options.h, l.music.h) };
     });
     const floor = r.ch - reserve;
@@ -268,7 +292,7 @@ for (const reserve of [34, 59]) {
       `lowest edge ${Math.round(r.low)} vs usable floor ${Math.round(floor)} of ${r.ch}`);
     // And it must not have solved that by shrinking them into nothing.
     check(`  [PWA ${w}x${h}, ${reserve}px strip] and they are still tap targets`,
-      r.minH >= TAP_MIN_SHORT - 0.5, `smallest ${Math.round(r.minH)}px, floor ${TAP_MIN_SHORT}`);
+      r.minH >= TAP_MIN - 0.5, `smallest ${Math.round(r.minH)}px, floor ${TAP_MIN}`);
     await ctx.close();
   }
 }

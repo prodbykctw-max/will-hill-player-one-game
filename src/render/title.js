@@ -48,6 +48,12 @@ import titleBare from '../assets/backgrounds/title-portrait-bare.webp';
 // The same plate with his painted OPTIONS painted out — the word is a drawn
 // control now and two of them would show. tools/cut_title_options_out.py.
 import titleNoOpts from '../assets/backgrounds/title-portrait-nooptions.webp';
+// ⚠️ HIS PAINTED PRESS START, LIFTED OFF THE PLATE. Not type — the actual
+// keyed pixels with their dark outline, saved lossless. He traded "keep PRESS
+// START painted" for the uniformity he asked for, and that trade only holds
+// while this stays his artwork. tools/cut_title_prompt.py.
+import titlePrompt from '../assets/backgrounds/title-prompt.webp';
+import promptMeta from '../assets/backgrounds/title-prompt.json';
 // The portrait plate's own cards, SAM-cut. The base is NOT cut — these are
 // drawn over a whole painting, which is the rule everywhere in this game now.
 import tpWordmark from '../assets/backgrounds/titlep-wordmark.webp';
@@ -142,6 +148,7 @@ export const TITLE_IMAGES = {
   title_base: titleBase,
   title_bare: titleBare,
   title_noopts: titleNoOpts,
+  tp_prompt: titlePrompt,
   tp_wordmark: tpWordmark, tp_logo: tpLogo, tp_stars: tpStars,
   tp_signL: tpSignL, tp_signR: tpSignR,
   tp_hero: tpHero, tp_pole: tpPole,
@@ -152,10 +159,13 @@ export const TITLE_IMAGES = {
   ...Object.fromEntries(CLOUD_SPRITES.map((s) => [s.key, s.url])),
 };
 
-// PRESS START, in the painting's pixels. The mask came back x 504..964,
-// y 869..913; padded out to take in the two ◀ ▶ arrows either side, which SAM
-// grouped separately and which should light up with the words.
-const PROMPT = { x: 195, y: 1518, w: 462, h: 54 };
+// ⚠️ PRESS START IS NO LONGER A RECTANGLE OF THE PLATE. It used to be — a
+// painted word at x 195..657, y 1518..1572, glowed in place by
+// still.pulsePrompt. It is a drawn sprite now (see homeLayout for why: while
+// it was painted, the amount of room under it varied by 3x across phones and
+// the client could not have one layout). The tool measures the tight rect off
+// the key and writes it here, so nothing is hand-maintained.
+const PROMPT_SPRITE = { w: promptMeta.w, h: promptMeta.h };
 
 // ── OPTIONS: HIS WORD, LIFTED OFF THE PLATE ──────────────────────────────
 //
@@ -453,7 +463,6 @@ export function createTitle(ctx, canvas, still) {
     // always said it belonged.
     const box = still.draw(plate, titleCards(images), tick,
       TITLE_ZOOM, TITLE_BIAS, fx, TITLE_SAFE, images.tp_skyfill);
-    still.pulsePrompt(box, PROMPT, SRC_W, SRC_H, tick);
     // Client: "gleam off his chain... glimmer, glisten or glow off the red
     // stars." Held back until the card is fully settled — see drawGlints — so
     // the shimmer reads as the finished screen's own idle life rather than as
@@ -468,6 +477,7 @@ export function createTitle(ctx, canvas, still) {
     if (a > 0.002) {
       ctx.save();
       ctx.globalAlpha = a;
+      drawPrompt(images.tp_prompt, box, tick);
       drawBanner(box, tick, registered);
       drawOptions(box, tick);
       drawMusic(box, musicOn, tick, musicPressAge);
@@ -877,18 +887,26 @@ export function createTitle(ctx, canvas, still) {
   const HOME_BOTTOM = 20;       // clear of the home indicator, where there is room
   const HOME_BOTTOM_MIN = 8;    // and this where there is not
   const HOME_GAP = 12;
-  const HOME_GAP_MIN = 6;
+  const HOME_GAP_MIN = 4;
   const HOME_SIDE = 16;
   const BANNER_H = 56;
   // Never thinner than this, even where the pavement runs out.
+  // ⚠️ 34 AND NOT LOWER. Dropping it to 32 bought two pixels of clearance from
+  // the hero on the tightest shape and made the contest bar the SMALLEST
+  // thing on the page — the one control this whole change exists to add.
+  // Two pixels are not worth that.
   const BANNER_MIN_H = 34;
-  // The floor when everything shares one row on a phone that truly cannot
-  // hold the bar. See the note in homeLayout about what the label must say.
-  const SHORT_MIN_H = 34;
-  // PRESS START's painted baseline in source rows. The stack is clamped to
-  // stay below it, so on a very short phone the controls stop rather than
-  // climbing over his lettering.
-  const PROMPT_FOOT = 1580;
+  // ⚠️ SHORT_MIN_H IS GONE WITH THE ONE-ROW FALLBACK. There is no phone that
+  // drops out of his layout any more — lifting PRESS START off the plate is
+  // what removed the constraint that forced a second shape. Do not add one
+  // back; see the note in homeLayout.
+  const PROMPT_GAP = 10;
+  const PROMPT_GAP_MIN = 4;
+  // The bottom of the hero's card, from title-portrait-planes.json
+  // (`hero.frac[3]` = 0.7825). The block clamps against HIM now, not against
+  // painted lettering that is no longer there.
+  const HERO_FOOT = Math.round(0.7825 * SRC_H);
+
 
   function homeLayout(box) {
     if (!box) return null;
@@ -900,98 +918,118 @@ export function createTitle(ctx, canvas, still) {
     // phone instead of leaving the black strip the client photographed. The
     // first version of this layout anchored to canvas.height anyway and put
     // OPTIONS and MUSIC under the home indicator: he sent a PWA screenshot
-    // with the top edge of both boxes just visible at the bottom of the
-    // screen and nothing else. In Safari the inset is 0, this is a no-op, and
-    // every check stayed green — which is how it shipped.
+    // with the top edge of both boxes just visible and nothing else. In
+    // Safari the inset is 0, this is a no-op, and every check stayed green —
+    // which is how it shipped.
     const H = canvas.height - still.reservedBottom(canvas.height);
     const S = box.dw / SRC_W;
     const side = Math.max(10, Math.min(HOME_SIDE, W * 0.05));
     const inner = W - side * 2;
 
-    // ⚠️ HOW MUCH ROAD IS ACTUALLY BELOW HIS LETTERING, MEASURED.
-    // PRESS START is painted into the plate and cannot move, so the controls
-    // get whatever is under it and no more. On an iPhone SE that is 45px —
-    // against 98px for a banner, a gap and a 44px row. Two earlier attempts
-    // ignored this: the first pushed the row 72px off the bottom of the
-    // screen, the second drew it straight over his lettering.
+    // ══ ONE BLOCK, LAID OUT FROM THE SCREEN, THE SAME ON EVERY DEVICE ═════
     //
-    // Cropping harder does not rescue it either. The title plate is already
-    // cropped as far as its budget allows, and taking the top margin to zero
-    // (stillscene.js) bought six pixels.
+    // Client: *"I just want uniformity across all devices if possible."*
     //
-    // ⚠️ THERE IS ONE LAYOUT AND IT IS HIS. He sent a picture of it and said
-    // "this by far is my favorite layout": PRESS START, the green contest bar
-    // straight across underneath it, then OPTIONS and MUSIC side by side below
-    // that. Every shape that can hold it gets it. Nobody asked for a
-    // per-phone variant and one must never be invented again — the first
-    // version of this function dropped to a different arrangement as soon as
-    // 44px stopped fitting, and shipped him a home page he had never seen.
+    // ⚠️ THAT WAS IMPOSSIBLE WHILE PRESS START WAS PAINTED, and it is worth
+    // saying why, because the two previous versions of this function both
+    // died on it. His lettering sat at a fixed source row and the plate is
+    // scaled to cover the screen's WIDTH, so the pavement left underneath was
+    // whatever the phone's aspect ratio happened to leave: 133px on a Pro
+    // Max, 100 on a 412x780, 45 on an SE, against the ~90 his layout needs.
+    // Reserving the home-indicator strip took another 34-59 off the same
+    // budget. No amount of tuning floors fixes that — the PAINTING was
+    // deciding the layout, and the painting cannot know how tall the phone is.
     //
-    // So the road is spent in priority order — bottom inset, then the row,
-    // then the gap, then the banner — with each one giving up height down to
-    // a floor before the NEXT one is touched, and the arrangement never
-    // changing. On a tall phone every term lands on its ideal and the result
-    // is pixel-identical to the picture he approved.
+    // So PRESS START comes off the plate too (tools/cut_title_prompt.py) and
+    // is drawn with the rest. His actual painted pixels, keyed out with their
+    // outline and saved lossless — he traded "keep PRESS START painted" for
+    // uniformity, and that trade only holds if what lands is still his
+    // artwork and not type.
     //
-    // ⚠️ WHERE IT GENUINELY CANNOT FIT. Two shapes measure out under 50px of
-    // road — an iPhone SE at 375x667, and the 471x825 of his own screenshot —
-    // because the plate is cover-cropped to the WIDTH and the crop is already
-    // pinned by keeping the top of WILL HILL: on screen. There is no bar to
-    // be had there at any size. Those fall to one row, and his instruction
-    // covers exactly that case: "if you're gonna change the layout based on
-    // phones that enter button should say CONTEST where it can't say fully
-    // ENTER THE CONTEST." It says CONTEST. It must never say ENTER — under
-    // PRESS START that reads as a second start button, which is the bug he
-    // caught on the live build. See drawBanner.
-    const promptFoot = box.dy + PROMPT_FOOT * S;
-    const road = H - promptFoot;
-    const twoRows = HOME_BOTTOM_MIN + BANNER_MIN_H + HOME_GAP_MIN + HOME_FLOOR_H;
-
-    // ⚠️ DO NOT PAY FOR THE HOME INDICATOR TWICE. HOME_BOTTOM's 20px exists to
-    // keep a control off the indicator, and H has already had the reserved
-    // strip taken out of it — so where a strip exists that 20px is pure
-    // duplicate padding, and it is the difference between the client keeping
-    // his layout on a Pro Max and being dropped to one row by the very fix
-    // that was supposed to make the controls reachable.
-    const ideal = still.reservedBottom(canvas.height) > 0
+    // Now the whole block is stacked upward off the bottom inset:
+    //
+    //     PRESS START          (his lettering, drawn)
+    //     ENTER THE CONTEST    (the green bar, straight across)
+    //     OPTIONS  |  MUSIC
+    //
+    // Same arrangement everywhere. There is no second shape and no phone that
+    // drops out of it. Only the sizes breathe, and each term gives up height
+    // down to a floor before the next one is touched, so the tall phones land
+    // on their ideals and read exactly like the picture he approved.
+    const bottom = still.reservedBottom(canvas.height) > 0
+      // Do not pay for the home indicator twice: H has already had the strip
+      // taken out, so the 20px that existed to clear it is duplicate padding.
       ? HOME_BOTTOM_MIN : HOME_BOTTOM;
 
-    if (road >= twoRows) {
-      const spend = (want, floor, rest) =>
-        Math.max(floor, Math.min(want, road - rest));
-      const bottom = spend(ideal, HOME_BOTTOM_MIN,
-        BANNER_MIN_H + HOME_GAP_MIN + HOME_FLOOR_H);
-      const gap = spend(HOME_GAP, HOME_GAP_MIN,
-        bottom + BANNER_MIN_H + HOME_FLOOR_H);
-      const rowH = spend(HOME_MIN_H, HOME_FLOOR_H,
-        bottom + gap + BANNER_MIN_H);
-      const bannerH = spend(BANNER_H, BANNER_MIN_H, bottom + gap + rowH);
-      const ry = H - bottom - rowH;
-      const optW = Math.round((inner - gap) * 0.44);
-      return {
-        banner: { x: side, y: ry - gap - bannerH, w: inner, h: bannerH },
-        options: { x: side, y: ry, w: optW, h: rowH },
-        music: { x: side + optW + gap, y: ry,
-                 w: inner - gap - optW, h: rowH },
-        rows: 2,
-      };
-    }
+    // ⚠️ THE CLAMP IS HIS FEET NOW, not his lettering. PROMPT_FOOT is gone
+    // with the painted word; what the block must never climb over is the hero
+    // — planes.json puts the bottom of his card at 0.7825 of the plate.
+    const feet = box.dy + HERO_FOOT * S;
+    const room = Math.max(0, H - bottom - feet);
 
-    // ONE ROW, because the bar will not fit at any height. The contest keeps
-    // the widest share and its label changes with it — see drawBanner.
-    const bottom = Math.min(ideal, Math.max(6, road * 0.18));
-    const rowH = Math.max(SHORT_MIN_H, Math.min(HOME_MIN_H, road - bottom));
+    // The prompt keeps its painted proportions and lands near the size it was
+    // painted at (446x39 source, ~225px wide on a Pro Max), so lifting it off
+    // the plate does not silently resize his lettering.
+    //
+    // ⚠️ AND IT SHRINKS WITH EVERYTHING ELSE — LAST, BUT IT DOES SHRINK. The
+    // first pass held it at a fixed size and let the block overflow upward
+    // when the road ran out, which put PRESS START straight across the hero's
+    // shoes on the two tightest shapes. It is his lettering, so it gives
+    // ground after the buttons have, not before; but a block that will not
+    // shrink does not stay inside its room, it just leaves.
+    const ratio = PROMPT_SPRITE.h / PROMPT_SPRITE.w;
+    const promptIdeal = Math.max(190, Math.min(300, inner * 0.62)) * ratio;
+    const promptFloor = Math.min(promptIdeal, 150 * ratio);
+
+    const spend = (want, floor, rest) =>
+      Math.max(floor, Math.min(want, room - rest));
+    const rowH = spend(HOME_MIN_H, HOME_FLOOR_H,
+      promptFloor + PROMPT_GAP_MIN + BANNER_MIN_H + HOME_GAP_MIN);
+    const gap = spend(HOME_GAP, HOME_GAP_MIN,
+      promptFloor + PROMPT_GAP_MIN + BANNER_MIN_H + rowH);
+    const bannerH = spend(BANNER_H, BANNER_MIN_H,
+      promptFloor + PROMPT_GAP_MIN + gap + rowH);
+    const pGap = spend(PROMPT_GAP, PROMPT_GAP_MIN,
+      promptFloor + bannerH + gap + rowH);
+    const promptH = spend(promptIdeal, promptFloor,
+      pGap + bannerH + gap + rowH);
+    const promptW = promptH / ratio;
+
     const ry = H - bottom - rowH;
-    const g = Math.max(6, HOME_GAP * 0.6);
-    const bw = Math.round((inner - g * 2) * 0.46);
-    const rest = Math.round((inner - g * 2 - bw) / 2);
+    const by = ry - gap - bannerH;
+    const py = by - pGap - promptH;
+    const optW = Math.round((inner - gap) * 0.44);
     return {
-      banner: { x: side, y: ry, w: bw, h: rowH },
-      options: { x: side + bw + g, y: ry, w: rest, h: rowH },
-      music: { x: side + bw + g + rest + g, y: ry,
-               w: inner - bw - g * 2 - rest, h: rowH },
-      rows: 1,
+      prompt: { x: Math.round((W - promptW) / 2), y: py, w: promptW, h: promptH },
+      banner: { x: side, y: by, w: inner, h: bannerH },
+      options: { x: side, y: ry, w: optW, h: rowH },
+      music: { x: side + optW + gap, y: ry, w: inner - gap - optW, h: rowH },
+      // Kept so callers that used to branch on it keep working, and so a
+      // harness can assert the branch never comes back. There is one shape.
+      rows: 2,
     };
+  }
+
+  function promptRect(box) {
+    const l = homeLayout(box);
+    return l && l.prompt;
+  }
+
+  // HIS LETTERING, DRAWN WHERE THE BLOCK PUTS IT.
+  //
+  // The glow is the same pulseRect the other three controls use, on the beat
+  // PRESS START always had — it was still.pulsePrompt against a rectangle of
+  // the plate before, and the only thing that changed is that the rectangle
+  // now moves with the layout instead of being wherever the crop dropped it.
+  function drawPrompt(img, box, tick) {
+    const r = promptRect(box);
+    if (!r) return;
+    if (img && img.width) {
+      ctx.imageSmoothingEnabled = false;   // it is pixel lettering
+      ctx.drawImage(img, r.x, r.y, r.w, r.h);
+      ctx.imageSmoothingEnabled = true;
+    }
+    still.pulseRect(r.x, r.y, r.w, r.h, tick, '255,206,110');
   }
 
   function bannerRect(box) {
@@ -1347,5 +1385,5 @@ export function createTitle(ctx, canvas, still) {
   }
   return { draw, hitOptions, optionsRect,
     hitMusic, musicRect, drawMusic,
-    hitBanner, bannerRect, bannerLabel, homeLayout };
+    hitBanner, bannerRect, bannerLabel, promptRect, homeLayout };
 }
