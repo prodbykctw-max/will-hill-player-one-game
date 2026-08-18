@@ -50,6 +50,7 @@ Usage:
     python3 tools/cut_audit.py eav-day        # one
 """
 
+import math
 import os
 import re
 import sys
@@ -63,13 +64,50 @@ BG = os.path.join(ROOT, 'src', 'assets', 'backgrounds')
 SRC = open(os.path.join(ROOT, 'src', 'world', 'stages.js')).read()
 
 BASE_DEPTH = 0.5
+# Mirrors cardParallax in src/render/backdrop.js. If those change, change these
+# — a tool that models a dead parallax law grades its own memory.
+DEPTH_SPREAD = 0.010
+MAX_SEPARATION = 16
+CAM_END = 9000          # camera.x * zoom near the end of a stage
 # Below this, a card travels with the base and its cut cannot be seen.
 SHEAR_MIN = 0.03
+# Shear in px, at the far end of a stage, below which a bad cut is not worth
+# chasing. Three pixels of slide on a 430px phone is under a pixel once the
+# viewport scale is applied, and every card measured under this threshold has
+# come back invisible when actually rendered and diffed.
+NEGLIGIBLE_PX = 4.0
+# ⚠️ A DELIBERATE FEATHER IS A DEEP RAMP, NOT A SOFT PIXEL. cut_planes.py
+# gives many cards a sub-pixel Gaussian edge, and a first attempt at this check
+# read "mean alpha below solid" and duly declared eight cards feathered that
+# nobody had touched. One blurred pixel still reads as a line. So the test is
+# how many ROWS it takes the alpha to climb back to solid going up from the
+# edge: an antialiased cut gets there in one or two, a real ramp takes many.
+# tools/feather_flat_edge.py writes an 18-row ramp.
+FEATHER_ROWS = 6
+FEATHER_SOLID = 200
 # A straight run this long is a ruler.
 FLAT_RUN = 40
 
 STAGES = ['eav', 'eav-day', 'edgewood', 'edgewood-day',
           'underground', 'underground-day', 'l5p', 'l5p-day']
+
+# ⚠️ FLAGGED BY METRIC, CLEARED BY EYE. A number can say a cut is bad; only a
+# rendered frame can say a player would notice. Anything in here scored badly
+# and was then driven in the game, at a camera position where the card is
+# actually on screen, with its depth toggled against BASE_DEPTH and the frames
+# diffed. Recorded so the next sweep does not spend an afternoon re-proving it.
+#
+# If a plate is ever re-cut, DELETE its entry — the verification was of that
+# cut, not of that card's name.
+VERIFIED_OK = {
+    ('edgewood-day', 'skyline'):
+        'flat top at y=34, but it is a distant skyline and the flat run is '
+        'almost all against open sky. Driven at 91m with the band in frame: '
+        '10.3% of pixels differ between 0.05 and 0.50, and all of it is the '
+        'card parallaxing as intended — no tear at the cut, buildings whole. '
+        'A far skyline is the most valuable slow-parallax on the stage and '
+        'pinning it would cost the sense of distance for nothing.',
+}
 
 
 def cards(stage):
@@ -88,6 +126,32 @@ def cards(stage):
         k += 1
     return [(m.group(1), float(m.group(2)))
             for m in re.finditer(r"key: '(\w+)'.*?depth: ([\d.]+)", SRC[j:k], re.S)]
+
+
+def ramp_depth(alpha, mask, line, tol=4):
+    """Rows it takes the alpha to climb back to solid, going up from the edge.
+
+    One or two rows is an antialiased cut and still shows as a line. Many rows
+    is a deliberate ramp with no line in it at all.
+    """
+    H, W = mask.shape
+    ys = np.arange(H)[:, None]
+    low = (mask * ys).max(0)
+    cols = [x for x in np.where(mask.any(0))[0]
+            if abs(int(low[x]) - line) <= tol]
+    if not cols:
+        return 0.0
+    depths = []
+    for x in cols[::3]:
+        b = int(low[x])
+        d = 0
+        for k in range(24):
+            y = b - k
+            if y < 0 or alpha[y, x] >= FEATHER_SOLID:
+                break
+            d += 1
+        depths.append(d)
+    return float(np.median(depths)) if depths else 0.0
 
 
 def longest_flat_fraction(mask):
@@ -142,10 +206,18 @@ def main():
             shear = abs(depth - BASE_DEPTH)
             if shear < SHEAR_MIN:
                 continue                    # pinned: its cut cannot be seen
-            m = np.array(Image.open(p).convert('RGBA'))[..., 3] > 24
+            raw = np.array(Image.open(p).convert('RGBA'))[..., 3]
+            m = raw > 24
             if m.sum() < 400:
                 continue
             flat, where = longest_flat_fraction(m)
+            # A ramped edge is not a line, whatever the binary mask says.
+            soft = False
+            if where and where.startswith('bottom'):
+                line = int(where.split('y=')[1])
+                soft = ramp_depth(raw, m, line) >= FEATHER_ROWS
+            shear_px = MAX_SEPARATION * math.tanh(
+                CAM_END * (depth - BASE_DEPTH) * DEPTH_SPREAD / MAX_SEPARATION)
             ys_, xs_ = np.where(m)
             box = ((xs_.max() - xs_.min() + 1) * (ys_.max() - ys_.min() + 1))
             boxfill = float(m.sum() / box)
@@ -162,29 +234,64 @@ def main():
             # on all four sides at once.
             findings.append((max(flat, boxfill if boxfill > 0.85 else 0.0),
                              1.0 - align, stage, key, depth, where, n, align,
-                             flat, boxfill))
+                             flat, boxfill, abs(shear_px), soft))
 
     print('CARD CUTS THAT CAN SHEAR, WORST FIRST')
     print('  flat  = share of the edge lying on one straight row (ruler marks)')
     print('  box   = share of its bounding box the mask fills (100% = a rectangle)')
     print('  onedge= share of the border sitting on real contrast in the plate')
+    print('  slide = px the card travels against the base by the end of a stage')
     print()
-    for _, _, stage, key, depth, where, n, align, flat, boxfill in sorted(findings, reverse=True):
-        flag = ''
-        if boxfill > 0.985:
+    for _, _, stage, key, depth, where, n, align, flat, boxfill, shear_px, soft in \
+            sorted(findings, reverse=True):
+        if (stage, key) in VERIFIED_OK:
+            flag = '  (checked in a rendered frame — no tear)'
+        elif shear_px < NEGLIGIBLE_PX:
+            flag = f'  (slides {shear_px:.1f}px — below seeing)'
+        elif soft:
+            flag = '  (edge feathered — no line to see)'
+        elif boxfill > 0.985:
             flag = '  <== NOT A CUT-OUT, A RECTANGLE'
         elif flat >= 0.5:
             flag = '  <== RULER CUT'
-        elif align < 0.35:
-            flag = '  <== cuts through flat paint'
+        elif align < 0.35 and flat >= 0.25:
+            flag = '  <== straight-ish cut through flat paint'
+        else:
+            flag = ''
         print(f'  {stage:16s} {key:12s} d={depth:<5} '
-              f'flat={flat*100:5.1f}% box={boxfill*100:5.1f}% '
+              f'flat={flat*100:5.1f}% box={boxfill*100:5.1f}% slide={shear_px:5.1f}px '
               f'{("("+where+")") if where else "":18s} '
-              f'onedge={align*100:5.1f}% of {n:6d}px{flag}')
-    print('\nA cut is only a problem if it runs THROUGH an object. Check each '
-          'flagged card against the plate before changing anything —\n'
-          'and remember the cheap fix is usually depth 0.50, not a re-cut: at '
-          'base depth the seam cannot be observed at all.')
+              f'onedge={align*100:5.1f}%{flag}')
+    # ⚠️ COUNT THE FLAGGED, NOT THE LISTED. Every card that can shear appears
+    # in the table; only some of them carry a warning. A first version counted
+    # rows and announced "37 cuts still worth a look" when the real number was
+    # zero, which is the kind of summary that gets a tool ignored.
+    def flagged(f):
+        _, _, stage, key, _, _, _, align, flat, boxfill, shear_px, soft = f
+        if (stage, key) in VERIFIED_OK or soft or shear_px < NEGLIGIBLE_PX:
+            return False
+        # ⚠️ LOW EDGE-CONTRAST ALONE IS NOT EVIDENCE. Clouds score 0.2% because
+        # clouds have no edges; hazy far buildings and foliage are barely
+        # better. Judging on that number by itself flagged eighteen cards, most
+        # of them objects that are soft by nature and cut perfectly well. A cut
+        # through flat paint only matters when it is also a LINE, so the two
+        # signals have to agree.
+        return boxfill > 0.985 or flat >= 0.5 or (align < 0.35 and flat >= 0.25)
+    live = [f for f in findings if flagged(f)]
+    print()
+    if live:
+        print(f'{len(live)} cut(s) still worth a look. A cut is only a problem '
+              'if it runs THROUGH an object — check the plate before changing\n'
+              'anything, and remember the cheap fix is usually depth 0.50 '
+              'rather than a re-cut: at base depth the seam cannot be seen.')
+    else:
+        print('Nothing outstanding. Every flagged cut is either pinned to base '
+              'depth, feathered, sliding less than a pixel the player could\n'
+              'see, or checked in a rendered frame and cleared. Re-run after '
+              'any re-cut, and delete that plate\'s VERIFIED_OK entries first.')
+    for stage, key in sorted(VERIFIED_OK):
+        print(f'\n  cleared by eye — {stage} {key}:\n    '
+              + VERIFIED_OK[(stage, key)].replace('. ', '.\n    '))
 
 
 if __name__ == '__main__':
