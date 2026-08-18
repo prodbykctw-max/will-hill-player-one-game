@@ -479,8 +479,11 @@ out just dismiss it, and what they reveal is where the player was going anyway.
 
 The crop takes his gold ENTER disc with it, so SAVE is the silver knob now,
 carrying a green tick built out of his own red CANCEL button. LEADERBOARD and
-RULES & PRIZES went below the cut and are gone — CONTEST INFO opens what RULES
-& PRIZES opened, and NOT NOW already reaches the board.
+RULES & PRIZES went below the cut and are gone, and NOT NOW already reaches the
+board. ⚠️ **CONTEST INFO opens NOTHING as of `dad801d`** — it opened HOW TO
+PLAY, which is not what its lettering says, and the client had it unwired until
+there is real contest copy to point it at. That copy is blocked on Will Hill's
+team, like the dates.
 
 ### CAT 9 — HOW TO PLAY is one page, and the pads render at last ✅ shipped
 Four swiped pages with ~90 words became **one page**, laid out like the Jandé

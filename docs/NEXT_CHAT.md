@@ -66,11 +66,39 @@ ships. That misreading has already cost him a round.
 1. **`CONTEST_START` / `CONTEST_END` are still `0`** in both workers, so the
    window is unenforced. ⚠️ **DO NOT CHASE HIM FOR THE DATES.** Will Hill's
    team is in Australia, he asked directly to stop being asked.
-2. **The crowd sway re-cut** for the new SHOWTIME ending plate
+   **Nothing is contingent on them** — traced: the window appears in three
+   places and does two things, refuse `/submit` outside the window and make
+   the dashboard clock read OPEN / OPENS SOON / CLOSED instead of NOT SET. No
+   feature waits on it; it is two numbers at the end, not development.
+   ⚠️ **CONTEST INFO IS IN THE SAME BUCKET** — `#btnFormInfo` is deliberately
+   unwired until Will Hill's team supplies real contest copy. Do not chase him
+   for that either.
+   ⚠️ **AND THERE IS A DECISION HE CONTROLS THAT IS NOT A DATE.** The game
+   drops 26 Aug and the contest opens sometime that week, so there is a gap
+   where the game is live and `/submit` accepts everything — scores played
+   before the contest opens land on the contest board and count. Wipe on open,
+   leave it, or hold submissions: his call, and he can make it without a date.
+2. **The MUSIC box on a cold PWA open** — fixed in `35df100` and live, but the
+   iOS gesture gate does not reproduce in headless Chromium (measured: it
+   reports `running` and a loud bus under
+   `--autoplay-policy=document-user-activation-required`). `musicbox.mjs`
+   grades the logic by removing `AudioContext`. **HIS DEVICE IS THE ONLY
+   REMAINING CHECK** — cold-open the installed PWA, do not touch MUSIC, and it
+   should read unchecked and breathing. He has said he will check it.
+3. **The crowd sway re-cut** for the new SHOWTIME ending plate
    (`tools/cut_still.py`). His call: *"ship it flat first, re-cut after."*
-3. **A 104px / 115px cloud leak** on `eav` and `l5p`, carried as a named
+4. **A 104px / 115px cloud leak** on `eav` and `l5p`, carried as a named
    ratchet in `cloudseal.mjs`. Diagnosed to "a hole in the seal, not any card's
-   parallax". Needs scipy, which this container does not have.
+   parallax".
+   ⚠️ **THE SCIPY BLOCKER WAS STALE.** This said "needs scipy, which this
+   container does not have" — `pip install scipy` works; the dashboard session
+   installed it (1.17.1, numpy 2.4.6) to run `cut_cabinet.py` and every sealing
+   tool imports it fine. Whatever is holding this, it is not the toolchain.
+   ⚠️ **OWNER: the oldest chat**, per the client directly — *"I think I got the
+   cloud, the original, the oldest chat."* Note this contradicts the CATCH-UP
+   block above, which credits `cloudseal.mjs`'s travelling work to
+   backdrops/registration. **His assignment wins; the attribution above is
+   about who wrote the harness, not who owns the remaining leak.**
 
 Nothing on that list blocks him playing or shipping the game today.
 
@@ -263,10 +291,22 @@ his measured ink, R and G swapped so the green is his own gradient. Fitted
 inside his inner ring at r=22.5 — ⚠️ **his own cross overshot that ring at
 r=28**, so the cross's radius is the wrong thing to copy.
 
-**`#btnFormBoard` and `#btnFormRules` are gone**, below the cut. Nothing became
-unreachable: `#btnFormInfo` opens what RULES & PRIZES opened, and post-run NOT
-NOW already lands on the board. The card's ✕ is `#entryClose` now, not
-`#panelClose` — that one went back to belonging to the panel underneath.
+**`#btnFormBoard` and `#btnFormRules` are gone**, below the cut. Post-run NOT
+NOW already lands on the board.
+
+⚠️ **TWO CLAIMS THAT USED TO SIT HERE ARE NOW FALSE, changed in `dad801d`:**
+
+- **`#btnFormInfo` no longer opens anything.** It opened HOW TO PLAY, which is
+  a different room wearing his CONTEST INFO lettering. Client: *"the info about
+  the contest goes to the how to play for some reason and it shouldn't be wired
+  there."* The handler is gone; the button and his painted strip stay, because
+  it is to carry real contest information later. **BLOCKED ON WILL HILL'S TEAM,
+  same bucket as the dates — do not chase him for the copy either.**
+- **`#entryClose` does not exist.** The tiny ✕ on ENTER THE CONTEST was painted
+  into his plate, and is erased at the cut in `tools/crop_entry_plate.py`;
+  `#panelClose` is gone from the DOM too. Client: *"basically exes don't need
+  to be places to have back buttons."* Every view leaves by its own lettered
+  control — BACK TO GAME, BACK, or his painted NOT NOW / CANCEL disc.
 
 ### Traps this turned up, for whoever changes it next
 
