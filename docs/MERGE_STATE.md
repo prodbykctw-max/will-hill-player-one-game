@@ -7,22 +7,41 @@ This file exists because it is the one document none of the three branches
 touch, so it cannot conflict with the thing it is describing. **Re-run the
 commands at the bottom before acting — main moves.**
 
-## State when this was written (main at `3ca4abc`)
+## State at main `fcca834`
 
-| branch | ahead | behind | what it holds | conflict risk |
-|---|---|---|---|---|
-| `claude/last-markdown-game-link-lvk1n6` | 0 | 0 | mine — already **is** main | — |
-| `claude/dashboard-kills-display-sizing-wgufbm` | 1 | 3 | DEATHS tile sized for contest-scale numbers, MAX COMBO, a D1 migration | **low** |
-| `claude/contest-reg-image-crop-d4y6c0` | 4 | 3 | the registration overlay — sign-up card cropped out of the machine and laid over the room, between-screen buttons, score before the next level | **high** |
+| branch | ahead | behind | status |
+|---|---|---|---|
+| `claude/last-markdown-game-link-lvk1n6` | 0 | 0 | mine — already **is** main |
+| `claude/dashboard-kills-display-sizing-wgufbm` | 1 | 7 | **MERGED. Do not merge again — delete it.** |
+| `claude/contest-reg-image-crop-d4y6c0` | 5 | 7 | not merged, **high** conflict |
 
-## Merge the low-risk one first
+## ⚠️ The dashboard branch is a trap now
 
-`claude/dashboard-kills-display-sizing-wgufbm` touches `cloudflare/`,
-`src/net/leaderboard.js`, `tools/harness/dashfit.mjs` and a new
-`cloudflare/migrations/001-max-combo.sql`. Almost nothing there overlaps the
-work on main. It carries a **schema migration**, so it needs running against
-D1 when it deploys — that is a client-side step, same as everything else in
-`cloudflare/`.
+Its work IS in main, as `eb0edd3` — DEATHS tile sized for contest-scale
+numbers, MAX COMBO, and `cloudflare/migrations/001-max-combo.sql`. It landed
+with a different SHA, so git still reports the branch as "1 ahead" and it
+looks unmerged.
+
+**Merging it again would delete 853 lines across 10 files**, including
+`tools/refit_card_boundary.py` and `tools/retrace_card.py`, because its tree
+predates all the cut-audit work. Measured, not guessed:
+
+```
+$ git diff --stat origin/main origin/claude/dashboard-kills-display-sizing-wgufbm
+ tools/refit_card_boundary.py   | 187 -------------------
+ tools/retrace_card.py          | 142 -------------
+ 10 files changed, 9 insertions(+), 853 deletions(-)
+```
+
+Delete the branch, or reset it to main. Do not merge it.
+
+That migration still needs running against D1 when the worker deploys — a
+client-side step, same as everything else in `cloudflare/`.
+
+**The general rule this proves:** a branch that is behind main does not just
+bring its own work, it brings the ABSENCE of everything added since it forked.
+Always rebase before merging, and always read `git diff --stat main branch`
+for deletions first.
 
 ## Then the registration branch, carefully
 
