@@ -40,6 +40,7 @@
 // thresholds; it is in git history if that judgement is ever wanted back.
 
 import endingBase from '../assets/backgrounds/ending-base.webp';
+import endingCrowd from '../assets/backgrounds/ending-crowd.webp';
 
 // Loaded through main.js's one image manifest, like everything else.
 //
@@ -50,7 +51,40 @@ import endingBase from '../assets/backgrounds/ending-base.webp';
 // pass over the new painting — his call, "ship it flat first".
 export const ENDING_IMAGES = {
   ending_base: endingBase,
+  ending_crowd: endingCrowd,
 };
+
+// ── THE CROWD SWAYS ──────────────────────────────────────────────────────
+//
+// His call was "ship it flat first, re-cut after", and this is the re-cut.
+// tools/cut_ending_crowd.py lifts the crowd off the painting and fills behind
+// it; this is the band that shears.
+//
+// ⚠️ THE PIVOT IS AT THE CARD'S FEET, WHICH IS THE POINT. Shear is zero at the
+// pivot line and full at the top of the band, so the front row stands still on
+// the stage lip it is sitting on and only the heads move. A pivot anywhere
+// else slides the whole crowd sideways against a static floor.
+//
+// ⚠️ AND THE AMPLITUDE IS SMALL ON PURPOSE. `ampFrac` is a fraction of the
+// drawn width, so it holds at any phone size — 0.004 is about 1.7px on a 430px
+// screen. A crowd at a show sways; it does not wave. The mask edge at x=140 is
+// a ruled line through a painting rather than a cutout, and the reason a
+// straight edge is safe there is that 9px of feather over a ~2px shear means
+// no column ever changes by more than a fifth of its own value.
+//
+// Fractions are of the PAINTING, 853x1843: the band runs from the head line
+// (726/1843) to the stage lip (1596/1843), and starts right of Will Hill
+// (140/853) so he does not move with it.
+export const ENDING_CARDS = [{
+  key: 'crowd',
+  sway: [{
+    top: 726 / 1843,
+    pivot: 1596 / 1843,
+    ampFrac: 0.004,
+    freq: 0.55,
+    xRanges: [[140 / 853, 1.0]],
+  }],
+}];
 
 // ── HIS PLATE'S OWN GEOMETRY ─────────────────────────────────────────────
 //

@@ -22,7 +22,7 @@ import { createBackdrop } from './render/backdrop.js';
 import { createUndercroft } from './render/undercroft.js';
 import { createHud } from './render/hud.js';
 import { createMartaMap } from './render/martamap.js';
-import { createEnding, statsFrom, ENDING_IMAGES, RESTART as ENDING_RESTART,
+import { createEnding, statsFrom, ENDING_IMAGES, ENDING_CARDS, RESTART as ENDING_RESTART,
   SRC_W as ENDING_W, SRC_H as ENDING_H } from './render/ending.js';
 import { createStillScene } from './render/stillscene.js';
 import { createTitle, TITLE_IMAGES,
@@ -1726,11 +1726,14 @@ function draw() {
   // every frame you sat looking at your score, and a hard crash if it was
   // ever reached without a level built.
   if (state.screen === 'complete') {
-    // ⚠️ ONE PLATE, NO CARDS. The old ending was cut into base/crowd/hero so
-    // the crowd could sway; those cards came off the LANDSCAPE painting and
-    // mean nothing on this one. His call was "ship it flat first, re-cut
-    // after", so the sway is a separate pass over the new art.
-    const box = still.draw(images.ending_base, [], state.tick);
+    // THE CROWD SWAYS. His "ship it flat first, re-cut after" is done — the
+    // crowd is lifted off the new PORTRAIT painting by
+    // tools/cut_ending_crowd.py and sheared about a pivot at its own feet, so
+    // the front row stays planted and only the heads move. Will Hill is left
+    // in the base: the band starts to the right of him.
+    const box = still.draw(images.ending_base, ENDING_CARDS.map((c) => ({
+      ...c, img: images[`ending_${c.key}`],
+    })), state.tick);
     // His plate carries its own SHOWTIME, its own eight stat LABELS and its
     // own RESTART button. The only thing drawn onto it is eight numbers.
     ending.draw(statsFrom(state.finalLog, state.score, state.distanceM || 0),
