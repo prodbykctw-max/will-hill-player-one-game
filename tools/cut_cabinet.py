@@ -218,6 +218,27 @@ def main():
     ox0, oy0, ox1, oy1 = PANEL['options']
     op = Image.open(os.path.join(SRC, 'options.png')).convert('RGBA')
     op = op.crop((ox0, oy0, ox1 + 1, oy1 + 1))
+    # ── HIS ✕ COMES OFF THE OPTIONS PANEL ─────────────────────────────────
+    # Client: "remove the x from the options menu."
+    #
+    # It was painted into the plate, top-right beside OPTIONS — so it could
+    # not be removed in CSS. #panelClose was only ever a transparent hit
+    # target laid over his paint, and it is gone from the cabinet views too;
+    # this menu says BACK TO GAME in his own lettering, and SETTINGS says
+    # BACK, so neither view loses its way out.
+    #
+    # ⚠️ PATCHED WITH HIS OWN PIXELS, NOT A FLAT FILL. The field looks black
+    # and is not: it reads (8,9,13) on one side of the ✕ and (7,8,12) on the
+    # other, so PANEL_FILL would leave a faintly wrong rectangle exactly where
+    # somebody is looking. A patch lifted from the empty field at the same
+    # height, 40px to its left, carries the same gradient and the same grain.
+    # Measured before use: brightest pixel in the source patch sums to 35 of a
+    # possible 765, against 417 in the ✕ itself — it is genuinely empty.
+    X_BOX = (479, 65, 508, 100)      # the ✕ at (483,69)-(504,96), plus margin
+    X_SRC_DX = -40                   # clean field, same rows
+    patch = op.crop((X_BOX[0] + X_SRC_DX, X_BOX[1],
+                     X_BOX[2] + X_SRC_DX, X_BOX[3]))
+    op.paste(patch, (X_BOX[0], X_BOX[1]))
     op.putalpha(rounded_alpha(op.size, RADIUS))
     report.append(save(op, 'panel-options.webp') + (f'{op.width}x{op.height}',))
 

@@ -156,6 +156,54 @@ check('ticking it in SETTINGS turns the music on',
   afterTick.stored === 'on' && afterTick.muted === false, JSON.stringify(afterTick));
 await fresh.close();
 
+// ── A RETURNING PLAYER, WITH AUDIO STILL BEHIND THE GESTURE ──────────────
+// Client, on the installed PWA: "shows checked when no music is on in first
+// load of game... when I hit options music starts."
+//
+// wh_sound is 'on' from a previous visit, so the box drew itself CHECKED,
+// while iOS had released no audio — opening a PWA from the home screen is a
+// gesture on the OS, not on us. Ticked box, silence, and nothing asking for
+// the tap. His next tap hit OPTIONS, which counted as the gesture, and the
+// theme came up from a control that has nothing to do with music.
+//
+// ⚠️ THE REAL GATE CANNOT BE REPRODUCED HERE. Headless Chromium resumes its
+// AudioContext with no gesture even under
+// --autoplay-policy=document-user-activation-required — measured: 'running'
+// and a loud bus on first load. So this simulates the same STATE the only
+// honest way available, by removing AudioContext entirely: ensure() returns
+// null, ready() is false, and the divergence under test (stored ON, audio
+// dead) is exactly the one his phone lands in. It grades the LOGIC. Whether
+// iOS really holds the gate is his device's answer, not this file's.
+const gated = await b.newContext({ viewport: { width: 430, height: 932 }, hasTouch: true });
+const gp = await gated.newPage();
+await gp.addInitScript(() => {
+  try { localStorage.setItem('wh_sound', 'on'); } catch (_e) {}
+  delete window.AudioContext; delete window.webkitAudioContext;
+});
+await gp.goto('http://localhost:5199/?tod=night', { waitUntil: 'networkidle' });
+await gp.waitForFunction(() => window.__game && window.__game.screen === 'title', null, { timeout: 25000 });
+await gp.waitForTimeout(700);
+const g2 = await gp.evaluate(() => ({
+  stored: localStorage.getItem('wh_sound'),
+  ready: window.__audio.ready(),
+  shown: window.__game.musicShown,
+}));
+check('the preference really is ON for this device', g2.stored === 'on', JSON.stringify(g2));
+check('and the audio really is NOT live', g2.ready === false);
+// ⚠️ THE REGRESSION. Stored ON + audio dead must draw UNCHECKED, or the one
+// control whose job is collecting the gesture looks already satisfied.
+check('MUSIC BOX READS UNCHECKED while the audio is gesture-blocked',
+  g2.shown === false, `musicShown=${g2.shown}`);
+// And the tap must move TOWARD sound, not toggle the stored value off.
+const mr = await gp.evaluate(() => { const t = window.__title, bx = window.__game.titleBox;
+  const R = x => x && Object.fromEntries(Object.entries(x).map(([k, v]) => [k, Math.round(v)]));
+  return R(t.musicRect(bx)); });
+await gp.touchscreen.tap(mr.x + mr.w / 2, mr.y + mr.h / 2);
+await gp.waitForTimeout(500);
+check('tapping an unchecked box does NOT turn the preference off',
+  await gp.evaluate(() => localStorage.getItem('wh_sound')) === 'on');
+await gated.close();
+
 // Open space still starts the game.
 await startFromTitle(p);
 check('open space is still START',

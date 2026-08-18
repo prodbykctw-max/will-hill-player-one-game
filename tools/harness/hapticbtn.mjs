@@ -64,7 +64,7 @@ await page.goto(BASE + '/?relay=1&haptest=1', { waitUntil: 'networkidle' });
 await page.waitForTimeout(700);
 
 for (const [view, ids] of [
-  ['menu', ['btnMenuBoard', 'btnMenuHow', 'btnMenuSettings', 'btnMenuClose', 'panelClose']],
+  ['menu', ['btnMenuBoard', 'btnMenuHow', 'btnMenuSettings', 'btnMenuClose']],
   // ⚠️ btnFormBoard AND btnFormRules ARE GONE. Both sat below y992 on his
   // cabinet and went with the crop that turned the sign-up into a card; SAVE
   // is the green tick on the knob now, and the x on his card is #entryClose

@@ -120,14 +120,29 @@ await p.waitForTimeout(300);
 s = await shown();
 check('BACK TO GAME closes the panel and returns to the title', !s.open && s.screen === 'title', JSON.stringify(s));
 
-// ── ✕ still works from every depth, including two levels deep ──────────
+// ── THERE IS A WAY OUT FROM TWO LEVELS DEEP, AND IT IS NOT A ✕ ─────────
+// Client: "remove the x from the options menu." It was painted into his
+// OPTIONS plate and is now erased at the cut, so the transparent hit target
+// over it is gone from both cabinet views. That test used to click it from
+// inside SETTINGS, which makes the exit path the thing worth proving now:
+// nothing may be reachable that cannot be left in his own lettered controls.
 await openPanel();
 await p.click('#btnMenuSettings');
-await p.waitForTimeout(200);
-await p.click('#panelClose');
+await p.waitForTimeout(250);
+s = await shown();
+check('SETTINGS is two levels deep and open', s.open, JSON.stringify(s));
+check('and no ✕ is offered there', await p.evaluate(() =>
+  getComputedStyle(document.getElementById('panelClose')).display === 'none'));
+await p.click('#btnBack');
+await p.waitForTimeout(250);
+check('BACK from settings returns to the OPTIONS menu, not the game',
+  await p.evaluate(() => !document.getElementById('panel').hidden
+    && !document.getElementById('btnMenuClose').closest('div').hidden));
+await p.click('#btnMenuClose');
 await p.waitForTimeout(300);
 s = await shown();
-check('✕ still closes the panel from settings, two levels deep', !s.open && s.screen === 'title', JSON.stringify(s));
+check('and BACK TO GAME from there closes it — two taps, no dead end',
+  !s.open && s.screen === 'title', JSON.stringify(s));
 
 // A closed panel must not have swallowed the run.
 //
