@@ -12,6 +12,60 @@ lines), the traps are in `docs/LESSONS.md`, the methods in
 
 ---
 
+# 🟢 CATCH-UP — main `361c333`, everything merged, everything live
+
+Client, and he is right to be annoyed: *"I'm so fucking confused, it's too many
+chats bro. I need all three of you chats to be caught up so I can finish with
+this game."* Three sessions have been landing work in parallel and he has been
+the one holding the state in his head. **This block is so no chat has to ask
+him anything to get current.** Re-derive it, do not trust it — see the stale
+check at the top of `docs/MERGE_STATE.md`.
+
+## Nothing is outstanding, anywhere
+
+| | state |
+|---|---|
+| `claude/contest-reg-image-crop-d4y6c0` | **0 ahead of main** |
+| `claude/dashboard-kills-display-sizing-wgufbm` | **0 ahead of main** |
+| `claude/last-markdown-game-link-lvk1n6` | **0 ahead of main** |
+| `gh-pages` | rebuilt from main — a build from `361c333` gives **196 assets all matching by content-hashed name, `index.html` byte-identical** |
+| Cloudflare | both workers deployed `2026-08-18T02:28Z`, `GET /top` → `200`, D1 `run_stats.max_combo` present |
+
+⚠️ **If you are about to tell him something is undeployed, diff the build, not
+the log.** A docs-only commit on main moves the hash and changes nothing that
+ships. That misreading has already cost him a round.
+
+## What each chat shipped (so nobody re-does it)
+
+- **Title / home page** — `7e2e493`, `cec447e`, `b4f9f9d`. Real buttons on the
+  home page, a way straight into the contest, the painted OPTIONS sprite
+  retired, `titlehome.mjs` (69). ⚠️ `titlefit` reads **48**, not 76 — the
+  control geometry moved, checks were not dropped.
+- **Dashboard / combo** — `eb0edd3`, `6954130`, `d9e0bca`, `dad801d`. DEATHS
+  tile, MAX COMBO, the D1 migration, `deploy_backend.sh`, the combo chain, and
+  the last stray ✕es off ENTER THE CONTEST.
+- **Backdrops / registration** — `4a1d0cc`, `323f812`. The Underground
+  doubling (`bg.separation` was in the renderer and no stage ever set it) and
+  the L5P seam (two corrupt columns at the plate's own left edge, fixed by a
+  tool that had never been run on it). Plus `cloudseal.mjs` now TRAVELS — it
+  used to measure only at spawn, where the fault it exists to catch is zero by
+  construction.
+
+## What is actually left on the game
+
+1. **`CONTEST_START` / `CONTEST_END` are still `0`** in both workers, so the
+   window is unenforced. ⚠️ **DO NOT CHASE HIM FOR THE DATES.** Will Hill's
+   team is in Australia, he asked directly to stop being asked.
+2. **The crowd sway re-cut** for the new SHOWTIME ending plate
+   (`tools/cut_still.py`). His call: *"ship it flat first, re-cut after."*
+3. **A 104px / 115px cloud leak** on `eav` and `l5p`, carried as a named
+   ratchet in `cloudseal.mjs`. Diagnosed to "a hole in the seal, not any card's
+   parallax". Needs scipy, which this container does not have.
+
+Nothing on that list blocks him playing or shipping the game today.
+
+---
+
 ## 1. Read this before you touch anything
 
 ### The container rolls back. Origin is the only truth.

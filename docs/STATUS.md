@@ -406,17 +406,28 @@ Settings works smoothly."*
 
 ## NOT DONE — the live queue
 
-### CAT 1 — Backgrounds ✅ *freeze lifted, cloud work done*
-Remaining, and **waiting on his markup** of the stage sheets:
-- **Layering blemishes.** He flagged the Underground. Measured: **not** the
-  cloud seal (2,733px accounted for; the rectangles are present with the seal
-  removed). It is the older doubling — the base plate carries its own copy of
-  every building and a card sliding off that copy leaves a faint second edge.
-- **"The layers on the Underground appear to be gone"** — needs verifying, not
-  assuming. All 20 cards are still in the data, so if the parallax has stopped
-  reading that is a different bug. Test: park the camera at two positions and
-  measure each card's movement against the base.
-- **Wrap seams** — every day plate is chopped at its own repeat edge.
+### CAT 1 — Backgrounds ✅ *all three items closed*
+⚠️ **This list used to say all three were open and waiting on his markup. They
+are done; the entries are kept so nobody re-opens them.**
+- ✅ **Layering blemishes / the Underground doubling.** Root cause found:
+  `bg.separation` existed in the renderer since `ca206e4` and **no stage ever
+  declared it**, so the stage made of signage ran at the 16px default. Fixed in
+  `4a1d0cc` — `separation: 4` on both Underground `bg` blocks, and the three
+  far cards to `BASE_DEPTH`. Measured at the far end: towers −15.3 → **0**,
+  lamps +13.4 → **+4.0**. Shown to him as a day/night before-after.
+- ✅ **"The layers on the Underground appear to be gone."** Answered by the
+  same measurement — the cards were all present and all *saturating the clamp
+  within 1.2px of each other*, which is a set with no parallax between its
+  members. That is why it read as flat AND as doubled at the same time.
+- ✅ **Wrap seams.** Not a repeat problem at all: two corrupt columns at the
+  left edge of `l5p-base` (luma 251.6 and 142.4 against a next column of 5.0),
+  one at `edgewood-base`'s right edge. `tools/fix_seam.py --repair`, which had
+  never been run on those plates. `seamsweep` L5P worst join **194.1 → 6.0**.
+  Fixed in `323f812`.
+- ⚠️ **One thing still open, and it is small:** `cloudseal` carries a named
+  `ALLOW` ratchet for 104px on `eav` and 115px on `l5p`. Diagnosed as far as
+  "a hole in the seal, not any card's parallax" (it survives muting every
+  card). Closing it needs `scrub_stage_clouds.py`, which needs scipy.
 
 ### CAT 2 — Movement ✅ shipped
 Drifting clouds live on the title and all four day stages, verified over a full
