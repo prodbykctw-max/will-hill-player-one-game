@@ -20,12 +20,10 @@
 # He is on PowerShell and this was written as bash only. That was the miss
 # this file fixes.
 #
-# ⚠️ UNRUN. There is no PowerShell in the container this was written in, so
-# unlike the bash script - which was driven through all six of its paths
-# against a stub wrangler - this file has been read and not executed. It is
-# deliberately as small as it is for that reason: find a bash, forward two
-# switches, pass the exit code back. If it misbehaves, the fallback that is
-# known to work is running the bash script directly:
+# Written unrun - there is no PowerShell in the container it was authored in -
+# and then run on his machine, where it found bash, ran the script, and passed
+# its refusal back correctly. Kept small anyway: find a bash, forward two
+# switches, pass the exit code back. The fallback, if it ever misbehaves:
 #
 #     & "C:\Program Files\Git\bin\bash.exe" tools/deploy_backend.sh
 
@@ -92,8 +90,21 @@ if (-not $bash) {
     exit 1
 }
 
-# Bash wants a POSIX path for its own script argument, and the repo root is
-# the working directory the script expects.
+# ⚠️ WRANGLER CAN EXIST IN POWERSHELL AND BE INVISIBLE TO BASH, AND THAT LOOKS
+# EXACTLY LIKE NOT HAVING IT. npm installs global commands into %APPDATA%\npm,
+# which PowerShell has on PATH and Git Bash frequently does not - so the script
+# stops with "wrangler is not installed" on a machine where 'wrangler --version'
+# answers fine two lines earlier. That is a maddening thing to debug at 2am, so
+# if PowerShell can see wrangler, its directory is put where bash will see it
+# too. If PowerShell cannot see it either, it genuinely is not installed and
+# the script's own message is correct.
+$wr = Get-Command wrangler -ErrorAction SilentlyContinue
+if ($wr) {
+    $wrDir = Split-Path -Parent $wr.Source
+    if ($env:PATH -notlike "*$wrDir*") { $env:PATH = "$wrDir;$env:PATH" }
+}
+
+# The repo root is the working directory the script expects.
 Push-Location $repoRoot
 try {
     & $bash 'tools/deploy_backend.sh' @passthru
