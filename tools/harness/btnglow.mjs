@@ -153,8 +153,8 @@ let map = await litMap();
 let rs = await rects(['btnMenuBoard', 'btnMenuHow', 'btnMenuSettings', 'btnMenuClose']);
 check('all four painted controls are on screen', Object.keys(rs).length === 4,
   Object.keys(rs).join(' '));
-check('and the ✕ is not one of them', await p.evaluate(() =>
-  getComputedStyle(document.getElementById('panelClose')).display === 'none'));
+check('and no ✕ exists at all', await p.evaluate(() =>
+  document.getElementById('panelClose') === null));
 for (const [id, r] of Object.entries(rs)) {
   const m = inRect(map, r);
   check(`${id} lights up`, m.max > 12 && m.cover > 0.01,
@@ -166,7 +166,6 @@ for (const [id, r] of Object.entries(rs)) {
 // 6px ring just inside each edge against the middle of the button: the middle
 // must be the brighter of the two.
 for (const [id, r] of Object.entries(rs)) {
-  if (id === 'panelClose') continue;           // a ✕ has no frame to confuse
   const edge = 5;
   const ring = [
     inRect(map, { x: r.x, y: r.y, width: r.width, height: edge }),
@@ -232,13 +231,13 @@ await p.waitForTimeout(650);
 console.log('\nENTER CONTEST cabinet');
 map = await litMap();
 rs = await rects(['btnSave', 'btnSkip', 'btnFormX',
-  'btnFormInfo', 'entryClose']);
+  'btnFormInfo']);
 // ⚠️ FIVE, NOT SEVEN, since the sign-up cabinet became a card. LEADERBOARD
 // and RULES & PRIZES were below the y992 cut and are gone; SAVE moved onto the
 // knob as a green tick; the x on his card is #entryClose now, because on an
 // overlay a x closes the overlay and #panelClose went back to belonging to the
 // panel underneath. tools/crop_entry_plate.py holds the geometry.
-check('all five painted controls are on screen', Object.keys(rs).length === 5,
+check('all four painted controls are on screen', Object.keys(rs).length === 4,
   Object.keys(rs).join(' '));
 for (const [id, r] of Object.entries(rs)) {
   const m2 = inRect(map, r);
@@ -256,7 +255,7 @@ check('the form fields are not lit', litField.length === 0,
 const eaten2 = await p.evaluate(() => {
   const out = [];
   for (const id of ['btnSave', 'btnSkip', 'btnFormX',
-    'btnFormInfo', 'entryClose']) {
+    'btnFormInfo']) {
     const el = document.getElementById(id);
     const r = el.getBoundingClientRect();
     const hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
@@ -278,7 +277,7 @@ check('the glow layer eats no taps on the cabinet', eaten2.length === 0, eaten2.
 const shadows = await p.evaluate(() => {
   const out = [];
   for (const id of ['btnSave', 'btnSkip', 'btnFormX',
-    'btnFormInfo', 'entryClose']) {
+    'btnFormInfo']) {
     const el = document.getElementById(id);
     if (!el) continue;
     const cs = getComputedStyle(el);

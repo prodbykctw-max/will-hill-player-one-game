@@ -30,7 +30,8 @@ const check = (what, pass, detail = '') => {
 
 // The painted controls that survived the crop. LEADERBOARD and RULES & PRIZES
 // were below the cut and are gone; SAVE moved onto the knob as a green tick.
-const CONTROLS = ['btnSave', 'btnSkip', 'btnFormX', 'btnFormInfo', 'entryClose'];
+// The tiny ✕ is gone, paint and hit target both — see tools/crop_entry_plate.py.
+const CONTROLS = ['btnSave', 'btnSkip', 'btnFormX', 'btnFormInfo'];
 
 // An on-screen keyboard, as a fraction of the viewport. iOS is ~340 of 932 and
 // ~216 of 568, so 0.37 covers both within a few pixels. Modelled rather than

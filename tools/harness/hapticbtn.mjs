@@ -69,7 +69,7 @@ for (const [view, ids] of [
   // cabinet and went with the crop that turned the sign-up into a card; SAVE
   // is the green tick on the knob now, and the x on his card is #entryClose
   // rather than #panelClose. See tools/crop_entry_plate.py.
-  ['form', ['btnSave', 'btnSkip', 'btnFormX', 'btnFormInfo', 'entryClose']],
+  ['form', ['btnSave', 'btnSkip', 'btnFormX', 'btnFormInfo']],
   ['settings', ['btnBack']],
 ]) {
   await page.evaluate((v) => window.__panel && window.__panel.open(v), view);

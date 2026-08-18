@@ -132,7 +132,7 @@ await p.waitForTimeout(250);
 s = await shown();
 check('SETTINGS is two levels deep and open', s.open, JSON.stringify(s));
 check('and no ✕ is offered there', await p.evaluate(() =>
-  getComputedStyle(document.getElementById('panelClose')).display === 'none'));
+  document.getElementById('panelClose') === null));
 await p.click('#btnBack');
 await p.waitForTimeout(250);
 check('BACK from settings returns to the OPTIONS menu, not the game',

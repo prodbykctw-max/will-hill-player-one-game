@@ -342,12 +342,6 @@
       background: none; border: 0; box-shadow: none;
       padding: 0; max-width: none; width: 100%;
     }
-    #panelCard.bare #panelClose {
-      top: 2px; right: 2px;
-      /* Over artwork now rather than over a dark plate, so it needs its own
-         contrast instead of borrowing the panel's. */
-      color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,0.9);
-    }
     #panelTitle {
       margin: 0 0 12px; font: 800 20px/1 system-ui, sans-serif;
       letter-spacing: 0.08em; color: #ffd66e;
@@ -566,16 +560,17 @@
        ⚠️ z-index, or the tap is eaten. #panelScreen is positioned and comes
        later in the DOM than this button, so without it the plate covers its
        own sibling. panelnav.mjs caught exactly that. */
-    /* ⚠️ NO ✕ IN THE CABINET VIEWS AT ALL. Client: "remove the x from the
-       options menu." It was never CSS — it was painted into his OPTIONS
-       plate, and this rule laid a transparent hit target over his paint. The
-       ✕ is now erased at the cut (tools/cut_cabinet.py), so leaving the
-       target would be an invisible button over empty panel; SETTINGS never
-       had a painted ✕ under it in the first place, so it was already exactly
-       that. Both views keep a real, lettered way out — BACK TO GAME on the
-       menu, BACK on settings — so nothing is stranded. */
-    #panelCard.cabinet #panelClose { display: none; }
-
+    /* ⚠️ NO ✕ ANYWHERE. Client: "remove the x from the options menu", then
+       "there is also an X on the screen of the contest entry thing that
+       doesn't need to be an ex — basically exes don't need to be places to
+       have back buttons." Both were PAINT, not CSS: the OPTIONS one is erased
+       in tools/cut_cabinet.py and the ENTER THE CONTEST one in
+       tools/crop_entry_plate.py, and the transparent hit targets that sat on
+       them (#panelClose, #entryClose) are gone from this file with their
+       handlers. Every view keeps a real lettered way out — BACK TO GAME on
+       the menu, BACK on settings and on the board and on HOW TO PLAY, and his
+       own painted NOT NOW / CANCEL disc on the entry card — so nothing is
+       stranded and no screen has two ways to leave it. */
     /* ── ENTER CONTEST IS AN OVERLAY, AND THAT STARTS WITH THE CROP ─────
        Client, in one message: "crop this image out of the contest registration
        image. It will alone be the sole contest reg view." Before that: "an
@@ -790,16 +785,6 @@
     #entryLayer #btnFormInfo {
       left: 84.408%; top: 65.020%; width: 10.199%; height: 34.480%;
     }
-    /* His painted x on the card's own heading. On the full-screen cabinet this
-       was #panelClose closing the panel outright; on an overlay a x closes the
-       overlay, so it is its own button now and #panelClose goes back to
-       belonging to the card underneath. */
-    #entryLayer #entryClose {
-      position: absolute; z-index: 2;
-      left: 55.100%; top: 52.218%; width: 5.158%; height: 4.636%;
-      color: transparent; font-size: 0; background: none; border: 0;
-      padding: 0; cursor: pointer; touch-action: manipulation;
-    }
     /* ⚠️ `#panel .btn` is 1-1-0 and a bare `.cabOnly` is 0-1-0, so hiding
        these needed the id too — without it the cabinet-only buttons were never
        hidden, and any view of the plain sign-up panel (a plate 404, a revert)
@@ -874,9 +859,7 @@
        edge of its own, so it reads as the control lighting up under the thumb
        rather than as a box appearing around it. */
     #panelCard.cabinet .pv .btn:active,
-    #panelCard.cabinet #panelClose:active,
-    #entryLayer .pv .btn:active,
-    #entryLayer #entryClose:active {
+    #entryLayer .pv .btn:active {
       background: radial-gradient(closest-side,
                   rgba(255,214,110,0.34), rgba(255,214,110,0) 76%);
     }
@@ -1000,11 +983,6 @@
     }
     #entryLayer #formErr[hidden] { display: none; }
 
-    #panelClose {
-      position: absolute; top: 8px; right: 8px; width: 38px; height: 38px;
-      background: none; border: 0; color: rgba(242,234,216,0.6);
-      font-size: 19px; cursor: pointer;
-    }
     /* Two across: the wrong way and the right way, side by side, so the
        pair reads as one lesson without a word of explanation. */
     /* The ticket's cream footer, used as the action bar. Positioned in card
@@ -1446,7 +1424,6 @@
        game — same rule as the control pads. -->
   <div id="panel" hidden>
     <div id="panelCard" role="dialog" aria-modal="true" aria-labelledby="panelTitle">
-      <button id="panelClose" type="button" aria-label="Close">✕</button>
       <!-- ⚠️ `display: contents` BY DEFAULT — this wrapper does NOTHING to
            layout on any view except OPTIONS. There it becomes the client's
            PAINTED PANEL, positioned into the cabinet's screen opening, with
@@ -1651,13 +1628,13 @@
          from under a half-filled form. -->
     <div id="entryLayer" hidden>
       <div id="entryPlate">
-        <!-- His painted x, top right of the card. On a full-screen cabinet
-             this was #panelClose and closed the panel outright; on an overlay
-             a x means "close the overlay", so all three of his ways out —
-             this, the NOT NOW / CANCEL plate and the red X — now do the same
-             thing, and what they reveal is the view he was going to land on
-             anyway. -->
-        <button id="entryClose" type="button" aria-label="Not now">✕</button>
+        <!-- ⚠️ THE TINY ✕ THAT WAS HERE IS GONE, PAINT AND ALL. Client:
+             "there is also an X on the screen of the contest entry thing that
+             doesn't need to be an ex." It was a third way out of one card:
+             his NOT NOW / CANCEL plate and his red ✗ disc are the same
+             control and both call notNow, and this was a smaller, unlabelled
+             copy of them wearing a transparent hit target. Erased from the
+             plate in tools/crop_entry_plate.py; his two painted ones stay. -->
         <div id="pvForm" class="pv" hidden>
           <p class="note">
             All three are required. Your <b>name</b> and score go on the board.
