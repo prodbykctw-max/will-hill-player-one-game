@@ -115,6 +115,47 @@ await p.waitForTimeout(2200);
 await grab('3  after a reload, box remembered');
 check('the choice survives a reload',
   await p.evaluate(()=>localStorage.getItem('wh_sound'))==='on');
+// ── AND THE SETTINGS PANEL MUST AGREE WITH IT ────────────────────────────
+// Client: "if I don't turn on the music from home and go to settings, it
+// shows music as on."
+//
+// It did. fillSettings read wh_sound as `!== 'off'` while soundEnabled reads
+// it as `=== 'on'`, so on a device that had never answered - null - the game
+// correctly played nothing and the panel drew a ticked box beside the
+// silence. Checked on a FRESH profile, because the bug only exists in the
+// never-answered case and any earlier tap in this file would hide it.
+const fresh = await b.newContext({ viewport: { width: 430, height: 932 }, hasTouch: true });
+const fp = await fresh.newPage();
+await fp.goto('http://localhost:5199/?tod=night', { waitUntil: 'networkidle' });
+await fp.waitForFunction(() => window.__game && window.__game.screen === 'title', null, { timeout: 25000 });
+const virgin = await fp.evaluate(() => ({
+  stored: localStorage.getItem('wh_sound'),
+  muted: window.__audio.status().muted,
+}));
+// Open OPTIONS and read the box the way he does.
+await fp.evaluate(() => window.__panel.open('settings'));
+await fp.waitForTimeout(400);
+const box = await fp.evaluate(() => ({
+  checked: document.getElementById('sSound').checked,
+  sfx: document.getElementById('sSfx') ? document.getElementById('sSfx').checked : null,
+}));
+check('a fresh device has answered nothing', virgin.stored === null, JSON.stringify(virgin));
+check('and its music is genuinely muted', virgin.muted === true);
+// ⚠️ THE REGRESSION. The box has to agree with the SPEAKER, not with itself.
+check('SETTINGS SHOWS MUSIC OFF when it has never been turned on',
+  box.checked === false, `sSound.checked=${box.checked}`);
+check('SFX still defaults ON in the same panel', box.sfx === true);
+// Ticking it there must be the gesture that starts the theme, exactly as the
+// title box is - otherwise the fix has only moved the lie.
+await fp.evaluate(() => { const el = document.getElementById('sSound'); el.checked = true; el.dispatchEvent(new Event('change')); });
+await fp.waitForTimeout(600);
+const afterTick = await fp.evaluate(() => ({
+  stored: localStorage.getItem('wh_sound'), muted: window.__audio.status().muted,
+}));
+check('ticking it in SETTINGS turns the music on',
+  afterTick.stored === 'on' && afterTick.muted === false, JSON.stringify(afterTick));
+await fresh.close();
+
 // Open space still starts the game.
 await startFromTitle(p);
 check('open space is still START',

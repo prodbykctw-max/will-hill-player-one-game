@@ -104,6 +104,23 @@ An earlier full pass at `47249b3` ran all 32: **24 graded, 355 checks, zero
 failures.** The 8 report-only harnesses ran clean — which means they produced
 their sheets, not that they graded anything.
 
+### The music box, and the settings panel agreeing with it
+
+`tools/harness/musicbox.mjs` (16 checks) covers the title-card MUSIC box — that
+one press both stores the preference and is the gesture the browser accepts,
+that sound genuinely reaches the master bus, and that the choice survives a
+reload.
+
+It now also opens a **fresh browser context** and checks the OPTIONS panel
+agrees. That context is the whole point: `fillSettings()` read `wh_sound` as
+`!== 'off'` while `soundEnabled()` reads it as `=== 'on'`, so the panel showed
+music ON next to silence — but *only* on a device that had never answered.
+Any earlier tap in the file hides it. If a setting has a non-obvious default,
+the test for it needs a profile that has never been used.
+
+The check was confirmed to FAIL against the old line before being kept. A
+regression test nobody has watched fail is a comment.
+
 ### The combo chain, and the point it must never score
 
 `tools/harness/combo.mjs` (12 checks). It drives the real update loop — nothing
