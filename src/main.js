@@ -1987,6 +1987,33 @@ function applyTimeOfDay() {
 // LOADING… screen it carefully painted was never once on screen — the boot
 // was just the page's own black. update() returns early on the loading
 // screen, so running the loop this early is free.
+// ── THE SERVICE WORKER ───────────────────────────────────────────────────
+//
+// Client: "a new pwa from the site takes as long to load as well." That is
+// the whole reason this exists — an installed PWA WITHOUT a service worker
+// precaches nothing, so every cold open refetches the game. Measured on the
+// production build: 101 images, 8.99 MB, all of it before PRESS START.
+//
+// GitHub Pages sends `cache-control: max-age=600` on everything, hashed
+// assets included, and cannot be configured. So ten minutes after a visit the
+// browser revalidates all hundred-odd files — a hundred round trips on a
+// phone, slow even though every answer is 304 and no bytes move. The worker
+// serves hashed assets from its own cache with no revalidation at all, which
+// is sound because the hash in the filename IS the version.
+//
+// ⚠️ REGISTERED AFTER THE LOAD STARTS, NOT BEFORE. Registration competes for
+// the same connections as the boot images; doing it first makes the FIRST
+// visit slower to speed up the second. It is also PROD-only — Vite folds this
+// whole block out of the dev bundle, which keeps it away from the harnesses.
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    // A failure here must never affect the game: the worker is an accelerator,
+    // and a browser that refuses it (private mode, storage pressure, an old
+    // iOS) should simply get the game at today's speed.
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  });
+}
+
 loop.start();
 loadImages({ ...TITLE_IMAGES })
   .then((first) => { bootPlate = first.title_base || null; })
