@@ -167,7 +167,12 @@ function scoreFromEvents(events, durationMs) {
 //
 // Nothing new is collected. Every number here was already inside the payload
 // the score is recomputed from; it was simply being discarded afterwards.
-function statsFromEvents(events, durationMs) {
+// ⚠️ EXPORTED SO IT CAN BE CROSS-CHECKED, NOT BECAUSE THE WORKER NEEDS IT.
+// A Worker only ever uses its `default` export, so a named one is inert at
+// runtime. This is here because the comment above claimed for weeks that
+// tools/harness/statsync.mjs feeds one log to both tallies — and that file did
+// not exist, partly because this function could not be reached from outside.
+export function statsFromEvents(events, durationMs) {
   const s = {
     bags: 0, bags_x2: 0, bags_lost: 0, kills: 0, bottles: 0, potholes: 0,
     continues: 0, deaths: 0, death_enemy: 0, death_pothole: 0, death_fall: 0,
