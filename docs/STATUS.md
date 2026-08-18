@@ -67,6 +67,56 @@ scratchpad, never the repo root.
 
 ## DONE — shipped and live
 
+### "Loading issues" — the deploys themselves were breaking live players
+
+Client, from a live phone share: *"We're having loading issues with the game."*
+Root-caused with live-host probes, gh-pages history, a route-intercept
+experiment on the production build, and a file:line audit of the whole boot
+path. Three confirmed causes; the loader-fragility one (`images.js`,
+no-retry `Promise.all`) is another session's lane and is not touched here.
+
+**1. Every deploy stranded live players.** gh-pages is force-pushed as a fresh
+orphan, deleting every previously published hashed file — while `index.html`
+is served `cache-control: max-age=600` (the page's `<meta>` no-cache tags are
+inert; the comment claiming otherwise was false) and an installed PWA can hold
+it far longer. **Seven deploys on 2026-08-18** made seven windows in which a
+real phone held an index whose bundle 404s: the module never runs, and the
+error screen lives inside the module that failed — black screen, no message.
+Measured: one 404'd boot asset → canvas 0.3% lit (dead) or stuck at the
+loading card forever, vs 79.9% healthy.
+
+**Fixed by publishing the UNION** (`tools/deploy_union.py`, called from
+`deploy.sh`): recent generations' `assets/` files are carried beside the new
+build (hashed names cannot collide), aged out by `asset-ledger.json` after
+`RETAIN_DAYS` (14). The first union deploy also mined today's six deleted
+trees out of the reflog, **un-bricking everyone stranded today**. Proof: the
+13:31 deploy's stale `index.html` served over the union tree boots to a
+79.9%-lit title with zero 4xx — identical to healthy.
+
+**2. `title.mp3` raced the boot download.** `music.play()` ran from the first
+frame of the LOADING screen (the cue map sends `'loading'` to the title cue),
+fetching 461 KB against the title art, even with MUSIC off. The loading
+early-return now sits above it; verified on a throttled connection: zero
+`.mp3` requests until `screen === 'title'`. All audio harnesses green
+(`musicbox` 20, `endcue` 11, `loopseam` 9, `graphwire`, `pausemenu` 13).
+⚠️ `musiccheck`'s "4 MISMATCHED" durations **pre-exist on clean main** —
+baselined by stashing; a cue-sheet bookkeeping drift, not a regression, still
+open.
+
+**3. A boot audit found one black-screen landmine**: `audio.js`'s `ensure()`
+built the audio graph OUTSIDE its try, synchronously at import — a Safari
+denied-audio throw would have aborted the whole bundle. The try now covers the
+graph. Two adjacent findings (the error screen survives <1 frame before the
+LOADING card repaints over it; no timeout on the boot chain) are **handed to
+the loader session via MERGE_STATE**, not fixed here — they live in the exact
+`main.js` region that session is editing.
+
+Checked and eliminated, so nobody re-chases: no tod double-download, no
+boot-time leaderboard call, no fonts/analytics/service worker, corrupt
+localStorage cannot brick boot, and re-encoding the art is off the table
+(WebP q85 visibly damages the dither — measured).
+
+
 ### The L5P seam was two corrupt pixels, not a repeat problem
 
 Client, long ago: *"that should be the first seam of the bg where it repeats."*

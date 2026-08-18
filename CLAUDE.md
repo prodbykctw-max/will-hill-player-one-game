@@ -14,8 +14,12 @@ Architecture and conventions for working on this repo. Read `docs/GDD.md` first 
 
 - **`public/bench/` is generated, never committed** (`.gitignore` has it).
   `tools/build_loopbench.py` writes it from `tools/loopbench.html` plus the
-  loops in `src/assets/music/`, and `tools/deploy.sh` publishes it at `/bench/`
-  along with the game. Two things it does deliberately: it serves the SHIPPED
+  loops in `src/assets/music/`; when it has been generated, the next
+  `tools/deploy.sh` run carries it at `/bench/` along with the game.
+  ⚠️ It is only published when someone has actually run the generator first —
+  this line used to state it as always-published, while none of the seven
+  deploys on 2026-08-18 contained it and live `/bench/` 404s. Re-run
+  `build_loopbench.py` before a deploy when the bench needs to be up. Two things it does deliberately: it serves the SHIPPED
   loops rather than re-rendering the client's master tracks, so the bench adds
   nothing to what is public (`--master <slot>` opts one cue out of that, for
   when a loop needs to get *longer*); and it strips the comments out of the

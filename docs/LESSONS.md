@@ -806,3 +806,25 @@ against the old line before being kept.
     was to keep the still camera and widen the noise floor to three samples
     instead, i.e. pay for the noise where it is cheap rather than where it
     breaks something else.
+
+37. An orphan deploy makes content-hashed filenames mutable-by-deletion, and
+    caching turns that into an outage. Hashing guarantees a URL's CONTENT can
+    never change; force-pushing a fresh orphan every deploy made the URLs
+    themselves vanish, while the only un-hashed file — index.html — is cached
+    for 10 minutes by the host (its <meta> no-cache tags are ignored) and
+    indefinitely by an installed PWA. Every deploy was a small outage. Publish
+    the union of recent generations so a stale index still finds its bundle;
+    a stale client then just runs the older build.
+
+38. An error screen is only real if it survives the NEXT frame. The "ASSET
+    LOAD FAILED" card was painted once from a .catch while the rAF loop
+    repainted the LOADING card 60×/sec over it — so every failure, whatever
+    its cause, presented as "loading…", which is verbatim what the client
+    reported. When adding any failure UI, ask what repaints after you, and
+    prove it with a frame capture, not the code that draws it.
+
+39. Before optimising an asset, measure the damage on the asset's own terms.
+    "Re-encode the big WebPs" looked free until the error was measured over
+    OPAQUE pixels: q85 moves 20-57% of them by >4 levels on dithered
+    paintings — and a first measurement that included transparent pixels gave
+    a nonsense answer that nearly justified it. The dither IS the artwork.

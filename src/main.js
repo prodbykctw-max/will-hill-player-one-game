@@ -1034,6 +1034,15 @@ function cueForScreen() {
 
 function update() {
   state.tick++;
+  // ⚠️ NO AUDIO ON THE LOADING SCREEN — this gate is about the NETWORK, not
+  // the speaker. music.play() used to run from the very first frame, and
+  // cueForScreen() maps 'loading' to the title cue, so title.mp3 (461 KB) was
+  // fetched TWICE (decodeAudioData fetch + the element's own load) during the
+  // boot download, racing the title art on the same connection — even with
+  // MUSIC off, because play() has no mute check. The player hears nothing on
+  // this screen either way; the only effect of playing "early" was a slower
+  // load. The cue starts on the first frame of the title instead.
+  if (state.screen === 'loading') return;
   // The panel is modal. The art behind it keeps breathing — a frozen title
   // card under a dialog looks like a crash — but nothing the player presses
   // reaches the game while it is up, or a Space bar meant for the form would
@@ -1045,7 +1054,6 @@ function update() {
   // below the between-screen early-returns, so a context that came up a beat
   // after the gesture had nothing to notice it until the next stage began.
   audio.ambienceTick();
-  if (state.screen === 'loading') return;
 
   if (state.screen === 'title') {
     state.screenT++;

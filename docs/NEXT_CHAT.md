@@ -12,6 +12,28 @@ lines), the traps are in `docs/LESSONS.md`, the methods in
 
 ---
 
+# 🔴 LOADING ISSUES — read this before touching boot, deploy, or images.js
+
+Client, live report: *"We're having loading issues with the game."* Fully
+root-caused; the write-up with all measurements is in `docs/STATUS.md` (top
+entry) and the loader-session handoff is in `docs/MERGE_STATE.md`.
+
+The three-line version:
+1. **Deploys were the outage.** Orphan force-pushes deleted every prior hashed
+   asset while index.html stays cached 10+ min (indefinitely on installed
+   PWAs). Fixed: `tools/deploy_union.py` publishes the union of recent
+   generations; the first union deploy restored today's six deleted trees and
+   un-bricked everyone stranded. ⚠️ Never "simplify" deploy.sh back to a bare
+   orphan.
+2. **Audio no longer races the boot.** `music.play()` is gated behind the
+   loading early-return; zero `.mp3` before the title, verified throttled.
+3. ⚠️ **Two findings belong to the loader session** (images.js lane): the
+   error screen survives <1 frame (LOADING card repaints over it) and the boot
+   chain has no timeout. Evidence and file:lines in MERGE_STATE. Do not fix
+   them from any other session — that region is theirs.
+
+---
+
 # 🟢 CATCH-UP — main `afe1930`, everything merged, everything live
 
 Client, and he is right to be annoyed: *"I'm so fucking confused, it's too many

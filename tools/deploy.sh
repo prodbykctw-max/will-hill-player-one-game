@@ -52,6 +52,21 @@ echo "Staging dist/ in a clean directory ($STAGE_DIR)..."
 cp -r "$REPO_ROOT"/dist/. "$STAGE_DIR"/
 touch "$STAGE_DIR/.nojekyll"   # keep Pages from running Jekyll over the output
 
+# ── UNION: carry recent prior deploys' hashed assets forward ─────────────
+# An orphan deploy deletes every previously published hashed file while
+# index.html stays cached for 10+ minutes (indefinitely on an installed PWA),
+# so every deploy used to hand live players an index whose bundle 404s — a
+# black screen with no error, because the error screen lives inside the
+# bundle that failed to load. Seven deploys on 2026-08-18 made seven such
+# windows, and that was the day "loading issues" came in from a live phone.
+# deploy_union.py copies recent generations' assets/ files in beside the new
+# build (hashed names cannot collide) so a stale index keeps working; an
+# asset-ledger ages carried files out after RETAIN_DAYS (default 14).
+# It runs BEFORE the source check below on purpose — nothing it stages is
+# exempt from the guard.
+git fetch -q origin gh-pages || true   # best-effort; first deploy has none
+python3 "$REPO_ROOT/tools/deploy_union.py" "$STAGE_DIR"
+
 # Belt and braces: prove there is no source in what we're about to publish.
 if [ -e "$STAGE_DIR/src" ] || [ -e "$STAGE_DIR/assets/raw-sprites" ] || [ -e "$STAGE_DIR/tools" ]; then
   echo "Source-looking paths found in the staging dir — refusing to publish." >&2

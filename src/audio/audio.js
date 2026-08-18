@@ -185,19 +185,31 @@ export function createAudio() {
     if (ctx) return ctx;
     const AC = typeof window !== 'undefined' && (window.AudioContext || window.webkitAudioContext);
     if (!AC) return null;
+    // ⚠️ THE WHOLE GRAPH IS INSIDE THE TRY, NOT JUST THE CONSTRUCTOR — and
+    // this function is reached SYNCHRONOUSLY AT IMPORT TIME, via main.js's
+    // top-level `audio.tryAutostart()`. The try used to cover only `new AC()`;
+    // createGain/connect/createBuffer sat outside it, and Safari can throw in
+    // contexts that deny audio (and createBuffer on a pathological
+    // sampleRate). A throw here aborted main.js module evaluation before
+    // loop.start() ever ran: permanent black screen, no message, on a boot
+    // audit that found exactly one such gap. A game must never fail to LOAD
+    // because a phone would not give it a SPEAKER.
     try {
       ctx = new AC();
+      master = ctx.createGain();
+      master.gain.value = 0.85;
+      master.connect(ctx.destination);
+
+      // One second of white noise, reused by every percussive sound.
+      noise = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
+      const d = noise.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
     } catch (_e) {
+      ctx = null;
+      master = null;
+      noise = null;
       return null;
     }
-    master = ctx.createGain();
-    master.gain.value = 0.85;
-    master.connect(ctx.destination);
-
-    // One second of white noise, reused by every percussive sound.
-    noise = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
-    const d = noise.getChannelData(0);
-    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
     return ctx;
   }
 

@@ -26,11 +26,17 @@
   <link rel="icon" href="icons/favicon.ico" sizes="any" />
   <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
-  <!-- Never cache the HTML. Every real asset Vite emits is content-hashed and
-       can be cached forever, so this document is the ONLY thing that can go
-       stale — and when it does, a home-screen install keeps launching an old
-       build long after a deploy has landed. That is exactly how a shipped
-       sprite fix appeared not to have shipped. -->
+  <!-- ⚠️ THESE THREE META TAGS DO NOTHING, AND THE COMMENT HERE USED TO SAY
+       THE OPPOSITE. Modern browsers ignore http-equiv cache directives on the
+       document itself; measured live, GitHub Pages serves this HTML with
+       `cache-control: max-age=600` regardless, and an installed home-screen
+       app can hold it far longer (docs/HANDOFF.md's sprite-fix story). So a
+       stale index IS a normal condition, not a preventable one — which is why
+       tools/deploy.sh publishes the UNION of recent deploys' hashed assets:
+       a stale document still finds its own bundle and simply runs the older
+       build until its cache turns over. The tags stay only because removing
+       them re-opens a "did no-cache ever work?" investigation; the answer is
+       recorded here: no. -->
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
