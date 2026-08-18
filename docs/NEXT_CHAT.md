@@ -109,18 +109,34 @@ ships. That misreading has already cost him a round.
    grades the logic by removing `AudioContext`. **HIS DEVICE IS THE ONLY
    REMAINING CHECK** — cold-open the installed PWA, do not touch MUSIC, and it
    should read unchecked and breathing.~~ — verified on device, closed.
-3. **The crowd sway re-cut** for the new SHOWTIME ending plate
-   (`tools/cut_still.py`). His call: *"ship it flat first, re-cut after."* — he
-   has now asked for the re-cut.
-   ⚠️ **THE TOOL IS FINE AND THE MASKS ARE NOT.** `cut_still.py` runs on scipy
-   alone, but `tools/sam_masks/ending/{crowd,hero,prompt}.png` are all
-   **1536×1024** — cut from the LANDSCAPE plate he replaced — against an
-   **853×1843** painting. There is no segmenter here (`torch`,
-   `segment_anything`, `cv2` all absent; `tools/captures/sam/` empty), so the
-   crowd mask has to be hand-authored. On that plate the crowd is a dark, dense
-   band roughly y810-1590 that TOUCHES Will Hill on stage at the left. It is
-   the only one of these judged by eye rather than by a number — do it last and
-   show him a frame before committing anything.
+3. ✅ **DONE — the crowd sways on the SHOWTIME ending.** `0a83dbd`, live.
+   His *"ship it flat first, re-cut after"* is closed out. The blocker recorded
+   here was real and was routed around rather than solved: the old
+   `tools/sam_masks/ending/*` are 1536x1024, cut from the LANDSCAPE plate he
+   replaced, and there is still no segmenter in this container. So the re-cut
+   did NOT go through `cut_still.py` — `tools/cut_ending_crowd.py` lifts the
+   crowd off the 853x1843 painting directly and fills behind it, and the shear
+   band is declared as fractions of the painting in `ENDING_CARDS`
+   (`src/render/ending.js`): head line 726/1843, pivot at the stage lip
+   1596/1843, `ampFrac` 0.004, and `xRanges` starting at 140/853 so Will Hill
+   is left in the base and does not move with the crowd.
+
+   **Measured on a 430x932 canvas, two frames a half-period apart, pixels
+   changed by more than 12/255:**
+
+   | band | moved |
+   |---|---|
+   | heads (top quarter of the band) | **17.89%** |
+   | feet (bottom 12%, at the pivot) | **0.45%** |
+   | Will Hill (left of x=140/853) | **0.05%** |
+
+   That is the design confirmed rather than asserted: shear is zero at the
+   pivot so the front row stays planted on the stage lip, full at the top so
+   only the heads move, and he is outside the band entirely. Zero page errors.
+   ⚠️ **THERE IS NO HARNESS FOR THIS** — the numbers above came from a
+   throwaway script. If the ending art or the band fractions change, nothing
+   will catch it. Worth a harness before anyone touches `ending.js` again.
+
 4. ✅ **DONE — the cloud leak.** `2c91a7d`. You were right that the scipy
    blocker was stale; installed here too and it was one missing package.
    ⚠️ **OWNER NOTE KEPT AND HONOURED:** the client assigned this to *"the
@@ -139,25 +155,52 @@ ships. That misreading has already cost him a round.
    **eav 104 → 46 (off the ratchet entirely), l5p 115 → 86 (allowance 200 →
    110), underground 10 → 0, edgewood 0 → 0, no over-sealing.**
 
-5. **Clouds on every daytime stage** — his ask, and NOT the ask it sounds like.
-   ⚠️ **Every day stage already drifts.** It is a COVERAGE problem: the cards
-   are small and each is clipped by its `span`, so clouds come and go — eav had
-   **zero cloud pixels at spawn at every tick**. `tools/spread_clouds.py`
-   (built, measured, ⚠️ **NOT APPLIED**) fixes the coverage and makes the leak
-   worse, because clouds in new places cross structure the seal does not own.
-   The five-step sequence to finish it, and the seal rule it needs, are in that
-   file's own footer. Also fixed on the way: EAV at NIGHT had the only night
-   cloud card in the game and it had **no `drift`** (`72e15bd`).
+5. ✅ **DONE — clouds read on every daytime stage.** `847591b`, live.
+   `spread_clouds.py` IS applied now, and the seal was changed with it so the
+   extra coverage did not cost what this entry warned it would: the seal stops
+   trusting cards that move. All four day plates were re-scrubbed
+   (`scrub_stage_clouds.py`), and `eav-day-clouds.webp` itself was regenerated.
 
-   ⚠️ **AND THE INSTRUMENT WAS LYING.** `cloudseal.mjs` had an intermittent
-   false positive — the same assets returned 46, 46, 47, 0 and **557**px on
-   eav, spikes landing at a different position each run. The player was still
-   inside the measured band and animates on his own frame counter, so the
-   off→off noise floor could return to the same phase while the ON grab landed
-   elsewhere. Fixed in `72e15bd`. **Do not trust a single cloudseal run for
-   anything; run it three times.**
+   **Verified by running `cloudseal.mjs` EIGHT times, because one run of it has
+   never been evidence:**
 
-Nothing on that list blocks him playing or shipping the game today.
+   | stage | worst leak seen | limit |
+   |---|---|---|
+   | edgewood | **0px**, every run | 60 |
+   | underground | **0px** at every position and tick across four consecutive runs | 60 |
+   | eav | **32-50px**, steady | 60 |
+   | l5p | **64-87px** | 110 (known debt, unchanged) |
+
+   And the clouds are actually on screen, which is the check that stops a leak
+   being "fixed" by deleting the weather: eav peaks at **8,024-8,374px** of
+   visible cloud, l5p ~4,500, underground ~4,600, edgewood ~2,700.
+
+   ⚠️ **THE INSTRUMENT IS STILL NOT CLEAN, AND `72e15bd` DID NOT FULLY FIX
+   IT.** Across those eight runs there were three failures, each a DIFFERENT
+   check, none reproducible: `underground: weather stays off the buildings`
+   once at 113px, `eav: weather stays off the buildings` once, and
+   `l5p` / `underground: enough frames measured on a settled camera` once each.
+   They correlate with container load — every one landed while browsers were
+   running back-to-back, and four clean sequential runs afterwards showed
+   underground at 0px on all fifteen of its samples. **Treat a lone cloudseal
+   failure as unproven until it repeats on an idle machine.** The frame-
+   accounting check needs 2/3 of samples to survive and a loaded container
+   pushes it under; that guard is correct and should not be loosened to make
+   the red go away.
+
+**ONE ITEM IS LEFT AND IT IS NOT DEVELOPMENT.** Everything numbered above
+except the contest window is now shipped and verified live. He said it
+himself: *"I think the clouds are done and I think the cross wear is done. I'm
+just waiting on the date of the competition."* He is right on all three
+counts — checked against the code, not the log.
+
+⚠️ **SO DO NOT INVENT WORK TO FILL THE WAIT.** The temptation with a blocked
+project is to build the thing that would make the blocker easier — moving the
+contest window into D1 so it needs no redeploy was considered here and NOT
+built. It adds a per-request read to `/submit`, which is the endpoint under
+load with a prize behind it, to save one deploy of two numbers. Setting the
+window when the dates arrive is a two-line edit and one run of
+`tools/deploy_backend.sh`. That is the whole job.
 
 ---
 
