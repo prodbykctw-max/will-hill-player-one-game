@@ -57,8 +57,27 @@ done
 die() { echo "" >&2; echo "STOPPED: $*" >&2; exit 1; }
 
 # ── PREFLIGHT ────────────────────────────────────────────────────────────
-command -v wrangler >/dev/null 2>&1 \
-  || die "wrangler is not installed. npm i -g wrangler, then wrangler login."
+#
+# ⚠️ NO GLOBAL INSTALL REQUIRED, AND THAT IS DELIBERATE. "wrangler is not
+# installed" stopped this dead on his machine, and the usual fix - npm i -g
+# wrangler - then needs a NEW terminal before PowerShell finds it, which is a
+# second dead end at the same hour. npx runs it out of the npm cache with no
+# install and no PATH change. A global wrangler is still preferred when there
+# is one: it is faster and it is the version he chose.
+WRANGLER=()
+if command -v wrangler >/dev/null 2>&1; then
+  WRANGLER=(wrangler)
+elif command -v npx >/dev/null 2>&1; then
+  # --yes so the first run does not stop on npx's "Ok to proceed?" prompt with
+  # nobody watching for it.
+  WRANGLER=(npx --yes wrangler)
+  echo "No global wrangler - using 'npx wrangler'. First run downloads it once."
+  echo ""
+else
+  die "no wrangler and no npx, so nothing here can talk to Cloudflare.
+  Install Node.js (which brings npx), then re-run. Optionally also
+  npm i -g wrangler for a faster, pinned copy."
+fi
 [ -f "$DASH_CFG" ] || die "missing $DASH_CFG — run this from the repo."
 [ -f "$GAME_CFG" ] || die "missing $GAME_CFG — run this from the repo."
 
@@ -82,7 +101,7 @@ echo ""
 # so the column it adds is derivable from the filename and this loop needs no
 # list to maintain.
 live_columns() {
-  wrangler d1 execute "$DB_NAME" --remote --json \
+  "${WRANGLER[@]}" d1 execute "$DB_NAME" --remote --json \
     --command "SELECT name FROM pragma_table_info('run_stats')" 2>/dev/null \
     | tr -d ' \n' | grep -o '"name":"[a-z_]*"' | cut -d'"' -f4
 }
@@ -91,8 +110,10 @@ echo "Reading the live schema..."
 COLUMNS="$(live_columns || true)"
 [ -n "$COLUMNS" ] \
   || die "could not read run_stats from $DB_NAME.
-  Either wrangler is not logged in (wrangler login), or this account cannot
-  reach that database. Nothing was changed."
+  Most likely not logged in yet - run this once, in this same shell:
+      ${WRANGLER[*]} login
+  It opens a browser; authorise the Cloudflare account that owns the contest.
+  Otherwise this account cannot reach that database. Nothing was changed."
 
 PENDING=()
 for f in cloudflare/migrations/*.sql; do
@@ -133,7 +154,7 @@ for f in "${PENDING[@]:-}"; do
   # column check above should have caught it, but a race or a hand-run ALTER
   # can get there first, and "duplicate column name" means the desired state
   # is the actual state. Anything else stops the script before it deploys.
-  if ! out="$(wrangler d1 execute "$DB_NAME" --remote --file="$f" 2>&1)"; then
+  if ! out="$("${WRANGLER[@]}" d1 execute "$DB_NAME" --remote --file="$f" 2>&1)"; then
     if echo "$out" | grep -qi "duplicate column name"; then
       echo "  already there — continuing."
     else
@@ -163,10 +184,10 @@ echo ""
 # Dashboard first: it is read-only, so if something is wrong with the schema
 # it fails where only he is looking, not where players are submitting.
 echo "Deploying will-hill-dashboard..."
-wrangler deploy -c "$DASH_CFG"
+"${WRANGLER[@]}" deploy -c "$DASH_CFG"
 echo ""
 echo "Deploying will-hill-leaderboard..."
-wrangler deploy -c "$GAME_CFG"
+"${WRANGLER[@]}" deploy -c "$GAME_CFG"
 
 cat <<'DONE'
 
