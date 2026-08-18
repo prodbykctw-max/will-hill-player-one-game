@@ -2,6 +2,19 @@
 
 Architecture and conventions for working on this repo. Read `docs/GDD.md` first for game design; this file is about how the code/repo is organized.
 
+## ⛔ STOP — `docs/CHECK_FIRST.md`, before anything else
+
+**Three sessions work this repo at once and none of you can see the others'
+chat.** Read `docs/CHECK_FIRST.md` and run its check block BEFORE you start
+work, BEFORE you merge to main, and BEFORE you deploy. It also carries who is
+who (name the branch, never "the other chat"), and the standing rule that
+**August 26 is not a deadline**.
+
+It was written the day two sessions independently root-caused the same loading
+complaint, and one of them had already built a whole service worker before
+noticing the other had shipped a fix an hour earlier and left it findings by
+name. Nobody was wrong. Nobody checked.
+
 ## Guardrail — read this first
 
 **NEVER `git add -A` on the `gh-pages` deploy branch.** A past project in this workspace (`once-upon-a-time` / Jandé) leaked real reference photos and an account cache onto a public branch this exact way; its history had to be purged via an orphan force-push. `tools/deploy.sh` stages explicit paths only and rebuilds `gh-pages` as a fresh orphan every run — don't bypass it with a manual `git add -A` + push.

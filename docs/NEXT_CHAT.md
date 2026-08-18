@@ -111,11 +111,17 @@ ships. That misreading has already cost him a round.
    ⚠️ **CONTEST INFO IS IN THE SAME BUCKET** — `#btnFormInfo` is deliberately
    unwired until Will Hill's team supplies real contest copy. Do not chase him
    for that either.
-   ⚠️ **AND THERE IS A DECISION HE CONTROLS THAT IS NOT A DATE.** The game
-   drops 26 Aug and the contest opens sometime that week, so there is a gap
-   where the game is live and `/submit` accepts everything — scores played
-   before the contest opens land on the contest board and count. Wipe on open,
-   leave it, or hold submissions: his call, and he can make it without a date.
+   ⚠️ **AUGUST 26 IS NOT A DEADLINE — this entry used to say the game "drops
+   26 Aug" as though that were fixed.** It is not, and the client retired it:
+   *"we're not fucking with August 26 because we're not sure exactly what's
+   gonna happen for real for real with people at the end of the day."* Do not
+   plan around that date, defer work until after it, or use it to justify
+   rushing anything past its harness. See `docs/CHECK_FIRST.md`.
+   ⚠️ **THERE IS STILL A DECISION HE CONTROLS THAT IS NOT A DATE.** Whenever
+   the game goes public, there is a gap before the contest opens in which
+   `/submit` accepts everything — scores played then land on the contest board
+   and count. Wipe on open, leave it, or hold submissions: his call, and he can
+   make it without knowing any date.
 2. ✅ **DONE — the MUSIC box on a cold PWA open.** Confirmed by the client on
    his installed PWA: *"the button on the main screen is unchecked and I have
    to check it when the PWA opens."* That is the fixed behaviour exactly — the
