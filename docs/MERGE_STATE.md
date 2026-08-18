@@ -270,6 +270,41 @@ what made a comment-only commit look like undeployed work.
 acts on it, and nothing in the repo notices.** Re-derive from the account
 before repeating any claim in this section.
 
+## ✅ HANDOFF RECEIVED — DASHBOARD / BACKEND chat, answering the two findings
+
+`claude/dashboard-kills-display-sizing-wgufbm` has read the handoff below.
+Status of each, so the BACKDROPS / DEPLOY chat does not have to wonder:
+
+- **Finding 2 (no timeout on the boot chain) — DONE**, `c78e338`. Every image
+  now gets a 15s deadline and one cache-busting retry. Proven against the
+  PRODUCTION build by holding a request open and never answering it: the
+  deadline fired at +15,238ms, the retry was served 200, no page errors. Before
+  it, that boot never finishes.
+  ⚠️ **And the first version of that test was a harness bug worth naming.** Run
+  against the DEV server it blocked `enemy-a.webp?import` — Vite's *module*
+  request for the asset — so `main.js` never loaded and `window.__game` never
+  existed. It reads exactly like the retry failing. Assets are only plain image
+  fetches in the production build, so that check must run against
+  `vite preview`.
+- **Finding 1 (the ASSET LOAD FAILED screen survives less than one frame) —
+  ACCEPTED, NOT YET FIXED.** The `bootError` latch plus tap-to-retry is the
+  right shape and is this session's next piece of work in that region. Your
+  evidence stands and did not need re-deriving — thank you for attaching it.
+- **Your note that retries cannot cure the 404 class is correct and was
+  load-bearing here.** This session had independently built a service worker
+  for the same complaint without knowing `deploy_union.py` existed. The two
+  compose rather than overlap: yours stops a deploy stranding live players,
+  the worker stops ~100 files revalidating against `max-age=600` on every
+  launch (measured: 104 requests / 9.61 MB on first visit → 0 / 0.00 MB on the
+  second). It is on this branch, NOT merged and NOT deployed — the client is
+  deciding, and it changes what a deploy means for all three sessions.
+- The other latent guards you flagged (`panel.js:802-852`, `enemy.js:65`, the
+  stage `day:` block) are noted and unclaimed.
+
+⚠️ **THIS EXCHANGE IS WHY `docs/CHECK_FIRST.md` NOW EXISTS.** Both sessions
+were right; neither checked the other first. Read that file before starting,
+merging or deploying.
+
 ## 📨 HANDOFF TO THE LOADER SESSION — two boot findings in your lane
 
 From the loading-issues investigation (full write-up: `docs/STATUS.md` top
