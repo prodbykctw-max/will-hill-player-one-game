@@ -311,7 +311,37 @@ const STAGE_DEFS = [
             // field. What is lost is parallax on a flat plane that should not
             // have had any.
             key: 'fence', img: eavFence, depth: 0.50, span: [0.217, 0.792] },
-        { key: 'verge', img: eavVerge, depth: 0.75, span: [0.000, 0.859] },
+        // ⚠️ 0.50, NOT 0.75 — THE GRASS IS THE SAME DISTANCE AWAY AS THE FENCE.
+            // Client, looking at Will Hill standing at the EAV fence: "you cut
+            // the fence too early and the fence is not evenly matching up. You
+            // have to distinguish grass from fence — they're two different
+            // colors. I don't understand how you can't cut the grass separate
+            // from the fence."
+            //
+            // He was reading a real defect off the screen. This card's top edge
+            // is a DEAD-FLAT LINE — measured, y=445 on 100% of its 1285 columns
+            // (y=463 on the night plate, equally flat). It has nothing to do
+            // with where grass meets wood: detecting the actual grass top by hue
+            // puts it 45-95px LOWER. So the "grass" card was carrying the bottom
+            // of every fence board and the lower half of both light boxes, and
+            // running them at 0.75 while the rest of the fence ran at 0.50. The
+            // boards' feet slid sideways from the boards, and the boxes were cut
+            // in half with the halves drifting apart by up to 14px.
+            //
+            // Re-cutting the seam along the real grass line was tried first
+            // (tools/refit_card_boundary.py, kept). It works, and it proves the
+            // point — 50,438 px of fence were sitting in the grass card — but it
+            // ends up moving nearly everything onto one card anyway, because
+            // that is what the picture actually is: a fence, its feet, two boxes
+            // against it and the grass they stand in are all the same twenty
+            // metres from camera. Giving them different rates was never
+            // physically justified. One number does what rewriting two cards
+            // does, with no lossy re-encode and nothing for a bad mask to break.
+            //
+            // At BASE_DEPTH the flat cut cannot expose anything: both sides of
+            // it move with the base, so the seam is unobservable no matter how
+            // badly it was drawn. Same reasoning as the fence/CITGO fix.
+            { key: 'verge', img: eavVerge, depth: 0.50, span: [0.000, 0.859] },
         {
           key: 'tree', img: eavTree, depth: 0.81, span: [0.000, 0.313],
           sway: [
@@ -455,7 +485,37 @@ const STAGE_DEFS = [
             // field. What is lost is parallax on a flat plane that should not
             // have had any.
             key: 'fence', img: eavDayFence, depth: 0.50, span: [0.212, 0.772] },
-          { key: 'verge', img: eavDayVerge, depth: 0.75, span: [0.000, 0.837] },
+          // ⚠️ 0.50, NOT 0.75 — THE GRASS IS THE SAME DISTANCE AWAY AS THE FENCE.
+            // Client, looking at Will Hill standing at the EAV fence: "you cut
+            // the fence too early and the fence is not evenly matching up. You
+            // have to distinguish grass from fence — they're two different
+            // colors. I don't understand how you can't cut the grass separate
+            // from the fence."
+            //
+            // He was reading a real defect off the screen. This card's top edge
+            // is a DEAD-FLAT LINE — measured, y=445 on 100% of its 1285 columns
+            // (y=463 on the night plate, equally flat). It has nothing to do
+            // with where grass meets wood: detecting the actual grass top by hue
+            // puts it 45-95px LOWER. So the "grass" card was carrying the bottom
+            // of every fence board and the lower half of both light boxes, and
+            // running them at 0.75 while the rest of the fence ran at 0.50. The
+            // boards' feet slid sideways from the boards, and the boxes were cut
+            // in half with the halves drifting apart by up to 14px.
+            //
+            // Re-cutting the seam along the real grass line was tried first
+            // (tools/refit_card_boundary.py, kept). It works, and it proves the
+            // point — 50,438 px of fence were sitting in the grass card — but it
+            // ends up moving nearly everything onto one card anyway, because
+            // that is what the picture actually is: a fence, its feet, two boxes
+            // against it and the grass they stand in are all the same twenty
+            // metres from camera. Giving them different rates was never
+            // physically justified. One number does what rewriting two cards
+            // does, with no lossy re-encode and nothing for a bad mask to break.
+            //
+            // At BASE_DEPTH the flat cut cannot expose anything: both sides of
+            // it move with the base, so the seam is unobservable no matter how
+            // badly it was drawn. Same reasoning as the fence/CITGO fix.
+            { key: 'verge', img: eavDayVerge, depth: 0.50, span: [0.000, 0.837] },
           {
           key: 'tree', img: eavDayTree, depth: 0.81, span: [0.000, 0.298],
           sway: [
