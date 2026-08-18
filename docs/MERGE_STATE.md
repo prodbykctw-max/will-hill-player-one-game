@@ -9,16 +9,35 @@ way this update was — alone, in a commit that changes nothing else, straight
 after a merge. Never carry an edit to this file along with feature work.
 **Re-run the commands at the bottom before acting — main moves.**
 
-## State at main `ef8c2f2` — ALL THREE ARE IN
+## State at main `323f812` — ALL THREE ARE IN, and gh-pages is rebuilt from it
 
 | branch | ahead | behind | status |
 |---|---|---|---|
-| `claude/last-markdown-game-link-lvk1n6` | 0 | — | mine — nothing outstanding |
-| `claude/dashboard-kills-display-sizing-wgufbm` | 0 | — | merged, clean |
-| `claude/contest-reg-image-crop-d4y6c0` | 0 | 0 | **merged at `ef8c2f2`. No longer a trap.** |
+| `claude/last-markdown-game-link-lvk1n6` | 0 | — | nothing outstanding |
+| `claude/dashboard-kills-display-sizing-wgufbm` | **1 — but it is a GHOST** | 12 | see below |
+| `claude/contest-reg-image-crop-d4y6c0` | 0 | 0 | merged fast-forward at `323f812` |
 
-`gh-pages` was rebuilt from **main** after that merge, so the live game carries
-all three chats' work for the first time.
+`gh-pages` was rebuilt from **main** at `323f812`; the live bundle is
+`index-b1G7z0XG.js`, checked against a local build, and the branch carries 206
+files, none of them source.
+
+⚠️ **`dashboard-kills-display-sizing-wgufbm` reports "1 ahead" and has NOTHING
+to merge.** Its tip `100006c` ("The combo chain") is byte-identical to
+`d9e0bca`, already in main — same `git patch-id`. It is a pre-rebase copy left
+behind when the branch was rebased, and the branch is 12 behind. **Do not merge
+it and do not treat the count as work at risk.** `git rev-list --count` counts
+commits, not content; the check that answers the question is:
+
+```bash
+pid=$(git show <branch-tip> | git patch-id --stable | cut -d' ' -f1)
+for c in $(git log --format=%H -40 origin/main); do
+  [ "$(git show $c | git patch-id --stable | cut -d' ' -f1)" = "$pid" ] \
+    && echo "already in main: $(git log --oneline -1 $c)"
+done
+```
+
+The safe move for that branch is the one `CLAUDE.md` already prescribes for a
+merged branch: restart it from the latest main, keeping the name.
 
 ## ✅ Nothing is a trap right now
 
@@ -40,7 +59,20 @@ clean rebase is not the same as a safe merge, which is why the deletion check
 below is run *after* rebasing and *before* merging, every time.
 
 ⚠️ **Main moved THREE times during that one merge** — `38990f0`, then
-`2d63d6f`, arriving between a fetch and a push. Fetch again immediately before
+`2d63d6f`, arriving between a fetch and a push. It then moved **three more
+times during the Underground/seam round** — `35df100`, `cec447e`, `b4f9f9d` —
+all from the title/home chat. That round rebased with no conflict in any source
+file (they were in `title.js` / `main.js` / `panel.js` / `stillscene.js`, this
+was `stages.js` plus two plates), but all five doc and skill files were
+`changed in both`. Git auto-merged them; the check that mattered was proving it
+had not dropped anything, by testing every added line for membership:
+
+```bash
+git show <their-commit> -- <file> | grep '^+' | ...   # each line still present?
+```
+
+145 of 145 of their lines survived. **Do that check rather than trusting a
+clean rebase** — a clean rebase means no textual conflict, not no loss. Fetch again immediately before
 pushing, and be ready to rebase and re-run the check rather than assuming the
 window held.
 
