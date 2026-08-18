@@ -47,19 +47,24 @@ const check = (what, pass, detail = '') => {
 // The four the client actually holds, plus the two extremes of the range.
 const SHAPES = [
   ['iPhone SE', 375, 667],
+  ['iPhone 12 mini', 360, 780],
   ['iPhone 15 Pro', 393, 852],
   ['Android 412', 412, 780],
   ['15 Pro Max', 430, 932],
   ['Pixel 7', 412, 915],
   ['Pro Max + URL bar', 430, 840],
+  ['his screenshot', 471, 825],
 ];
 
-// Apple's floor, and the number the whole change exists to reach. A phone
-// short enough to force the one-row layout gets SHORT_MIN_H instead — 34px,
-// still nearly three times what these controls used to be. Drawing over his
-// lettering to keep a round number is the one thing that is not allowed.
-const TAP_MIN = 44;
-const TAP_MIN_SHORT = 34;
+// ⚠️ HIS LAYOUT OUTRANKS THE ROUND NUMBER, and that ordering is the whole
+// correction. 44px is Apple's floor and the target, but when the road runs
+// short the controls SHRINK to 38 rather than rearranging themselves — the
+// first version did the opposite and handed him a home page he had never
+// seen on the two smallest phones. He was unambiguous: "I literally sent you
+// an image so why did you not do that and who asked you to change the layout
+// based on the phone type."
+const TAP_MIN = 38;          // the two-row floor; 44 wherever the road allows
+const TAP_MIN_SHORT = 34;    // only where the bar cannot exist at any height
 // PRESS START's painted foot, in source rows: PROMPT.y + PROMPT.h in
 // src/render/title.js. Nothing may cross it.
 const PROMPT_BOTTOM = 1572;
@@ -99,9 +104,14 @@ for (const [name, w, h] of SHAPES) {
     const t = window.__title, bx = window.__game.titleBox;
     const cv = document.querySelector('canvas');
     const l = t.homeLayout(bx);
+    // PROMPT_FOOT (1580) is what homeLayout clamps against; promptBottom
+    // (1572) is the painted foot this file grades against. Both, on purpose.
+    const clampFoot = bx.dy + (1580 / 1844) * bx.dh;
     return {
       rows: l.rows,
       banner: t.bannerRect(bx), opts: t.optionsRect(bx), music: t.musicRect(bx),
+      label: t.bannerLabel(bx, false),
+      road: cv.height - clampFoot,
       promptFoot: bx.dy + (promptBottom / 1844) * bx.dh,
       cw: cv.width, ch: cv.height,
     };
@@ -109,7 +119,26 @@ for (const [name, w, h] of SHAPES) {
 
   const min = r.rows === 1 ? TAP_MIN_SHORT : TAP_MIN;
   const all = [['the contest banner', r.banner], ['OPTIONS', r.opts], ['MUSIC', r.music]];
-  console.log(`\n  ${name}  ${w}x${h}   ${r.rows === 1 ? 'one row' : 'banner + row'}`);
+  console.log(`\n  ${name}  ${w}x${h}   ${r.rows === 1 ? 'one row' : 'HIS LAYOUT'}`);
+
+  // ⚠️ THE CHECK THAT WOULD HAVE CAUGHT IT. His layout — the green contest bar
+  // across, OPTIONS and MUSIC in a row under it — is the ONLY layout, and a
+  // shape may only fall out of it when the road below PRESS START genuinely
+  // cannot hold it at the floor sizes. Measured, not asserted by eye: if the
+  // road is there and the layout is not, that is the bug he found.
+  const twoRowNeed = 8 + 38 + 8 + 38;      // bottom + banner + gap + row floors
+  check('  his layout is used, or the road provably cannot hold it',
+    r.rows === 2 || r.road < twoRowNeed,
+    `${r.rows === 1 ? 'one row' : 'his layout'}, road ${Math.round(r.road)}px, needs ${twoRowNeed}`);
+
+  // ⚠️ AND THE COPY, because the bug he caught was a WORD. Every check in this
+  // file measured rectangles and all of them were green over a button that
+  // said "ENTER" directly under PRESS START — "now the fucking enter button
+  // looks redundant like it's another start button."
+  check('  the contest button never just says ENTER', r.label !== 'ENTER',
+    `reads "${r.label}"`);
+  check('  and it names the contest, whatever the shape',
+    /CONTEST|BOARD/.test(r.label), `reads "${r.label}"`);
 
   for (const [label, rect] of all) {
     check(`  ${label} is a real tap target`, !!rect && rect.h >= min - 0.5 && rect.w >= 44,

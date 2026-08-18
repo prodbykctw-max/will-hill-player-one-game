@@ -859,14 +859,23 @@ export function createTitle(ctx, canvas, still) {
   //
   // PRESS START stays painted and untouched — the client's call. It is his
   // hero lettering and the layout below must never reach it.
-  const HOME_MIN_H = 44;        // the whole point: a real tap target
-  const HOME_BOTTOM = 20;       // clear of the home indicator
+  const HOME_MIN_H = 44;        // the target: a real tap target
+  // ⚠️ AND THIS IS WHAT IT SHRINKS TO RATHER THAN CHANGE SHAPE. Getting that
+  // priority backwards is the mistake this file already made once: the layout
+  // fell to a different arrangement the moment 44px stopped fitting, which
+  // handed the client a home page he had never seen on the two smallest
+  // phones. His layout comes first; the pixels bend to it, not the reverse.
+  const HOME_FLOOR_H = 38;
+  const HOME_BOTTOM = 20;       // clear of the home indicator, where there is room
+  const HOME_BOTTOM_MIN = 8;    // and this where there is not
   const HOME_GAP = 12;
+  const HOME_GAP_MIN = 8;
   const HOME_SIDE = 16;
   const BANNER_H = 56;
   // Never thinner than this, even where the pavement runs out.
-  const BANNER_MIN_H = 42;
-  // The floor when everything shares one row on a short phone.
+  const BANNER_MIN_H = 38;
+  // The floor when everything shares one row on a phone that truly cannot
+  // hold the bar. See the note in homeLayout about what the label must say.
   const SHORT_MIN_H = 34;
   // PRESS START's painted baseline in source rows. The stack is clamped to
   // stay below it, so on a very short phone the controls stop rather than
@@ -892,32 +901,57 @@ export function createTitle(ctx, canvas, still) {
     // cropped as far as its budget allows, and taking the top margin to zero
     // (stillscene.js) bought six pixels.
     //
-    // So the layout has two shapes, chosen by what fits:
-    //   TALL  — banner across the pavement, OPTIONS and MUSIC in a row below.
-    //   SHORT — all three share one row, contest first and widest.
-    // Both keep a real tap target and neither ever touches PRESS START.
+    // ⚠️ THERE IS ONE LAYOUT AND IT IS HIS. He sent a picture of it and said
+    // "this by far is my favorite layout": PRESS START, the green contest bar
+    // straight across underneath it, then OPTIONS and MUSIC side by side below
+    // that. Every shape that can hold it gets it. Nobody asked for a
+    // per-phone variant and one must never be invented again — the first
+    // version of this function dropped to a different arrangement as soon as
+    // 44px stopped fitting, and shipped him a home page he had never seen.
+    //
+    // So the road is spent in priority order — bottom inset, then the row,
+    // then the gap, then the banner — with each one giving up height down to
+    // a floor before the NEXT one is touched, and the arrangement never
+    // changing. On a tall phone every term lands on its ideal and the result
+    // is pixel-identical to the picture he approved.
+    //
+    // ⚠️ WHERE IT GENUINELY CANNOT FIT. Two shapes measure out under 50px of
+    // road — an iPhone SE at 375x667, and the 471x825 of his own screenshot —
+    // because the plate is cover-cropped to the WIDTH and the crop is already
+    // pinned by keeping the top of WILL HILL: on screen. There is no bar to
+    // be had there at any size. Those fall to one row, and his instruction
+    // covers exactly that case: "if you're gonna change the layout based on
+    // phones that enter button should say CONTEST where it can't say fully
+    // ENTER THE CONTEST." It says CONTEST. It must never say ENTER — under
+    // PRESS START that reads as a second start button, which is the bug he
+    // caught on the live build. See drawBanner.
     const promptFoot = box.dy + PROMPT_FOOT * S;
-    const road = (H - HOME_BOTTOM) - promptFoot;
-    const twoRows = BANNER_MIN_H + HOME_GAP + HOME_MIN_H;
+    const road = H - promptFoot;
+    const twoRows = HOME_BOTTOM_MIN + BANNER_MIN_H + HOME_GAP_MIN + HOME_FLOOR_H;
 
     if (road >= twoRows) {
-      const rowH = HOME_MIN_H;
-      const ry = H - HOME_BOTTOM - rowH;
-      const bannerH = Math.max(BANNER_MIN_H,
-        Math.min(BANNER_H, (ry - HOME_GAP) - promptFoot));
-      const optW = Math.round((inner - HOME_GAP) * 0.44);
+      const spend = (ideal, floor, rest) =>
+        Math.max(floor, Math.min(ideal, road - rest));
+      const bottom = spend(HOME_BOTTOM, HOME_BOTTOM_MIN,
+        BANNER_MIN_H + HOME_GAP_MIN + HOME_FLOOR_H);
+      const gap = spend(HOME_GAP, HOME_GAP_MIN,
+        bottom + BANNER_MIN_H + HOME_FLOOR_H);
+      const rowH = spend(HOME_MIN_H, HOME_FLOOR_H,
+        bottom + gap + BANNER_MIN_H);
+      const bannerH = spend(BANNER_H, BANNER_MIN_H, bottom + gap + rowH);
+      const ry = H - bottom - rowH;
+      const optW = Math.round((inner - gap) * 0.44);
       return {
-        banner: { x: side, y: ry - HOME_GAP - bannerH, w: inner, h: bannerH },
+        banner: { x: side, y: ry - gap - bannerH, w: inner, h: bannerH },
         options: { x: side, y: ry, w: optW, h: rowH },
-        music: { x: side + optW + HOME_GAP, y: ry,
-                 w: inner - HOME_GAP - optW, h: rowH },
+        music: { x: side + optW + gap, y: ry,
+                 w: inner - gap - optW, h: rowH },
         rows: 2,
       };
     }
 
-    // SHORT. One row, and the height is whatever the road gives down to a
-    // floor — 34px is still nearly three times the 12px these controls used
-    // to be, and it beats drawing over his lettering to keep a round number.
+    // ONE ROW, because the bar will not fit at any height. The contest keeps
+    // the widest share and its label changes with it — see drawBanner.
     const bottom = Math.min(HOME_BOTTOM, Math.max(6, road * 0.18));
     const rowH = Math.max(SHORT_MIN_H, Math.min(HOME_MIN_H, road - bottom));
     const ry = H - bottom - rowH;
@@ -957,14 +991,30 @@ export function createTitle(ctx, canvas, still) {
   const SIGN_INK = '#988d70';
   const SIGN_SHADOW = 'rgba(2,23,6,0.85)';
 
+  // ⚠️ THE SHORT LABEL IS "CONTEST", NEVER "ENTER". It said ENTER on the live
+  // build and the client caught it the moment he saw it: "now the fucking
+  // enter button looks redundant like it's another start button." He is right
+  // — sitting directly under PRESS START, a button reading ENTER is a second
+  // way to start the game, which buries the one control this whole change
+  // exists to add. His instruction, verbatim: "that enter button should say
+  // CONTEST where it can't say fully ENTER THE CONTEST."
+  //
+  // ⚠️ AND IT IS A FUNCTION, EXPORTED, SO A HARNESS CAN GRADE IT. The bug he
+  // caught was in the COPY, not the geometry, and every check in
+  // titlehome.mjs measured rectangles — 69 of them, all green, over a button
+  // that said the wrong word. Words get checked now too.
+  function bannerLabel(box, registered) {
+    const l = homeLayout(box);
+    const tight = !!(l && l.rows === 1);
+    return registered
+      ? (tight ? 'LEADERBOARD' : "YOU'RE IN  ·  SEE THE BOARD")
+      : (tight ? 'CONTEST' : 'ENTER THE CONTEST');
+  }
+
   function drawBanner(box, tick, registered) {
     const r = bannerRect(box);
     if (!r) return;
-    const l = homeLayout(box);
-    const tight = l && l.rows === 1;
-    const label = registered
-      ? (tight ? 'LEADERBOARD' : "YOU'RE IN  ·  SEE THE BOARD")
-      : (tight ? 'ENTER' : 'ENTER THE CONTEST');
+    const label = bannerLabel(box, registered);
     const rad = Math.min(10, r.h * 0.18);
     ctx.save();
     // Drop shadow first, so the sign sits ON the road rather than floating.
@@ -1270,5 +1320,5 @@ export function createTitle(ctx, canvas, still) {
   }
   return { draw, hitOptions, optionsRect,
     hitMusic, musicRect, drawMusic,
-    hitBanner, bannerRect, homeLayout };
+    hitBanner, bannerRect, bannerLabel, homeLayout };
 }
