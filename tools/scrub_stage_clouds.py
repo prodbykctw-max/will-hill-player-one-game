@@ -53,6 +53,7 @@ Write into src/ (base, clouds card) and print the new span for stages.js:
     python3 tools/scrub_stage_clouds.py eav-day --write
 """
 
+import re
 import sys
 from pathlib import Path
 
@@ -91,6 +92,38 @@ CFG = {
 MIN_BLOB = 40          # px — below this it's dither, leave it alone
 OCCLUDED_FRAC = 0.14   # blob borders structure more than this -> stays baked
 WIRE_MAX_THICK = 4     # px — dark runs no thicker than this inside a puff heal
+
+
+def sway_keys(stage):
+    """Which cards of this stage declare `sway`, read out of stages.js.
+
+    ⚠️ Read, not listed. A hand-kept copy of a fact that lives in the stage
+    table is the failure this project has already had three times — a
+    verification tool holding its own copy of the thing it verifies against
+    verifies nothing (see docs/LESSONS.md and tools/card_overlaps.py).
+    """
+    src = (ROOT / 'src' / 'world' / 'stages.js').read_text()
+    parent = stage[:-4] if stage.endswith('-day') else stage
+    i = src.index(f"id: '{parent}'")
+    if stage.endswith('-day'):
+        i = src.index('day: {', i)
+    j = src.index('cards: [', i)
+    k = j + len('cards: [')
+    depth = 1
+    while depth:
+        if src[k] == '[':
+            depth += 1
+        elif src[k] == ']':
+            depth -= 1
+        k += 1
+    blk = src[j:k]
+    keys = [(m.start(), m.group(1)) for m in re.finditer(r"key: '(\w+)'", blk)]
+    out = set()
+    for n, (pos, key) in enumerate(keys):
+        end = keys[n + 1][0] if n + 1 < len(keys) else len(blk)
+        if 'sway:' in blk[pos:end]:
+            out.add(key)
+    return out
 
 
 def hsv(rgb):
@@ -338,6 +371,7 @@ def heal_wires(rgb, blob):
 def main():
     name = sys.argv[1] if len(sys.argv) > 1 else 'eav-day'
     write = '--write' in sys.argv
+    seal_only = '--seal-only' in sys.argv
     cfg = CFG[name]
     OUT.mkdir(parents=True, exist_ok=True)
 
@@ -345,6 +379,30 @@ def main():
     rgb = np.array(base_im)
     H, W, _ = rgb.shape
     sky_rows = int(H * cfg['sky_frac'])
+
+    # ⚠️ --seal-only EXISTS BECAUSE THIS TOOL IS A ONE-SHOT AND RE-RUNNING IT
+    # IS NOT A FIX.
+    #
+    # The lift is destructive by design: it takes clouds OUT of the base and
+    # repaints sky behind them. Run a second time on an already-scrubbed plate
+    # and there is nothing left to lift — eav-day reports "4 cloud blobs (0
+    # lifted, 4 left baked)" and then dies in fill_sky() on a zero-size array,
+    # because `scrub` is empty. Worse than the crash is what it would do if it
+    # got past: rebuild the CLOUDS CARD from an empty lift set and wipe the
+    # clouds entirely.
+    #
+    # But the SEAL is derived, not destructive — it is a copy of the base's own
+    # pixels at BASE_DEPTH, and rebuilding it costs nothing and touches no
+    # artwork. So the seal gets its own door, and the lift is left alone.
+    if seal_only:
+        card_a = np.array(Image.open(BG / cfg['card']).convert('RGBA'))[..., 3]
+        grown = card_a > 8
+        healed = rgb
+        base_new = rgb
+        print(f'{name}: --seal-only — base and clouds card untouched, '
+              f'{int(grown.sum())} px of existing cloud card read back')
+        return seal(name, cfg, rgb, healed, grown, base_new, sky_rows, H, W,
+                    write, card_only=True)
 
     sky, strict, weak = sky_and_clouds(rgb, sky_rows)
     lift, baked, stats = classify(rgb, sky, strict, weak)
@@ -415,6 +473,23 @@ def main():
     comp = np.array(comp)
     Image.fromarray(comp[:sky_rows + 40]).save(OUT / f'{name}-card.png')
 
+    return seal(name, cfg, rgb, healed, grown, base_new, sky_rows, H, W,
+                write, card=card, scrub=scrub, over=over)
+
+
+def seal(name, cfg, rgb, healed, grown, base_new, sky_rows, H, W, write,
+         card=None, scrub=None, over=None, card_only=False):
+    """Build (and optionally write) the sky-structure overlay.
+
+    Split out of main() so `--seal-only` can reach it without going near
+    the destructive lift. Everything it needs is passed in.
+    """
+    if scrub is None:
+        scrub = np.zeros((H, W), bool)
+    if over is None:
+        over = np.zeros((H, W, 4), np.uint8)
+        over[..., :3] = 30
+        over[..., 3] = 255
     # ── THE SKY-STRUCTURE OVERLAY ────────────────────────────────────────
     # A lifted cloud DRIFTS, and the card deck draws over the base — so a
     # puff crossing the utility poles would cover their wires, a far cloud
@@ -426,6 +501,26 @@ def main():
     # the base's own depth is the base's own offset, so the overlay sits on
     # its base copy to the pixel, forever, by construction. It has no depth
     # of its own to express; its entire job is draw order.
+    # ⚠️ THE DILATION IS PER CARD NOW, AND ONLY THE ONES THAT SWAY GET IT.
+    #
+    # It used to be applied to the union of every card, and that is what left
+    # the hole this whole seal exists to prevent. The seal deliberately skips
+    # anything another card owns, because that card will redraw it over the
+    # weather — true only where the card ACTUALLY covers. Growing every card's
+    # claim by 5px makes the seal defer 5px of ground that nothing then paints,
+    # and a drifting cloud shows straight through the base's own structure
+    # there.
+    #
+    # Measured on eav-day at the camera cloudseal reports: in the 768px hole at
+    # plate x1096-1128 y70-94, `fence` genuinely covers 424px and the seal
+    # covered 62 — combined 51%, with 344px owned by nothing at all. `fence`
+    # does not sway. Its claim never needed growing.
+    #
+    # The dilation's ORIGINAL reason is still real and still honoured: a
+    # swaying card moves, so a static seal copy of a tree crown would double
+    # against it at full sway amplitude. So swaying cards keep the 5px skirt
+    # and everything else is taken at the alpha it actually has.
+    swayers = sway_keys(name)
     others = np.zeros((H, W), bool)
     stem = cfg['card'].replace('-clouds.webp', '')
     for f in sorted(BG.glob(f'{stem}-*.webp')):
@@ -434,11 +529,12 @@ def main():
         im = Image.open(f)
         if im.size != (W, H) or 'A' not in im.getbands():
             continue
+        key = f.name[len(stem) + 1:-5]
         # >32, not >128: a card's feathered rim is still that card's ground.
-        others |= np.array(im.getchannel('A')) > 32
-    # Dilated, because carded things SWAY — a static overlay copy of a tree
-    # crown would double against the swaying card copy at full amplitude.
-    others = ndimage.binary_dilation(others, iterations=5)
+        own = np.array(im.getchannel('A')) > 32
+        if key in swayers:
+            own = ndimage.binary_dilation(own, iterations=5)
+        others |= own
     band = np.zeros((H, W), bool)
     band[:sky_rows] = True
     # Everything blue-ish stays OUT of the overlay even where the flood
@@ -475,16 +571,22 @@ def main():
             return (0.0, 0.0)
         return (round(xs2.min() / W, 3), round(min(1.0, (xs2.max() + 1) / W), 3))
 
-    span = spanof(card)
     sspan = spanof(skystruct)
-    print(f'  new clouds span for stages.js: [{span[0]:.3f}, {span[1]:.3f}]')
+    if card is not None:
+        span = spanof(card)
+        print(f'  new clouds span for stages.js: [{span[0]:.3f}, {span[1]:.3f}]')
     print(f'  skystruct card span:           [{sspan[0]:.3f}, {sspan[1]:.3f}]  '
           f'({int((skystruct[..., 3] > 8).sum())} px)')
 
-    if write:
+    sspath = cfg['card'].replace('-clouds.webp', '-skystruct.webp')
+    if write and card_only:
+        # ⚠️ THE SEAL AND NOTHING ELSE. Writing the base or the clouds card from
+        # this path would destroy artwork — see the note on --seal-only above.
+        Image.fromarray(skystruct).save(BG / sspath, quality=95, method=6)
+        print(f'  wrote {sspath} ONLY — base and clouds card untouched')
+    elif write:
         Image.fromarray(base_new).save(BG / cfg['base'], quality=95, method=6)
         Image.fromarray(card).save(BG / cfg['card'], quality=95, method=6)
-        sspath = cfg['card'].replace('-clouds.webp', '-skystruct.webp')
         Image.fromarray(skystruct).save(BG / sspath, quality=95, method=6)
         print(f'  wrote {cfg["base"]}, {cfg["card"]}, {sspath}')
     else:

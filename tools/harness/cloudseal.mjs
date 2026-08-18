@@ -316,20 +316,35 @@ for (let si = 0; si < 4; si++) {
   // 734 px blob, so 60 is far below anything that reads on screen and far
   // above the fringe.
   //
-  // ⚠️ EAV AND L5P CARRY A HIGHER ALLOWANCE AND IT IS A DEBT, NOT A TOLERANCE.
-  // The day this harness learned to travel it found two more leaks, on stages
-  // nobody had reported: eav 104px (biggest blob 82) at 11,290px into the
-  // stage, l5p 115px (blob 73) at 7,200px. Both predate every change made
-  // alongside this one and neither responds to the fix that closed
-  // Underground's — measured directly: with `separation: 4` applied to all
-  // four stages, Underground went 10 -> 8px while eav went 104 -> 142 and l5p
-  // 115 -> 70. So eav's is a different fault and is still undiagnosed.
+  // ⚠️ THE DEBT IS PAID DOWN, AND EAV IS OFF THE LIST ENTIRELY.
   //
-  // These numbers are here to RATCHET, not to excuse: they may only ever go
-  // down, and the day either stage is diagnosed the entry comes out. Both sit
-  // an order of magnitude under the crossing this file was built to catch, on
-  // both pixels and blob size, which is why they are debt rather than a stop.
-  const ALLOW = { eav: 200, l5p: 200 };
+  // When this harness learned to travel it found two leaks nobody had
+  // reported — eav 104px (blob 82) at 11,290px in, l5p 115px (blob 73) at
+  // 7,200 — and they were parked here as a ratchet because the fix needed
+  // scipy, which the container did not have.
+  //
+  // Root cause, found by muting one card at a time at that exact camera: the
+  // leak SURVIVED muting every card (108 -> 507 with all muted), so it was
+  // never a card's parallax. It was a hole in the SEAL.
+  // tools/scrub_stage_clouds.py grew EVERY card's claim by 5px before
+  // subtracting it from the seal — a skirt that exists because swaying cards
+  // move — so the seal deferred ground that non-swaying cards never covered.
+  // Measured on eav-day: in the 768px hole at plate x1096-1128 y70-94, `fence`
+  // (which does not sway) genuinely covered 424px and the seal 62, leaving
+  // 344px owned by nothing. The dilation is per-card now and only swayers get
+  // it, and the seals were rebuilt through a new --seal-only door that cannot
+  // touch the base or the clouds card.
+  //
+  //   eav  104 -> 47   (now UNDER the standard 60, so it has no entry here)
+  //   l5p  115 -> 87
+  //   underground 10 -> 16, edgewood 0 -> 0
+  //   clouds still visible: unchanged or better on all four — no over-sealing
+  //
+  // Both numbers repeated exactly across two consecutive runs, which is why
+  // the remaining allowance is set from observed variance and not from one
+  // sample. l5p's 110 may only ever go DOWN; when it is diagnosed the entry
+  // comes out the way eav's just did.
+  const ALLOW = { l5p: 110 };
   const limit = ALLOW[r.id] || 60;
   check(`${r.id}: weather stays off the buildings`, worst <= limit,
     `worst ${worst}px at `
