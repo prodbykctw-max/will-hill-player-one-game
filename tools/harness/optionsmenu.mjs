@@ -199,8 +199,18 @@ const dead = await p2.evaluate(async () => {
   g.screenT = 60;                        // past the tap guard
   return g.screen;
 });
-await p2.mouse.click(215, 500);
-await p2.waitForTimeout(500);
+// ⚠️ PRESS THE BUTTON, NOT THE MIDDLE OF THE SCREEN. GAME KNOCKED used to
+// advance on a tap anywhere; it draws SEE YOUR SCORE now and that tap is the
+// only one it takes. A click at 215,500 lands on nothing and this check read
+// "the sign-up is never offered after death" when the offer was one button
+// press away. See tools/harness/betweenscreens.mjs.
+const knockedBtn = await p2.evaluate(() => {
+  const r = (window.__screenButtons || [])[0];
+  return r ? { x: r.x + r.w / 2, y: r.y + r.h / 2, label: r.label } : null;
+});
+check('GAME KNOCKED offers a way on', !!knockedBtn, JSON.stringify(knockedBtn));
+if (knockedBtn) await p2.mouse.click(knockedBtn.x, knockedBtn.y);
+await p2.waitForTimeout(600);
 const after = await p2.evaluate(() => ({
   open: !document.getElementById('panel').hidden,
   // ⚠️ NOT THE PANEL TITLE ANY MORE FOR THE SIGN-UP. His card is lettered

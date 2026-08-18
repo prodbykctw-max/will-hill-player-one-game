@@ -22,10 +22,11 @@ import { createBackdrop } from './render/backdrop.js';
 import { createUndercroft } from './render/undercroft.js';
 import { createHud } from './render/hud.js';
 import { createMartaMap } from './render/martamap.js';
-import { createEnding, statsFrom, endingCards, ENDING_IMAGES, PROMPT as ENDING_PROMPT } from './render/ending.js';
+import { createEnding, statsFrom, endingCards, ENDING_IMAGES, PROMPT as ENDING_PROMPT,
+  SRC_W as ENDING_W, SRC_H as ENDING_H } from './render/ending.js';
 import { createStillScene } from './render/stillscene.js';
-import { createTitle, TITLE_IMAGES, INTRO_TICKS as TITLE_INTRO_TICKS,
-  SRC_W as STILL_W, SRC_H as STILL_H } from './render/title.js';
+import { createTitle, TITLE_IMAGES,
+  INTRO_TICKS as TITLE_INTRO_TICKS } from './render/title.js';
 import martaMapArt from './assets/backgrounds/marta-map.webp';
 import { loadImages } from './render/images.js';
 // ⚠️ signupOffered/markSignupOffered/localRuns are deliberately NOT imported
@@ -487,6 +488,22 @@ function confirmPressed() {
 // Menu buttons are rebuilt each frame so they track the canvas size; their
 // rects are what the pointer handler hit-tests against.
 const menuButtons = [];
+// ── AND THE BETWEEN-SCREENS HAVE BUTTONS NOW TOO ────────────────────────
+//
+// PM, watching someone play: "we're really not pressing jump to continue,
+// we're just tapping the screen to continue so should we just add a next
+// stage button?"
+//
+// He was right twice over. Tapping anywhere HAS worked all along — the
+// pointer handler has had a branch for it — so the card's "press JUMP to
+// continue" was describing one of two live inputs and naming the one nobody
+// used. And neither of them was visible: there was nothing on the screen that
+// looked like it could be pressed.
+//
+// So STAGE CLEAR and GAME KNOCKED get real buttons, drawn exactly like the
+// pause menu's so the player only has one thing to learn, and tap-anywhere is
+// gone. Same array shape as menuButtons and hit-tested the same way.
+const screenButtons = [];
 // ⚠️ HOOKED HERE, NOT UP WITH THE OTHER DEV HOOKS. `menuButtons` is a `const`
 // declared in this section, so touching it from the block near the top of the
 // file lands in the temporal dead zone and throws before the game ever boots.
@@ -495,6 +512,7 @@ const menuButtons = [];
 // on a canvas coordinate.
 if (import.meta.env.DEV) {
   window.__menuButtons = menuButtons;
+  window.__screenButtons = screenButtons;
   window.__panel = panel;
 }
 
@@ -605,9 +623,22 @@ canvas.addEventListener('pointerdown', (e) => {
     beginFromTitle();
     return;
   }
+  // ⚠️ A BUTTON, NOT ANYWHERE. This used to advance on a tap on any pixel, and
+  // that is what the PM caught: it worked, so nobody pressed JUMP, and the
+  // card said "press JUMP to continue" while the whole room tapped the screen.
+  // A tap that lands off a button now does nothing, deliberately — on the
+  // ending screen the button is his own painted PRESS START TO CONTINUE.
+  //
+  // ⚠️ `screenT > 20` STAYS, and it is not politeness. confirmPressed() is the
+  // jump button, so without the arming delay the press that ends one screen
+  // carries straight through into the next.
   if (state.screen === 'stageClear' || state.screen === 'gameOver'
       || state.screen === 'complete') {
-    if (state.screenT > 20) { press(); advanceFromScreen(); e.preventDefault(); }
+    if (state.screenT > 20) {
+      for (const b of screenButtons) {
+        if (hit(b, x, y)) { press(); b.action(); e.preventDefault(); return; }
+      }
+    }
     return;
   }
   if (state.screen === 'playing') {
@@ -660,86 +691,104 @@ function showTitle() {
   audio.ambience(0);
 }
 
-// WHAT "CONTINUE" DOES ON EACH BETWEEN-SCREEN. One function rather than a
-// branch inside update(), because the same decision is now reachable two
-// ways — the JUMP button and a tap anywhere on the art — and having the tap
-// path re-implement it is how the two drift apart.
-function advanceFromScreen() {
-  if (state.screen === 'stageClear') {
-    state.distanceM += Math.max(0, (state.player.x - 3 * T) / T);
-    if (state.stageIndex + 1 < STAGES.length) {
-      state.rideFrom = STAGES[state.stageIndex].id;
-      state.rideTo = state.stageIndex + 1;
-      state.screen = 'riding';
-      state.screenT = 0;
-    } else {
-      state.screen = 'complete';
-      state.screenT = 0;
-      state.finalLog = state.runLog.finish();
-      recordRunStats(state.finalLog, state.score);
-      // Banked on the device FIRST, and unconditionally. The Worker is not
-      // deployed yet and a phone at a party is not always on a network;
-      // either way the run happened and the player should be able to see it.
-      bankLocalRun(state.score);
-      lbSubmit(state.finalLog);
-    }
+// WHAT EACH BUTTON ON A BETWEEN-SCREEN DOES.
+//
+// One function per outcome rather than one function that re-derives the
+// outcome from `state`. The old shape was a single advanceFromScreen() that
+// branched on the screen AND on state.continues, which was fine while every
+// screen offered exactly one thing — and stopped being fine the moment GAME
+// KNOCKED offered two. A button now names its own action and nothing has to
+// guess.
+
+// STAGE CLEAR. Bank the distance, then either ride to the next neighbourhood
+// or finish the run.
+function nextStage() {
+  state.distanceM += Math.max(0, (state.player.x - 3 * T) / T);
+  if (state.stageIndex + 1 < STAGES.length) {
+    state.rideFrom = STAGES[state.stageIndex].id;
+    state.rideTo = state.stageIndex + 1;
+    state.screen = 'riding';
+    state.screenT = 0;
     return;
   }
-  // Spend the continue if there is one and this was a knockdown, not the end
-  // of the game. Hearts come back full and the stage restarts from its
-  // beginning; the score carries, because the money was already earned and
-  // taking it back would make the continue worthless.
-  if (state.screen === 'gameOver' && state.continues > 0) {
-    state.continues--;
-    state.runLog.record('continue');
-    // ⚠️ THE RUN THAT JUST SUBMITTED IS NOT THE RUN HE IS ABOUT TO FINISH.
-    //
-    // Death submits immediately, so by the time this line runs the Worker has
-    // already recorded the score as it stood at the knockdown. Carrying the
-    // same runId forward meant the FINISHED run — the one worth more — was
-    // refused as a replay and thrown away: measured live at 18,300 recorded
-    // against 25,800 actually played. Renewing here makes the finished run
-    // its own submission, and `supersedes` tells the Worker to drop the
-    // partial row so that stretch of play is not counted twice.
-    state.runLog.renew();
-    state.hearts = 3;
-    startStage(state.stageIndex);
-    return;
-  }
-  // FINISHED A FULL RUN? The tap off the results board opens the panel rather
-  // than dropping straight to the title — this is the one moment the player
-  // definitely cares what their score was worth, which makes it the only
-  // moment worth asking for a phone number. Somebody who has not entered gets
-  // the form; somebody who has gets the board with their name on it. Closing
-  // it lands on the title.
-  // ⚠️ `flow: 'post'` — THE BOARD IS THE END OF THE JOURNEY HERE.
-  // Client: "die or win? Ending scene then Leaderboard and registration. If
-  // already registered, no registration offer, only leaderboard." So an
-  // unregistered player gets the sign-up and then the board behind it; a
-  // registered one goes straight to the board with their name on it. Either
-  // way BACK off that board closes out to the title in one tap rather than
-  // stepping sideways into OPTIONS — showTitle() has already run, so the
-  // title card is what the closing panel reveals.
-  if (state.screen === 'complete') {
-    showTitle();
-    panel.open(isRegistered() ? 'board' : 'form', { flow: 'post' });
-    return;
-  }
-  // ── AND AFTER DEATH ──────────────────────────────────────────────────
+  state.screen = 'complete';
+  state.screenT = 0;
+  state.finalLog = state.runLog.finish();
+  recordRunStats(state.finalLog, state.score);
+  // Banked on the device FIRST, and unconditionally. A phone at a party is not
+  // always on a network; either way the run happened and the player should be
+  // able to see it.
+  bankLocalRun(state.score);
+  lbSubmit(state.finalLog);
+}
+
+// GAME KNOCKED, with a continue to spend. Hearts come back full and the stage
+// restarts from its beginning; the score carries, because the money was
+// already earned and taking it back would make the continue worthless.
+function getBackUp() {
+  state.continues--;
+  state.runLog.record('continue');
+  // ⚠️ THE RUN THAT JUST SUBMITTED IS NOT THE RUN HE IS ABOUT TO FINISH.
   //
-  // Client: "an option to sign up should be before run and after death."
-  // Finishing the whole game already did this; being knocked out did not,
-  // and being knocked out is how nearly every run actually ends — so the one
-  // moment a score exists and the player cares about it was the moment the
-  // ask was missing. Same rule as everywhere else: only if not already in.
-  if (state.screen === 'gameOver') {
-    showTitle();
-    panel.open(isRegistered() ? 'board' : 'form', { flow: 'post' });
-    return;
-  }
-  // Otherwise back to the attract screen. Restarting the instant you
-  // acknowledge the last run gives you no moment to stop playing.
+  // Death submits immediately, so by the time this line runs the Worker has
+  // already recorded the score as it stood at the knockdown. Carrying the same
+  // runId forward meant the FINISHED run — the one worth more — was refused as
+  // a replay and thrown away: measured live at 18,300 recorded against 25,800
+  // actually played. Renewing here makes the finished run its own submission,
+  // and `supersedes` tells the Worker to drop the partial row so that stretch
+  // of play is not counted twice.
+  state.runLog.renew();
+  state.hearts = 3;
+  startStage(state.stageIndex);
+}
+
+// THE END OF A RUN, however it ended. The results open over the title rather
+// than dropping straight to it — this is the one moment the player definitely
+// cares what their score was worth, which makes it the only moment worth
+// asking for a phone number.
+//
+// ⚠️ `flow: 'post'` — THE BOARD IS THE END OF THE JOURNEY HERE.
+// Client: "die or win? Ending scene then Leaderboard and registration. If
+// already registered, no registration offer, only leaderboard." So an
+// unregistered player gets the sign-up card with the board behind it; a
+// registered one goes straight to the board with their name on it. Either way
+// BACK off that board closes out to the title in one tap rather than stepping
+// sideways into OPTIONS — showTitle() has already run, so the title card is
+// what the closing panel reveals.
+function endRun() {
   showTitle();
+  panel.open(isRegistered() ? 'board' : 'form', { flow: 'post' });
+}
+
+// The buttons each screen offers, in order. First is the primary — it is what
+// JUMP and Space press, and what the eye lands on.
+//
+// ⚠️ GAME KNOCKED OFFERS TWO THINGS NOW AND USED TO OFFER ONE. Pressing JUMP
+// spent a continue with no way to decline, and the prompt had to carry the
+// whole distinction in a line of text: "press JUMP to get back up in EAST
+// ATLANTA VILLAGE" against "press JUMP to start a new run". A player who
+// misread that line lost a run to it. Two buttons cannot be misread.
+function buttonsFor(screen) {
+  if (screen === 'stageClear') return [{ label: 'NEXT STAGE', action: nextStage }];
+  if (screen === 'gameOver') {
+    return state.continues > 0
+      ? [{ label: 'GET BACK UP', action: getBackUp },
+        { label: 'END RUN', action: endRun }]
+      : [{ label: 'SEE YOUR SCORE', action: endRun }];
+  }
+  return [];
+}
+
+// JUMP and Space PRESS THE FIRST BUTTON. They do not decide anything of their
+// own — that is the whole point. The previous version had the tap path and the
+// key path both call a third function that branched on state, and its own
+// comment said re-implementing the decision per path "is how the two drift
+// apart"; routing both through the drawn buttons means there is only one
+// decision and it is the one the player can see.
+function advanceFromScreen() {
+  const b = screenButtons[0];
+  if (b) b.action();
+  else showTitle();   // any screen with nothing to offer falls back to attract
 }
 
 // THE PADS BELONG TO THE RUN AND NOTHING ELSE.
@@ -1224,6 +1273,23 @@ function update() {
 // Pause menu. Buttons are laid out and registered every frame so they stay
 // correct through rotation and resize — a menu whose hitboxes are computed
 // once goes wrong the first time someone turns their phone.
+// ONE BUTTON, DRAWN ONCE. The pause menu and the between-screens have to look
+// identical or they read as two different systems, and two copies of the same
+// twelve lines is how they stop being identical.
+function drawButtonPlate(x, y, w, h, label, size = 17) {
+  ctx.fillStyle = 'rgba(20,16,30,0.92)';
+  ctx.fillRect(x, y, w, h);
+  ctx.strokeStyle = 'rgba(255,214,110,0.6)';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(x + 1, y + 1, w - 2, h - 2);
+  ctx.fillStyle = '#ffd66e';
+  ctx.font = `700 ${size}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(label, x + w / 2, y + h / 2);
+  ctx.textBaseline = 'alphabetic';
+}
+
 function drawPauseMenu(stage) {
   menuButtons.length = 0;
 
@@ -1288,17 +1354,7 @@ function drawPauseMenu(stage) {
 
   for (const it of items) {
     const bx = cx - bw / 2;
-    ctx.fillStyle = 'rgba(20,16,30,0.92)';
-    ctx.fillRect(bx, by, bw, bh);
-    ctx.strokeStyle = 'rgba(255,214,110,0.6)';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(bx + 1, by + 1, bw - 2, bh - 2);
-    ctx.fillStyle = '#ffd66e';
-    ctx.font = '700 17px sans-serif';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(it.label, cx, by + bh / 2);
-    ctx.textBaseline = 'alphabetic';
-
+    drawButtonPlate(bx, by, bw, bh, it.label);
     menuButtons.push({ x: bx, y: by, w: bw, h: bh, action: it.action, label: it.label });
     by += bh + gap;
   }
@@ -1356,18 +1412,42 @@ function drawPauseMenu(stage) {
   ctx.restore();
 }
 
-function drawOverlayText(lines) {
+// The card, and under it whatever this screen actually lets you do.
+//
+// ⚠️ THE BUTTONS ARE THE ONLY RECORD OF WHAT A SCREEN DOES. advanceFromScreen()
+// presses the first one rather than re-deciding for itself, so the keyboard and
+// the thumb cannot drift apart — which is the failure the old version's own
+// comment warned about and then invited, by having two code paths agree on a
+// third function.
+function drawOverlayText(lines, buttons = []) {
+  screenButtons.length = 0;
   ctx.save();
   ctx.fillStyle = 'rgba(6,3,12,0.72)';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.textAlign = 'center';
   ctx.fillStyle = '#ffd66e';
-  let y = canvas.height / 2 - (lines.length - 1) * 16;
+  const bh = 52;
+  const gap = 12;
+  // Centre the WHOLE card — text plus buttons — rather than the text alone,
+  // or adding a button pushes the heading off centre and the screen looks like
+  // it slipped.
+  const textH = lines.reduce((n, [, size]) => n + size + 14, -14);
+  const stackH = textH + (buttons.length ? 26 + buttons.length * bh
+    + (buttons.length - 1) * gap : 0);
+  let y = (canvas.height - stackH) / 2 + lines[0][1] / 2;
   for (const [text, size, color] of lines) {
     ctx.font = `700 ${size}px sans-serif`;
     ctx.fillStyle = color || '#ffd66e';
     ctx.fillText(text, canvas.width / 2, y);
     y += size + 14;
+  }
+  const bw = Math.min(300, canvas.width * 0.72);
+  const bx = canvas.width / 2 - bw / 2;
+  let by = y + 12;
+  for (const b of buttons) {
+    drawButtonPlate(bx, by, bw, bh, b.label);
+    screenButtons.push({ x: bx, y: by, w: bw, h: bh, action: b.action, label: b.label });
+    by += bh + gap;
   }
   ctx.restore();
 }
@@ -1448,7 +1528,33 @@ function draw() {
     const box = still.draw(images.ending_base, endingCards(images), state.tick);
     ending.draw(statsFrom(state.finalLog, state.score, state.distanceM || 0),
       state.screenT, box);
-    still.pulsePrompt(box, ENDING_PROMPT, STILL_W, STILL_H, state.tick);
+    // ⚠️ ENDING_W/ENDING_H, NOT STILL_W/STILL_H. This read the TITLE plate's
+    // 853x1844 against a 1536x1024 painting, which put the glow at x=605 on a
+    // 430px phone — off the right edge, so this prompt has never pulsed. Found
+    // by giving the same rect a hit target and watching it land off-screen.
+    still.pulsePrompt(box, ENDING_PROMPT, ENDING_W, ENDING_H, state.tick);
+    // ── AND HERE THE BUTTON IS ALREADY PAINTED ─────────────────────────
+    //
+    // PRESS START TO CONTINUE is lettered into the ending artwork and
+    // pulsePrompt is throbbing it. Drawing an amber plate on top would be a
+    // live copy of his own words sitting on his own painting — the exact
+    // objection that put every cabinet control under his lettering instead of
+    // beside it. So the painted prompt IS the hit target: registered at his
+    // rect, with nothing drawn.
+    //
+    // ⚠️ AND IT HAS TO BE REGISTERED, not left to tap-anywhere, because
+    // tap-anywhere is gone. Without this the ending is a dead end on a
+    // touchscreen. `box` is where the painting landed, so his plate
+    // coordinates map through the same scale pulsePrompt uses.
+    screenButtons.length = 0;
+    if (box) {
+      const S = box.dw / ENDING_W;
+      screenButtons.push({
+        x: box.dx + ENDING_PROMPT.x * S, y: box.dy + ENDING_PROMPT.y * S,
+        w: ENDING_PROMPT.w * S, h: ENDING_PROMPT.h * S,
+        action: endRun, label: 'PRESS START TO CONTINUE',
+      });
+    }
     return;
   }
 
@@ -1547,11 +1653,14 @@ function draw() {
   if (state.screen === 'paused') {
     drawPauseMenu(stage);
   } else if (state.screen === 'stageClear') {
+    // PM: "let's add a score here. So people can see how much they have before
+    // entering a new level." Same line GAME KNOCKED already draws, at the same
+    // size, so the two cards read as one family.
     drawOverlayText([
       ['STAGE CLEAR', 28],
       [stage.name.toUpperCase(), 15, '#e8d9a0'],
-      ['press JUMP to continue', 13, 'rgba(255,255,255,0.7)'],
-    ]);
+      [`$${state.score.toLocaleString()}`, 18],
+    ], buttonsFor('stageClear'));
   } else if (state.screen === 'gameOver') {
     // GAME KNOCKED — the client's wording, and it is player slang, not a
     // typo for "knocked out". Leave it exactly as written. He is not dead:
@@ -1561,17 +1670,19 @@ function draw() {
     // continue and puts you back at the top of this stage, or starts a fresh
     // run — and a player who thinks they are continuing when they are not
     // has lost a run to an ambiguous line of text.
+    // The prompt no longer has to carry which-thing-JUMP-does — the buttons
+    // say it. What is left is the state: the score, and whether there is a
+    // continue to spend.
     drawOverlayText(state.continues > 0 ? [
       ['GAME KNOCKED', 28, '#e8a13f'],
       [`$${state.score.toLocaleString()}`, 18],
       [`${state.continues} CONTINUE`, 15, '#8fe08f'],
-      [`press JUMP to get back up in ${STAGES[state.stageIndex].name}`, 13, 'rgba(255,255,255,0.7)'],
+      [`back at ${STAGES[state.stageIndex].name}`, 13, 'rgba(255,255,255,0.7)'],
     ] : [
       ['GAME KNOCKED', 28, '#e8a13f'],
       [`$${state.score.toLocaleString()}`, 18],
       ['no continues left', 13, 'rgba(255,140,120,0.85)'],
-      ['press JUMP to start a new run', 13, 'rgba(255,255,255,0.7)'],
-    ]);
+    ], buttonsFor('gameOver'));
   }
 }
 

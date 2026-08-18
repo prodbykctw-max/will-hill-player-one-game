@@ -96,6 +96,15 @@ export function endingCards(images) {
 // PRESS START TO CONTINUE, in the painting's own pixels — mask bbox
 // x 1217..1477, y 888..977, padded to the plaque's edge.
 export const PROMPT = { x: 1200, y: 878, w: 292, h: 104 };
+// ⚠️ EXPORTED, BECAUSE PROMPT IS MEANINGLESS WITHOUT THEM. Anything mapping a
+// rect of this painting to the screen needs the painting's own size, and
+// main.js was reaching for title.js's SRC_W/SRC_H instead — 853x1844 against
+// this plate's 1536x1024. That put the ending's prompt glow at x = 1200 *
+// 430/853 = 605 on a 430px phone: off the right edge, every time, so PRESS
+// START TO CONTINUE has never actually pulsed. Two plates, two sizes, and the
+// only reason it looked plausible is that both constants are called SRC_W.
+export const SRC_W = 1536;
+export const SRC_H = 1024;
 
 // Rank thresholds, in dollars banked. Set against what a run actually pays:
 // four stages of roughly 15 bags at BAG_VALUE 100 plus 50 a stomp puts a
@@ -150,7 +159,7 @@ export function createEnding(ctx, canvas) {
   // y 355-373, 392-409, 428-446, 465-482 and 501-519 — a 36px pitch — with
   // RANK at 546-567. The wall behind them samples near-black, rgb(3,7,7) to
   // rgb(9,11,10), which is what the overwrite paints with.
-  const SRC_W = 1536, SRC_H = 1024;
+  // (SRC_W / SRC_H are the module's, exported above — see PROMPT.)
   // Generous, because the first pass at y 52 h 100 left the bottom of the
   // old ENDING glyphs showing through as a dashed gold line under SHOWTIME.
   // Measured against the ink: the lettering runs y 40..178.
