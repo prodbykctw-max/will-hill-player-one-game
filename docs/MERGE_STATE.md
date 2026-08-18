@@ -257,9 +257,18 @@ what made a comment-only commit look like undeployed work.
 acts on it, and nothing in the repo notices.** Re-derive from the account
 before repeating any claim in this section.
 
-## The only thing genuinely outstanding
+## ⛔ BLOCKED ON THE CLIENT'S CLIENT — not a task, not a to-do
 
-`CONTEST_START` / `CONTEST_END` are still `0` in both workers — re-checked, at
-`leaderboard-worker.js:54-55` and `dashboard-worker.js:74-75` — so the window is
-unenforced and `withinWindow()` returns true for everything. ⚠️ **DO NOT CHASE HIM FOR THE DATES** — Will Hill's team is in
-Australia, he asked directly to stop being asked, and he will hand them over.
+`CONTEST_START` / `CONTEST_END` are `0` at `leaderboard-worker.js:54-55` and
+`dashboard-worker.js:74-75`, so `withinWindow()` returns true for everything.
+**That is the correct standing state and it is not waiting on anybody here.**
+
+Him, asked and answered, in his own words: *"the contest start date — until Will
+Hill's team lets me know. If somebody from Australia reaches out. I don't know
+when that is."*
+
+⚠️ **DO NOT CHASE HIM FOR THE DATES.** Will Hill's team is in Australia, he has
+asked directly to stop being asked, and he will hand them over when he has them.
+This entry exists so the next session does not re-file it as an open task and
+put the question back in front of him. When the dates arrive it is two constants
+in two files and a worker redeploy.

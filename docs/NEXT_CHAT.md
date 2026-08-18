@@ -94,19 +94,52 @@ ships. That misreading has already cost him a round.
    REMAINING CHECK** — cold-open the installed PWA, do not touch MUSIC, and it
    should read unchecked and breathing.~~ — verified on device, closed.
 3. **The crowd sway re-cut** for the new SHOWTIME ending plate
-   (`tools/cut_still.py`). His call: *"ship it flat first, re-cut after."*
-4. **A 104px / 115px cloud leak** on `eav` and `l5p`, carried as a named
-   ratchet in `cloudseal.mjs`. Diagnosed to "a hole in the seal, not any card's
-   parallax".
-   ⚠️ **THE SCIPY BLOCKER WAS STALE.** This said "needs scipy, which this
-   container does not have" — `pip install scipy` works; the dashboard session
-   installed it (1.17.1, numpy 2.4.6) to run `cut_cabinet.py` and every sealing
-   tool imports it fine. Whatever is holding this, it is not the toolchain.
-   ⚠️ **OWNER: the oldest chat**, per the client directly — *"I think I got the
-   cloud, the original, the oldest chat."* Note this contradicts the CATCH-UP
-   block above, which credits `cloudseal.mjs`'s travelling work to
-   backdrops/registration. **His assignment wins; the attribution above is
-   about who wrote the harness, not who owns the remaining leak.**
+   (`tools/cut_still.py`). His call: *"ship it flat first, re-cut after."* — he
+   has now asked for the re-cut.
+   ⚠️ **THE TOOL IS FINE AND THE MASKS ARE NOT.** `cut_still.py` runs on scipy
+   alone, but `tools/sam_masks/ending/{crowd,hero,prompt}.png` are all
+   **1536×1024** — cut from the LANDSCAPE plate he replaced — against an
+   **853×1843** painting. There is no segmenter here (`torch`,
+   `segment_anything`, `cv2` all absent; `tools/captures/sam/` empty), so the
+   crowd mask has to be hand-authored. On that plate the crowd is a dark, dense
+   band roughly y810-1590 that TOUCHES Will Hill on stage at the left. It is
+   the only one of these judged by eye rather than by a number — do it last and
+   show him a frame before committing anything.
+4. ✅ **DONE — the cloud leak.** `2c91a7d`. You were right that the scipy
+   blocker was stale; installed here too and it was one missing package.
+   ⚠️ **OWNER NOTE KEPT AND HONOURED:** the client assigned this to *"the
+   original, the oldest chat"*. It was picked up by backdrops/registration
+   before that message was seen. **It is finished, so this is a note about
+   attribution, not a claim on the next one** — if the oldest chat was mid-way
+   into it, `git log 2c91a7d` is the whole story and nothing is lost.
+
+   The cause was NOT any card's parallax: the leak survived muting every card
+   (108 → 507 with all muted). `scrub_stage_clouds.py` grew EVERY card's claim
+   by 5px before subtracting it from the sky seal — a skirt that exists because
+   swaying cards move — so the seal deferred ground that non-swaying cards
+   never covered. On eav-day, in the 768px hole at plate x1096-1128 y70-94,
+   `fence` covered 424px and the seal 62, leaving 344px owned by nothing.
+   Dilation is per-card now and only swayers get it, read out of stages.js.
+   **eav 104 → 46 (off the ratchet entirely), l5p 115 → 86 (allowance 200 →
+   110), underground 10 → 0, edgewood 0 → 0, no over-sealing.**
+
+5. **Clouds on every daytime stage** — his ask, and NOT the ask it sounds like.
+   ⚠️ **Every day stage already drifts.** It is a COVERAGE problem: the cards
+   are small and each is clipped by its `span`, so clouds come and go — eav had
+   **zero cloud pixels at spawn at every tick**. `tools/spread_clouds.py`
+   (built, measured, ⚠️ **NOT APPLIED**) fixes the coverage and makes the leak
+   worse, because clouds in new places cross structure the seal does not own.
+   The five-step sequence to finish it, and the seal rule it needs, are in that
+   file's own footer. Also fixed on the way: EAV at NIGHT had the only night
+   cloud card in the game and it had **no `drift`** (`72e15bd`).
+
+   ⚠️ **AND THE INSTRUMENT WAS LYING.** `cloudseal.mjs` had an intermittent
+   false positive — the same assets returned 46, 46, 47, 0 and **557**px on
+   eav, spikes landing at a different position each run. The player was still
+   inside the measured band and animates on his own frame counter, so the
+   off→off noise floor could return to the same phase while the ON grab landed
+   elsewhere. Fixed in `72e15bd`. **Do not trust a single cloudseal run for
+   anything; run it three times.**
 
 Nothing on that list blocks him playing or shipping the game today.
 
