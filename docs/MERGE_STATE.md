@@ -9,24 +9,64 @@ way this update was — alone, in a commit that changes nothing else, straight
 after a merge. Never carry an edit to this file along with feature work.
 **Re-run the commands at the bottom before acting — main moves.**
 
-## State at main `323f812` — ALL THREE ARE IN, and gh-pages is rebuilt from it
+## ⚠️ IS THIS FILE STALE? Run this before believing a word of it
 
-| branch | ahead | behind | status |
+It has now gone stale twice on the same failure mode: a section stated
+something true about the code, the code changed, and nothing here noticed. The
+worst one told readers MAX COMBO would read zero for every entrant while the
+combo system was already live — `d9e0bca` shipped it the same day this file was
+still describing the absence of it. **Every claim below is a timestamped assertion,
+not a fact.** Six commands, under a minute:
+
+```bash
+git fetch origin                                    # 1. all refs, not just main
+git log --oneline -1 origin/main                    #    does the header match?
+for b in $(git ls-remote --heads origin | sed 's#.*refs/heads/##' | grep -v gh-pages); do
+  printf '%-46s ahead %s\n' "$b" "$(git rev-list --count origin/main..origin/$b)"
+done                                                # 2. branch table
+npm run build && git ls-tree -r --name-only origin/gh-pages | grep '^assets/' \
+  | sed 's#^assets/##' | sort | diff - <(ls dist/assets | sort)
+                                                    # 3. is the LIVE game current?
+grep -n "record('combo'" src/main.js                # 4. MAX COMBO section
+grep -n "LB_BASE = " src/net/leaderboard.js         # 5. backend section
+grep -n "CONTEST_START = " cloudflare/*.js          # 6. the outstanding item
+```
+
+Anything that disagrees with the text below: **the text is wrong, fix it here
+in a commit of its own.** And for any quote this file attributes to a source
+file, grep the quote — one of them had been deleted from the source and was
+still being repeated here as current.
+
+## State at main `555efbe` — ALL THREE BRANCHES ARE FULLY MERGED
+
+Re-derived, not remembered. Every branch is an ancestor of main; none of them
+holds anything.
+
+| branch | ahead | behind | tip |
 |---|---|---|---|
-| `claude/last-markdown-game-link-lvk1n6` | 0 | — | nothing outstanding |
-| `claude/dashboard-kills-display-sizing-wgufbm` | **1 — but it is a GHOST** | 12 | see below |
-| `claude/contest-reg-image-crop-d4y6c0` | 0 | 0 | merged fast-forward at `323f812` |
+| `claude/contest-reg-image-crop-d4y6c0` | 0 | 1 | `323f812` |
+| `claude/dashboard-kills-display-sizing-wgufbm` | 0 | 6 | `dad801d` |
+| `claude/last-markdown-game-link-lvk1n6` | 0 | 3 | `b4f9f9d` |
 
-`gh-pages` was rebuilt from **main** at `323f812`; the live bundle is
-`index-b1G7z0XG.js`, checked against a local build, and the branch carries 206
-files, none of them source.
+`gh-pages` carries **206 files, none of them source**, built from main by
+`tools/deploy.sh`. Proof that the live game is current is a rebuild, not the
+commit hash: `npm run build` from main produces **196 assets, all matching the
+206-file branch's `assets/` by content-hashed name, with `index.html`
+byte-identical**. Bundle `index-b1G7z0XG.js`.
 
-⚠️ **`dashboard-kills-display-sizing-wgufbm` reports "1 ahead" and has NOTHING
-to merge.** Its tip `100006c` ("The combo chain") is byte-identical to
-`d9e0bca`, already in main — same `git patch-id`. It is a pre-rebase copy left
-behind when the branch was rebased, and the branch is 12 behind. **Do not merge
-it and do not treat the count as work at risk.** `git rev-list --count` counts
-commits, not content; the check that answers the question is:
+⚠️ **A docs-only commit on main does NOT make the deploy stale**, and counting
+commits will tell you it does. `555efbe` touches only this file; the build from
+it is identical to the build that was deployed at `323f812`. Diff the build,
+not the log.
+
+### The ghost is gone — but the lesson it taught is the reason this file exists
+
+For a few hours `dashboard-kills-display-sizing-wgufbm` reported **1 commit
+ahead of main with nothing to merge**: its tip `100006c` was byte-identical to
+`d9e0bca` already in main — a pre-rebase copy left behind when the branch was
+rebased. That branch has since been force-updated to `dad801d` and now reads 0
+ahead, so the trap is spent. **Keep the check**, because `git rev-list --count`
+counts commits and not content, and this is what settles it:
 
 ```bash
 pid=$(git show <branch-tip> | git patch-id --stable | cut -d' ' -f1)
@@ -36,8 +76,8 @@ for c in $(git log --format=%H -40 origin/main); do
 done
 ```
 
-The safe move for that branch is the one `CLAUDE.md` already prescribes for a
-merged branch: restart it from the latest main, keeping the name.
+Or more simply, when you only need a yes/no:
+`git merge-base --is-ancestor origin/<branch> origin/main`.
 
 ## ✅ Nothing is a trap right now
 
@@ -72,9 +112,9 @@ git show <their-commit> -- <file> | grep '^+' | ...   # each line still present?
 ```
 
 145 of 145 of their lines survived. **Do that check rather than trusting a
-clean rebase** — a clean rebase means no textual conflict, not no loss. Fetch again immediately before
-pushing, and be ready to rebase and re-run the check rather than assuming the
-window held.
+clean rebase** — a clean rebase means no textual conflict, not no loss. Fetch
+again immediately before pushing, and be ready to rebase and re-run the check
+rather than assuming the window held.
 
 ## ⚠️ TWO FILES ARE DELETED ON PURPOSE — do not "restore" them
 
@@ -93,21 +133,30 @@ rewritten and no longer imports them, and nothing else in the repo references
 them. The crowd sway is a separate pass over the new art — his call, "ship it
 flat first" — and `tools/cut_still.py` is what will do it.
 
-## ⚠️ MAX COMBO WILL READ ZERO FOR EVERY ENTRANT
+## ✅ MAX COMBO IS LIVE — this section used to say the opposite
 
-Not a bug, and worth knowing before anyone reads the dashboard and panics. The
-tile, the D1 column and the migration are all in main, but nothing in the game
-emits a `combo` event — `src/net/leaderboard.js` says so at the handler itself:
+⚠️ **It read "MAX COMBO WILL READ ZERO FOR EVERY ENTRANT" and that is now
+false.** It was true when written; `d9e0bca` shipped the combo system and made
+it false, and nothing in the repo noticed. Anyone reading the old text would
+have seen real chain numbers on the dashboard and gone looking for the bug.
 
-> *"NOTHING EMITS THIS YET. The combo system is not in the game — the client
-> asked for MAX COMBO on the dashboard 'because I plan on working a combo
-> system into the game'."*
+What is actually true, checked in the source rather than recalled:
 
-The client's decision, asked and answered: **leave it**. It is derivable with
-no new state if he ever wants it — `audio.js` already escalates the punch pitch
-on stomps chained inside 1.2s, and every run-log event carries a millisecond
-stamp — but that is a tested change of its own, not something to slip into a
-deploy.
+- `src/main.js:1154` — `state.runLog.record('combo', { n: state.comboBest })`,
+  recorded on each new best rather than once at the end, so it is correct
+  whether a run ends at a death, a continue that renews the run id, or the last
+  stage clear.
+- `src/net/leaderboard.js:356` — the `combo` branch in `statsFromEvents` takes
+  the MAX of what it finds.
+- The comment this section used to quote — *"NOTHING EMITS THIS YET"* — **no
+  longer exists in the file.** Grep for a quote before repeating it.
+
+⚠️ **A COMBO IS STILL WORTH ZERO POINTS AND MUST STAY THAT WAY.** It is in no
+entry of `scoreOf()` and none of the Worker's `SCORE_RULES`, and
+`tools/harness/combo.mjs` fails if a chain ever moves the score. The ceiling is
+MEASURED (61,650) against a 70,000 refusal threshold and a 400/second rate
+check — a bonus would not show up as a wrong number, it would show up as a
+genuinely great run refused mid-contest as implausible.
 
 ## What the registration merge actually collided with
 
@@ -160,15 +209,21 @@ client's time.** It claimed the migration had not been run and the workers had
 not been redeployed. Both had. He asked *"are you sure the D1 migration is
 needed?"* — he was right, and the doc was the reason anyone thought otherwise.
 
-Verified against the live account, not against this file:
+Verified against the live account **again on 2026-08-18**, not against this
+file:
 
 | | evidence |
 |---|---|
-| `run_stats.max_combo` | **present** — `INTEGER NOT NULL DEFAULT 0`, read out of `pragma_table_info` |
+| `run_stats.max_combo` | **present** — `SELECT name FROM pragma_table_info('run_stats')` returns it |
 | it came from the MIGRATION | it is the **last** column (cid 23). `schema.sql` puts it mid-table before `city`, so a fresh `CREATE TABLE` would not place it there — `ALTER TABLE ADD COLUMN` appends |
-| both workers | deployed `2026-08-18T02:28Z` |
-| the deployed worker is CURRENT | its code carries `MAX_COMBO = 9999`, the `combo` branch in `statsFromEvents`, and `max_combo` in the `INSERT INTO run_stats` binding |
-| the one commit since (`d9e0bca`) | touches `cloudflare/` but is **comment-only** — behaviour is identical |
+| both workers | `workers_list` → dashboard `2026-08-18T02:28:15Z`, leaderboard `2026-08-18T02:28:22Z` |
+| the leaderboard worker answers | `GET /top` → `200 {"ok":true,"runs":[]}` (empty because he cleared his test score himself) |
+| `LB_BASE` is wired | `src/net/leaderboard.js:27` → `https://will-hill-leaderboard.prodbykctw.workers.dev`. ⚠️ This file used to say it was empty until deploy; it is not |
+| the one `cloudflare/` commit since the deploy | `d9e0bca` at **02:47Z, 19 minutes AFTER** the 02:28Z deploy — and comment-only. Verified by stripping comment and blank lines from `git show d9e0bca -- cloudflare/`: **zero code lines remain** |
+
+⚠️ `d9e0bca` postdating the deploy is exactly the shape that looks like
+undeployed work and is not. Strip the comments out of the diff before
+concluding anything from a timestamp.
 
 So there is nothing to run. `tools/deploy_backend.sh` / `.ps1` remain the way
 to deploy any FUTURE worker change, and they are safe to re-run: they read the
@@ -193,6 +248,7 @@ before repeating any claim in this section.
 
 ## The only thing genuinely outstanding
 
-`CONTEST_START` / `CONTEST_END` are still `0` in both workers, so the window is
-unenforced. ⚠️ **DO NOT CHASE HIM FOR THE DATES** — Will Hill's team is in
+`CONTEST_START` / `CONTEST_END` are still `0` in both workers — re-checked, at
+`leaderboard-worker.js:54-55` and `dashboard-worker.js:74-75` — so the window is
+unenforced and `withinWindow()` returns true for everything. ⚠️ **DO NOT CHASE HIM FOR THE DATES** — Will Hill's team is in
 Australia, he asked directly to stop being asked, and he will hand them over.
