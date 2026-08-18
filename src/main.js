@@ -619,7 +619,14 @@ canvas.addEventListener('pointerdown', (e) => {
       // Stamp the press BEFORE anything that can throw or block, so the box
       // acknowledges the touch even if the audio path has a bad day.
       state.musicPressTick = state.tick;
-      const on = !soundEnabled();
+      // ⚠️ TOGGLE FROM WHAT THE BOX SHOWS, NOT FROM WHAT IS STORED. They are
+      // the same thing until the audio is gesture-blocked, and then they are
+      // opposites: a returning player sees an UNCHECKED box (see the draw
+      // call below) while wh_sound is still 'on', and toggling off the stored
+      // value would turn the music OFF on the very press he made to turn it
+      // on. Reading the drawn state keeps the control honest — a tap on an
+      // unchecked box always ends with sound.
+      const on = !musicIsLive();
       setSoundEnabled(on);
       audio.setMuted(!on);
       if (on && !audio.ready()) audio.unlock();
@@ -908,6 +915,17 @@ function todSlot(base) {
   const tod = state.level && state.level.stage && state.level.stage.tod;
   const specific = tod && `${base}_${tod}`;
   return specific && MANIFEST[specific] && MANIFEST[specific].src ? specific : base;
+}
+
+// ⚠️ ONE ANSWER TO "IS THE MUSIC ON", USED BY THE BOX AND BY THE TAP.
+// The preference and the reality are the same thing until the platform is
+// holding audio behind a gesture, and then they are OPPOSITES — which is the
+// whole bug this exists for. Two call sites computing it separately is how
+// the box and the toggle would drift back apart, so there is one.
+// Named rather than inlined so a harness can read what the box was told:
+// state.musicShown is written every frame the title is drawn.
+function musicIsLive() {
+  return soundEnabled() && audio.ready();
 }
 
 function cueForScreen() {
@@ -1619,8 +1637,35 @@ function draw() {
     // game loads, and the first input is still spent on the audio, over his
     // painting with PRESS START pulsing rather than over an empty screen.
     const introT = state.screenT - state.introAt;
+    state.musicShown = musicIsLive();
     state.titleBox = title.draw(images, state.tick, introT <= INTRO_TICKS, introT,
-      soundEnabled(),
+      // ⚠️ THE BOX SHOWS WHETHER SOUND CAN ACTUALLY COME OUT, NOT WHAT IS
+      // STORED. Client, on the installed PWA: "shows checked when no music is
+      // on in first load of game... when I hit options music starts."
+      //
+      // This drew soundEnabled() alone, which is the PREFERENCE. A player who
+      // ticked MUSIC on a previous visit comes back to wh_sound === 'on', so
+      // the box drew itself CHECKED — while iOS had released no audio yet,
+      // because opening a PWA from the home screen is a gesture on the OS and
+      // not on us. Ticked box, total silence, and nothing on screen asking
+      // for the tap that would fix it. His next tap landed on OPTIONS, that
+      // counted as the gesture, and the theme came up from a control that has
+      // nothing to do with music — which is exactly how he found it.
+      //
+      // The box exists to COLLECT that gesture. Showing it already satisfied
+      // is the one state in which it cannot do its job, and that state is
+      // every returning player's first load. So it now reads unchecked and
+      // breathing whenever the audio is not actually live, whatever is
+      // stored, and the tap handler above toggles from what is SHOWN so the
+      // press always moves toward sound.
+      //
+      // ⚠️ NOT REPRODUCIBLE IN THIS CONTAINER. Headless Chromium resumes its
+      // AudioContext without a gesture even when started with
+      // --autoplay-policy=document-user-activation-required — measured, it
+      // reports 'running' and a loud bus on first load. This is a Safari/PWA
+      // behaviour and the harness cannot see it, which is the standing
+      // warning in docs/STATUS.md about Chrome checks and a Safari phone.
+      state.musicShown,
       // Ticks since the MUSIC box was last pressed, so it can flash back. A
       // press that has never happened is effectively infinitely old.
       state.musicPressTick == null ? 1e9 : state.tick - state.musicPressTick,

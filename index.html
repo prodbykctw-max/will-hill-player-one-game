@@ -566,11 +566,15 @@
        ⚠️ z-index, or the tap is eaten. #panelScreen is positioned and comes
        later in the DOM than this button, so without it the plate covers its
        own sibling. panelnav.mjs caught exactly that. */
-    #panelCard.cabinet #panelClose {
-      position: absolute; z-index: 2;
-      left: 68.68%; top: 14.57%; width: 6.89%; height: 5.41%;
-      color: transparent; font-size: 0; background: none; border: 0;
-    }
+    /* ⚠️ NO ✕ IN THE CABINET VIEWS AT ALL. Client: "remove the x from the
+       options menu." It was never CSS — it was painted into his OPTIONS
+       plate, and this rule laid a transparent hit target over his paint. The
+       ✕ is now erased at the cut (tools/cut_cabinet.py), so leaving the
+       target would be an invisible button over empty panel; SETTINGS never
+       had a painted ✕ under it in the first place, so it was already exactly
+       that. Both views keep a real, lettered way out — BACK TO GAME on the
+       menu, BACK on settings — so nothing is stranded. */
+    #panelCard.cabinet #panelClose { display: none; }
 
     /* ── ENTER CONTEST IS AN OVERLAY, AND THAT STARTS WITH THE CROP ─────
        Client, in one message: "crop this image out of the contest registration

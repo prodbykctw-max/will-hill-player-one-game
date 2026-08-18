@@ -141,13 +141,20 @@ const openPanel = async () => {
   await p.waitForTimeout(450);
 };
 
-// ── OPTIONS: his four amber labels and the painted ✕ ─────────────────────
+// ── OPTIONS: his four amber labels. THE PAINTED ✕ IS GONE ────────────────
+// Client: "remove the x from the options menu." It was in his plate, not in
+// CSS, so it is erased at the cut (tools/cut_cabinet.py) and #panelClose is
+// display:none in both cabinet views. FOUR here, not five — and the count is
+// asserted rather than the list simply shortened, because a control silently
+// vanishing from his panel is exactly what this file exists to catch.
 await openPanel();
 console.log('\nOPTIONS menu');
 let map = await litMap();
-let rs = await rects(['btnMenuBoard', 'btnMenuHow', 'btnMenuSettings', 'btnMenuClose', 'panelClose']);
-check('all five painted controls are on screen', Object.keys(rs).length === 5,
+let rs = await rects(['btnMenuBoard', 'btnMenuHow', 'btnMenuSettings', 'btnMenuClose']);
+check('all four painted controls are on screen', Object.keys(rs).length === 4,
   Object.keys(rs).join(' '));
+check('and the ✕ is not one of them', await p.evaluate(() =>
+  getComputedStyle(document.getElementById('panelClose')).display === 'none'));
 for (const [id, r] of Object.entries(rs)) {
   const m = inRect(map, r);
   check(`${id} lights up`, m.max > 12 && m.cover > 0.01,
@@ -187,7 +194,7 @@ check('the housing below the screen stays dark', m.cover < 0.005,
 // And the layer must not be in the way of a thumb.
 const eaten = await p.evaluate(() => {
   const out = [];
-  for (const id of ['btnMenuBoard', 'btnMenuHow', 'btnMenuSettings', 'btnMenuClose', 'panelClose']) {
+  for (const id of ['btnMenuBoard', 'btnMenuHow', 'btnMenuSettings', 'btnMenuClose']) {
     const r = document.getElementById(id).getBoundingClientRect();
     const hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
     if (hit && hit.id !== id) out.push(`${id}->${hit.id || hit.tagName}`);
