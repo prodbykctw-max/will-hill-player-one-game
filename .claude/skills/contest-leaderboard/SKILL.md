@@ -110,6 +110,32 @@ code paths and the after path is the common one.
 **Hold the finished run and flush it when registration completes.** Assert
 both orders, and assert the held run is sent exactly once.
 
+### Ask every time, and put the form OVER the destination
+
+Two things that both looked like details and were not.
+
+**A "we already asked" latch makes the gate unreachable for the person it is
+for.** The first version wrote a flag on first offer and never asked again, and
+also gated on "has this device banked a run", so a brand-new player — the whole
+target — saw it never or once. Ask on every start until they are actually
+registered. Nothing is stored; being registered is the only thing that stops it.
+
+**Make the form a layer over where declining lands, not a screen you navigate
+to.** When the sign-up is its own full screen, NOT NOW has to know a
+destination, and that destination differs by how the player arrived — before a
+run it is the tutorial, after one it is the board. Two hardcoded destinations
+became one variable and then, once the form was an overlay, became nothing at
+all: the view it declines to is already painted underneath, so every exit is
+just "hide the layer". A whole class of navigation bug stops existing.
+
+⚠️ It has to be a SIBLING of the panel's view container, not another view in
+it. If the artwork is the panel's own background, the panel cannot show
+anything behind it, and a single-view show() will hide one to show the other.
+
+⚠️ And the scrim must eat pointer events. The view underneath is live — in this
+game its footer button starts the run — so a tap that reaches it launches the
+game out from under a half-filled form.
+
 ---
 
 ## Anti-abuse, in layers

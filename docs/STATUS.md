@@ -352,12 +352,33 @@ fence he photographed. If he wants more read, the dial is MAX_SEPARATION —
 but 34px was a photographed bug, so that trade needs his eyes, not a quiet
 revert.
 
-### CAT 5 — Sign-up ✅ shipped
-Offered before a run and after death, asked once, stored forever — and now the
-run actually reaches the board either way, which it did not before.
+### CAT 5 — Sign-up ✅ shipped, and now a CARD rather than a machine
+Offered before a run and after death — **every start until they actually
+enter**, not once — and the run reaches the board either way, which it did not
+before.
+
+His ENTER CONTEST cabinet was 853x1844 and covered the phone. It is cropped to
+**853x992** at a black rule he painted (`tools/crop_entry_plate.py`) and laid
+over whatever view the panel is showing: HOW TO PLAY before a run, the board
+after one, per *"an overlay over how to play."* All three of his painted ways
+out just dismiss it, and what they reveal is where the player was going anyway.
+
+The crop takes his gold ENTER disc with it, so SAVE is the silver knob now,
+carrying a green tick built out of his own red CANCEL button. LEADERBOARD and
+RULES & PRIZES went below the cut and are gone — CONTEST INFO opens what RULES
+& PRIZES opened, and NOT NOW already reaches the board.
+
+### CAT 7 — The between-screens have buttons ✅ shipped
+PM: *"let's add a score here"* and *"we're really not pressing jump to continue,
+we're just tapping the screen."* STAGE CLEAR shows the score and a NEXT STAGE
+button; GAME KNOCKED offers GET BACK UP and END RUN when a continue is left,
+which removes a trap where JUMP spent one with no way to decline. Tap-anywhere
+is gone. The ending keeps HIS painted PRESS START TO CONTINUE as its target —
+and wiring that found a mapping bug that meant its glow had never once been on
+screen (`docs/LESSONS.md` 21).
 
 ### CAT 6 — Test section ✅ shipped
-`docs/TESTING.md`. Full suite green: 14 graded harnesses, 210 checks.
+`docs/TESTING.md`. Full suite green: **32 harnesses**, zero failures.
 
 ---
 

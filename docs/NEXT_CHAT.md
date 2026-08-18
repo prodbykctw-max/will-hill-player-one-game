@@ -157,73 +157,107 @@ condition in `beginFromTitle()`.
 
 ---
 
-## 4. The registration screen redo — PLANNED, NOT BUILT
+## 4. The registration screen redo — BUILT
 
-This is the top of the queue and he asked to plan it before building.
+Shipped. His crop, his overlay, and the knob is the save control.
 
-### What he wants
+### What landed
 
-1. Crop the contest-entry cabinet to **just the top portion** — marquee
-   "ENTER CONTEST" through the screen with the NAME/PHONE/EMAIL form — instead
-   of the full-height machine.
-2. Present it as an **overlay**, not full-screen. His latest refinement: *"an
-   overlay over how to play."* So HOW TO PLAY is the screen and registration
-   is the card sitting on top of it.
-3. Replace the silver knob with either the gold "SAVE & ENTER / YOUR ENTRY"
-   button he drew, or a green checkmark button matching the red ✕.
+**The plate is 853x992**, cut from `assets/ui-concept/contest-entry.png` at
+y992 by `tools/crop_entry_plate.py`. That row is not a chosen line: it is the
+darkest row on the whole plate (value 22 across it, 1.3 across the card) with
+the panel below it lit at y993 — a black rule he painted — and it lands within
+a pixel of where the aspect ratio of the crop he sent puts it.
 
-### My recommendation: the green checkmark
+**It is an overlay.** `#entryLayer`, a sibling of `#panelCard` inside `#panel`,
+not a `.pv`. It could not stay in the card: the plate WAS the card's background
+and a card cannot show another view through it. What sits behind falls out of
+the `flow` variable that was already there — `start` → HOW TO PLAY, `post` and
+`menu` → the board — so all three of his painted ways out (the card's x, the
+NOT NOW / CANCEL plate, the red ✕) just dismiss the layer, and what they reveal
+is where the player was going anyway. Nothing navigates.
 
-His cabinet already teaches the player that the round buttons in that column
-are the actions — red ✕ is cancel, so a green ✓ is confirm, and the pair reads
-instantly with no words to translate. The gold ENTER button is the better
-piece of art, but it duplicates a control the plate already carries lower
-down, and at knob size the word "ENTER" would be too small to read on a phone.
-Either way it has to be cut as a sprite and composited over the silver knob's
-rect, the same way `tools/cut_dash_chips.py` cuts the dashboard chips.
+**SAVE is the knob, as a green tick.** The crop takes his gold ENTER disc
+(centre 418,1182, r116) with it. The tick is his own red CANCEL button: cross
+inpainted out with a per-RADIUS median, redrawn at his measured stroke width in
+his measured ink, R and G swapped so the green is his own gradient. Fitted
+inside his inner ring at r=22.5 — ⚠️ **his own cross overshot that ring at
+r=28**, so the cross's radius is the wrong thing to copy.
 
-### Why the crop has to come first
+**`#btnFormBoard` and `#btnFormRules` are gone**, below the cut. Nothing became
+unreachable: `#btnFormInfo` opens what RULES & PRIZES opened, and post-run NOT
+NOW already lands on the board. The card's ✕ is `#entryClose` now, not
+`#panelClose` — that one went back to belonging to the panel underneath.
 
-The overlay only reads as an overlay once the card is short. A full-height
-cabinet laid over HOW TO PLAY covers it completely, which is just the
-full-screen form with extra steps. **Crop, then overlay.** Doing the flow
-without the crop is why the current build still shows the whole cabinet.
+### Traps this turned up, for whoever changes it next
 
-### The work, in order
+- ⚠️ **`position: absolute` on the painted controls came from `.cabinet`.** The
+  sign-up used to be the third cabinet and inherited it; taking the class away
+  left every control a static, full-width, VISIBLE button stacked down the
+  card. Nothing else in the stylesheet does that job.
+- ⚠️ **`--entry-plate` and `--entry-glow` moved to `#panel`.** They were set on
+  `#panelCard`, which is no longer an ancestor of the plate, and a custom
+  property that cannot be inherited is simply absent.
+- ⚠️ **The `.typing` lift is in `vh` now, not a percentage of the card.** The
+  old rule was 12% of an 1844-tall cabinet; the same 12% of a 992-tall card is
+  half the travel against exactly the same keyboard. It clears a slab of
+  SCREEN, so it is measured in screen units — and the binding case is a
+  320x568 phone, not his.
+- ⚠️ **Landscape needs its own cap.** At full height the card came out 96% of
+  the window: fitting, not overflowing, but with nothing of the view behind it
+  visible, which is the full-screen form again by another route. 86dvh.
+- ⚠️ **No cqw correction**, unlike `tools/trim_lb_card.py`. That card was
+  height-constrained so its artwork grew for the same box; this one is
+  width-constrained, so 1cqw buys the same painted width and every font-size
+  carried over untouched. The absence is the surprising part.
+- ⚠️ **`tools/edit_enter_button.py`'s docstring used to end with a command that
+  re-emits the shipped webp from the full-size PNG.** Running it now silently
+  restores the 853x1844 plate and every fraction in `index.html` is wrong by
+  1.8589 — which reads as a broken layout, not a stale asset. That warning is
+  on both files.
 
-1. Measure the crop box off `assets/ui-concept/contest-entry.png`
-   (2,151,805 bytes; the shipped plate is `src/assets/ui/contest-entry.webp`
-   at **853 × 1844**). Marquee top through the bottom of the form area.
-2. Cut the cropped plate and re-derive the aspect ratio. There is a working
-   precedent: `tools/trim_lb_card.py` trimmed the leaderboard ticket from
-   852×1846 to 784×1596 and **prints the fraction conversion** so every
-   measured rect can be remapped mechanically —
-   `v' = (v * 1846 - 147) / 1596`. Copy that shape.
-3. Re-measure all seven control rects. Current values, as fractions of the
-   full 853×1844 plate (`index.html`, `#panelCard.cabinet.cabinet-entry`):
+### Graded by
 
-   | id | top | left | width | height |
-   |---|---|---|---|---|
-   | `#btnSave` (the silver knob) | 35.404% | 56.941% | 27.198% | 14.371% |
-   | `#btnSkip` | 68.464% | 38.612% | 15.944% | 5.531% |
-   | `#btnFormX` | 71.395% | 44.144% | 9.144% | 4.501% |
-   | `#btnFormBoard` | 66.823% | 57.213% | 32.239% | 7.049% |
-   | `#btnFormRules` | 66.823% | 65.347% | — | — |
-   | `#btnFormInfo` | 84.408% | 34.978% | 10.199% | 21.909% |
-   | `#panelClose` | 55.100% | 28.091% | 5.158% | 2.494% |
+`tools/harness/entryfit.mjs`, 44 checks at three viewports: the card fits, it
+does not cover the screen, its aspect is his artwork's, every control takes its
+own tap via `elementFromPoint`, nothing hangs off the card, the backdrop cannot
+be tapped through the scrim, and the lift clears a modelled keyboard with
+margin. Plus `btnglow` 27, `hapticbtn` 24, `panelnav` 13, `startflow` 20,
+`optionsmenu` 15.
 
-   `#btnSave` has `border-radius: 50%` — it is the knob. On the 853×1844
-   plate the knob sits at roughly x 830–960, y 770–900.
-4. Change `#panelCard.cabinet-entry` from cover-sizing to overlay sizing
-   (currently `aspect-ratio: 853 / 1844`), stacked over `pvHow` with a scrim.
-   The cabinet classes live on `#panelCard`, so the cleanest structure is a
-   **sibling layer inside `#panel`** rather than fighting the single-view
-   `show()` machinery.
-5. Re-cut `glow-entry.webp` for the new geometry —
-   `python3 tools/cut_glow_glyphs.py entry`.
-6. Update the rect list in `tools/harness/btnglow.mjs`.
+## 4b. The between-screens have buttons — BUILT
 
----
+PM: *"let's add a score here. So people can see how much they have before
+entering a new level"*, and *"we're really not pressing jump to hunting we're
+just tapping the screen to continue so should we just add a next stage
+button?"*
+
+Both true. `advanceFromScreen()` had always been reachable two ways — the JUMP
+pad and a tap on any pixel — so the card named the input nobody used, and
+neither had anything on screen that looked pressable.
+
+- STAGE CLEAR shows the score and a **NEXT STAGE** button.
+- GAME KNOCKED offers **GET BACK UP** and **END RUN** with a continue in hand,
+  **SEE YOUR SCORE** without. Two buttons removes a real trap: JUMP spent the
+  continue with no way to decline, and the distinction lived in a line of prose
+  a player could misread.
+- Tap-anywhere is gone. JUMP and Space press the **first** button rather than
+  calling something that re-derives the outcome, so thumb and keyboard cannot
+  disagree.
+- The ENDING gets **no drawn button** — PRESS START TO CONTINUE is lettered
+  into his painting and already pulsing, so his painted prompt is the hit
+  target and nothing is drawn on top.
+
+⚠️ **Wiring that target found a bug that had always shipped.** `main.js` mapped
+`ENDING_PROMPT` through `title.js`'s `SRC_W/SRC_H` — 853x1844 against the
+ending plate's 1536x1024 — putting the glow at x=605 on a 430px phone. Off the
+right edge, always: that prompt has never pulsed. Both constants are called
+`SRC_W`, which is the whole reason it read as correct. `render/ending.js`
+exports its own now. Full write-up in `docs/LESSONS.md` 21.
+
+Graded by `tools/harness/betweenscreens.mjs`, 15 checks — including that a tap
+OFF a button does nothing, on every one of the three screens, which is the half
+nobody would notice until the game is a dead end.
 
 ## 5. Also open
 
@@ -451,6 +485,9 @@ not a missing worker.
 
 | commit | what |
 |---|---|
+| `e434a1a` | Buttons on the between-screens, and the score before the next level |
+| `cefe39b` | The harnesses know the card, and optionsmenu stops defending the old flow |
+| `df147ee` | His sign-up card, cropped out of the machine and laid over the room |
 | `27ca8a4` | The fence and the CITGO sign are the same distance away |
 | `33b4a68` | The extra P was a crumb of the sign on the lamppost card |
 | `ca4e5a2` | Post-run, the board is the last stop — and the harnesses know the chain |
@@ -470,7 +507,14 @@ not a missing worker.
 - EAV's fence pinned to base depth with the CITGO sign it is mounted on (§6
   fault C), both variants.
 - New: `tools/drop_card_crumbs.py`, `tools/card_overlaps.py`,
-  `tools/harness/startflow.mjs`, `tools/harness/startchain.mjs`.
+  `tools/crop_entry_plate.py`, `tools/harness/startflow.mjs`,
+  `tools/harness/startchain.mjs`, `tools/harness/entryfit.mjs`,
+  `tools/harness/betweenscreens.mjs`.
+- ⚠️ `optionsmenu.mjs` had been red on `origin/main` for a while — five checks,
+  three of them defending the flow `ca4e5a2` replaced. Verified against a
+  worktree of origin before being changed, which is the only way to tell a
+  stale harness from a regression you just caused. They look identical from
+  inside your own branch.
 
 ### Answered for him this session
 

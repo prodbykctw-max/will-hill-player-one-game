@@ -27,12 +27,24 @@ median tracks it far better than one flat fill. Then his ENTER is composited
 back at the disc's centre, scaled 1.2x: with the other two lines gone a word
 at the original size reads lost on a 232px disc.
 
-Run it against the plate and re-emit the WebP the game imports:
+⚠️ IT NO LONGER EMITS THE SHIPPED PLATE, AND THE OLD COMMAND HERE WILL BREAK
+THE GAME IF YOU RUN IT. This used to end with a one-liner that re-saved
+assets/ui-concept/contest-entry.png straight to src/assets/ui/contest-entry.webp.
+The cabinet has since been CROPPED to 853x992 — see tools/crop_entry_plate.py —
+so that line would silently put the full-height 853x1844 plate back, and every
+fraction in index.html is then wrong by a factor of 1.8589. It does not look
+like a stale asset; it looks like the layout came apart.
 
-    python3 tools/edit_enter_button.py
-    python3 -c "from PIL import Image; \\
-        Image.open('assets/ui-concept/contest-entry.png').convert('RGB') \\
-        .save('src/assets/ui/contest-entry.webp','WEBP',quality=82,method=6)"
+So this file edits the CONCEPT PNG only, and crop_entry_plate.py is the single
+thing that writes the shipped webp. Order:
+
+    python3 tools/edit_enter_button.py      # his painting, in ui-concept/
+    python3 tools/crop_entry_plate.py       # -> src/assets/ui/contest-entry.webp
+    python3 tools/cut_glow_glyphs.py entry  # -> the bloom over it
+
+(And the gold ENTER disc this file edits is BELOW the crop line at y1182, so
+what it does no longer reaches the game at all. It is kept because the crop is
+a decision that can be revisited, and re-deriving this from scratch could not.)
 
 The untouched original stays as contest-entry-3lines.png, so this can be
 re-cut or reverted without asking him for the artwork again.

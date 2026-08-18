@@ -458,6 +458,46 @@ symptom is evidence about the theory, not about the size of the fix** (see 16).
 Three consecutive fixes produced no change he could feel. That is not three
 partial fixes; that is the theory being wrong.
 
+## 21. Two constants with the same name, and a glow that never once appeared
+
+`main.js` mapped the ending screen's PRESS START TO CONTINUE rect onto the
+canvas with `still.pulsePrompt(box, ENDING_PROMPT, STILL_W, STILL_H, tick)`.
+
+`STILL_W` is `SRC_W` imported from `render/title.js` — the TITLE plate, 853 x
+1844. The ending painting is 1536 x 1024, and `render/ending.js` has its own
+`SRC_W = 1536` declared privately inside `createEnding()` for exactly this
+purpose. So the prompt's screen position was computed as
+`1200 * 430/853 = 605` on a 430px phone. The glow has been painting off the
+right-hand edge of the screen since the day it was written. Nobody ever saw it,
+including me, including in a screenshot — because there was nothing to see.
+
+Two things made it invisible:
+
+- **Both constants are called `SRC_W`.** The import renames one to `STILL_W`
+  and the call site reads as if it is asking for "the still scene's width",
+  which is a category, not a plate. The line is grammatical in the wrong way.
+- **A missing glow looks like a design choice.** A wrong number that draws
+  something in the wrong place gets reported in a day. A wrong number that
+  draws it off-screen produces a screen that simply looks a bit plain, and
+  nothing in a harness or a screenshot says "there should be a light here".
+
+It surfaced only because the between-screens got real buttons, and giving that
+same rect a HIT TARGET put a number somewhere a test could look at it —
+`x: 604.9` on a 430-wide viewport, which the new `betweenscreens` harness
+asserted was on screen and was not. The bug had been sitting under a purely
+decorative feature and moved into a functional one, where it immediately had
+consequences.
+
+`render/ending.js` exports its own `SRC_W`/`SRC_H` now, next to the `PROMPT`
+that is meaningless without them.
+
+⚠️ **A rect and the plate it was measured on are one fact, not two.** Any
+module that exports coordinates has to export the coordinate space with them —
+otherwise the caller picks a scale that is in scope, and "in scope" is not a
+correctness argument. And when a decorative effect and a functional one share
+a coordinate mapping, wire the functional one first: it is the only half that
+complains.
+
 ## The short version
 
 0. **Touch the thing before you describe it** — including when what you are
@@ -495,3 +535,7 @@ partial fixes; that is the theory being wrong.
 22. When a platform path cannot be tested here, build the instrument and hand
     it to whoever has the device — before the second fix, not after the fourth.
     An unverifiable premise is the first thing to test, not a caveat to ship.
+23. A module that exports coordinates must export the coordinate space with
+    them. A caller will otherwise reach for whatever scale is in scope, and two
+    plates whose width constants are both called `SRC_W` will read as correct
+    for as long as the thing being positioned is only decorative.

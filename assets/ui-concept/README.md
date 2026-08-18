@@ -13,7 +13,7 @@ by measuring against them, so they are kept at full resolution.
 | `settings-tod-values.png` | 1024 x 1536 | the four TIME OF DAY values, drawn separately |
 | `dashboard.png` | 853 x 1844 | the contest dashboard, populated |
 | `dashboard-empty.png` | 853 x 1844 | the same dashboard with every value emptied — **this is the one that ships** |
-| `contest-entry.png` | 853 x 1844 | the ENTER CONTEST sign-up cabinet — **pass 3, the one that ships** |
+| `contest-entry.png` | 853 x 1844 | the ENTER CONTEST sign-up cabinet — pass 3, and the source the shipped **crop** is cut from |
 | `contest-entry-console.png` | 851 x 1849 | pass 2: portrait, but with a driver's console along the bottom |
 | `contest-entry-wide.png` | 1086 x 1448 | pass 1: too wide for a phone without cropping a third of it |
 | `underground-wide-day.png` | 1535 x 1024 | the wide Underground plate, day |
@@ -102,19 +102,57 @@ Every rect below is measured off **pass 3**, by colour, and verified by
 putting a live element on each one and asserting `elementFromPoint` returns it
 at five viewport sizes. If the plate changes again, none of these carry over.
 
+⚠️ **THE SHIPPED PLATE IS NOW A CROP OF THIS ONE — 853 x 992, cut at y992.**
+Client: *"crop this image out of the contest registration image. It will alone
+be the sole contest reg view."* The table below is still in the FULL plate's
+coordinates, because that is what this file documents and what
+`tools/crop_entry_plate.py` reads. To get the shipped card's fractions, every
+vertical number goes through `v' = v * 1844 / 992` and every horizontal one is
+unchanged; the tool prints the conversion. `index.html` holds the converted
+values and is the live copy.
+
 | control | x | y | maps to |
 |---|---|---|---|
 | card (the lit screen) | 151 – 518 | 511 – 959 | — |
 | NAME field | 167 – 499 | 616 – 679 | `#fName` |
 | PHONE field | 167 – 499 | 739 – 802 | `#fPhone` |
 | EMAIL field | 167 – 499 | 862 – 925 | `#fEmail` |
-| painted ✕ | 486 – 498 | 534 – 547 | `#panelClose` |
+| painted ✕ | 486 – 498 | 534 – 547 | `#entryClose` — was `#panelClose` |
 | NOT NOW / CANCEL | 603 – 717 | 750 – 829 | `#btnSkip` |
 | red X button | 613 – 690 | 817 – 898 | `#btnFormX`, same handler |
-| SAVE & ENTER | 302 – 534 | 1050 – 1315 | `#btnSave` (a disc, so the hit target is one too) |
-| LEADERBOARD row | 573 – 842 | 1060 – 1179 | the board view |
-| RULES & PRIZES row | 591 – 841 | 1210 – 1329 | HOW TO PLAY |
-| CONTEST INFO panel | 720 – 807 | 645 – 1049 | HOW TO PLAY — he drew two doors to one room |
+| **the silver knob** | **603 – 694** | **537 – 635** | `#btnSave` — a green tick is composited here |
+| CONTEST INFO panel | 720 – 807 | 645 – 1049 | HOW TO PLAY — he drew two doors to one room; **clamped**, it runs 57px past the cut |
+| ~~SAVE & ENTER~~ | 302 – 534 | 1050 – 1315 | **below the cut — gone** |
+| ~~LEADERBOARD row~~ | 573 – 842 | 1060 – 1179 | **below the cut — gone** |
+| ~~RULES & PRIZES row~~ | 591 – 841 | 1210 – 1329 | **below the cut — gone** |
+
+### Why the crop costs a button, and what replaces it
+
+His gold ENTER disc is centred (418, 1182) with a radius of 116 — entirely
+below y992 — so cropping the cabinet throws away its own submit control. The
+silver knob is the only thing in that column that survives, and it becomes SAVE.
+
+It is drawn as a **green tick**, not as his ENTER shrunk down: his cabinet
+already teaches that the round buttons in that column are the actions, so red X
+is cancel and green tick is confirm, read with no words to translate. ENTER at
+knob size would be 232 plate px of lettering squeezed into 91.
+
+The button is HIS red CANCEL disc: cross inpainted out with a per-RADIUS median
+(his button is concentric — a per-row median, which is right for the flat
+settings pills, breaks his inner ring into arcs), tick redrawn at his measured
+stroke width in his measured ink, then R and G swapped so the green is his own
+red gradient rather than a colour anyone chose. It is fitted inside his inner
+ring, which the radial profile puts at r=22.5 — a groove at r21–22 with a lit
+edge at r24. **His own cross overshot that ring at r=28**, so the cross's radius
+is the wrong target to copy.
+
+If he would rather draw the tick himself — as he did for the settings pill
+states, *"I CAN LITERALLY EDIT THE IMAGE TO EXACTLY AS NEEDED"* — dropping a
+PNG at `assets/ui-concept/contest-confirm.png` makes the tool use it instead.
+
+LEADERBOARD and RULES & PRIZES going costs nothing reachable: CONTEST INFO
+already opens what RULES & PRIZES opened, and after a run NOT NOW lands on the
+board.
 
 His painted placeholders say exactly what the code's placeholders say — *The
 name on the leaderboard*, *10 digits — how we reach a winner*, *Backup
