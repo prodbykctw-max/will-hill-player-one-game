@@ -354,7 +354,32 @@ const STAGE_DEFS = [
           ],
         },
         {
-          key: 'shrub_right', img: eavShrubRight, depth: 0.85, span: [0.737, 0.820],
+          // ⚠️ 0.50 — THIS CARD IS A PLAIN RECTANGLE. tools/cut_audit.py measures
+          // how much of its bounding box a mask actually fills: a traced object
+          // fills maybe half. This one fills 100.0% on both plates. It is a box
+          // dropped over a shrub and handed the nearest depth on the stage.
+          //
+          // The card draws opaque over the base, which keeps a full copy of
+          // everything, so the card hides that copy everywhere EXCEPT a sliver
+          // along its trailing edge as wide as its own offset — 15px at 0.85.
+          // On a traced card that sliver shows the background behind the
+          // object, displaced, which is what parallax is supposed to look
+          // like. On a rectangle it shows a displaced slice of whatever the box
+          // cut through: here the middle of a shrub, a fence board and some
+          // tarmac, with four straight edges walking across them.
+          //
+          // A colour re-trace was built and tried (tools/retrace_card.py). It
+          // works on the DAY plate — foliage is green, boards are brown, and it
+          // finds the shrub's left edge cleanly, handing 2,594 px back to the
+          // base. It FAILS at night, where the same foliage goes dark and
+          // desaturated, the hue test rejects half of it, and the result is a
+          // lacy mask. A good day cut beside a torn night one is worse than
+          // what is here.
+          //
+          // So: base depth. The box stops moving, its edges cannot be seen, and
+          // no art is rewritten. The re-trace stays in the tool with its night
+          // limitation written down.
+          key: 'shrub_right', img: eavShrubRight, depth: 0.50, span: [0.737, 0.820],
           sway: [{ top: 0.66, pivot: 0.88, amp: 2.5, freq: 1.7, xRanges: [[0.737, 0.820]] }],
         },
         // ⚠️ PLANTED IN THE GROUND STRIP, SO IT SITS AT THE GROUND'S DEPTH.
@@ -533,7 +558,7 @@ const STAGE_DEFS = [
           // as vertical slots torn through the planks with the skyline
           // showing between them. Same depth and the same sway as night.
           {
-            key: 'shrub_right', img: eavDayShrubRight, depth: 0.85, span: [0.725, 0.799],
+            key: 'shrub_right', img: eavDayShrubRight, depth: 0.50, span: [0.725, 0.799],
             sway: [{ top: 0.66, pivot: 0.88, amp: 2.5, freq: 1.7, xRanges: [[0.725, 0.799]] }],
           },
           // ⚠️ PLANTED IN THE GROUND STRIP, SO IT SITS AT THE GROUND'S DEPTH.

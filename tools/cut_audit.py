@@ -21,6 +21,13 @@ away, and neither needs to know what the object is:
   ruler, not traced. EAV's `verge` scored 100% flat across 1285 columns and
   was slicing the fence and both light boxes in half.
 
+  BOX FILL — how much of its own bounding box the mask actually covers. A
+  traced object fills roughly half. A card that fills all of it is not a cut-
+  out at all, it is a rectangle somebody dropped on the plate. EAV's
+  `shrub_right` filled 100.0% on both variants at depth 0.85, the nearest
+  layer on the stage: a box walking four straight edges across a shrub, a
+  fence board and some tarmac.
+
   EDGE ALIGNMENT — a cut that follows a real boundary sits on a contrast
   ridge, because that is what a boundary IS: grass is green, fence is brown,
   and the line between them is visible. A cut through the middle of a surface
@@ -139,6 +146,9 @@ def main():
             if m.sum() < 400:
                 continue
             flat, where = longest_flat_fraction(m)
+            ys_, xs_ = np.where(m)
+            box = ((xs_.max() - xs_.min() + 1) * (ys_.max() - ys_.min() + 1))
+            boxfill = float(m.sum() / box)
 
             # Border pixels, minus anything on the plate's own outer frame.
             border = m ^ ndi.binary_erosion(m, np.ones((3, 3), bool))
@@ -148,20 +158,28 @@ def main():
             if n < 200:
                 continue
             align = float((grad[border] > ridge).mean())
-            findings.append((flat, 1.0 - align, stage, key, depth, where, n, align))
+            # Rank a rectangle as at least as bad as a ruler cut — it is one,
+            # on all four sides at once.
+            findings.append((max(flat, boxfill if boxfill > 0.85 else 0.0),
+                             1.0 - align, stage, key, depth, where, n, align,
+                             flat, boxfill))
 
     print('CARD CUTS THAT CAN SHEAR, WORST FIRST')
     print('  flat  = share of the edge lying on one straight row (ruler marks)')
+    print('  box   = share of its bounding box the mask fills (100% = a rectangle)')
     print('  onedge= share of the border sitting on real contrast in the plate')
     print()
-    for flat, _, stage, key, depth, where, n, align in sorted(findings, reverse=True):
+    for _, _, stage, key, depth, where, n, align, flat, boxfill in sorted(findings, reverse=True):
         flag = ''
-        if flat >= 0.5:
+        if boxfill > 0.985:
+            flag = '  <== NOT A CUT-OUT, A RECTANGLE'
+        elif flat >= 0.5:
             flag = '  <== RULER CUT'
         elif align < 0.35:
             flag = '  <== cuts through flat paint'
         print(f'  {stage:16s} {key:12s} d={depth:<5} '
-              f'flat={flat*100:5.1f}% {("("+where+")") if where else "":18s} '
+              f'flat={flat*100:5.1f}% box={boxfill*100:5.1f}% '
+              f'{("("+where+")") if where else "":18s} '
               f'onedge={align*100:5.1f}% of {n:6d}px{flag}')
     print('\nA cut is only a problem if it runs THROUGH an object. Check each '
           'flagged card against the plate before changing anything —\n'
