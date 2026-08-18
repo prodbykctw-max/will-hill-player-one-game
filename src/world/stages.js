@@ -280,7 +280,12 @@ const STAGE_DEFS = [
       // billboard and canopy sharing the same horizontal band, and wobbled
       // the architecture anyway.
       cards: [
-        { key: 'clouds', img: eavClouds, depth: 0.02, span: [0.428, 1.000] },
+        // ⚠️ THE ONLY NIGHT CLOUD CARD IN THE GAME, AND IT HAD NO `drift` —
+        // so it was the one set of clouds in this project that did not move.
+        // docs/STATUS.md asserted "night stages have no cloud cards at all",
+        // which is what kept anyone from finding it. Same rate as the day
+        // stages; night weather that sits still reads as a smudge on the lens.
+        { key: 'clouds', img: eavClouds, depth: 0.02, drift: -0.035, span: [0.428, 1.000] },
         { key: 'skyline', img: eavSkyline, depth: 0.07, span: [0.780, 1.000] },
         { key: 'mcdonalds', img: eavMcdonalds, depth: 0.50, span: [0.913, 1.000] },
         { key: 'cars', img: eavCars, depth: 0.21, span: [0.784, 0.999] },

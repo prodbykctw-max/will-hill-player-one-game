@@ -113,10 +113,28 @@ for (let si = 0; si < 4; si++) {
     // the noise floor has always been for, and how this harness sampled spawn
     // before it travelled.
     const standY = g.player.y;
+    // ⚠️ HE IS HELD OUT OF FRAME, AND THE CAMERA LOCK IS WHAT MAKES THAT SAFE.
+    //
+    // Holding him at his standing height fixed the CAMERA (see below) and left
+    // a second noise source in the band: his sprite animates on its own frame
+    // counter, not on the pinned `g.tick`, so each grab reads a different
+    // phase of it. The noise floor brackets one off->off pair; a cycling
+    // animation can return to the same phase for that pair and be somewhere
+    // else for the ON grab in between. Measured on unchanged assets, repeated
+    // runs of the same stage returned 46, 46, 47, 0 and 557 px — the spikes
+    // landing at a different camera position each time, which is the signature
+    // of a phase beat and not of a leak.
+    //
+    // The original reason he was left in frame was that parking him at
+    // y=-40000 destabilised the camera: a 40,000px lerp error plus one doubled
+    // fixed-timestep sub-step moved the backdrop 38px. That reason is gone —
+    // `lock` now forces cam.x/cam.y every frame, so where he is cannot move
+    // the camera at all. Out of frame he contributes nothing, which is what
+    // the measurement wants.
     const park = () => {
       if (camX !== null) {
         g.player.x = camX; g.player.vx = 0;
-        g.player.y = standY; g.player.vy = 0;
+        g.player.y = -40000; g.player.vy = 0;
         g.hearts = 3; if (g.player.hearts !== undefined) g.player.hearts = 3;
         if (g.screen !== 'playing') g.screen = 'playing';
       }
