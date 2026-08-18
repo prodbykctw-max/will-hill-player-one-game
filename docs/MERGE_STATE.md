@@ -9,96 +9,116 @@ way this update was — alone, in a commit that changes nothing else, straight
 after a merge. Never carry an edit to this file along with feature work.
 **Re-run the commands at the bottom before acting — main moves.**
 
-## State at main `6954130`
+## State at main `ef8c2f2` — ALL THREE ARE IN
 
 | branch | ahead | behind | status |
 |---|---|---|---|
-| `claude/last-markdown-game-link-lvk1n6` | 0 | 1 | mine — behind by one, nothing of its own outstanding |
-| `claude/dashboard-kills-display-sizing-wgufbm` | 0 | 0 | **merged twice and reset. Clean — not a trap any more.** |
-| `claude/contest-reg-image-crop-d4y6c0` | 6 | 9 | not merged, **now the dangerous one — see below** |
+| `claude/last-markdown-game-link-lvk1n6` | 0 | — | mine — nothing outstanding |
+| `claude/dashboard-kills-display-sizing-wgufbm` | 0 | — | merged, clean |
+| `claude/contest-reg-image-crop-d4y6c0` | 0 | 0 | **merged at `ef8c2f2`. No longer a trap.** |
 
-## ✅ The dashboard branch is no longer a trap
+`gh-pages` was rebuilt from **main** after that merge, so the live game carries
+all three chats' work for the first time.
 
-It was, and the warning that used to be here was right. It has since been
-**reset to main and re-used**, so the stale tree that would have deleted 853
-lines is gone. Both of its rounds are in main:
+## ✅ Nothing is a trap right now
 
-- `eb0edd3` — DEATHS tile sized for contest-scale numbers, MAX COMBO,
-  `cloudflare/migrations/001-max-combo.sql`, `tools/harness/dashfit.mjs`.
-- `6954130` — STAGE PROGRESSION fits six-figure run counts, and
-  `tools/deploy_backend.sh`.
+Both warnings that used to live here were real and both are spent. Keep the
+check itself — it caught a genuine loss on the dashboard branch, and the
+registration branch's own numbers below show why the warning was worth writing.
 
-Deletions against main are **zero**, measured, and the branch now sits level
-with main. Nothing to do with it.
+- The dashboard branch was reset to main and re-used. Its rounds are in main as
+  `eb0edd3` (DEATHS tile, MAX COMBO, the migration, `dashfit.mjs`) and
+  `6954130` (STAGE PROGRESSION, `deploy_backend.sh`).
+- The registration branch was **9 behind and would have deleted ten files**.
+  Rebased before merging; after the rebase eight of those ten came back on
+  their own, because they were never deletions — they were the *absence* of
+  work added since the fork. That distinction is the whole lesson.
 
-⚠️ **The check in this file caught a real one on the way**, which is why it
-should keep being run rather than trusted from memory. That branch was two
-commits behind when its second round was ready, and
-`git diff --stat main branch` showed it would have deleted
-`tools/feather_flat_edge.py` and reverted both `eav-tree` assets — work that
-had landed in the meantime. Rebasing first fixed it. **Behind-ness is the
-whole hazard: a branch does not just bring its own work, it brings the
-ABSENCE of everything added since it forked.**
+⚠️ **Behind-ness is the hazard, not conflict.** A branch does not just bring
+its own work, it brings the ABSENCE of everything added since it forked. A
+clean rebase is not the same as a safe merge, which is why the deletion check
+below is run *after* rebasing and *before* merging, every time.
 
-## ⚠️ THE REGISTRATION BRANCH IS THE TRAP NOW, AND IT IS A BIGGER ONE
+⚠️ **Main moved THREE times during that one merge** — `38990f0`, then
+`2d63d6f`, arriving between a fetch and a push. Fetch again immediately before
+pushing, and be ready to rebase and re-run the check rather than assuming the
+window held.
 
-`claude/contest-reg-image-crop-d4y6c0` is **9 behind**. Merged as it stands it
-would delete **ten files** from main, measured just now, not guessed:
+## ⚠️ TWO FILES ARE DELETED ON PURPOSE — do not "restore" them
+
+The registration merge removes exactly two, and the check will keep printing
+them for anyone diffing against an older main:
 
 ```
-$ git diff --diff-filter=D --name-only origin/main origin/claude/contest-reg-image-crop-d4y6c0
-cloudflare/migrations/001-max-combo.sql
-docs/MERGE_STATE.md
 src/assets/backgrounds/ending-crowd.webp
 src/assets/backgrounds/ending-hero.webp
-tools/cut_audit.py
-tools/deploy_backend.sh
-tools/feather_flat_edge.py
-tools/harness/dashfit.mjs
-tools/refit_card_boundary.py
-tools/retrace_card.py
 ```
 
-That list includes the contest migration and the script that runs it. **Do not
-merge it until it has been rebased onto main and that list is empty.**
+Both were cut from the **landscape** ending plate (1536x1024) that the client
+replaced with a portrait 853x1843 one. They were the swaying crowd and hero
+cards; they map to nothing on the new painting. `src/render/ending.js` was
+rewritten and no longer imports them, and nothing else in the repo references
+them. The crowd sway is a separate pass over the new art — his call, "ship it
+flat first" — and `tools/cut_still.py` is what will do it.
 
-## Then the registration branch, carefully
+## ⚠️ MAX COMBO WILL READ ZERO FOR EVERY ENTRANT
 
-`claude/contest-reg-image-crop-d4y6c0` touches `src/main.js`, `index.html`,
-`docs/NEXT_CHAT.md`, `docs/STATUS.md` and `docs/TESTING.md`. Main changed
-**all** of those in the same window:
+Not a bug, and worth knowing before anyone reads the dashboard and panics. The
+tile, the D1 column and the migration are all in main, but nothing in the game
+emits a `combo` event — `src/net/leaderboard.js` says so at the handler itself:
 
-- `src/main.js` — `beginFromTitle()` replaced the old START gate, the panel
-  now opens with a `flow`, and `signupOffered`/`localRuns` are no longer
-  imported. A branch that predates that will conflict right where the sign-up
-  is triggered, which is exactly what it is editing.
-- `index.html` — the pinch/double-tap guards were added at the foot of the
-  file and `touch-action: manipulation` on every panel control. Its cabinet
-  geometry edits are in the same stylesheet.
-- `docs/NEXT_CHAT.md` — both sides rewrote sections of it.
+> *"NOTHING EMITS THIS YET. The combo system is not in the game — the client
+> asked for MAX COMBO on the dashboard 'because I plan on working a combo
+> system into the game'."*
 
-Take **main's** version of the flow (`beginFromTitle`, `flow: 'start' |
-'post' | 'menu'`) and **the branch's** version of the cabinet geometry and the
-cropped card. They are solving different problems in the same files.
+The client's decision, asked and answered: **leave it**. It is derivable with
+no new state if he ever wants it — `audio.js` already escalates the punch pitch
+on stomps chained inside 1.2s, and every run-log event carries a millisecond
+stamp — but that is a tested change of its own, not something to slip into a
+deploy.
 
-After the rebase, that branch must re-run `startflow.mjs` (20 checks) and
-`btnglow.mjs` (29) — its cabinet crop changes the rects `btnglow` measures.
+## What the registration merge actually collided with
+
+Kept because the prediction was wrong in a useful way. This file expected
+`src/main.js` and `index.html` to conflict, because main had rewritten both.
+They did not: that rewrite landed in `294f2a1`, which the branch had already
+rebased onto, and main never touched either file afterwards. **The real
+overlap was three documentation files** — `docs/NEXT_CHAT.md`,
+`docs/STATUS.md`, `docs/TESTING.md` — and git auto-merged all three.
+
+⚠️ **An auto-merged markdown file still has to be READ.** "Successfully
+rebased" says nothing about whether both sides survived. The check that proves
+it is structural, not a glance:
+
+```bash
+# every heading main had must still exist afterwards
+comm -23 <(git show origin/main:docs/STATUS.md | grep '^#' | sort -u) \
+         <(grep '^#' docs/STATUS.md | sort -u)
+```
+
+Anything it prints is either a section you deliberately replaced — say which,
+out loud — or a section the merge silently ate.
 
 ## The commands
 
 ```bash
-# in each of the other two chats
 git fetch origin main
 git rebase origin/main
 # ⚠️ THEN PROVE IT DELETES NOTHING. This is the check that caught the
 # dashboard branch; a clean rebase is not the same as a safe merge.
-git diff --diff-filter=D --name-only origin/main HEAD    # must print nothing
+git diff --diff-filter=D --name-only origin/main HEAD
+#   -> must print NOTHING, or only deletions you can name and defend
+# ⚠️ AND READ ANY AUTO-MERGED MARKDOWN — see the heading check above.
 # re-run that chat's harnesses, then
 git push -u origin <its-branch> --force-with-lease
+# ⚠️ FETCH AGAIN IMMEDIATELY BEFORE PUSHING MAIN. It moved three times
+# during the last merge, twice between a fetch and a push.
+git fetch origin main && git push origin HEAD:main
 ```
 
 Nothing merges to main until its own harnesses are green on the rebased
-result. And nothing on `gh-pages` is hand-made: deploys go through
+result — and that means the OTHER chats' harnesses too. The registration
+merge ran `dashfit.mjs` (100 checks) for the first time on its own tree. And nothing on `gh-pages` is hand-made: deploys go through
 `bash tools/deploy.sh` only — see the guardrail in `CLAUDE.md`.
 
 ## The contest backend still has ONE client-side step
