@@ -113,7 +113,8 @@ for (let si = 0; si < 4; si++) {
     // the noise floor has always been for, and how this harness sampled spawn
     // before it travelled.
     const standY = g.player.y;
-    // ⚠️ HE IS HELD OUT OF FRAME, AND THE CAMERA LOCK IS WHAT MAKES THAT SAFE.
+    // ⚠️ HE IS HELD AT HIS STANDING HEIGHT, IN FRAME, AND THAT IS THE LESSER
+    // OF TWO EVILS — the two were tried in both orders.
     //
     // Holding him at his standing height fixed the CAMERA (see below) and left
     // a second noise source in the band: his sprite animates on its own frame
@@ -134,7 +135,7 @@ for (let si = 0; si < 4; si++) {
     const park = () => {
       if (camX !== null) {
         g.player.x = camX; g.player.vx = 0;
-        g.player.y = -40000; g.player.vy = 0;
+        g.player.y = standY; g.player.vy = 0;
         g.hearts = 3; if (g.player.hearts !== undefined) g.player.hearts = 3;
         if (g.screen !== 'playing') g.screen = 'playing';
       }
@@ -214,21 +215,40 @@ for (let si = 0; si < 4; si++) {
     // and "never" are not the same claim and only one of them is true.
     const triple = async (t) => {
       let last = null;
-      for (let a = 0; a < 3; a++) {
+      // ⚠️ FIVE ATTEMPTS, NOT THREE, AND THE REASON IS ARITHMETIC RATHER
+      // THAN FLAKINESS. Widening the noise floor to three off-frames means
+      // FOUR grabs have to agree on the camera instead of three, so the
+      // chance of a clean sample drops even though the game is no less
+      // stable. Raising the retry count restores the sample yield; loosening
+      // the agreement bar instead would have been tuning the test to pass.
+      for (let a = 0; a < 5; a++) {
+        // ⚠️ THREE OFF-FRAMES, NOT TWO. His idle animation runs on its own
+        // frame counter rather than the pinned `g.tick`, so a single off->off
+        // pair can land on the same phase twice and call a real difference
+        // noise-free — that is the beat that returned 46, 46, 47, 0 and 557px
+        // from unchanged assets. Three samples spanning the ON grab catch a
+        // phase the pair walks straight past. The skill says it in one line:
+        // one pair is not enough if anything cycles.
+        const o0 = await grab(noClouds, t);
         const o1 = await grab(noClouds, t);
         const on = await grab(all, t);
         const o2 = await grab(noClouds, t);
-        last = { o1, on, o2 };
-        if (o1.key === on.key && on.key === o2.key) return last;
+        last = { o0, o1, on, o2 };
+        if (o0.key === o1.key && o1.key === on.key && on.key === o2.key) return last;
       }
       unstable++;
       return last;
     };
     for (const t of ticks) {
       const trio = await triple(t);
-      const shook = trio.o1.key !== trio.on.key || trio.on.key !== trio.o2.key;
-      const o1 = trio.o1.d; const on = trio.on.d; const off = trio.o2.d;
-      for (let px = 0; px < W * H; px++) if (differs(o1, off, px * 4)) moving[px] = 1;
+      const shook = trio.o0.key !== trio.o1.key || trio.o1.key !== trio.on.key
+        || trio.on.key !== trio.o2.key;
+      const on = trio.on.d; const off = trio.o2.d;
+      const o0 = trio.o0.d; const o1 = trio.o1.d;
+      for (let px = 0; px < W * H; px++) {
+        const i = px * 4;
+        if (differs(o0, o1, i) || differs(o1, off, i) || differs(o0, off, i)) moving[px] = 1;
+      }
       const air = new Uint8Array(W * H);
       let horizon = 0;
       for (let px = 0; px < W * H; px++) {
@@ -380,8 +400,12 @@ for (let si = 0; si < 4; si++) {
   // first place. What is NOT tolerable is a run that mostly could not measure,
   // so the bar is that a third of the samples have to survive.
   const shaky = flat.length - good.length;
+  // ⚠️ TWO THIRDS EXACTLY, NOT 0.67. With 18 samples the old literal wanted
+  // 12.06 of them, so a run that kept 12 — two thirds, the intended bar —
+  // failed on the rounding rather than on anything about the game. It cost
+  // three green runs before the arithmetic was read rather than the result.
   check(`${r.id}: enough frames measured on a settled camera`,
-    good.length >= flat.length * 0.67,
+    good.length * 3 >= flat.length * 2,
     `${good.length}/${flat.length} usable, ${shaky} discarded`);
 }
 

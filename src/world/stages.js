@@ -479,7 +479,13 @@ const STAGE_DEFS = [
           // Puffs on transparency, not a band of sky — the band's alpha edge
           // printed a travelling seam and its baked twins doubled every
           // cloud once the drift accumulated (tools/scrub_stage_clouds.py).
-          { key: 'clouds', img: eavDayClouds, depth: 0.02, drift: -0.035, span: [0.490, 0.993] },
+                    // ⚠️ SPAN WIDENED WITH THE CARD, NOT INSTEAD OF IT. `span` is a CLIP:
+          // widening it over plate columns with no painted puff shows nothing.
+          // tools/spread_clouds.py repeats this stage's OWN puffs across the
+          // empty width first — his paint, flipped and jittered, never invented
+          // — and these are the spans those cards now occupy. eav had ZERO
+          // cloud pixels on screen at spawn before this.
+          { key: 'clouds', img: eavDayClouds, depth: 0.02, drift: -0.035, span: [0.014, 0.994] },
           // Poles, signal, arch — the sky band's STATIC furniture, repainted
           // over the drifting puffs so a cloud passes BEHIND them. Depth 0.5
           // is BASE_DEPTH on purpose: at the base's own rate it registers

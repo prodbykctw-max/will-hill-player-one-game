@@ -429,33 +429,42 @@ are done; the entries are kept so nobody re-opens them.**
   "a hole in the seal, not any card's parallax" (it survives muting every
   card). Closing it needs `scrub_stage_clouds.py`, which needs scipy.
 
-### CAT 2 — Movement ✅ shipped, with two corrections
-Drifting clouds live on the title and all four day stages — `eav-day`,
-`edgewood-day` and `l5p-day` at `drift: -0.035`, `underground-day` at `-0.030`.
+### CAT 2 — Movement ✅ shipped, and the clouds now read on every day stage
+Drifting clouds on the title and all four day stages — `eav-day`,
+`edgewood-day`, `l5p-day` at `drift: -0.035`, `underground-day` at `-0.030`.
 
-⚠️ **This said "Night stages have no cloud cards at all" and that is FALSE.**
-`src/world/stages.js:283` gives EAV at night a `clouds` card — the only night
-cloud card in the game — and **it has no `drift`, so it sits dead still.** The
-wrong sentence is exactly what would stop the next person finding the bug.
+✅ **EAV AT NIGHT NOW MOVES.** This section used to say "night stages have no
+cloud cards at all", which was false: `stages.js:283` gives EAV at night the
+only night cloud card in the game, and it had no `drift` — the one set of
+clouds in this project that sat dead still. Fixed.
 
-⚠️ **"Clouds moving on every daytime stage" is not an ADD, it is a COVERAGE
-question**, and the client has asked for it. Every day stage already drifts; the
-cards are small and each is limited to part of the plate width by its `span`, so
-clouds come and go as the stage scrolls:
+✅ **EAV BY DAY HAD NO CLOUDS FOR THE FIRST HALF OF THE STAGE.** Measured with
+`cloudseal`'s own `painted` count: **0px at every tick at spawn**, 70-316 at
+25%, and only then 8,789 by 75%. Its puffs covered 25% of the plate's columns
+and all of them were at the far end. `tools/spread_clouds.py` repeats the
+stage's OWN puffs across the empty width — his paint, flipped and jittered,
+nothing invented — taking it to 70%. Spawn now reads 71-1,028px at every tick.
 
-| stage | cloud px | where |
-|---|---|---|
-| `underground-day` | 16,824 | top 28% of the drawn plate, `span [0.220, 0.949]` |
-| `eav-day` | 11,136 | top 19%, `span [0.490, 0.993]` |
-| `edgewood-day` | 6,574 | top 17%, `span [0.163, 0.568]` |
-| `l5p-day` | **2,946** | top 22%, `span [0.178, 0.764]` |
+⚠️ **AND IT IS APPLIED TO EAV ONLY, WHICH IS THE RESULT OF MEASURING RATHER
+THAN OF TASTE.** Applied to all four it made three of them worse: clouds in new
+places cross structure the seal does not own, and `edgewood-day` (0 → 202px),
+`underground-day` (0-16 → 93px) and `l5p-day` (87 → 110px, its whole
+allowance) all leaked. Those three already had usable coverage; EAV was the one
+with none. The tool takes stage names, so finishing the others is a re-run once
+their seals cover the new ground — see the footer in `tools/spread_clouds.py`.
 
-`l5p-day` has a twelfth of Underground's cloud content. ⚠️ **Measure before
-changing any of it, and do NOT hand-roll the measurement** — `cloudseal.mjs`
-already computes "how much cloud is on screen" (its `painted` count) with a
-bracketed noise floor, an erosion pass, a blob floor and a camera-stability
-gate. Two ad-hoc attempts at the same number in one session both came back
-contaminated. See LESSONS 29/30.
+| stage | cloud px | column cover | spread? |
+|---|---|---|---|
+| `eav-day` | 11,136 → 31,059 | 25% → **70%** | ✅ applied |
+| `underground-day` | 16,824 | 32% | ✗ leaked at 93px |
+| `edgewood-day` | 6,574 | 36% | ✗ leaked at 202px |
+| `l5p-day` | 2,946 | 26% | ✗ used its whole allowance |
+
+⚠️ **DO NOT HAND-ROLL THE MEASUREMENT.** `cloudseal.mjs` computes "how much
+cloud is on screen" with a three-sample noise floor, an erosion pass, a blob
+floor and a camera-stability gate, at five camera positions. Two ad-hoc
+attempts at the same number in one session both came back contaminated. And
+**run it three times** — see LESSONS 29/30 and 34.
 
 ### CAT 3 — Sound ✅ shipped
 - ✅ Ending music starts sooner.

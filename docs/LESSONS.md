@@ -782,3 +782,27 @@ against the old line before being kept.
     about alpha thresholds in the seal. Nothing about the arithmetic complains;
     only reading the stage's own value does. Fetch the constant from the stage
     you are actually measuring, every time.
+
+34. A measurement that repeats is a result; one that does not is a rumour.
+    Three separate conclusions today came from single harness runs and three of
+    them were wrong — an "ALL 12 PASS" that was the outlier of three, a cloud
+    spread that looked safe until the second run, and a seal rule judged good
+    on one green. The instrument had an intermittent false positive the whole
+    time: unchanged assets returned 46, 46, 47, 0 and 557px. Run it three
+    times before believing it, and when a number will not repeat, fix the
+    instrument before touching the product.
+
+35. When the bar is a fraction, check the arithmetic before the game. A yield
+    gate written `good >= total * 0.67` wants 12.06 of 18 samples, so a run
+    that kept exactly two thirds failed on rounding. Three good runs were read
+    as failures and nearly triggered a hunt through the renderer. `good * 3 >=
+    total * 2` is the same rule without the boundary.
+
+36. Two fixes can each be right and still not compose. Holding the player at
+    his standing height keeps the camera still; holding him out of frame keeps
+    his animation out of the noise. Doing the second undid the first — the
+    update lerps toward him after park() and before the render, so a 40,000px
+    error moves the camera by however many sub-steps the frame took. The answer
+    was to keep the still camera and widen the noise floor to three samples
+    instead, i.e. pay for the noise where it is cheap rather than where it
+    breaks something else.

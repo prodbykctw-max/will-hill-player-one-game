@@ -94,13 +94,11 @@ OCCLUDED_FRAC = 0.14   # blob borders structure more than this -> stays baked
 WIRE_MAX_THICK = 4     # px — dark runs no thicker than this inside a puff heal
 
 
-def sway_keys(stage):
-    """Which cards of this stage declare `sway`, read out of stages.js.
+def card_facts(stage):
+    """{key: (depth, sways)} for this stage's cards, read out of stages.js.
 
     ⚠️ Read, not listed. A hand-kept copy of a fact that lives in the stage
-    table is the failure this project has already had three times — a
-    verification tool holding its own copy of the thing it verifies against
-    verifies nothing (see docs/LESSONS.md and tools/card_overlaps.py).
+    table is the failure this project has already had three times.
     """
     src = (ROOT / 'src' / 'world' / 'stages.js').read_text()
     parent = stage[:-4] if stage.endswith('-day') else stage
@@ -118,11 +116,12 @@ def sway_keys(stage):
         k += 1
     blk = src[j:k]
     keys = [(m.start(), m.group(1)) for m in re.finditer(r"key: '(\w+)'", blk)]
-    out = set()
+    out = {}
     for n, (pos, key) in enumerate(keys):
         end = keys[n + 1][0] if n + 1 < len(keys) else len(blk)
-        if 'sway:' in blk[pos:end]:
-            out.add(key)
+        seg = blk[pos:end]
+        d = re.search(r'depth: ([\d.]+)', seg)
+        out[key] = (float(d.group(1)) if d else 0.5, 'sway:' in seg)
     return out
 
 
@@ -520,9 +519,21 @@ def seal(name, cfg, rgb, healed, grown, base_new, sky_rows, H, W, write,
     # swaying card moves, so a static seal copy of a tree crown would double
     # against it at full sway amplitude. So swaying cards keep the 5px skirt
     # and everything else is taken at the alpha it actually has.
-    swayers = sway_keys(name)
+    # ⚠️ AND IT MAY ONLY DEFER TO A CARD THAT CANNOT MOVE.
+    #
+    # The skirt above is half the rule. The other half: a card away from
+    # BASE_DEPTH (0.50) gets an offset that grows with the camera, so it slides
+    # off the ground the seal was told to leave to it and a drifting cloud
+    # shows through the gap. Same fault as Fault E in docs/NEXT_CHAT.md, one
+    # level down.
+    #
+    # Caught by widening the cloud cards: with clouds newly reaching the left
+    # of the eav plate the leak jumped to 341px in one 301px blob, on ground
+    # owned by `tree` — depth 0.81, travels ~15px.
+    facts = card_facts(name)
     others = np.zeros((H, W), bool)
     stem = cfg['card'].replace('-clouds.webp', '')
+    deferred, sealed_under = [], []
     for f in sorted(BG.glob(f'{stem}-*.webp')):
         if f.name in (cfg['base'], cfg['card']) or f.name.endswith('-skystruct.webp'):
             continue
@@ -530,11 +541,18 @@ def seal(name, cfg, rgb, healed, grown, base_new, sky_rows, H, W, write,
         if im.size != (W, H) or 'A' not in im.getbands():
             continue
         key = f.name[len(stem) + 1:-5]
+        depth, sways = facts.get(key, (0.5, False))
+        if abs(depth - 0.5) > 1e-9:
+            sealed_under.append(f'{key}@{depth}')
+            continue
         # >32, not >128: a card's feathered rim is still that card's ground.
         own = np.array(im.getchannel('A')) > 32
-        if key in swayers:
+        if sways:
             own = ndimage.binary_dilation(own, iterations=5)
         others |= own
+        deferred.append(key + ('~' if sways else ''))
+    print(f'  seal defers to: {", ".join(deferred) or "nothing"}')
+    print(f'  seals UNDER (they move): {", ".join(sealed_under) or "nothing"}')
     band = np.zeros((H, W), bool)
     band[:sky_rows] = True
     # Everything blue-ish stays OUT of the overlay even where the flood
