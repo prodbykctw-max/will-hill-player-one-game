@@ -28,7 +28,7 @@ check at the top of `docs/MERGE_STATE.md`.
 | `claude/contest-reg-image-crop-d4y6c0` | **0 ahead of main** |
 | `claude/dashboard-kills-display-sizing-wgufbm` | **0 ahead of main** |
 | `claude/last-markdown-game-link-lvk1n6` | **0 ahead of main** |
-| `gh-pages` | `627020d`, rebuilt from main — a build from `aec476b` gives **196 assets all matching by content-hashed name, `index.html` byte-identical at 34,527 bytes**. Live bundle `index-mTnpEOyP.js`, confirmed at the CDN |
+| `gh-pages` | `627020d`, built from `aec476b`. ⚠️ **BEHIND BY TWO src COMMITS as of `03fdc7f`** — `efcc1b1` (canvas under the home indicator, controls with it) and `9194ffc` (one home screen on every device, PRESS START off the plate). **This is the title chat mid-flight, not a missed deploy** — it deploys its own work and did so at 11:43. Measured, not counted: live **196** assets against a main build's **197**, differing in the JS bundle, three `title-portrait-*` webps re-cut, and one new `title-prompt-*.webp`. Live bundle `index-mTnpEOyP.js` |
 | Cloudflare | both workers deployed `2026-08-18T02:28Z`, `GET /top` → `200`, D1 `run_stats.max_combo` present |
 
 ⚠️ **If you are about to tell him something is undeployed, diff the build, not
@@ -78,13 +78,21 @@ ships. That misreading has already cost him a round.
    where the game is live and `/submit` accepts everything — scores played
    before the contest opens land on the contest board and count. Wipe on open,
    leave it, or hold submissions: his call, and he can make it without a date.
-2. **The MUSIC box on a cold PWA open** — fixed in `35df100` and live, but the
+2. ✅ **DONE — the MUSIC box on a cold PWA open.** Confirmed by the client on
+   his installed PWA: *"the button on the main screen is unchecked and I have
+   to check it when the PWA opens."* That is the fixed behaviour exactly — the
+   box reads the live audio state, not the stored preference, so a returning
+   player is asked for the gesture instead of being shown a ticked box beside
+   silence. **Nothing further is needed here.** Original note kept below
+   because the reason it could not be verified in a container still stands and
+   will apply to the next audio change.
+   ~~fixed in `35df100` and live, but the
    iOS gesture gate does not reproduce in headless Chromium (measured: it
    reports `running` and a loud bus under
    `--autoplay-policy=document-user-activation-required`). `musicbox.mjs`
    grades the logic by removing `AudioContext`. **HIS DEVICE IS THE ONLY
    REMAINING CHECK** — cold-open the installed PWA, do not touch MUSIC, and it
-   should read unchecked and breathing. He has said he will check it.
+   should read unchecked and breathing.~~ — verified on device, closed.
 3. **The crowd sway re-cut** for the new SHOWTIME ending plate
    (`tools/cut_still.py`). His call: *"ship it flat first, re-cut after."*
 4. **A 104px / 115px cloud leak** on `eav` and `l5p`, carried as a named
