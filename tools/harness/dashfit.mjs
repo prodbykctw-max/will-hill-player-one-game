@@ -69,24 +69,14 @@ const SCALES = [
     continues: 412339, best: 4182750 })],
 ];
 
-// ⚠️ FOUR BOXES ARE KNOWN NOT TO FIT, AND THEY ARE LISTED HERE RATHER THAN
-// FIXED OR EXCLUDED. The STAGE PROGRESSION values print "N (P%)". His bar
-// track ends at x353 and the panel ends at x418, so there are 62px there for
-// a string that wants 107px at six figures — it starts overflowing at a
-// three-digit run count. No font size fixes that: the string has to lose
-// either the count or the percent.
-//
-// ⚠️ AND THAT PANEL WAS NOT TOUCHED, ON HIS INSTRUCTION. "Why did you mess
-// with the stage progression? I wasn't even asking you to edit stage
-// progression." A one-line CSS change went in here while the DEATHS tile was
-// being fixed and was reverted the moment he asked. What is left is a
-// MEASUREMENT, which is this harness's job — the panel is untouched and the
-// call about the string is his. Listing them means the day it is decided,
-// the entry is deleted and the check tightens by itself.
-const KNOWN = {
-  f1v: 'STAGE PROGRESSION value — reported, not changed; see docs/STATUS.md',
-  f2v: 'same', f3v: 'same', f4v: 'same',
-};
+// ⚠️ THIS LIST IS EMPTY, AND IT IS LOAD-BEARING THAT IT STAYS THAT WAY.
+// It held the four STAGE PROGRESSION values while their string was still
+// "N (P%)" — 115px of text in the 61px his panel leaves, torn at a
+// three-digit run count. They print the count alone now and fit, so the
+// entry is deleted and the check tightens by itself, which is the whole
+// point of listing a known gap instead of quietly skipping it.
+// Anything added here needs a reason and a place it is written up.
+const KNOWN = {};
 
 const browser = await chromium.launch(
   process.env.CHROMIUM ? { executablePath: process.env.CHROMIUM } : {});

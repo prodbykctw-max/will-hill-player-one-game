@@ -116,10 +116,12 @@ they are the generic shapes of a lying harness:
   these elements is the string `normal`, `parseFloat` gives `NaN`, `NaN > 1`
   is false, and a value it could see wrapping was reported green.
 
-Four boxes are listed as known-open rather than excluded — the STAGE
-PROGRESSION values, which cannot fit `N (P%)` at a three-digit run count in
-the 62px his panel leaves. That is a decision about what the string says, not
-a bug to fix silently. See `docs/STATUS.md`.
+Its known-open list is **empty**, and that is load-bearing. It held the four
+STAGE PROGRESSION values while their string was still `N (P%)` — 115px of
+text in the 61px his panel leaves. They print the count alone now and fit, so
+the entry was deleted and the check tightened by itself, which is the whole
+point of listing a known gap instead of quietly skipping it. Anything added
+back needs a reason and a place it is written up.
 
 ### Load, measured — not assumed
 

@@ -456,6 +456,26 @@ migrating and its funnel query fails with `no such column: max_combo`, `/data`
 500s, and the page goes blank.
 
 ```
+bash tools/deploy_backend.sh
+```
+
+That is the whole backend deploy now, and it enforces the order rather than
+asking anyone to remember it: it reads the LIVE schema, applies whatever in
+`cloudflare/migrations/` has not landed, **reads the schema back to confirm
+the column is really there**, and only then deploys — dashboard first
+(read-only, so a mistake surfaces where only he is looking), then the game
+worker. Any failure stops it before a single deploy, so the live workers and
+the live schema never disagree. `--check` reports and changes nothing.
+
+Its six paths were exercised against a stub `wrangler` before it shipped —
+column missing, column present, migration failure, migration reporting
+success while the column never appeared, "duplicate column name", and the
+full happy path — because a script whose whole job is refusing to deploy has
+to have been watched refusing.
+
+By hand, if it is ever needed:
+
+```
 wrangler d1 execute will-hill-contest --remote \
   --file=cloudflare/migrations/001-max-combo.sql
 ```
@@ -463,24 +483,38 @@ wrangler d1 execute will-hill-contest --remote \
 Every existing row reads 0, which is correct — nothing emitted a combo event
 when those runs were played.
 
-### STAGE PROGRESSION — measured, reported, NOT changed
+### STAGE PROGRESSION — measured, reported, then fixed when he asked
 
-*"Why did you mess with the stage progression? I wasn't even asking you to
-edit stage progression."* Correct, and it is back exactly as it was — one CSS
-line went in during this work and was reverted the moment he asked. **No stat
+Two rounds, and the order matters. First: *"Why did you mess with the stage
+progression? I wasn't even asking you to edit stage progression."* Correct —
+one CSS line had gone in uninvited and was reverted immediately. **No stat
 anywhere was touched; the big numbers in the screenshots were stub JSON in a
-headless browser and never went near D1.**
+headless browser and never went near D1.** Then, having seen the
+measurement: *"fix stage prog to live."*
 
-What is left is the measurement, because it is real and it is close. Those
-four values print `N (P%)`, where N is the run count, not the percent — the
-percent is indeed always 100 on the top row, but the count is not. His painted
-bar track ends at x353 and the panel ends at x418, so there are **62px** there
-for a string that wants 107px at six figures. It starts overflowing at a
-**three-digit run count**, and no font size fixes it — 62px cannot hold
-`444 (100%)` legibly at any size. The string has to lose either the count or
-the percent, and **which one he wants to read is his call.**
-`tools/harness/dashfit.mjs` lists these four as known-open and will tighten by
-itself the day the entry is deleted.
+The measurement was that those four values printed `N (P%)`, where N is the
+run count — the percent is indeed always 100 on the top row, but the count is
+not. His bar track ends at x353 and this panel's right border is x420 (a
+continuous vertical line, checked down the whole panel, not read off a
+screenshot), so there are **61px** there for a string that wants 115px at six
+figures. It tore at a **three-digit run count** — the first afternoon of the
+contest — and the old box also overhung his border by 14px. No font size
+closes a 54px deficit; the string had to lose the count or the percent.
+
+**The percent went.** He painted it twice already: the length of the bar *is*
+the percentage, and his own axis letters it 0% / 50% / 100% directly
+underneath. The count is the only thing in that box his artwork does not
+already say. Six figures now fit where three did not, the box sits inside his
+border, and it is right-aligned like every other value column on the page —
+which also makes the gap self-adjusting, so a full bar and a seven-character
+number still leave 8px between them where flex-start left 3px.
+
+⚠️ **If he wants the percent back it is one line** in `draw()` — but the box
+cannot hold both, so it would mean giving up six-figure run counts.
+`dashfit` now lists **zero** known-open boxes, and that emptiness is
+load-bearing: the day something is added back to that list it needs a reason
+and a place it is written up.
+
 
 ---
 
