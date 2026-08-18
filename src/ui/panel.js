@@ -314,6 +314,9 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
     if (howBack) {
       howBack.textContent = (isPendingRun && isPendingRun()) ? 'PLAY' : 'BACK';
     }
+    // ⚠️ MARKED HERE, AND ONLY FOR THE START CHAIN. This is the single place
+    // that knows both which view is up and which journey it is on.
+    if (view === 'how' && overlay === false && flow === 'start') markHowToSeen();
     if (view === 'how') fillHow();
     if (view === 'board') fillBoard();
     if (overlay) fillForm();
@@ -402,46 +405,17 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
   // the page is free.
   let howFilled = false;
   function fillHow() {
-    // Every open starts on lesson one. 'auto', not smooth — this is a reset,
-    // not a scroll the player should watch happen.
-    const pager = $('howPager');
-    if (pager) pager.scrollTo({ left: 0, behavior: 'auto' });
-    syncHowDots();
+    // ⚠️ ONE PAGE NOW, so there is nothing to reset and nothing to page.
+    // This used to scroll #howPager back to lesson one, sync four dots, and
+    // share a click handler with a tap-to-page control in the outer fifths.
+    // All of that existed only to serve the swipe; the page is a list.
     if (howFilled) return;
-    for (const img of document.querySelectorAll('#howPager .howShot')) {
+    for (const img of document.querySelectorAll('#howList .howShot')) {
       const src = HOW_SHOTS[img.dataset.shot];
       if (src) img.src = src;
     }
     howFilled = true;
   }
-
-  // Which page is under the viewport, from scroll position — the dots are
-  // derived state, never separately tracked, so they cannot drift.
-  function howPage() {
-    const pager = $('howPager');
-    if (!pager || pager.clientWidth === 0) return 0;
-    return Math.max(0, Math.min(3, Math.round(pager.scrollLeft / pager.clientWidth)));
-  }
-
-  function syncHowDots() {
-    const dots = document.querySelectorAll('#howDots i');
-    const cur = howPage();
-    dots.forEach((d, i) => d.classList.toggle('on', i === cur));
-  }
-
-  $('howPager')?.addEventListener('scroll', syncHowDots, { passive: true });
-  // A tap in the outer fifths pages — for desktops, and for anyone who does
-  // not think to swipe. The middle stays inert so the pictures can be looked
-  // at without the page jumping.
-  $('howPager')?.addEventListener('click', (e) => {
-    const pager = $('howPager');
-    const x = (e.clientX - pager.getBoundingClientRect().left) / pager.clientWidth;
-    const cur = howPage();
-    const next = x < 0.2 ? cur - 1 : x > 0.8 ? cur + 1 : cur;
-    if (next === cur || next < 0 || next > 3) return;
-    feedback.press();
-    pager.scrollTo({ left: next * pager.clientWidth, behavior: 'smooth' });
-  });
 
   function fillBoard() {
     // The share card is drawn NOW, while the board is opening, so the File
@@ -546,7 +520,8 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
     // On the way into a run the next stop is the instructions, same as NOT
     // NOW. Everywhere else the board is the payoff — they just entered, so
     // show them the ticket with their name on it.
-    show(flow === 'start' ? 'how' : 'board');
+    if (flow === 'start') { onwardFromStart(); return; }
+    show('board');
   }
 
   // ── settings ──────────────────────────────────────────────────────────
@@ -717,7 +692,15 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
   // 'how'   — the pre-run chain: skipping the contest still gets the lesson.
   // 'close' — off the back of a run: one tap out, straight to the title.
   // 'board' — the default, for REGISTER pressed from the leaderboard.
-  const notNow = () => show(flow === 'start' ? 'how' : 'board');
+  // ⚠️ CLOSING IS HOW THE RUN STARTS, and that is deliberate reuse rather
+  // than a second launch path: api.close() fires onClose in main.js, which
+  // sees `state.pendingRun` and calls startRun(). A `startRun()` call from
+  // here would be a second way to begin a run and the two would drift.
+  const onwardFromStart = () => {
+    if (howToSeen()) { api.close(); return; }
+    show('how');
+  };
+  const notNow = () => (flow === 'start' ? onwardFromStart() : show('board'));
   on('btnSkip', 'back', notNow);
   // He painted THREE ways out of the sign-up card — the CANCEL plate, the red
   // X beside it, and the small x on the card's own heading — and now that this
@@ -896,6 +879,37 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
     },
   };
   return api;
+}
+
+// ── HOW TO PLAY IS A FIRST-RUN THING, NOT A TOLLGATE ─────────────────────
+//
+// Client: "you only show me how to play before a stage one time in the
+// beginning… That's the only time you show me how to play. So at the end, when
+// I die and I hit end my run and you present me the option to register,
+// immediately after that, I don't need to see how to play."
+//
+// It used to be on EVERY start, both branches of the gate — a registered
+// player went straight to it, and an unregistered one landed on it off NOT
+// NOW. docs/NEXT_CHAT.md had already written that down as a question to put to
+// him; this is the answer.
+//
+// ⚠️ IT IS NOT GONE, IT IS UNCOMPELLED. OPTIONS -> HOW TO PLAY still opens it
+// any time, forever. The latch only decides whether the START chain stops
+// there.
+//
+// ⚠️ AND IT IS ONLY SET FROM THE START CHAIN. Reading it out of OPTIONS must
+// not burn the one automatic showing — someone who pokes around the menu
+// before their first run would then never be taught anything.
+export function howToSeen() {
+  try {
+    return localStorage.getItem('wh_howto_seen') === '1';
+  } catch (_e) {
+    return false;
+  }
+}
+
+export function markHowToSeen() {
+  try { localStorage.setItem('wh_howto_seen', '1'); } catch (_e) {}
 }
 
 // Read once at boot, before the stage table resolves. `?tod=` still wins over

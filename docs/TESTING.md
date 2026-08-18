@@ -59,7 +59,7 @@ Pages is) serves `index.html` for the directory, so the URL the client gets is
 **Graded** — they end in `ALL n PASS` or `FAILED: <checks>`, and a sweep can
 read them mechanically:
 
-`barescars` · `betweenscreens` · `btnglow` · `ceiling` · `cloudseal` · `daylamps` · `endcue` · `entryfit` · `entrypaths` · `finishrun` · `howswipe` · `idleflex` · `introorder` ·
+`barescars` · `betweenscreens` · `btnglow` · `ceiling` · `cloudseal` · `daylamps` · `endcue` · `entryfit` · `entrypaths` · `finishrun` · `howpage` · `idleflex` · `introorder` ·
 `loopbench` · `loopseam` · `musicbox` · `outbox` · `todlive` · `optionsmenu` · `padlift` · `panelnav` · `pausemenu` · `relaytod` ·
 `share` · `stageflag` · `titlefit` · `titleintro`
 
@@ -78,9 +78,9 @@ They are the eyes-on tools; the graded set is the tripwire.
 
 **Green after the sign-up cabinet became a card** — 32 harnesses against a
 fresh dev server, zero failures: betweenscreens 20, entryfit 44, optionsmenu
-15, btnglow 27, hapticbtn 24, panelnav 13, startflow 20, entrypaths 9,
+15, btnglow 27, hapticbtn 24, panelnav 13, startflow 23, entrypaths 9,
 titlefit 76, titleintro 12, endcue 11, relaytod 26, dashglow 26, pausemenu 13,
-musicbox 11, share 12, outbox 13, ceiling 15, howswipe 10, idleflex 8,
+musicbox 11, share 12, outbox 13, ceiling 15, howpage 24, idleflex 8,
 padlift 11, introorder 4, todlive 12, stageflag 6, dashload, and relay /
 joinshot / graphwire / daynight / barescars / finishrun / musiccheck clean on
 their own wordings.
@@ -243,10 +243,10 @@ LESSONS.md 20 for how four fixes went in before anyone asked that question.
 barescars    8    betweenscreens 20  btnglow     27    ceiling     15
 cloudseal    8    daylamps    12    dashglow    26    endcue      11
 entryfit    44    entrypaths   9    finishrun   12    hapticbtn   24
-howswipe    10    idleflex     8    introorder   4    loopbench   32
+howpage     24    idleflex     8    introorder   4    loopbench   32
 loopseam     9    musicbox    11    optionsmenu 15    outbox      13
 padlift     11    panelnav    13    pausemenu   13    relaytod    26
-share       12    stageflag    6    startflow   20    titlefit    76
+share       12    stageflag    6    startflow   23    titlefit    76
 titleintro  12    todlive     12
 ```
 
@@ -345,7 +345,7 @@ drifts into grading last month's product and nobody notices.
 | `barescars` | the intro's sky is clean where the lettering will land: as textured as the belt beside it, with no letter-shaped ghost |
 | `cloudseal` | weather passes BEHIND the buildings on all four day stages — and is still visible |
 | `endcue` | each finish line hands to the NEXT scene's music, with no restart |
-| `howswipe` | HOW TO PLAY is four swiped ✕/✓ lessons, and page 4's frames really differ at the bags |
+| `howpage` | HOW TO PLAY is ONE page of ✕/✓ pairs, its control badges are the game's OWN pads compared by computed style — no ✓ without its ✕ (the fault that killed the first one-pager), the champagne frames really differ at the bags, the copy stays under a word ceiling, and it fits one screen at 430x932 AND 320x568 |
 | `loopseam` | a looping cue's wrap is seamless — by decoded buffer now, by the two-element lap only when a cue is still on an element |
 | `todlive` | changing TIME OF DAY does not reload, stop the music, or close the panel — driven through the real `#sTod`, which `relaytod` cannot see |
 | `outbox` | a score survives everything: held before registration, kept across a reload, retried after a failed submit, never re-sent once accepted |

@@ -335,7 +335,7 @@ night would be new work, not a fix.
 - ✅ **HOW TO PLAY is the four-page swipe card he specified** (`4d0bdb6`):
   ✕ image, ✓ image, ✕ text, ✓ text per page, CSS scroll-snap, dots,
   tap-paging. The champagne lesson is a real pair now — the ✓ frame shot with
-  the aura lit, bags grown and blue, and BOTH the shooter and `howswipe.mjs`
+  the aura lit, bags grown and blue, and BOTH the shooter and `howpage.mjs`
   measure the blue difference before it may ship (✕ 9.3 vs ✓ 35.7 in the
   bluest 1% where the bags are). 10 PASS.
 - ✅ **SHARE says MAKING YOUR CARD… while it encodes** and refuses a second
@@ -367,6 +367,22 @@ The crop takes his gold ENTER disc with it, so SAVE is the silver knob now,
 carrying a green tick built out of his own red CANCEL button. LEADERBOARD and
 RULES & PRIZES went below the cut and are gone — CONTEST INFO opens what RULES
 & PRIZES opened, and NOT NOW already reaches the board.
+
+### CAT 9 — HOW TO PLAY is one page, and the pads render at last ✅ shipped
+Four swiped pages with ~90 words became **one page**, laid out like the Jandé
+instruction screen: a row list with a fixed visual column. His ✕/✓ frames all
+stay — the pictures carry the lesson, so the copy is ~33 words total. Three
+control rows lead it (Move / Jump / Dash), which no screen in the game had ever
+taught, and the badges are the game's **own pads**.
+
+Making them match found a live bug: `#tJump` and `#tDash` set `border-radius:
+50%`, a blue scheme and a smaller font, and **none of it had ever applied** —
+`#tJump` is (1,0,0) against `#touch .pad` at (1,1,0). JUMP had been a rounded
+amber square, never a blue circle. Fixed the way `.move` already was. See
+`docs/LESSONS.md`.
+
+And the lesson shows **once**, not on every start — his call, closing a
+question `NEXT_CHAT.md` had been holding.
 
 ### CAT 8 — The ending is his painting, whole ✅ shipped
 He replaced the 1536x1024 landscape mockup with a **853x1843** SHOWTIME plate —

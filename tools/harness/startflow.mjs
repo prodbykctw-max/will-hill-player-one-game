@@ -121,6 +121,20 @@ const clickBtn = async (p, id) => {
   const offered = await p.evaluate(() => localStorage.getItem('wh_signup_offered'));
   check('the SECOND visit asks again — no one-time latch', v === 'form',
     `view=${v} wh_signup_offered=${offered}`);
+
+  // ⚠️ AND THE TUTORIAL DOES **NOT** REPEAT, which is the opposite rule on the
+  // same screen. Client: "you only show me how to play before a stage one time
+  // in the beginning… that's the only time you show me how to play." The
+  // contest offer is the thing that repeats; the lesson is not. Both live in
+  // this one chain, so both are checked in the same breath — it would be very
+  // easy to "fix" one by breaking the other.
+  await clickBtn(p, 'btnSkip');
+  await p.waitForTimeout(900);
+  const v2 = await view(p);
+  const screen2 = await p.evaluate(() => window.__game.screen);
+  check('NOT NOW the second time goes STRAIGHT to the run, no lesson',
+    v2 === 'none' && screen2 === 'playing',
+    `view=${v2} screen=${screen2} seen=${await p.evaluate(() => localStorage.getItem('wh_howto_seen'))}`);
   await p.context().close();
 }
 
@@ -159,11 +173,39 @@ const clickBtn = async (p, id) => {
   await p.waitForTimeout(3000);
   await tapTitle(p);
   const v = await view(p);
-  check('a registered player skips the form and gets HOW TO PLAY', v === 'how', `view=${v}`);
+  check('a registered player who has never seen it gets HOW TO PLAY',
+    v === 'how', `view=${v}`);
   await clickBtn(p, 'btnHowBack');
   await p.waitForTimeout(900);
   check('and PLAY still starts their run',
     (await p.evaluate(() => window.__game.screen)) === 'playing');
+  await p.context().close();
+}
+
+// ── 6b. REGISTERED AND ALREADY TAUGHT: NO PANEL AT ALL ───────────────────
+//
+// The end state of his instruction. Nothing is owed — no contest offer, no
+// lesson — so the tap on the title IS the run. beginFromTitle() returns before
+// panel.open() is ever called.
+{
+  const ctx = await b.newContext({ viewport: { width: 430, height: 932 }, hasTouch: true });
+  const p = await ctx.newPage();
+  await p.goto(BASE + '/?tod=night', { waitUntil: 'domcontentloaded' });
+  await p.evaluate(() => {
+    localStorage.setItem('wh_name', 'TESTER');
+    localStorage.setItem('wh_contest_reg',
+      JSON.stringify({ phone: '4045551234', email: 't@e.com' }));
+    localStorage.setItem('wh_howto_seen', '1');
+  });
+  await p.reload({ waitUntil: 'networkidle' });
+  await p.waitForFunction(() => window.__game && window.__game.screen === 'title', null, { timeout: 25000 });
+  await p.waitForTimeout(3000);
+  await tapTitle(p);
+  await p.waitForTimeout(900);
+  const v = await view(p);
+  const screen = await p.evaluate(() => window.__game.screen);
+  check('registered AND already taught: the tap is the run, no panel',
+    v === 'none' && screen === 'playing', `view=${v} screen=${screen}`);
   await p.context().close();
 }
 
@@ -184,6 +226,10 @@ const clickBtn = async (p, id) => {
   await clickBtn(p, 'btnSkip');
   const v = await view(p);
   check('NOT NOW there lets out onto the leaderboard', v === 'board', `view=${v}`);
+  // ⚠️ AND NEVER ONTO THE LESSON. Client: "when I hit end my run and you
+  // present me the option to register, immediately after that, I don't need to
+  // see how to play. That's not when I should see how to play."
+  check('the post-run path never lands on HOW TO PLAY', v !== 'how', `view=${v}`);
   await clickBtn(p, 'btnBoardBack');
   const v2 = await view(p);
   const screen = await p.evaluate(() => window.__game.screen);

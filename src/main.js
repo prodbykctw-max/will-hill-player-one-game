@@ -38,7 +38,7 @@ import { loadImages } from './render/images.js';
 import { createRunLog, lbSubmit, bankLocalRun, isRegistered, hasPendingRun,
   recordRunStats, pendingRunCount, flushPendingRun } from './net/leaderboard.js';
 import { createPanel, soundEnabled, setSoundEnabled,
-  sfxEnabled, setSfxEnabled } from './ui/panel.js';
+  sfxEnabled, setSfxEnabled, howToSeen } from './ui/panel.js';
 import { createHaptics } from './core/haptics.js';
 import { STAGE_SLOTS, MAP_SLOTS, MANIFEST } from './audio/music.js';
 import { isRelay, setRelay } from './core/relay.js';
@@ -452,8 +452,26 @@ function beginFromTitle() {
   const introDone = (state.screenT - state.introAt) > INTRO_TICKS;
   if (!introDone) { startRun(); return; }
   state.pendingRun = true;        // whatever they choose, the run follows
-  // Somebody already entered has nothing to fill in, so they get the
-  // instructions and nothing else. NOT NOW on the form lands here too.
+  // ── WHAT STILL STANDS BETWEEN THE TAP AND THE RUN ────────────────────
+  //
+  // The contest, until they enter it — that offer repeats every start, his
+  // instruction, and it is the whole point of the gate.
+  //
+  // ⚠️ THE TUTORIAL DOES NOT REPEAT. Client: "you only show me how to play
+  // before a stage one time in the beginning… that's the only time you show me
+  // how to play." It used to be on every start down BOTH branches — straight
+  // to it if registered, onto it off NOT NOW if not — which meant a player who
+  // kept declining the contest was taught the game again every single run.
+  // docs/NEXT_CHAT.md had this written down as a question to put to him.
+  //
+  // Somebody already entered, who has already been shown it, has nothing left
+  // to answer: the run just starts. NOT NOW and SAVE on the form take the same
+  // decision from the other side — see onwardFromStart() in ui/panel.js.
+  if (isRegistered() && howToSeen()) {
+    state.pendingRun = false;
+    startRun();
+    return;
+  }
   panel.open(isRegistered() ? 'how' : 'form', { flow: 'start' });
 }
 

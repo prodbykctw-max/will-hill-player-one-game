@@ -232,18 +232,48 @@
     }
 
     #tJump, #tDash { right: calc(16px + env(safe-area-inset-right, 0px)); }
+    /* ⚠️ `#touch .pad#tJump:not(.on)`, NOT `#tJump` — AND THE PLAIN VERSION
+       SILENTLY DID NOTHING FOR THE WHOLE PROJECT.
+
+       This is the identical specificity trap the `.move` rule above documents,
+       and these two never got the same treatment. `#tJump` is one id and no
+       class (1,0,0); the base `#touch .pad` is one id and one class (1,1,0),
+       so the base out-ranked it and every visual line here lost. Measured on
+       a live pad before the fix: border-radius resolved to the base's **16px**
+       instead of 50%, the background to the base's rgba(18,14,28,0.52)
+       instead of the blue, the border to the base's amber instead of
+       rgba(120,220,255,0.45), and #tDash's font-size to 15px instead of 13.
+       So JUMP and DASH have been rounded amber SQUARES this entire time, and
+       JUMP has never once been blue.
+
+       ⚠️ WIDTH AND HEIGHT DID APPLY, which is exactly why nobody caught it:
+       the base rule sets neither, so the buttons were the right SIZE and the
+       wrong SHAPE, and a wrong shape reads as a design choice.
+
+       `:not(.on)` rather than a bare `#touch .pad#tJump` for the reason the
+       `.move` comment gives: it has to out-rank the base without out-ranking
+       the pressed state, or the buttons stop lighting up under a thumb.
+
+       Found because the HOW TO PLAY badges were asked to look like the real
+       controls and tools/harness/howpage.mjs compares each badge against its
+       own pad's COMPUTED style — a check that reads the product rather than
+       trusting two copies of a value. It is the check that would catch this
+       happening again. */
     #tJump {
       bottom: calc(18px + env(safe-area-inset-bottom, 0px));
-      width: 82px; height: 82px; border-radius: 50%;
+      width: 82px; height: 82px;
+    }
+    #touch .pad#tJump:not(.on) {
+      border-radius: 50%;
       border-color: rgba(120,220,255,0.45);
       background: rgba(30,60,90,0.42);
     }
     #tJump.on { background: rgba(120,220,255,0.32); border-color: rgba(120,220,255,0.85); }
     #tDash {
       bottom: calc(114px + env(safe-area-inset-bottom, 0px));
-      width: 64px; height: 64px; border-radius: 50%;
-      font-size: 13px;
+      width: 64px; height: 64px;
     }
+    #touch .pad#tDash:not(.on) { border-radius: 50%; font-size: 13px; }
 
     /* ── PANEL ────────────────────────────────────────────────────────
        Leaderboard, contest sign-up and settings. `hidden` on the element is
@@ -1003,60 +1033,163 @@
       width: 1px; height: 1px; overflow: hidden;
     }
 
-    /* ── HOW TO PLAY: a four-page swipe, one lesson a page ─────────────
-       CSS scroll-snap, no gesture library: a horizontal scroller with
-       mandatory snap gives real native swipe with momentum on iOS for a
-       handful of lines. Dots below show where you are; panel.js also pages
-       on a tap in the outer fifths, for desktops and anyone who does not
-       think to swipe. */
-    #howPager {
-      display: flex; overflow-x: auto; overscroll-behavior-x: contain;
-      scroll-snap-type: x mandatory;
-      -webkit-overflow-scrolling: touch;
-      /* ⚠️ THE PAGE KILLS TOUCH GESTURES GLOBALLY (html has touch-action:
-         none, the panel allows pan-y). Without pan-x HERE, a swipe on the
-         pager does nothing at all and the feature simply is not there on
-         the one kind of device it was built for. */
-      touch-action: pan-x;
-      margin: 0 -18px 8px;              /* bleed across the panel's padding */
-      scrollbar-width: none;
+    /* ── HOW TO PLAY: ONE PAGE, HIS FRAMES, ALMOST NO WORDS ────────────
+       Client: "make the how to play instructions one page like it was
+       originally… based off the Jandé once upon a time instruction page. The
+       layout, not the art design." Then: "I want to keep the images, but
+       simplify the text instructions. I had feedback that it was too many
+       words — dumb it down, make it really easy to digest."
+
+       Both references were read rather than remembered.
+
+       JANDÉ'S LAYOUT (once-upon-a-time, #howToScreen) is a vertical list of
+       `[badge] [one line]` rows with a fixed-width badge column, a one-line
+       premise above it, and one big button at the foot. No pager, no dots.
+
+       THIS GAME'S OWN ORIGINAL (commit 0489ce9, before the pager) was
+       #howList: eight real game frames in a 2-column grid with ✕/✓ marks on
+       them and NOT ONE WORD. That is the strongest answer to "too many words"
+       there is, and the frame plate below is lifted straight off it.
+
+       ⚠️ THE ONE-PAGE FORMAT WAS NEVER THE PROBLEM. The pager's own commit
+       records what got that original rejected: two of its eight frames
+       (champagne, money) were orphan ✓s with no ✕ to pair with and no lesson
+       attached — "which he called out image by image". So every frame here is
+       in a labelled pair. One page is fine; unpaired pictures are not.
+
+       ⚠️ THE PICTURES CARRY THE LESSON, so the words do not have to. The ✕
+       frame shows what goes wrong and the ✓ frame shows the fix — that is what
+       they were shot for: "it don't have to be words just an image." The text
+       only names the thing and gives the payoff. ~90 words became ~20, and
+       tools/harness/howpage.mjs asserts a word ceiling so it cannot creep back. */
+    #howIntro {
+      margin: 0 0 12px; font-size: 14px; line-height: 1.4;
+      color: rgba(242,234,216,0.8); text-align: center;
     }
-    #howPager::-webkit-scrollbar { width: 0; height: 0; display: none; }
-    .howPage {
-      flex: 0 0 100%; box-sizing: border-box;
-      scroll-snap-align: center; scroll-snap-stop: always;
-      padding: 0 18px;
+    #howList {
+      margin: 0 0 14px; padding: 0; list-style: none;
+      display: flex; flex-direction: column; gap: 9px;
     }
-    .howShots { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-    .howShots figure {
-      position: relative; margin: 0; border-radius: 8px; overflow: hidden;
+    /* Jandé's row: a plate, a fixed-width visual column, then the words. */
+    #howList li {
+      display: flex; align-items: center; gap: 11px;
+      background: rgba(20,16,30,0.55);
+      border: 2px solid rgba(255,214,110,0.22);
+      border-radius: 11px; padding: 8px 11px;
+    }
+    /* ⚠️ THE VISUAL COLUMN IS A FIXED WIDTH ON EVERY ROW, control rows and
+       picture rows alike. That is what makes the words line up down the page,
+       which is the whole reason his list scans in one look instead of reading
+       as four separate blocks. */
+    #howList .howPair { display: flex; gap: 4px; flex: 0 0 168px; }
+    /* ── THE BADGES ARE THE PADS ────────────────────────────────────────
+       Client: "the buttons should reflect the actual buttons on the screen.
+       And don't forget to add dash." They were Jandé's gold pills, which look
+       like nothing in this game.
+
+       ⚠️ THE PADS ARE NOT ONE LOOK, AND COPYING THE BASE RULE IS NOT ENOUGH.
+       That was the first attempt and tools/harness/howpage.mjs failed it
+       immediately, which is the whole reason that check reads a LIVE pad's
+       computed style rather than trusting a value typed twice. What is
+       actually on screen (see #touch above):
+
+         #tL / #tR   .move — a rounded rect, a STRONGER gradient over
+                     rgba(18,14,28,0.80), amber border at 0.58, near-white ink
+         #tJump      an 82px CIRCLE, and it is BLUE — border 120,220,255 at
+                     0.45 over rgba(30,60,90,0.42), not amber like the rest
+         #tDash      a 64px circle on the base amber, with smaller lettering
+
+       So three variants, matching one for one. Sizes are scaled to the row;
+       everything a player would actually recognise it BY — the colour, the
+       roundness, the weight — is copied. If the pads are ever restyled these
+       move with them, and the harness fails until they do. */
+    #howList .howKey {
+      flex: 0 0 168px;
+      display: flex; align-items: center; justify-content: center; gap: 7px;
+    }
+    #howList .howPad {
+      display: flex; align-items: center; justify-content: center;
+      font: 700 15px/1 system-ui, sans-serif; letter-spacing: 0.06em;
+      color: rgba(255,255,255,0.82);
+      border: 2px solid rgba(255,214,110,0.34);
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.13) 0%,
+                                rgba(255,255,255,0.03) 42%,
+                                rgba(0,0,0,0.16) 100%),
+        rgba(18,14,28,0.52);
+      box-shadow:
+        inset 0 1.5px 0 rgba(255,255,255,0.34),
+        inset 0 -2px 0 rgba(0,0,0,0.42),
+        0 3px 0 rgba(0,0,0,0.34);
+      text-shadow: 0 1px 0 rgba(0,0,0,0.55);
+    }
+    /* The two movement pads: rounded rect, and deliberately punchier than the
+       others — the same 0.80 fill and 0.58 border they carry on the street. */
+    #howList .howPad.move {
+      flex: 1 1 0; min-height: 40px; border-radius: 14px;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.16) 0%,
+                                rgba(255,255,255,0.04) 42%,
+                                rgba(0,0,0,0.20) 100%),
+        rgba(18,14,28,0.80);
+      border-color: rgba(255,214,110,0.58);
+      color: rgba(255,255,255,0.96);
+    }
+    /* JUMP is the big blue disc. */
+    #howList .howPad.jump {
+      width: 46px; height: 46px; border-radius: 50%;
+      border-color: rgba(120,220,255,0.45);
+      background: rgba(30,60,90,0.42);
+    }
+    /* DASH is the smaller amber disc, with smaller lettering, as on screen. */
+    #howList .howPad.dash {
+      width: 40px; height: 40px; border-radius: 50%; font-size: 11px;
+    }
+    /* The frame plate, from the original at 0489ce9 — same radius, same amber
+       hairline, same black bed, and .mark still sits ON the picture where it
+       cannot be mistaken for belonging to the frame next door. */
+    #howList figure {
+      position: relative; margin: 0; flex: 1 1 0;
+      border-radius: 8px; overflow: hidden;
       border: 2px solid rgba(255,214,110,0.28);
       background: #0b0912; line-height: 0;
     }
-    .howShots .howShot { display: block; width: 100%; height: auto; }
-    /* The verdict sits ON the picture, bottom-left, where it cannot be
-       mistaken for belonging to the panel next door. */
-    .howShots .mark {
-      position: absolute; left: 6px; bottom: 5px;
-      font: 800 20px/1 system-ui, sans-serif;
+    #howList .howShot { display: block; width: 100%; height: auto; }
+    #howList .mark {
+      position: absolute; left: 4px; bottom: 3px;
+      font: 800 15px/1 system-ui, sans-serif;
       text-shadow: 0 0 4px #000, 0 2px 3px #000;
     }
-    .howShots .bad { color: #ff5f52; }
-    .howShots .good { color: #57e08a; }
-    /* ✕ line first, then ✓ — same order as the pictures, his order. */
-    .howText {
-      margin: 10px 0 0; font-size: 14px; line-height: 1.45;
-      color: rgba(242,234,216,0.88);
+    #howList .bad { color: #ff5f52; }
+    #howList .good { color: #57e08a; }
+    #howList .howTxt {
+      flex: 1 1 auto; font-size: 13px; line-height: 1.3;
+      color: rgba(242,234,216,0.9);
     }
-    .howText b { font-weight: 800; margin-right: 6px; }
-    .howText.bad b { color: #ff5f52; }
-    .howText.good b { color: #57e08a; }
-    #howDots { display: flex; justify-content: center; gap: 7px; margin: 10px 0 12px; }
-    #howDots i {
-      width: 7px; height: 7px; border-radius: 50%;
-      background: rgba(242,234,216,0.22);
+    #howList .howTxt b {
+      display: block; font: 800 12px/1.25 system-ui, sans-serif;
+      letter-spacing: 0.06em; color: #ffd66e;
     }
-    #howDots i.on { background: #ffd66e; }
+    /* ⚠️ A SHORT SCREEN SHRINKS THE PICTURES, NEVER THE PAGE. Measured at
+       320x568 the list overran the panel by 47px and started scrolling, which
+       is the one thing this rewrite exists to stop — he asked for ONE page.
+       The frames give up the height rather than the layout: the words are
+       already down to about twenty and cutting them further would cost the
+       meaning, and splitting the list back into pages is the thing being
+       removed. 568px is the shortest phone worth designing for; his own is
+       932 and has ~370px to spare, which is why the frames are bigger there. */
+    @media (max-height: 700px) {
+      #howIntro { margin-bottom: 7px; font-size: 12px; }
+      #howList { gap: 4px; margin-bottom: 10px; }
+      #howList li { padding: 4px 8px; gap: 8px; }
+      #howList .howPair, #howList .howKey { flex-basis: 112px; }
+      #howList .howPad { font-size: 13px; }
+      #howList .howPad.move { min-height: 32px; border-radius: 11px; }
+      #howList .howPad.jump { width: 38px; height: 38px; }
+      #howList .howPad.dash { width: 33px; height: 33px; font-size: 10px; }
+      #howList .howTxt { font-size: 12px; }
+      #howList .howTxt b { font-size: 11px; }
+    }
     #panel .note { margin: 10px 0; font-size: 13px; color: rgba(242,234,216,0.72); }
     #panel .note b { color: #ffd66e; font-weight: 700; }
     #panel .err { margin: 8px 0 0; font-size: 13px; color: #ff8f7a; }
@@ -1348,56 +1481,74 @@
              poses — not drawings of what the game supposedly does. The <img>
              sources are assigned in panel.js from bundler imports, because a
              literal path here resolves in dev and 404s under the Pages
-             subpath. -->
-        <!-- ⚠️ FOUR PAGES, SWIPED, ONE LESSON EACH — his spec, close to
-             verbatim: "maybe four pages and swipe left or right... it should
-             be two images and then the text instructions... the X and then
-             it's the check, so the text should be what not to do and then
-             what you should do." So every page is exactly that, in that
-             order: ✕ image, ✓ image, ✕ line, ✓ line. The old page was eight
-             loose images in a grid — three real pairs and two orphans
-             (champagne, money) wearing ✓s with no lesson attached, which he
-             called out image by image.
+             subpath.
 
-             Copy is written from the CONSTANTS, not remembered: BAG_VALUE
-             100, stomp 50, CHAMPAGNE_SECONDS 9, CHAMPAGNE_MULT 2. If a
-             number here disagrees with the code, the code wins and this is
-             the bug. -->
-        <div id="howPager">
-          <section class="howPage">
-            <div class="howShots">
-              <figure><img class="howShot" data-shot="pothole-bad" alt="" /><span class="mark bad">✕</span></figure>
-              <figure><img class="howShot" data-shot="pothole-good" alt="" /><span class="mark good">✓</span></figure>
-            </div>
-            <p class="howText bad"><b>✕</b> Step in a pothole and you trip. It costs a heart.</p>
-            <p class="howText good"><b>✓</b> Jump it. Clean over, nothing lost.</p>
-          </section>
-          <section class="howPage">
-            <div class="howShots">
-              <figure><img class="howShot" data-shot="manhole-bad" alt="" /><span class="mark bad">✕</span></figure>
-              <figure><img class="howShot" data-shot="manhole-good" alt="" /><span class="mark good">✓</span></figure>
-            </div>
-            <p class="howText bad"><b>✕</b> Fall through an open manhole and the run ends there.</p>
-            <p class="howText good"><b>✓</b> Jump it. The dark ones are holes, not street.</p>
-          </section>
-          <section class="howPage">
-            <div class="howShots">
-              <figure><img class="howShot" data-shot="ninja-bad" alt="" /><span class="mark bad">✕</span></figure>
-              <figure><img class="howShot" data-shot="ninja-good" alt="" /><span class="mark good">✓</span></figure>
-            </div>
-            <p class="howText bad"><b>✕</b> Walk into a street ninja and he knocks every bag out of you.</p>
-            <p class="howText good"><b>✓</b> Land on his head. +$50, and he's gone.</p>
-          </section>
-          <section class="howPage">
-            <div class="howShots">
-              <figure><img class="howShot" data-shot="champagne-bad" alt="" /><span class="mark bad">✕</span></figure>
-              <figure><img class="howShot" data-shot="champagne-good" alt="" /><span class="mark good">✓</span></figure>
-            </div>
-            <p class="howText bad"><b>✕</b> Run past the champagne and every bag stays worth $100.</p>
-            <p class="howText good"><b>✓</b> Jump for the bottle. For 9 seconds the bags turn blue, grow, and pay double.</p>
-          </section>
-        </div>
-        <div id="howDots" aria-hidden="true"><i class="on"></i><i></i><i></i><i></i></div>
+             ⚠️ ONE PAGE, AND THE WORDS ARE THE PART THAT CHANGED. This was
+             four swiped pages carrying ~90 words of body copy; he asked for
+             one page "like it was originally" and said the feedback was that
+             it was too many words. The pictures already teach the lesson, so
+             each row keeps only the name and the payoff.
+
+             ⚠️ DO NOT ADD AN UNPAIRED FRAME. The original one-page version
+             shipped `champagne` and `money` as lone ✓s with no ✕ and no
+             lesson, and that — not the one-page format — is what got it
+             rejected image by image. Every row below is a ✕/✓ pair.
+
+             ⚠️ THE NUMBERS COME FROM THE CONSTANTS: stomp 50,
+             CHAMPAGNE_SECONDS 9, CHAMPAGNE_MULT 2. If a number here disagrees
+             with the code, the code wins and this is the bug. -->
+        <p id="howIntro">Get to the show with the money.</p>
+        <ul id="howList">
+          <!-- Controls first, and they are the game's OWN pads, glyph for
+               glyph — see #howList .howPad. The swipe pager never told anyone
+               how to play at all; leading with the controls is the one thing
+               Jandé's page does that this one never has. -->
+          <li>
+            <span class="howKey"><span class="howPad move">◀</span><span class="howPad move">▶</span></span>
+            <span class="howTxt">Move</span>
+          </li>
+          <li>
+            <span class="howKey"><span class="howPad jump">JUMP</span></span>
+            <span class="howTxt">Jump &mdash; twice for a double jump</span>
+          </li>
+          <!-- ⚠️ DASH TEACHES THE I-FRAMES, NOT THE SPEED. It is a 13.5 burst
+               for 13 ticks (physics.js DASH_VX / DASH_TICKS), but what makes
+               it worth pressing is DASH_IFRAMES — 14 ticks where nothing can
+               touch you, applied at player.js:251. Nobody discovers that from
+               the button. -->
+          <li>
+            <span class="howKey"><span class="howPad dash">DASH</span></span>
+            <span class="howTxt">Roll past trouble. Can&rsquo;t be hit.</span>
+          </li>
+          <li>
+            <span class="howPair">
+              <figure><img class="howShot" data-shot="pothole-bad" alt="Stepping into a pothole" /><span class="mark bad">✕</span></figure>
+              <figure><img class="howShot" data-shot="pothole-good" alt="Jumping the pothole" /><span class="mark good">✓</span></figure>
+            </span>
+            <span class="howTxt"><b>POTHOLE</b>Jump it.</span>
+          </li>
+          <li>
+            <span class="howPair">
+              <figure><img class="howShot" data-shot="manhole-bad" alt="Falling into an open manhole" /><span class="mark bad">✕</span></figure>
+              <figure><img class="howShot" data-shot="manhole-good" alt="Jumping the manhole" /><span class="mark good">✓</span></figure>
+            </span>
+            <span class="howTxt"><b>MANHOLE</b>Jump it.</span>
+          </li>
+          <li>
+            <span class="howPair">
+              <figure><img class="howShot" data-shot="ninja-bad" alt="Walking into a street ninja" /><span class="mark bad">✕</span></figure>
+              <figure><img class="howShot" data-shot="ninja-good" alt="Landing on the ninja's head" /><span class="mark good">✓</span></figure>
+            </span>
+            <span class="howTxt"><b>NINJA</b>Jump on him. +$50</span>
+          </li>
+          <li>
+            <span class="howPair">
+              <figure><img class="howShot" data-shot="champagne-bad" alt="Running past the champagne" /><span class="mark bad">✕</span></figure>
+              <figure><img class="howShot" data-shot="champagne-good" alt="Grabbing the champagne" /><span class="mark good">✓</span></figure>
+            </span>
+            <span class="howTxt"><b>CHAMPAGNE</b>Double money, 9 seconds.</span>
+          </li>
+        </ul>
         <button class="btn ghost" id="btnHowBack" type="button">BACK</button>
       </div>
 

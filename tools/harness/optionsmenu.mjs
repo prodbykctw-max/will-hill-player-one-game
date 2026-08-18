@@ -94,7 +94,8 @@ await p.click('#btnMenuHow');
 await p.waitForTimeout(200);
 const how = await p.evaluate(() => ({
   t: document.getElementById('panelTitle').textContent,
-  n: document.querySelectorAll('#howPager .howShot').length,
+  // ⚠️ #howList, NOT #howPager. HOW TO PLAY went back to one page.
+  n: document.querySelectorAll('#howList .howShot').length,
 }));
 check('HOW TO PLAY opens with its lessons', how.t === 'HOW TO PLAY' && how.n >= 6,
   JSON.stringify(how));

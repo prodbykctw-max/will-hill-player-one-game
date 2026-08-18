@@ -150,10 +150,25 @@ DIE / WIN ──► (win: ending scene) ──► showTitle() + panel.open(…, 
 - The one guard kept: `introDone`. A tap during the title assembly means "skip
   the animation", and a skip stays a skip.
 
-**Open question worth putting to him:** a registered returning player still
-sees HOW TO PLAY on every single start. That is literally what he specified,
-so it shipped that way — but if he wants it first-time-only it is one
-condition in `beginFromTitle()`.
+**✅ ANSWERED, AND IT IS FIRST-TIME-ONLY NOW.** He put it plainly: *"you only
+show me how to play before a stage one time in the beginning… that's the only
+time you show me how to play. So at the end, when I die and I hit end my run
+and you present me the option to register, immediately after that, I don't
+need to see how to play."*
+
+`wh_howto_seen` is the latch (`howToSeen()` / `markHowToSeen()` in
+`src/ui/panel.js`). Three call sites routed to the lesson and all three now
+check it: `beginFromTitle()`, `notNow` and `save()`. Registered **and** taught
+means the tap on the title IS the run — `beginFromTitle()` returns before
+`panel.open()` is ever reached.
+
+⚠️ **The contest offer still repeats and the tutorial does not.** Two opposite
+rules on the same chain, which is very easy to "fix" one of by breaking the
+other, so `startflow.mjs` asserts both in the same block.
+
+⚠️ **Marked only from the START chain** (`flow === 'start'`, and not as the
+sign-up card's backdrop). Reading it out of OPTIONS must not burn the one
+automatic showing, or someone who browses the menu first is never taught.
 
 ---
 

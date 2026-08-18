@@ -498,6 +498,56 @@ correctness argument. And when a decorative effect and a functional one share
 a coordinate mapping, wire the functional one first: it is the only half that
 complains.
 
+## 22. A rule that never applied, invisible because half of it did
+
+`index.html` has styled the JUMP and DASH pads since they were written:
+
+```css
+#tJump { width: 82px; height: 82px; border-radius: 50%;
+         border-color: rgba(120,220,255,0.45);
+         background: rgba(30,60,90,0.42); }
+#tDash { width: 64px; height: 64px; border-radius: 50%; font-size: 13px; }
+```
+
+**Not one of the visual lines has ever rendered.** `#tJump` is one id and no
+class — specificity (1,0,0). The base `#touch .pad` is one id and one class —
+(1,1,0). The base wins, so on every device since day one JUMP has been a
+16px-radius amber square rather than a blue circle, and DASH's text has been
+15px rather than 13. Measured on a live pad, not inferred:
+
+```
+#tJump  border-radius 16px   background rgba(18,14,28,0.52)  border rgba(255,214,110,0.34)
+        ^ base's value       ^ base's value                  ^ base's value
+```
+
+⚠️ **THE FILE ALREADY KNEW.** Twenty lines above, the `.move` rule carries a
+comment explaining this exact trap and solving it with
+`#touch .pad.move:not(.on)` — out-ranking the base without out-ranking the
+pressed state. Whoever wrote that understood the problem completely and did
+not go back and check whether the two rules *below* had it too. **A hazard you
+have already met and documented is not a hazard you have fixed everywhere.**
+
+### Why nobody ever saw it
+
+`width` and `height` DID apply, because the base rule does not set them. So
+the buttons came out the right SIZE and the wrong SHAPE — and a wrong shape
+with the right size reads as a design decision, not a fault. There was nothing
+to notice. A rule that fails *totally* gets reported in a day; one that fails
+*partially* can survive the entire project.
+
+### What actually found it
+
+Not a screenshot, and not reading the CSS. The client asked the HOW TO PLAY
+badges to look like the real controls, and the harness written for that
+compares each badge against its **live pad's computed style** rather than
+against the values typed into the page. It failed instantly, on colour and on
+radius, and the badge was right.
+
+⚠️ **A check that reads the product can find bugs in the thing it was
+comparing against.** Had `howpage.mjs` asserted "the badge is
+`rgba(30,60,90,0.42)`" — the value the CSS *says* — it would have passed while
+both were wrong, and the how-to page would have faithfully mirrored a bug.
+
 ## The short version
 
 0. **Touch the thing before you describe it** — including when what you are
@@ -539,6 +589,14 @@ complains.
     them. A caller will otherwise reach for whatever scale is in scope, and two
     plates whose width constants are both called `SRC_W` will read as correct
     for as long as the thing being positioned is only decorative.
+24. A specificity trap you have already met, commented and solved is not
+    solved everywhere — go and look at its neighbours the same day. And a rule
+    that fails PARTIALLY (right size, wrong shape) can outlive the whole
+    project, because the part that works makes the part that does not look
+    deliberate.
+25. Compare against the running product, never against the value you typed.
+    Asserting the number in the stylesheet would have passed while the screen
+    was wrong; reading the live element's computed style is what caught it.
 
 ## Two reads of one key is one bug waiting
 
