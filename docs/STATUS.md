@@ -456,8 +456,16 @@ migrating and its funnel query fails with `no such column: max_combo`, `/data`
 500s, and the page goes blank.
 
 ```
-bash tools/deploy_backend.sh
+bash tools/deploy_backend.sh              # macOS / Linux / Git Bash
+.\tools\deploy_backend.ps1                # Windows PowerShell
 ```
+
+⚠️ **He is on Windows PowerShell, where there is no `bash`** — this shipped as
+bash only and died on the first real run with *"The term 'bash' is not
+recognized"*. The `.ps1` is a locator, not a second implementation: it finds
+the bash that Git for Windows bundles and runs the same tested script. A
+PowerShell rewrite would be an unrun second copy of the refusal logic, and the
+refusal path is the one part that only matters on the day it fires.
 
 That is the whole backend deploy now, and it enforces the order rather than
 asking anyone to remember it: it reads the LIVE schema, applies whatever in

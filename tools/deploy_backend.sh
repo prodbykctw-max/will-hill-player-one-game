@@ -27,6 +27,13 @@
 #   bash tools/deploy_backend.sh              # ask, then migrate + deploy
 #   bash tools/deploy_backend.sh --check      # report only, change nothing
 #   bash tools/deploy_backend.sh --yes        # no prompt (for a known-good rerun)
+#
+# ⚠️ HIS MACHINE IS WINDOWS AND POWERSHELL HAS NO bash. This shipped as bash
+# only and failed on the first real run with "The term 'bash' is not
+# recognized". tools/deploy_backend.ps1 is the entry point there - it finds
+# the bash that Git for Windows bundles and runs THIS script, rather than
+# reimplementing the refusal logic below in a second language where it would
+# be unrun and free to drift.
 
 set -euo pipefail
 

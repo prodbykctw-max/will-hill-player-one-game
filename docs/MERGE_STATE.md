@@ -108,7 +108,8 @@ the workers have **not** been redeployed — main is ahead of what is live. Both
 are one command on a machine with `wrangler` logged in:
 
 ```bash
-bash tools/deploy_backend.sh
+bash tools/deploy_backend.sh              # macOS / Linux / Git Bash
+.\tools\deploy_backend.ps1                # Windows PowerShell - his machine
 ```
 
 It migrates, reads the schema back to confirm the column landed, and only then
