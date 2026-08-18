@@ -37,10 +37,20 @@ ships. That misreading has already cost him a round.
 
 ## What each chat shipped (so nobody re-does it)
 
-- **Title / home page** — `7e2e493`, `cec447e`, `b4f9f9d`. Real buttons on the
-  home page, a way straight into the contest, the painted OPTIONS sprite
-  retired, `titlehome.mjs` (69). ⚠️ `titlefit` reads **48**, not 76 — the
-  control geometry moved, checks were not dropped.
+- **Title / home page** — `7e2e493`, `cec447e`, `b4f9f9d`, `4f40f5b`. Real
+  buttons on the home page, a way straight into the contest, the painted
+  OPTIONS sprite retired, `titlehome.mjs` (**113**, was 69). ⚠️ `titlefit`
+  reads **48**, not 76 — the control geometry moved, checks were not dropped.
+  ⚠️ **AND HIS LAYOUT IS THE ONLY LAYOUT — do not add a per-phone variant.**
+  `4f40f5b` undoes one. He sent a picture (PRESS START, the green contest bar
+  across, OPTIONS and MUSIC below it), said *"this by far is my favorite
+  layout"*, and the first version rearranged itself on the two smallest phones
+  into something he had never seen, with the contest button reading "ENTER"
+  under PRESS START — *"now the fucking enter button looks redundant like it's
+  another start button."* Heights shrink to 38px before the arrangement
+  changes. Only 375x667 and 471x825 fall out of it, on measured road, and
+  there the label is **CONTEST**, never ENTER. All three rules are graded in
+  `titlehome.mjs`, copy included.
 - **Dashboard / combo** — `eb0edd3`, `6954130`, `d9e0bca`, `dad801d`. DEATHS
   tile, MAX COMBO, the D1 migration, `deploy_backend.sh`, the combo chain, and
   the last stray ✕es off ENTER THE CONTEST.
