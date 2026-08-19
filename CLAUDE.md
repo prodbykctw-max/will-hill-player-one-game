@@ -63,7 +63,7 @@ Two workers, deliberately separate:
 - `cloudflare/leaderboard-worker.js` — public. Serves `/top` (cached 2s) and takes `/submit` (never cached). Origin-locked, replay-protected, honeypotted.
 - `cloudflare/dashboard-worker.js` — the admin view, its own hostname, read-only, reached by a rotatable token in the link. Never fold this into the game worker: that is the endpoint under load and the one an attacker already has a URL for.
 
-Neither is deployed. Creating the D1 database and deploying touches the live Cloudflare account and stays an explicitly-confirmed manual step, not something to run automatically. `LB_BASE` in `src/net/leaderboard.js` is empty until it is.
+**Both ARE deployed and answering** — `will-hill-leaderboard` and `will-hill-dashboard` on the client's Cloudflare account, D1 `will-hill-contest` migrated, `LB_BASE` wired to the workers.dev URL in `src/net/leaderboard.js:27`. ⚠️ This paragraph said "Neither is deployed" long after the 2026-08-16 deploy, and it has now misled a session into telling the client his backend was down TWICE — `docs/MERGE_STATE.md` ("The contest backend is DONE — stop telling him to deploy it") documents the first time. Verify against the live account (`workers_list`, `GET /top`), never against this file. RE-deploying or touching the live account remains an explicitly-confirmed step, not something to run automatically.
 
 ## Docs, and the dev doors
 
