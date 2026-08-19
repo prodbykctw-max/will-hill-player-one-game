@@ -377,6 +377,25 @@ the `bootError` card. Two things other chats should know:
   needs a non-title image on canvas, it must either join TITLE_IMAGES or sit
   behind one of the two holds.
 
+## 📢 FYI ALL CHATS — soundtrack prewarm, and the SW cache no longer resets per deploy
+
+BACKDROPS / DEPLOY chat, on the client's word ("music that I worked hard to
+have come on immediately now is delaying... everything needs to be ready").
+Two files other chats own were touched, minimally:
+
+- **`vite.config.js` SW plugin (DASHBOARD chat's):** the cache name embedded
+  the build id, and activate's delete-other-caches line therefore threw the
+  ENTIRE cache away on every deploy — 13 deploys across 08-18/19 meant 13
+  full ~21 MB re-downloads on the client's phone, which is why "instant"
+  music kept going cold. One stable name now (`wh-p1-static`); the per-entry
+  purge that was already there is the only eviction hashed names need.
+- **`src/audio/music.js` (loader chat's lane):** `warm()` grew a guard —
+  never `el.load()` the currently-playing cue (load() resets the element and
+  cuts the note) — and `status()` grew a `warmed` list for the harness.
+  Everything else about the element/buffer paths is untouched.
+- `main.js`'s background driver now warms all ten cues behind the art,
+  staggered 900ms so decodes never stack past music.js's own 2-buffer cap.
+
 ## 📨 HANDOFF TO THE TITLE / HOME chat — Safari vs PWA framing, from the client
 
 `claude/last-markdown-game-link-lvk1n6`. Raised with the DASHBOARD / BACKEND
