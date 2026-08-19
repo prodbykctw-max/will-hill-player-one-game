@@ -129,7 +129,13 @@ await p.mouse.click(215, 700);
 await p.waitForTimeout(450);
 const firstRun = await p.evaluate(() => ({
   screen: window.__game.screen,
-  open: !document.getElementById('panel').hidden,
+  // ⚠️ `open` MEANS "A PANEL SURFACE IS UP", NOT "#panel IS VISIBLE". The
+  // client had the sign-up separated into its own top-level layer — "how to
+  // play is not supposed to be the background of the contest entry form" — so
+  // #panel is deliberately SHUT while the form is showing. Reading the element
+  // alone reported the sign-up as never opening while it filled the screen.
+  open: !document.getElementById('panel').hidden
+     || !document.getElementById('entryLayer').hidden,
   form: !document.getElementById('entryLayer').hidden,
 }));
 check('the very first START offers the contest, with nothing banked',
@@ -150,7 +156,9 @@ const offered = await p.evaluate(() => ({
   // or LEADERBOARD. The layer is the thing to ask.
   view: !document.getElementById('entryLayer').hidden ? 'ENTER THE CONTEST'
     : document.getElementById('panelTitle').textContent,
-  open: !document.getElementById('panel').hidden,
+  // same rule as above: the sign-up is its own layer and shuts #panel.
+  open: !document.getElementById('panel').hidden
+     || !document.getElementById('entryLayer').hidden,
   asked: localStorage.getItem('wh_signup_asked'),
 }));
 check('a returning player is offered sign-up before the run',
@@ -213,7 +221,9 @@ check('GAME KNOCKED offers a way on', !!knockedBtn, JSON.stringify(knockedBtn));
 if (knockedBtn) await p2.mouse.click(knockedBtn.x, knockedBtn.y);
 await p2.waitForTimeout(600);
 const after = await p2.evaluate(() => ({
-  open: !document.getElementById('panel').hidden,
+  // same rule again: the sign-up layer shuts #panel behind it.
+  open: !document.getElementById('panel').hidden
+     || !document.getElementById('entryLayer').hidden,
   // ⚠️ NOT THE PANEL TITLE ANY MORE FOR THE SIGN-UP. His card is lettered
   // ENTER THE CONTEST in the artwork, so with the form as an overlay the
   // panel's own heading belongs to the view BEHIND it and reads HOW TO PLAY

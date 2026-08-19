@@ -34,16 +34,24 @@ const check = (what, pass, detail = '') => {
 // Which view is up, read off the DOM rather than off any variable the code
 // keeps — the player sees the DOM, not the variable.
 //
-// ⚠️ THE SIGN-UP IS NOT A VIEW ANY MORE AND THIS HAS TO ASK FOR IT FIRST.
-// Cropping his cabinet to a card turned ENTER CONTEST into #entryLayer, a
-// layer OVER whichever view the panel is showing — so when the form is up,
-// pvHow or pvBoard is legitimately up as well, and a loop that returns the
-// first unhidden view returns the BACKDROP. Every check in this file about
-// the sign-up gate then reads 'how' and fails while the gate is working
-// perfectly. The layer is asked about before the views, not after.
+// ⚠️ THE SIGN-UP IS ITS OWN SCREEN NOW, AND #panel IS SHUT UNDERNEATH IT.
+// This has been wrong twice, in opposite directions, so both are written down.
+//
+//   1. Cropping his cabinet to a card turned ENTER CONTEST into #entryLayer, a
+//      layer OVER whichever view the panel was showing. A loop returning the
+//      first unhidden view then returned the BACKDROP, and every sign-up check
+//      read 'how' while the gate worked perfectly. Fixed by asking the layer
+//      first.
+//   2. Then the client reversed the design — "the how to play is not supposed
+//      to be the background of the contest entry form... it's his own thing" —
+//      so `show('form')` now HIDES #panel and the form stands on the game
+//      canvas. The `panel.hidden -> 'none'` test above the layer test made
+//      every one of those same checks read 'none' instead. Both orderings have
+//      to be right: the LAYER is asked about before the panel is asked about
+//      at all.
 const view = (p) => p.evaluate(() => {
-  if (document.getElementById('panel').hidden) return 'none';
   if (!document.getElementById('entryLayer').hidden) return 'form';
+  if (document.getElementById('panel').hidden) return 'none';
   for (const id of ['pvMenu', 'pvHow', 'pvBoard', 'pvSettings']) {
     if (!document.getElementById(id).hidden) return id.slice(2).toLowerCase();
   }

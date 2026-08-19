@@ -613,17 +613,26 @@
        still buys the same painted width it always did and every font-size
        below carries over untouched. The absence is the surprising part. */
     #entryLayer {
-      /* `fixed`, not `absolute`: #panel is a scroll container, and a child
-         pinned to its padding box scrolls away with the card underneath. */
-      position: fixed; inset: 0; z-index: 3;
+      /* `fixed` and z-index 31 — ABOVE #panel's 30. It used to be z-index 3
+         inside #panel, where it only had to beat its siblings; out here it
+         stacks against the panel itself. They are never both up in the normal
+         flow, but the ordering has to be right for the frame where one
+         replaces the other or the form flashes behind the panel.
+         `fixed` was already right and still is: it must not scroll with
+         anything. */
+      position: fixed; inset: 0; z-index: 31;
       display: flex; align-items: center; justify-content: center;
       padding: calc(10px + env(safe-area-inset-top, 0px)) 10px
                calc(10px + env(safe-area-inset-bottom, 0px));
-      /* ⚠️ THE SCRIM IS LOAD-BEARING, NOT DECORATION. HOW TO PLAY is live
-         underneath with its footer button reading PLAY, and a tap that got
-         through would start the run out from under a half-filled form. An
-         opaque-to-pointers element is the whole guard; there is no
-         `pointer-events: none` anywhere in this layer except the bloom. */
+      /* ⚠️ THE SCRIM IS LOAD-BEARING, NOT DECORATION — and it is deliberately
+         SEE-THROUGH. Client, asked what should sit behind the form: "the home
+         screen behind it." So this dims the title art rather than hiding it,
+         and the form reads as a card laid over his home screen instead of
+         floating on flat black.
+         It still has to eat taps: the canvas is underneath, and a tap that
+         reached it on the title screen is PRESS START — a run launched out
+         from under a half-filled form. An opaque-to-pointers element is the
+         whole guard. */
       background: rgba(6,5,10,0.62);
     }
     #entryLayer[hidden] { display: none; }
@@ -1616,27 +1625,54 @@
       </div>
     </div>
 
-    <!-- ── THE SIGN-UP IS AN OVERLAY NOW, NOT A SCREEN ───────────────────
+  </div>
+
+  <!-- ⚠️ THE SIGN-UP IS ITS OWN LAYER NOW, OUTSIDE #panel ENTIRELY.
+
+       Client: "the contest form... is supposed to be independent from the how
+       to play... how to play is not supposed to be the background of the
+       contest entry form and that's what it appears to be... the how to play
+       is his own thing, just how they load on top of one another."
+
+       It used to be a SIBLING OF #panelCard, inside #panel — which meant the
+       panel had to be open for the form to show, and `show('form')` picked a
+       base view (HOW TO PLAY on the start journey) to sit underneath it. The
+       0.62 scrim then let that base show through around the cabinet, so HOW
+       TO PLAY read as the form's background. That was built from his earlier
+       note, "an overlay over how to play" — this supersedes it.
+
+       Out here it needs nothing behind it. The panel stays CLOSED while the
+       form is up, so what shows through the scrim is the game canvas — the
+       home screen, which is what he asked for. Dismissing the form is what
+       opens the panel on whatever comes next (HOW TO PLAY on the start
+       journey, the board otherwise), so the chain is unchanged and the two
+       screens simply load on top of one another instead of being welded.
+
+       ⚠️ z-index 31, ABOVE #panel's 30. They are never both up in the normal
+       flow, but the ordering has to be right for the frame where one is
+       replacing the other, or the form would flash behind the panel. -->
+    <!-- ── THE CARD ITSELF ─────────────────────────────────────────────
          Client: "crop this image out of the contest registration image. It
-         will alone be the sole contest reg view", and before that "an overlay
-         over how to play."
+         will alone be the sole contest reg view."
 
-         Those two are one instruction. His cabinet arrived as a whole machine
-         and filled the screen, which is the only thing a 853x1844 plate CAN
-         do on a phone — and a full-height cabinet laid over HOW TO PLAY covers
-         it completely, which is the full-screen form with extra steps. Cropped
-         to 853x992 it is a card, and a card can sit on top of something.
+         His cabinet arrived as a whole machine and filled the screen, which is
+         the only thing a 853x1844 plate CAN do on a phone. Cropped to 853x992
+         it is a card, and a card can sit on top of something — which is what
+         made the layer above possible at all.
 
-         ⚠️ IT CANNOT LIVE IN #panelCard, and that is why this is a sibling
-         rather than another `.pv`. The plate used to be #panelCard's own
-         background — the card WAS the cabinet — and a card cannot show another
-         view through its own background. #panelScreen's single-view show()
-         machinery has one job and does it well; this layer just sits over
-         whatever that machinery is already displaying.
+         ⚠️ IT NEVER COULD LIVE IN #panelCard. The plate used to be that card's
+         own background — the card WAS the cabinet — and a card cannot show
+         another view through its own background. #panelScreen's single-view
+         show() machinery has one job and does it well; this layer is not one
+         of its views and never was.
 
-         ⚠️ THE SCRIM EATS TAPS ON PURPOSE. HOW TO PLAY is live underneath with
-         its footer reading PLAY, and a tap that reaches it starts the run out
-         from under a half-filled form. -->
+         ⚠️ THE SCRIM STILL EATS TAPS, for a changed reason. It used to guard
+         HOW TO PLAY sitting live underneath with its footer reading PLAY. The
+         panel is CLOSED under the form now, so what is underneath is the game
+         canvas — and a tap that reached the canvas on the title screen is
+         PRESS START, which would launch a run out from under a half-filled
+         form. Same guard, same necessity. There is no `pointer-events: none`
+         anywhere in this layer except the bloom. -->
     <div id="entryLayer" hidden>
       <div id="entryPlate">
         <!-- ⚠️ THE TINY ✕ THAT WAS HERE IS GONE, PAINT AND ALL. Client:
@@ -1707,7 +1743,6 @@
         </div>
       </div>
     </div>
-  </div>
 
   <!-- ── PINCH AND DOUBLE-TAP DO NOT ZOOM THIS GAME ─────────────────────────
        Client: "it's still trying to zoom in when I'm on the web browser", and

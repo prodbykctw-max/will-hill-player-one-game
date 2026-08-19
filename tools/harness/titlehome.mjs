@@ -202,7 +202,13 @@ for (const [name, w, h] of SHAPES) {
 // where the player was. `flow: 'title'` in src/ui/panel.js is the only thing
 // making that true; the three older flows still go where they went.
 const view = (p) => p.evaluate(() => ({
-  open: !document.getElementById('panel').hidden,
+  // ⚠️ `open` MEANS "A PANEL SURFACE IS UP", NOT "#panel IS VISIBLE". The
+  // client had the sign-up separated into its own top-level layer — "how to
+  // play is not supposed to be the background of the contest entry form" — so
+  // #panel is deliberately SHUT while the form is showing. Reading the element
+  // alone reported the sign-up as never opening while it filled the screen.
+  open: !document.getElementById('panel').hidden
+     || !document.getElementById('entryLayer').hidden,
   // ⚠️ The sign-up is a LAYER over whichever view is showing, not a view of
   // its own — ask about it first or a .find() returns the backdrop behind it.
   view: !document.getElementById('entryLayer').hidden ? 'pvForm'

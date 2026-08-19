@@ -145,9 +145,17 @@ check('two buttons when there is a continue to spend',
 // text a player could misread — and lose a run to.
 await p.mouse.click(bs[1].x + bs[1].w / 2, bs[1].y + bs[1].h / 2);
 await p.waitForTimeout(700);
+// ⚠️ "THE RESULTS ARE UP" IS NO LONGER "#panel IS VISIBLE". On a device that
+// has not registered, the post-run step is the SIGN-UP, and the client had
+// that separated out of the panel into its own top-level layer — "how to play
+// is not supposed to be the background of the contest entry form". So the
+// panel is deliberately shut while the form is up, and reading #panel alone
+// reported the results as never opening while they were plainly on screen.
+// Either surface counts.
 const ended = await p.evaluate(() => ({
   screen: window.__game.screen,
-  open: !document.getElementById('panel').hidden,
+  open: !document.getElementById('panel').hidden
+     || !document.getElementById('entryLayer').hidden,
   continues: window.__game.continues,
 }));
 check('END RUN keeps the continue and opens the results',
@@ -281,8 +289,13 @@ check("the run's own numbers are drawn, inside his stat block",
 await toEnding(false);
 await p.evaluate(() => { window.__game.screenT = 200; });
 await p.waitForTimeout(900);
+// Same reason as the END RUN check above: on an unregistered device the thing
+// that arrives is the SIGN-UP, which is its own top-level layer now and shuts
+// #panel behind it. What is being asserted is "something arrived on its own",
+// so either surface counts.
 check('the board arrives over the ending without a tap',
-  await p.evaluate(() => !document.getElementById('panel').hidden));
+  await p.evaluate(() => !document.getElementById('panel').hidden
+    || !document.getElementById('entryLayer').hidden));
 check('and the ending is still what is underneath',
   await screen() === 'complete', await screen());
 
