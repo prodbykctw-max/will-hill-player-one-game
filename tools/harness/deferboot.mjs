@@ -45,8 +45,14 @@ const BOOT = /\/(eav-|title|enemy|will-hill|moneybag|champagne|ending-)[^/]*\.(w
   let titled = true;
   await p.waitForFunction(() => window.__game && window.__game.screen === 'title', null, { timeout: 25000 }).catch(() => { titled = false; });
   ck('A1 title comes up with stage-2 art unreachable', titled);
+  // The title now shows on its OWN art, so stage 1 may still be in flight at
+  // first sight of it — wait for it to land (REST is unblocked; only
+  // edgewood is dead, and edgewood can NEVER arrive, so that half is
+  // race-free by construction).
+  let eavIn = true;
+  await p.waitForFunction(() => !!window.__images?.eav, null, { timeout: 15000 }).catch(() => { eavIn = false; });
   const boot = await p.evaluate(() => ({ eav: !!window.__images?.eav, e: !!window.__images?.edgewood }));
-  ck('A2 boot set holds stage 1, not stage 2', boot.eav && !boot.e, JSON.stringify(boot));
+  ck('A2 stage 1 lands behind the title; stage 2 never does', eavIn && boot.eav && !boot.e, JSON.stringify(boot));
   await p.evaluate(() => { const g = window.__game; g.rideFrom = 'eav'; g.rideTo = 1; g.screen = 'riding'; g.screenT = 0; });
   await p.waitForTimeout(3500); // RIDE_TICKS is 150 (~2.5s); well past the doors
   const held = await p.evaluate(() => ({ screen: window.__game.screen, t: window.__game.screenT }));

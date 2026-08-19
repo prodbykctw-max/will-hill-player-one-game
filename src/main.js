@@ -357,13 +357,16 @@ if (import.meta.env.DEV) {
   // already happened once, to a harness that was then quietly measuring a
   // frozen loop. Anything that wants stage four gets the same door the game
   // uses.
-  // Deferral-aware since the first-load split: stages outside the boot set
-  // load AFTER the title, and a harness jumping straight to stage 3 must get
-  // the same held door the ride gives a player — not a bare stage. Returns a
-  // promise when it has to wait; page.evaluate awaits that transparently.
-  window.__startStage = (i) => {
-    const flight = loadLate();
-    if (flight && !stageArtReady(i)) return flight.then(() => startStage(i));
+  // Deferral-aware since the first-load split: sprites and stages load AFTER
+  // the title now, and a harness jumping straight to stage 3 must get the
+  // same held door the game gives a player — not a bare stage. Async, so
+  // page.evaluate awaits it transparently; rides the loaders' own cooldowns.
+  window.__startStage = async (i) => {
+    while (!restLoad.done() || !stageArtReady(i)) {
+      const f = pumpLoads();
+      if (f) await f;
+      else await new Promise((r) => setTimeout(r, 250));
+    }
     startStage(i);
   };
   // The loaded image set. A card whose file failed to resolve is SILENTLY
@@ -525,6 +528,20 @@ function beginFromTitle() {
 }
 
 function startRun() {
+  // THE RUN HOLD — the one canvas exit from the title. The title shows on
+  // pass-1 art alone; a run needs REST (sprites, props, stage one). Whoever
+  // taps START before REST has landed goes back to the LOADING card, and
+  // update()'s loading branch starts the run the moment the art is in — or
+  // escalates to the error card if the loads are failing outright, because
+  // no failure may present as eternal LOADING.
+  if (!restLoad.done()) {
+    state.pendingBootRun = true;
+    state.screen = 'loading';
+    state.screenT = 0;
+    pumpLoads();
+    return;
+  }
+  state.pendingBootRun = false;
   state.score = 0;
   state.hearts = 3;
   state.continues = CONTINUES_PER_RUN;
@@ -840,7 +857,7 @@ function nextStage() {
     state.screenT = 0;
     // If the background load failed earlier, the ride is 2.5 seconds of
     // retry time before the gate at the end would have to hold.
-    loadLate();
+    pumpLoads();
     return;
   }
   state.screen = 'complete';
@@ -1074,7 +1091,23 @@ function update() {
   // MUSIC off, because play() has no mute check. The player hears nothing on
   // this screen either way; the only effect of playing "early" was a slower
   // load. The cue starts on the first frame of the title instead.
-  if (state.screen === 'loading') return;
+  if (state.screen === 'loading') {
+    // THE RUN HOLD's other half (see startRun): the player tapped START
+    // before REST landed, so the LOADING card is up and the loaders are
+    // pumping. Release into the run the moment the art is in; if the flights
+    // are FAILING repeatedly instead, trip the bootError latch — the red
+    // card with RETRY — because a player must never be able to tell a dead
+    // network from a slow one by waiting forever.
+    if (state.pendingBootRun) {
+      if (restLoad.done()) { state.pendingBootRun = false; startRun(); return; }
+      if (restLoad.fails >= 3 && !bootError) {
+        bootError = new Error('boot assets unreachable after retries');
+        return;
+      }
+      pumpLoads();
+    }
+    return;
+  }
   // The panel is modal. The art behind it keeps breathing — a frozen title
   // card under a dialog looks like a crash — but nothing the player presses
   // reaches the game while it is up, or a Space bar meant for the form would
@@ -1114,12 +1147,12 @@ function update() {
       // from the title onward (FIRST-LOAD DEFERRAL); a player who outruns
       // it — or whose load failed and is mid-retry — waits on the map screen
       // at full progress rather than entering a stage with no city behind
-      // it. loadLate() is idempotent; held ticks just keep the retry warm.
+      // it. pumpLoads() is idempotent; held ticks just keep the retry warm.
       if (stageArtReady(state.rideTo) && images.martamap) {
         startStage(state.rideTo);
       } else {
         state.screenT = RIDE_TICKS;
-        loadLate();
+        pumpLoads();
       }
     }
     return;
@@ -2043,38 +2076,75 @@ for (const [k, url] of Object.entries(imageManifest)) {
   if (!LATE_KEYS.has(k)) bootManifest[k] = url;
 }
 
-// The background load. Idempotent and self-healing: call it anywhere it
-// might be needed — at the title, when a ride starts, on every held tick —
-// and it fetches only what is still missing, one flight at a time. A failed
-// flight clears itself (after a short cooldown, so a dead network is not
-// hammered at frame rate) and the next call retries; images.js already
-// gives each file its own timeout and one cache-busted retry per flight.
+// THE TITLE ITSELF NEEDS ONLY PASS 1. Audited: on canvas, the title screen
+// reads title_*/tp_* keys and nothing else; the contest form, OPTIONS panel
+// and HOW TO PLAY are DOM and load their own files. So the title shows the
+// moment ITS art lands, and everything below splits the remainder in two:
+// REST (sprites, props, ending, the boot stages — what a RUN needs) and
+// LATE (the other stages and the map — what the RIDE gate covers). The one
+// canvas exit from the title is startRun(), which holds on REST.
+const REST_KEYS = new Set(
+  Object.keys(bootManifest).filter((k) => !(k in TITLE_IMAGES)));
+
+// The background loaders. Idempotent and self-healing: pump() anywhere a
+// missing image could hurt — at the title, at a run start, on every held
+// tick — and it fetches only what is still missing, one flight at a time. A
+// failed flight clears itself (after a short cooldown, so a dead network is
+// not hammered at frame rate) and counts consecutive failures, so a hold
+// can ESCALATE to the bootError card instead of spinning forever — the
+// repo's standing rule is that no failure may present as eternal LOADING.
+// images.js already gives each file its own timeout and one cache-busted
+// retry per flight.
 //
 // ⚠️ THE TIME-OF-DAY GUARD. applyTimeOfDay() can swap every plate while a
-// late flight is still in the air, and the two halves share manifest KEYS —
-// the renderer looks up `images[stage.id]` either way. A resolved flight
+// flight is still in the air, and the two halves share manifest KEYS — the
+// renderer looks up `images[stage.id]` either way. A resolved flight
 // therefore only lands entries whose URL is STILL the manifest's answer for
 // that key; a stale half is discarded, exactly as todWant discards the
 // panel's own superseded loads.
-let lateFlight = null;
-let lateRetryAt = 0;
-function loadLate() {
-  if (!images) return null;   // boot pass 2 not done — it kicks this itself
-  const want = {};
-  for (const k of LATE_KEYS) if (!images[k]) want[k] = imageManifest[k];
-  if (Object.keys(want).length === 0) return null;   // everything is in
-  if (lateFlight) return lateFlight;
-  if (performance.now() < lateRetryAt) return null;
-  lateFlight = loadImages(want).then((loaded) => {
-    lateFlight = null;
-    for (const [k, img] of Object.entries(loaded)) {
-      if (imageManifest[k] === want[k]) images[k] = img;
-    }
-  }).catch(() => {
-    lateFlight = null;
-    lateRetryAt = performance.now() + 3000;
-  });
-  return lateFlight;
+function makeLoader(keys) {
+  const L = { flight: null, retryAt: 0, fails: 0 };
+  L.done = () => {
+    if (!images) return false;
+    for (const k of keys) if (!images[k]) return false;
+    return true;
+  };
+  L.pump = () => {
+    if (!images) return null;   // pass 1 not done — the boot chain drives this
+    const want = {};
+    for (const k of keys) if (!images[k]) want[k] = imageManifest[k];
+    if (Object.keys(want).length === 0) return null;   // everything is in
+    if (L.flight) return L.flight;
+    if (performance.now() < L.retryAt) return null;
+    L.flight = loadImages(want).then((loaded) => {
+      L.flight = null;
+      L.fails = 0;
+      for (const [k, img] of Object.entries(loaded)) {
+        if (imageManifest[k] === want[k]) images[k] = img;
+      }
+    }).catch(() => {
+      L.flight = null;
+      L.fails += 1;
+      L.retryAt = performance.now() + 3000;
+    });
+    return L.flight;
+  };
+  return L;
+}
+const restLoad = makeLoader(REST_KEYS);
+const lateLoad = makeLoader(LATE_KEYS);
+// REST strictly before LATE: a run is possible before the ride needs stage
+// two, never the other way round.
+function pumpLoads() {
+  return restLoad.done() ? lateLoad.pump() : restLoad.pump();
+}
+// The driver: keeps pumping until everything is in, riding the cooldowns.
+// pump()'s promise never rejects (the catch is inside), so this cannot leak
+// an unhandled rejection; when both loaders are done it simply stops.
+function backgroundLoad() {
+  const f = pumpLoads();
+  if (f) { f.then(backgroundLoad); return; }
+  if (!restLoad.done() || !lateLoad.done()) setTimeout(backgroundLoad, 3200);
 }
 
 // Is stage i's full image set — base plate plus every card — actually
@@ -2124,20 +2194,19 @@ function applyTimeOfDay() {
   }).catch(() => false);              // keep the half that still works
 }
 
-// ── THREE-STAGE LOAD: THE PICTURE, THE GAME, THEN THE REST ─────────────
+// ── THREE-STAGE LOAD: THE TITLE, THE RUN, THEN THE REST ────────────────
 //
 // Everything used to arrive in one pass, so the first paint of the whole
-// product was a black rectangle for as long as the slowest stage plate took.
-// The title art is a handful of files and it is the only thing anybody looks
-// at during the wait, so it is fetched on its own first and handed to the
-// loading screen (bootPlate); pass 2 is the BOOT manifest — sprites, props,
-// stage one, the ending — which is what PRESS START actually requires; and
-// stages 2-4 plus the MARTA map come down behind the title via loadLate()
-// (see FIRST-LOAD DEFERRAL above).
-//
-// The second pass re-lists the title images deliberately: loadImages resolves
-// a whole manifest to one object and `images` has to end up holding every key
-// the renderer asks for. They are in cache by then, so it costs nothing.
+// product was a black rectangle for as long as the slowest stage plate took
+// — and even split in two, the title still waited on every sprite and stage
+// plate it never draws. Now the title goes up the moment ITS OWN art lands
+// (pass 1, ~3 MB); REST — sprites, props, stage one, the ending — comes down
+// while the player is reading it, with startRun() holding on the LOADING
+// card in the rare case a tap beats it; and stages 2-4 plus the MARTA map
+// come last, covered by the ride gate (see FIRST-LOAD DEFERRAL above).
+// `images` starts as the pass-1 set and the loaders merge into it — safe
+// because the title screen was audited to read only pass-1 keys on canvas,
+// and every other canvas screen sits behind one of the two holds.
 //
 // ⚠️ AND THE LOOP STARTS FIRST OF ALL. It used to be started inside the
 // load's .then(), which meant draw() never ran while loading and the
@@ -2172,17 +2241,19 @@ if (import.meta.env.PROD && 'serviceWorker' in navigator) {
 }
 
 loop.start();
+// The title goes up on ITS OWN art — ~3 MB instead of the ~9.6 MB the whole
+// game weighs. Everything else arrives behind it: REST while the player is
+// reading the title (a run start holds on it, briefly, in the worst case),
+// LATE behind that (the ride gate holds on it). One retry of the whole
+// title pass before latching the error card, matching the second chance the
+// old two-pass chain gave the title by re-listing it in pass 2.
 loadImages({ ...TITLE_IMAGES })
-  .then((first) => { bootPlate = first.title_base || null; })
-  .catch(() => { /* the loader just stays black — not worth failing boot for */ })
-  .then(() => loadImages(bootManifest))
-  .then((loaded) => {
-    images = loaded;
+  .catch(() => loadImages({ ...TITLE_IMAGES }))
+  .then((first) => {
+    bootPlate = first.title_base || null;
+    images = first;
     showTitle();
-    // Stages 2-4 and the MARTA map, behind the title — see the FIRST-LOAD
-    // DEFERRAL block. The player is looking at the title card; nothing on
-    // screen needs any of it yet, and the ride gate holds if they outrun it.
-    loadLate();
+    backgroundLoad();
     // The TIME OF DAY reload used to leave a breadcrumb here so the panel could
     // be reopened on the settings pane afterwards. There is no reload now, so
     // the panel never closed and there is nothing to restore. One stale key is

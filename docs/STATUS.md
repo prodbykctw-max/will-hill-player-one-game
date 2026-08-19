@@ -119,6 +119,29 @@ localStorage cannot brick boot, and re-encoding the art is off the table
 (WebP q85 visibly damages the dither — measured).
 
 
+### The title shows on its own art — the load went from one wait to none
+
+Client, after watching a fresh visit take ~5 seconds to the title: *"I don't
+wanna see loading. Period."* Second cut, same day as the deferral below: the
+title no longer waits for ANY of the game behind it. Boot pass 1 (the title's
+own ~3 MB) puts the full title screen up; REST (sprites, props, stage one,
+the ending) loads while the player reads it, and the one canvas exit from
+the title — `startRun()` — holds on the LOADING card in the rare case a tap
+beats it, released by `update()` the moment the art lands. Audited first: on
+canvas the title reads only its own keys; the contest form, OPTIONS and HOW
+TO PLAY are DOM and fetch their own files. If the run hold's loader FAILS
+three consecutive flights, it escalates to the `bootError` card (RETRY,
+cache-busted) — the standing rule that no failure may present as eternal
+LOADING now covers the hold itself. `booterror.mjs` was updated in the same
+commit: a dead sprite no longer kills the boot (the title coming up is now a
+graded improvement), and the red card is graded where it now appears — after
+START. Why the game "never loaded like that before": the wait was always
+there but INVISIBLE — `de5c3f2` (08-15) started the loop before the load, so
+the LOADING card was seen for the first time; before that the same seconds
+were a black page. Then 08-18's ten deploys re-hashed 3.86 MB of assets and
+invalidated phones' caches over and over (docs/LESSONS.md #25). The game
+never got heavier: 20.69 MB imported at the first commit, 21.58 MB now.
+
 ### First-load deferral — the boot buys the title and stage one
 
 Client: *"My goal is to have an instant load every visit."* The first-visit

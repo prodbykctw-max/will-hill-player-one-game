@@ -89,8 +89,22 @@ const palette = (p) => p.evaluate(() => {
   });
   await p.goto(URL_, { waitUntil: 'commit' });
 
-  // The loader's own deadline is 15s and it retries once, so a permanent
-  // failure settles at ~30s. Poll for the condition; never sleep on a guess.
+  // SINCE THE THREE-STAGE LOAD (title → run REST → the rest): a dead sprite
+  // no longer kills the BOOT — the title shows on its own art, which is an
+  // improvement this check now grades. The error card appears when the
+  // failure MATTERS: a run start holds on the LOADING card, the REST loader
+  // fails its retries, and the hold escalates to the latch. So: reach the
+  // title, press START (during the intro, which skips the contest gate the
+  // way stageflag.mjs does), and THEN expect the red card.
+  let titled = true;
+  await p.waitForFunction(() => window.__game && window.__game.screen === 'title',
+    null, { timeout: 30000 }).catch(() => { titled = false; });
+  check('the title still comes up — a dead sprite no longer kills the boot', titled);
+  await p.evaluate(() => window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Space' })));
+
+  // Each failed REST flight is ~1s of 404s plus a 3s cooldown, and the latch
+  // trips on the third consecutive failure — ~15s worst case. Poll for the
+  // condition; never sleep on a guess.
   let seen = null;
   for (let i = 0; i < 60; i++) {
     await p.waitForTimeout(1000);
