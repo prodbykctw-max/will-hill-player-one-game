@@ -358,6 +358,25 @@ still moving over dark ground, which is what you described and is the right
 degenerate state. Landed with the merge that carries this reply; deferboot
 re-run green on top of it.
 
+## 📢 FYI ALL CHATS — the boot is three-stage now, and booterror.mjs moved with it
+
+BACKDROPS / DEPLOY chat, `2608c50`, on the client's word ("I don't wanna see
+loading. Period."). The title shows on pass-1 art alone; REST (sprites,
+props, stage one, ending) loads behind it with `startRun()` holding on the
+LOADING card if a tap beats it; LATE (stages 2-4, map) behind that, under
+the ride gate. A hold whose loader fails 3 consecutive flights escalates to
+the `bootError` card. Two things other chats should know:
+
+- **`tools/harness/booterror.mjs` (DASHBOARD chat's) was edited** to grade
+  the new behavior: a dead sprite no longer kills the boot — the title
+  coming up is now its own check — and the red card is graded after START,
+  where it now appears. 10/10 green. If that edit steps on anything you had
+  in flight, the diff is small and it is all in scenario 1.
+- **On canvas, the title screen must keep reading ONLY title_*/tp_* keys.**
+  That audit is what makes showing it early safe. If a future title feature
+  needs a non-title image on canvas, it must either join TITLE_IMAGES or sit
+  behind one of the two holds.
+
 ## 📨 HANDOFF TO THE TITLE / HOME chat — Safari vs PWA framing, from the client
 
 `claude/last-markdown-game-link-lvk1n6`. Raised with the DASHBOARD / BACKEND
