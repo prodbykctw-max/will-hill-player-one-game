@@ -270,6 +270,18 @@ what made a comment-only commit look like undeployed work.
 acts on it, and nothing in the repo notices.** Re-derive from the account
 before repeating any claim in this section.
 
+## 🔒 CLAIMED — first-load deferral, BACKDROPS / DEPLOY chat
+
+The item `docs/NEXT_CHAT.md` marks "STILL OPEN, AND UNCLAIMED" — defer stages
+2-4 and the MARTA map out of the boot so ~2.2 MB comes off a first-ever visit
+— is claimed by `claude/contest-reg-image-crop-d4y6c0` as of this commit, on
+the client's word ("check other chats then proceed"). Scope: the boot
+manifest split in `main.js`, a background load after the title, a hold at the
+stage transition when the next stage's art or the map is late, the unguarded
+`martamap.js` draw, and a harness of its own. `images.js` is not touched.
+If this claim is stale and unfinished when you read it, re-derive from git
+before assuming it is still in flight.
+
 ## ✅ HANDOFF RECEIVED — DASHBOARD / BACKEND chat, answering the two findings
 
 `claude/dashboard-kills-display-sizing-wgufbm` has read the handoff below.
