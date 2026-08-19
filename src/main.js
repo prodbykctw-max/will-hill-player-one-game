@@ -2138,13 +2138,48 @@ const lateLoad = makeLoader(LATE_KEYS);
 function pumpLoads() {
   return restLoad.done() ? lateLoad.pump() : restLoad.pump();
 }
+// THE MUSIC RIDES THE SAME TRAIN. Client, after the map-cue lesson repeated
+// itself on stage entries: "everything needs to be ready on my game even if
+// it cost me a little bit of load upfront." Every cue element is built with
+// preload='none' — deliberately, so ten tracks never raced the boot — which
+// means a cue's DOWNLOAD used to start the moment its screen first asked
+// for it. The map cue got warm() at 55% of a stage; the STAGE cues never
+// got warmed at all, so entering a neighbourhood on a cold cache fetched
+// its soundtrack right then, and the music came in late. warm() is
+// idempotent and fetches without playing (and without needing the audio
+// gesture), so the driver below warms the whole soundtrack behind the art:
+// stage one's cues the moment a run is possible, everything else once the
+// images are done. The service worker then holds the bytes across visits.
+// Staggered, one cue at a time: warm() also kicks a decode when the audio
+// context is awake, and a decoded stage track is ~35 MB of Float32 — seven
+// at once would be a real memory spike on a phone. 900ms apart, decodes
+// never stack more than two deep (music.js's own buffer cap).
+const warmedSlots = new Set();
+function warmMusic(slots) {
+  const todo = slots.filter((s) => !warmedSlots.has(s));
+  for (const s of todo) warmedSlots.add(s);
+  let i = 0;
+  const step = () => {
+    if (i >= todo.length) return;
+    try { audio.music.warm(todo[i]); } catch (_e) { /* never hurts */ }
+    i += 1;
+    setTimeout(step, 900);
+  };
+  step();
+}
+
 // The driver: keeps pumping until everything is in, riding the cooldowns.
 // pump()'s promise never rejects (the catch is inside), so this cannot leak
-// an unhandled rejection; when both loaders are done it simply stops.
+// an unhandled rejection; when both loaders are done it stops, leaving the
+// full soundtrack warm. Order: title art (already in) -> REST images ->
+// stage one's cues -> LATE images -> the rest of the soundtrack.
 function backgroundLoad() {
   const f = pumpLoads();
   if (f) { f.then(backgroundLoad); return; }
-  if (!restLoad.done() || !lateLoad.done()) setTimeout(backgroundLoad, 3200);
+  if (restLoad.done()) warmMusic(['title', 'stage_01', 'map_01_02']);
+  if (!restLoad.done() || !lateLoad.done()) { setTimeout(backgroundLoad, 3200); return; }
+  warmMusic(['stage_02', 'map_02_03', 'stage_03', 'map_03_04', 'stage_04',
+    'ui_pause', 'credits']);
 }
 
 // Is stage i's full image set — base plate plus every card — actually

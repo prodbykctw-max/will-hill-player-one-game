@@ -567,6 +567,16 @@ export function createMusic(getContext, getMaster) {
     warm(slot) {
       const node = build(slot);
       if (!node || node.warmed) return false;
+      // ⚠️ NEVER el.load() THE CUE THAT IS PLAYING (or mid-attempt): load()
+      // RESETS a media element, which cuts the soundtrack off mid-note. The
+      // background prewarm in main.js can ask for a slot the player just
+      // reached; that cue is already fetching by definition, so the only
+      // thing left to warm is the decode.
+      if ((current && current.slot === slot) || !node.el.paused) {
+        node.warmed = true;
+        decodeSlot(slot);
+        return true;
+      }
       node.warmed = true;
       node.el.preload = 'auto';
       // load() is what actually starts the fetch on an element whose preload
@@ -814,6 +824,10 @@ export function createMusic(getContext, getMaster) {
         // use rather than assume it.
         mode: onBuf ? 'buffer' : 'element',
         decoded: [...buffers.keys()],
+        // Which cues warm() has already sent for — the background prewarm in
+        // main.js is graded through this (deferboot.mjs), because "the file
+        // is on the device before its screen asks" cannot be seen in pixels.
+        warmed: [...nodes.entries()].filter(([, n]) => n.warmed).map(([k]) => k),
         wanted,
         wired: Object.entries(MANIFEST).filter(([, c]) => c.src).map(([k]) => k),
         missing: Object.entries(MANIFEST).filter(([, c]) => !c.src).map(([k]) => k),

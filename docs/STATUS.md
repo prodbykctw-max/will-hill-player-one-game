@@ -119,6 +119,37 @@ localStorage cannot brick boot, and re-encoding the art is off the table
 (WebP q85 visibly damages the dither — measured).
 
 
+### The soundtrack is warm before its screen asks — and the worker stops burning its own cache
+
+Client, at Little 5 Points with the music arriving late: *"music that I
+worked hard to have come on immediately now is delaying... everything needs
+to be ready on my game even if it cost me a little bit of load upfront."*
+Two real causes, both fixed:
+
+**1. Stage cues were NEVER prefetched.** Every cue element is built
+`preload='none'` (deliberate — ten tracks must not race the boot), so a
+cue's download started the moment its screen first asked. Only the MAP cue
+got `warm()` (at 55% of a stage); the stage tracks fetched at stage entry,
+late on any cold cache. Now `backgroundLoad()` warms the whole soundtrack
+behind the art — stage one's cues the moment a run is possible, the other
+seven staggered 900ms apart once the images are done (decodes never stack
+past music.js's own 2-buffer cap). `warm()` grew one guard in the same
+commit: never `el.load()` the cue that is playing — load() RESETS a media
+element and would cut the soundtrack mid-note.
+
+**2. The service worker burned its whole cache on every deploy.** The cache
+NAME embedded the build id, and activate deletes every other-named cache —
+so each of the 13 deploys across 08-18/19 threw away every unchanged plate
+and song and re-fetched ~21 MB. That is why music that had been instant
+went cold repeatedly. The cache is one stable name now (`wh-p1-static`);
+the per-entry purge already evicts exactly the files a new build dropped,
+which is the only eviction hashed names ever needed.
+
+Graded: `deferboot.mjs` B4 (all ten cues warmed on dev, read from
+`music.status().warmed`) and C3 (all ten fetched on the hashed prod build
+with no gesture), ×3 runs; full music suite green (musicbox, loopseam,
+endcue, musiccheck, graphwire, pausemenu).
+
 ### The title shows on its own art — the load went from one wait to none
 
 Client, after watching a fresh visit take ~5 seconds to the title: *"I don't

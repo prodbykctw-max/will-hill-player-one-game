@@ -95,6 +95,17 @@ const BOOT = /\/(eav-|title|enemy|will-hill|moneybag|champagne|ending-)[^/]*\.(w
   ck('B2 the late set lands in __images behind the title', lateIn);
   const jump = await p.evaluate(async () => { await window.__startStage(2); return window.__game.level && window.__game.level.stage.id; });
   ck('B3 __startStage(2) still opens the Underground', jump === 'underground', 'id=' + jump);
+  // The soundtrack prewarm: every cue's element must have been sent for
+  // without any gesture and without its screen ever being reached — the
+  // client's "everything needs to be ready" rule. Staggered at 900ms per
+  // cue, ten cues, so allow a generous window.
+  let warmed = [];
+  await p.waitForFunction(() => {
+    const st = window.__audio && window.__audio.music.status();
+    return st && st.warmed && st.warmed.length >= 10;
+  }, null, { timeout: 30000 }).catch(() => {});
+  warmed = await p.evaluate(() => window.__audio.music.status().warmed);
+  ck('B4 the whole soundtrack is warmed behind the art', warmed.length >= 10, `warmed: ${warmed.join(',')}`);
   await p.close();
 }
 
@@ -103,12 +114,20 @@ const BOOT = /\/(eav-|title|enemy|will-hill|moneybag|champagne|ending-)[^/]*\.(w
   const p = await (await b.newContext({ viewport: { width: 430, height: 932 }, hasTouch: true })).newPage();
   p.on('pageerror', (e) => console.log('  THROWN: ' + e.message));
   const reqs = [];
-  p.on('request', (r) => { if (r.resourceType() === 'image') reqs.push(r.url()); });
+  const mp3s = new Set();
+  p.on('request', (r) => {
+    if (r.resourceType() === 'image') reqs.push(r.url());
+    if (r.url().includes('.mp3')) mp3s.add(r.url().replace(/^.*\//, '').replace(/-[^-]*\.mp3.*$/, ''));
+  });
   await p.goto('http://localhost:5210/', { waitUntil: 'domcontentloaded' });
   // No dev hooks in prod — wait until each late group has been requested.
   const groupsIn = () => ['edgewood', 'underground', 'l5p', 'marta-map'].every((g) => reqs.some((u) => u.includes('/' + g)));
   for (let n = 0; n < 100 && !groupsIn(); n++) await p.waitForTimeout(250);
   ck('C1 prod background load fetches all late groups', groupsIn(), `${reqs.length} image requests`);
+  // The soundtrack prewarm on the real build: ten cues, no gesture, no
+  // screen ever left the title. Staggered 900ms apart behind the images.
+  for (let n = 0; n < 80 && mp3s.size < 10; n++) await p.waitForTimeout(250);
+  ck('C3 prod prewarms the whole soundtrack, no gesture needed', mp3s.size >= 10, `${mp3s.size} cues: ${[...mp3s].join(',')}`);
   const firstLate = reqs.findIndex((u) => LATE.test(u));
   const lastBoot = reqs.reduce((a, u, i) => (BOOT.test(u) ? i : a), -1);
   ck('C2 prod order: boot art first, late art strictly after',
