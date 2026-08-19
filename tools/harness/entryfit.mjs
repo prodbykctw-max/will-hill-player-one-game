@@ -73,14 +73,31 @@ for (const size of SIZES) {
       layerShown: !document.getElementById('entryLayer').hidden,
       howShown: !document.getElementById('pvHow').hidden,
       formShown: !document.getElementById('pvForm').hidden,
+      panelHidden: document.getElementById('panel').hidden,
       vw: innerWidth, vh: innerHeight,
     };
   });
 
-  // ── it is an OVERLAY: the card is up and HOW TO PLAY is live behind it ──
+  // ── IT IS ITS OWN SCREEN — nothing of the panel behind it ──────────────
+  //
+  // ⚠️ THIS CHECK USED TO ASSERT THE EXACT OPPOSITE, and the reversal is the
+  // client's, not a drift. It read "HOW TO PLAY is behind it, not replaced by
+  // it" and required `geo.howShown` — built from his earlier note, "an overlay
+  // over how to play". He then sent a screenshot of the cabinet floating in a
+  // visible HOW TO PLAY panel and said: "it's supposed to be independent from
+  // the how to play... how to play is NOT supposed to be the background of the
+  // contest entry form... the how to play is his own thing, just how they load
+  // on top of one another."
+  //
+  // So the panel is shut underneath the form now and what shows through the
+  // scrim is the game canvas — his home screen, which is what he asked to be
+  // behind it. Asserting the old rule here would hold the code to an
+  // instruction that has been withdrawn.
   check('the sign-up layer is showing', geo.layerShown);
-  check('HOW TO PLAY is behind it, not replaced by it', geo.howShown,
-    JSON.stringify({ how: geo.howShown, form: geo.formShown }));
+  check('it is its own screen — the panel is SHUT behind it', geo.panelHidden,
+    JSON.stringify({ panelHidden: geo.panelHidden, form: geo.formShown }));
+  check('HOW TO PLAY is NOT the background of the form', !geo.howShown,
+    JSON.stringify({ how: geo.howShown }));
 
   // ── it FITS, on both axes, with no overflow ────────────────────────────
   const pl = geo.plate;

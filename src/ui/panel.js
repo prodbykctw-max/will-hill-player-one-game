@@ -161,16 +161,16 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
   // the single thing that decides whether the housing shows — and the URL is
   // assigned once, so switching views never re-decodes it.
   const panelCard = $('panelCard');
-  // ⚠️ ON #panel, NOT ON #panelCard — the sign-up plate moved out of the card.
-  // A custom property inherits, and since the crop turned ENTER CONTEST into
-  // #entryLayer (a SIBLING of the card, not a view inside it) anything set on
-  // the card can no longer reach it. #panel is the common ancestor of both, so
-  // that is where the URLs live now; the `.cabinet` rules still read them from
-  // the card by inheritance exactly as before.
+  // ⚠️ ON #entryLayer ITSELF NOW. These used to be set on #panel, which was
+  // the common ancestor back when the layer lived inside it. The layer is a
+  // top-level element today — #panel is no longer an ancestor at all — so an
+  // inherited custom property set there would never reach it and the plate
+  // would silently render as no background. Set on the element that reads it,
+  // which needs no ancestor to be right.
   const layer = $('entryLayer');
-  if (el) {
-    el.style.setProperty('--entry-plate', `url(${entryPlate})`);
-    el.style.setProperty('--entry-glow', `url(${entryGlow})`);
+  if (layer) {
+    layer.style.setProperty('--entry-plate', `url(${entryPlate})`);
+    layer.style.setProperty('--entry-glow', `url(${entryGlow})`);
   }
   if (panelCard) {
     panelCard.style.setProperty('--cabinet-plate', `url(${cabinetPlate})`);
@@ -237,16 +237,33 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
   const under = () => (flow === 'start' ? 'how' : 'board');
 
   function show(view) {
-    // The sign-up is a LAYER, not a view. `view` still reads 'form' at every
-    // call site — that is the vocabulary the rest of the game speaks — but
-    // what it selects here is the backdrop plus the overlay on top of it.
+    // ── THE SIGN-UP IS ITS OWN SCREEN, WITH THE PANEL SHUT UNDERNEATH ────
+    //
+    // Client: "the contest form is supposed to be independent from the how to
+    // play... how to play is not supposed to be the background of the contest
+    // entry form, and that's what it appears to be... the how to play is his
+    // own thing, just how they load on top of one another."
+    //
+    // It used to pick a BASE VIEW to sit on — `under()`, which is HOW TO PLAY
+    // on the start journey — and open the panel showing it behind a 0.62
+    // scrim. That is exactly what he was looking at and it is gone: the panel
+    // is HIDDEN while the form is up, so what shows through the scrim is the
+    // game canvas, his home screen, which is what he asked to be behind it.
+    //
+    // `view` still reads 'form' at every call site — that is the vocabulary
+    // the rest of the game speaks, and none of those call sites had to change.
+    // What is dismissed is the layer; `notNow` then opens the panel on
+    // whatever actually comes next, so the chain is unchanged and the two
+    // screens merely load one on top of the other.
     const overlay = view === 'form';
-    const base = overlay ? under() : view;
     if (layer) layer.hidden = !overlay;
     const form = $('pvForm');
     if (form) form.hidden = !overlay;
     if (!overlay) $('entryPlate')?.classList.remove('typing');
-    view = base;
+    // ⚠️ THE PANEL IS CLOSED UNDER THE FORM, NOT SHOWING A BASE VIEW. `open`
+    // stays true so Escape and the api still behave; only the element hides.
+    if (el) el.hidden = overlay || !open;
+    if (overlay) return;
     for (const [k, v] of Object.entries(views)) if (v) v.hidden = k !== view;
     // ── THE BOARD IS THE TICKET, NOT A TICKET INSIDE A BOX ───────────────
     //
@@ -900,6 +917,11 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
       if (!open) return;
       open = false;
       el.hidden = true;
+      // ⚠️ THE LAYER IS NOT INSIDE #panel ANY MORE, so hiding the panel no
+      // longer hides it. Closing while the form is up used to remove both at
+      // once by containment; now it has to be said. Missing this leaves the
+      // sign-up card stranded over the game with nothing behind it.
+      if (layer) layer.hidden = true;
       onClose?.();
     },
   };
