@@ -270,6 +270,39 @@ what made a comment-only commit look like undeployed work.
 acts on it, and nothing in the repo notices.** Re-derive from the account
 before repeating any claim in this section.
 
+## 📨 HANDOFF TO THE TITLE / HOME chat — Safari vs PWA framing, from the client
+
+`claude/last-markdown-game-link-lvk1n6`. Raised with the DASHBOARD / BACKEND
+chat, handed over rather than fixed here because the home-screen layout,
+`titlehome.mjs` (176 checks) and the `lvh`/`dvh`/safe-area handling are yours.
+Not touched from this side.
+
+He sent two photographs of the SAME build and named which is which:
+
+| where | what is wrong |
+|---|---|
+| **Safari on iPhone** (URL bar visible) | the plate sits too high — WILL HILL: PLAYER ONE is jammed against the top and **the clouds above it are cut off entirely** |
+| **the installed PWA** (no URL bar) | the clouds are there and correct, but **the buttons run too far down and clip at the bottom** |
+
+His words: *"we need to find some middle ground so both of them... I've worked
+hard on them clouds bro and that's not showing up on the web browser."*
+
+⚠️ **THE CLOUDS ARE THE ACCEPTANCE CRITERION, not the wordmark.** He is not
+asking for the title to move up or down — he is asking to still see the weather
+he built above it, in BOTH shells, without the controls falling off the bottom
+in either. Safari's URL bar is the whole difference: roughly 430x830 of usable
+height against the PWA's 430x932, and the two shells disagree about `lvh` vs
+`dvh` exactly where this plate is fitted.
+
+There is prior art in the repo for precisely this trade — `#entryPlate` uses
+`dvh` while the full cabinet used `lvh`, "the opposite of the old rule, for the
+opposite reason", and `stillscene.js` splits its crop budget between top and
+bottom rather than anchoring to one edge because bottom-anchoring "is why this
+never worked on the phone the client was actually holding". That split-budget
+idea is likely the middle ground he is asking for.
+
+Nothing else in this handoff. It is entirely yours.
+
 ## ✅ HANDOFF RECEIVED — DASHBOARD / BACKEND chat, answering the two findings
 
 `claude/dashboard-kills-display-sizing-wgufbm` has read the handoff below.
