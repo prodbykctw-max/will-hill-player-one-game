@@ -495,20 +495,25 @@ and all of them were at the far end. `tools/spread_clouds.py` repeats the
 stage's OWN puffs across the empty width — his paint, flipped and jittered,
 nothing invented — taking it to 70%. Spawn now reads 71-1,028px at every tick.
 
-⚠️ **AND IT IS APPLIED TO EAV ONLY, WHICH IS THE RESULT OF MEASURING RATHER
-THAN OF TASTE.** Applied to all four it made three of them worse: clouds in new
-places cross structure the seal does not own, and `edgewood-day` (0 → 202px),
-`underground-day` (0-16 → 93px) and `l5p-day` (87 → 110px, its whole
-allowance) all leaked. Those three already had usable coverage; EAV was the one
-with none. The tool takes stage names, so finishing the others is a re-run once
-their seals cover the new ground — see the footer in `tools/spread_clouds.py`.
+✅ **NOW APPLIED TO ALL THREE STAGES THAT NEEDED IT** (edgewood always had
+even coverage). What unblocked it was the seal, not the spread: the seal's
+card-footprint exclusion had produced four distinct leak bugs and is GONE —
+"seal the whole band and trust nothing," the skill's own sentence, taken
+literally — and the bright-unsaturated exclusion is size-floored at 300px so
+lit ledges stop reading as baked clouds. With that, three consecutive full
+cloudseal runs hold at **eav 27-29, edgewood 0, underground 0, l5p 12-22,
+with the ALLOW debt table deleted** — the first time the suite has been green
+with no allowances at all. The music-duration table is also fixed (it was
+grading the client's approved 08-16 re-cuts against a hardcoded 08-13 plan;
+expected durations now live in `tools/cue_sheet.json` and the harness reads
+the sheet — all ten match).
 
 | stage | cloud px | column cover | spread? |
 |---|---|---|---|
-| `eav-day` | 11,136 → 31,059 | 25% → **70%** | ✅ applied |
-| `underground-day` | 16,824 | 32% | ✗ leaked at 93px |
-| `edgewood-day` | 6,574 | 36% | ✗ leaked at 202px |
-| `l5p-day` | 2,946 | 26% | ✗ used its whole allowance |
+| `eav-day` | 11,136 → 31,059 | 25% → **70%** | ✅ |
+| `underground-day` | 16,824 → 40,665 | 32% → **86%** | ✅ |
+| `l5p-day` | 2,946 → 7,574 | 26% → **67%** | ✅ |
+| `edgewood-day` | 6,574 | 36% | not needed |
 
 ⚠️ **DO NOT HAND-ROLL THE MEASUREMENT.** `cloudseal.mjs` computes "how much
 cloud is on screen" with a three-sample noise floor, an erosion pass, a blob

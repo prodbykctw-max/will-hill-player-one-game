@@ -1035,7 +1035,7 @@ const STAGE_DEFS = [
           // baked because its ring is 47% structure — it is the cloud behind
           // the left block, and lifting a cloud a building is standing in front
           // of is how you get a cloud in front of the building.
-          { key: 'clouds', img: ugdClouds, depth: 0.02, drift: -0.030, span: [0.220, 0.949] },
+          { key: 'clouds', img: ugdClouds, depth: 0.02, drift: -0.030, span: [0.015, 0.980] },
           // ⚠️ THE SEAL, AND ITS TWO FIELDS DO TWO DIFFERENT JOBS. `depth: 0.5`
           // is the BASE's own depth, which is what makes this register with the
           // base's copy of the same pixels to the pixel, forever. Its POSITION
@@ -1240,7 +1240,7 @@ const STAGE_DEFS = [
           // The one card with NO night counterpart: the night plate's sky is a
           // black band with nothing in it to lift. Farthest thing in the
           // picture, so it gets the smallest depth and barely moves.
-          { key: 'clouds', img: l5pDayClouds, depth: 0.02, drift: -0.035, span: [0.178, 0.764] },
+          { key: 'clouds', img: l5pDayClouds, depth: 0.02, drift: -0.035, span: [0.000, 0.959] },
           // The sky band's static furniture, repainted over the drifting
           // clouds so weather passes BEHIND it. depth 0.5 is BASE_DEPTH:
           // at the base's own rate it registers with the base's copy to

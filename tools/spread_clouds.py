@@ -2,9 +2,12 @@
 """
 Spread a stage's existing cloud puffs across the whole plate width.
 
-⚠️⚠️ THIS IS NOT APPLIED TO ANY SHIPPED CARD, ON PURPOSE. It works, it is
-measured, and running it makes the game WORSE until the seal is fixed. Read the
-"WHY IT IS NOT APPLIED" section at the bottom before running it with --write.
+✅ APPLIED to eav-day, underground-day and l5p-day (edgewood-day already had
+even coverage). The seal that used to make this unshippable is fixed — it
+excludes nothing now and the cloudish exclusion is size-floored — and with it
+three cloudseal runs hold at eav 28 / edgewood 0 / underground 0 / l5p 21-22
+with NO allowance table. The "WHY IT IS NOT APPLIED" footer below is kept as
+the history of why it once could not ship.
 
 
 WHAT THIS FIXES, IN THE CLIENT'S WORDS: *"I wanna figure out how to get the

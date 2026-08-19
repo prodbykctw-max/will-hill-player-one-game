@@ -82,6 +82,18 @@ CFG = {
     'l5p-day': {
         'base': 'l5p-day-base.webp', 'card': 'l5p-day-clouds.webp',
         'sky_frac': 0.40,
+        # ⚠️ RAISED FROM THE 0.55 DEFAULT FOR ONE MEASURED REASON. This plate
+        # has a dark BLUE roofline at plate x~300-355, y73-85 that sat in the
+        # classifier's blind spot: value 0.54-0.65 (too bright for `darkline`)
+        # and blue-tinted (so `~blueish` excluded it as sky). The seal came
+        # out empty over real masonry, the clouds card crosses it 444px deep,
+        # and cloudseal reported it for days as l5p's residual leak — found by
+        # muting every card and watching the leak not move, which is the
+        # is-it-base test. The skill's rule decides the threshold direction:
+        # where the sky test and the structure test disagree, SEAL — a cloud
+        # sealed by mistake merely stops drifting; a building freed by mistake
+        # is the bug.
+        'dark_v': 0.66,
     },
     'underground-day': {
         'base': 'underground-day-base.webp', 'card': 'underground-day-clouds.webp',
@@ -519,40 +531,24 @@ def seal(name, cfg, rgb, healed, grown, base_new, sky_rows, H, W, write,
     # swaying card moves, so a static seal copy of a tree crown would double
     # against it at full sway amplitude. So swaying cards keep the 5px skirt
     # and everything else is taken at the alpha it actually has.
-    # ⚠️ AND IT MAY ONLY DEFER TO A CARD THAT CANNOT MOVE.
+    # ⚠️ THE SEAL EXCLUDES NOTHING. `others` IS GONE.
     #
-    # The skirt above is half the rule. The other half: a card away from
-    # BASE_DEPTH (0.50) gets an offset that grows with the camera, so it slides
-    # off the ground the seal was told to leave to it and a drifting cloud
-    # shows through the gap. Same fault as Fault E in docs/NEXT_CHAT.md, one
-    # level down.
+    # Four generations of exclusion logic, four leaks the client could see:
+    #   1. every card's footprint, dilated 5px  -> ground nothing covered (eav 104px)
+    #   2. sway-aware dilation                  -> cards off BASE_DEPTH slid away (341px)
+    #   3. seal-under-movers, defer to 0.50     -> feathered rims uncovered (l5p, brick)
+    #   4. sway-first ordering                  -> swaying tree ground exposed (eav 341px, at spawn)
     #
-    # Caught by widening the cloud cards: with clouds newly reaching the left
-    # of the eav plate the leak jumped to 341px in one 301px blob, on ground
-    # owned by `tree` — depth 0.81, travels ~15px.
-    facts = card_facts(name)
-    others = np.zeros((H, W), bool)
-    stem = cfg['card'].replace('-clouds.webp', '')
-    deferred, sealed_under = [], []
-    for f in sorted(BG.glob(f'{stem}-*.webp')):
-        if f.name in (cfg['base'], cfg['card']) or f.name.endswith('-skystruct.webp'):
-            continue
-        im = Image.open(f)
-        if im.size != (W, H) or 'A' not in im.getbands():
-            continue
-        key = f.name[len(stem) + 1:-5]
-        depth, sways = facts.get(key, (0.5, False))
-        if abs(depth - 0.5) > 1e-9:
-            sealed_under.append(f'{key}@{depth}')
-            continue
-        # >32, not >128: a card's feathered rim is still that card's ground.
-        own = np.array(im.getchannel('A')) > 32
-        if sways:
-            own = ndimage.binary_dilation(own, iterations=5)
-        others |= own
-        deferred.append(key + ('~' if sways else ''))
-    print(f'  seal defers to: {", ".join(deferred) or "nothing"}')
-    print(f'  seals UNDER (they move): {", ".join(sealed_under) or "nothing"}')
+    # The reasoning that ends it: the seal is a COPY OF THE BASE, drawn at
+    # BASE_DEPTH — the base's own offset — so wherever it lands it shows
+    # exactly what the base already shows. A card drawn after it covers it; a
+    # card that sways or slides shears against it precisely as it has always
+    # sheared against the base itself. Sealing under ANY card changes nothing
+    # at rest or in motion; excluding a card's footprint only ever opens a
+    # hole for a drifting cloud. The skill said it before any of this:
+    # "Trust no other card's footprint. Seal the whole band and trust
+    # nothing." This is that sentence, finally taken literally.
+    print('  seal defers to: nothing — the whole band is sealed')
     band = np.zeros((H, W), bool)
     band[:sky_rows] = True
     # Everything blue-ish stays OUT of the overlay even where the flood
@@ -563,14 +559,26 @@ def seal(name, cfg, rgb, healed, grown, base_new, sky_rows, H, W, write,
     r2, g2, b2 = (rgb[..., 0].astype(int), rgb[..., 1].astype(int),
                   rgb[..., 2].astype(int))
     blueish = (b2 > r2 + 8) & (b2 > g2 + 2)
+    # ⚠️ cloudish IS SIZE-FLOORED, because "bright and unsaturated" is a baked
+    # cloud AND a sunlit ledge — the pale-stone-pier trap from the skill, hit
+    # here a second time. Measured on these plates the two are cleanly
+    # separable by COMPONENT SIZE: real baked puffs run 800-11,000px, while
+    # lit rooflines and window glints are hundreds of specks under 300px
+    # (l5p-day: 224 of 242 components; eav-day: 840 of 857). Only blobs big
+    # enough to be weather are excluded from the seal; the specks are
+    # structure and get sealed, which is where l5p's stubborn 82px leak lived.
     cloudish = (v2 > 0.60) & (s2 < 0.32)
+    cl_lbl, cl_n = ndimage.label(cloudish, structure=np.ones((3, 3)))
+    if cl_n:
+        cl_sizes = ndimage.sum(cloudish, cl_lbl, np.arange(1, cl_n + 1))
+        cloudish = np.isin(cl_lbl, np.arange(1, cl_n + 1)[cl_sizes >= 300])
     # Wires AA'd against bright sky come out blue-tinted, so the hue rule
     # alone dropped them — and the wires are half the overlay's point. A
     # pixel clearly DARKER than sky is structure whatever its hue.
-    darkline = v2 < 0.55
+    darkline = v2 < cfg.get('dark_v', 0.55)
     struct = (band & (darkline | ~blueish)
               & ~ndimage.binary_dilation(cloudish, iterations=2)
-              & ~others & ~scrub)
+              & ~scrub)
     # Drop lone specks (dither survivors) but keep wires: wires are long.
     lbl2, n2 = ndimage.label(struct, structure=np.ones((3, 3)))
     if n2:
