@@ -59,7 +59,7 @@ Pages is) serves `index.html` for the directory, so the URL the client gets is
 **Graded** — they end in `ALL n PASS` or `FAILED: <checks>`, and a sweep can
 read them mechanically:
 
-`barescars` · `betweenscreens` · `btnglow` · `ceiling` · `cloudseal` · `daylamps` · `endcue` · `entryfit` · `entrypaths` · `finishrun` · `howpage` · `idleflex` · `introorder` ·
+`barescars` · `betweenscreens` · `btnglow` · `ceiling` · `cloudseal` · `daylamps` · `deferboot` · `endcue` · `entryfit` · `entrypaths` · `finishrun` · `howpage` · `idleflex` · `introorder` ·
 `loopbench` · `loopseam` · `musicbox` · `outbox` · `todlive` · `optionsmenu` · `padlift` · `panelnav` · `pausemenu` · `relaytod` ·
 `share` · `stageflag` · `titlefit` · `titlehome` · `titleintro`
 
@@ -419,7 +419,8 @@ drifts into grading last month's product and nobody notices.
 | `joinshot` | plate joins |
 | `titlefit` | the title card fits every viewport — and reaches the head AND foot of it, with no background row at either end (the installed-app band) |
 | `barescars` | the intro's sky is clean where the lettering will land: as textured as the belt beside it, with no letter-shaped ghost |
-| `cloudseal` | weather passes BEHIND the buildings on all four day stages — and is still visible. ⚠️ It TRAVELS now: five camera positions from spawn to the finish line. It used to measure at spawn only, where every card's offset is zero by construction, so it was green throughout the weeks the client was photographing the bug. It also reports how many samples it had to discard because the camera moved mid-grab, and carries a named `ALLOW` ratchet for two pre-existing leaks on `eav` and `l5p` that may only go down |
+| `cloudseal` | weather passes BEHIND the buildings on all four day stages — and is still visible. ⚠️ It TRAVELS now: five camera positions from spawn to the finish line. It used to measure at spawn only, where every card's offset is zero by construction, so it was green throughout the weeks the client was photographing the bug. It reports how many samples it had to discard because the camera moved mid-grab, and re-measures a failing tick (min of ≤3) because probe phase spikes were measured at 30× the real leak. The `ALLOW` debt table is EMPTY now — the seal excludes nothing and every stage is held to a bar of 60px |
+| `deferboot` | the first-load split: the boot fetches title + stage one only, stages 2-4 and the MARTA map arrive behind the title, and the ride HOLDS at the platform instead of entering a stage bare when the background load is late — proven with the art blocked at the network, then released. Request-order graded on dev AND the hashed prod build (needs `vite preview --port 5210` beside the dev server) |
 | `endcue` | each finish line hands to the NEXT scene's music, with no restart |
 | `howpage` | HOW TO PLAY is ONE page of ✕/✓ pairs, its control badges are the game's OWN pads compared by computed style — no ✓ without its ✕ (the fault that killed the first one-pager), the champagne frames really differ at the bags, the copy stays under a word ceiling, and it fits one screen at 430x932 AND 320x568 |
 | `loopseam` | a looping cue's wrap is seamless — by decoded buffer now, by the two-element lap only when a cue is still on an element |

@@ -88,15 +88,20 @@ never light. What changed on 2026-08-18 was cache VALIDITY — 3.86 MB of shippe
 assets took new content hashes that day, the heaviest of them in boot pass 1,
 and a content hash is the URL. See `docs/LESSONS.md` #25.
 
-⚠️ **STILL OPEN, AND UNCLAIMED:** ~2.2 MB could come off the FIRST load by
-deferring stages 2-4 and the MARTA map (the worker cannot help a first-ever
-visit). Keep the ending art in the boot — 0.36 MB guarding the one screen that
-must never be wrong. Failure modes are already traced: `martamap.js:172` calls
-`ctx.drawImage(map, 0, 0)` **unguarded** and throws every frame if the map is
-late — worth fixing on its own account — while `backdrop.js:272` already has
-`if (!img) return;` so a late stage plate merely draws no backdrop. Gate the
-ride on the next stage's art and hold on the map rather than enter a stage
-bare. Needs its own harness.
+✅ **DONE — first-load deferral** (BACKDROPS / DEPLOY chat,
+`claude/contest-reg-image-crop-d4y6c0`, claimed in MERGE_STATE first). The
+boot now loads the title, sprites, props, ending art and **stage one only**;
+stages 2-4 and the MARTA map (~2.2 MB) fetch behind the title via
+`loadLate()` in `main.js` — idempotent, retrying, and guarded against the
+time-of-day swap superseding a flight in the air. The ride HOLDS at full
+progress (`stageArtReady()` + map check in update's `riding` branch) rather
+than entering a stage bare, and re-kicks the retry every held tick.
+`__startStage` is deferral-aware, so harnesses that jump to stage 3 wait for
+the art the same way a player does. One stale note from the original writeup:
+`martamap.js` draw was ALREADY guarded (`if (!map || !map.width) return`) by
+the time this was built — no throw existed to fix. Graded by
+`tools/harness/deferboot.mjs` (9 checks × 3 runs: blocked-network hold and
+release, request-order proof on dev AND the hashed prod build).
 
 ## ⚠️ "BEHIND" IS NOT A DEBT — it cost him a round
 

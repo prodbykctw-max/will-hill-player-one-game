@@ -99,9 +99,11 @@ fetching 461 KB against the title art, even with MUSIC off. The loading
 early-return now sits above it; verified on a throttled connection: zero
 `.mp3` requests until `screen === 'title'`. All audio harnesses green
 (`musicbox` 20, `endcue` 11, `loopseam` 9, `graphwire`, `pausemenu` 13).
-⚠️ `musiccheck`'s "4 MISMATCHED" durations **pre-exist on clean main** —
-baselined by stashing; a cue-sheet bookkeeping drift, not a regression, still
-open.
+`musiccheck`'s "4 MISMATCHED" durations were cue-sheet bookkeeping drift —
+the client re-cut four cues on 2026-08-16 and the harness table still held
+the 08-13 numbers. Fixed in `0fab986`: `cue_sheet.json` now carries a `dur`
+per cue measured from the shipped files and the harness reads it; all ten
+match.
 
 **3. A boot audit found one black-screen landmine**: `audio.js`'s `ensure()`
 built the audio graph OUTSIDE its try, synchronously at import — a Safari
@@ -116,6 +118,25 @@ boot-time leaderboard call, no fonts/analytics/service worker, corrupt
 localStorage cannot brick boot, and re-encoding the art is off the table
 (WebP q85 visibly damages the dither — measured).
 
+
+### First-load deferral — the boot buys the title and stage one
+
+Client: *"My goal is to have an instant load every visit."* The first-visit
+half (the worker cannot help a first-ever visit): the boot manifest now
+carries the title, sprites, props, ending art and **stage one only**; stages
+2-4 and the MARTA map (~2.2 MB of the 9.6 MB boot) fetch behind the title
+via `loadLate()` — idempotent, self-retrying (3s cooldown), and guarded so a
+time-of-day swap mid-flight discards the stale half instead of landing it.
+The `?stage=` dev flag's target rides along in the boot set, so the flag
+still works. The safety is the **platform hold**: update()'s `riding` branch
+gates `startStage` on `stageArtReady()` + the map, pinning the ride at full
+progress and keeping the retry warm rather than entering a stage backdrop.js
+would draw bare. `__startStage` is deferral-aware for the harnesses. The
+repeat-visit half is the service worker already live: it caches the
+background fetches as they land, so visit two serves everything from cache.
+Graded by `tools/harness/deferboot.mjs` — 9 checks × 3 runs: title boots
+with stage-2 art unreachable, ride holds then releases on unblock, and
+boot-before-late request order proven on dev AND the hashed prod build.
 
 ### The L5P seam was two corrupt pixels, not a repeat problem
 

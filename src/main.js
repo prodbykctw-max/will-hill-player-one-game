@@ -357,7 +357,15 @@ if (import.meta.env.DEV) {
   // already happened once, to a harness that was then quietly measuring a
   // frozen loop. Anything that wants stage four gets the same door the game
   // uses.
-  window.__startStage = startStage;
+  // Deferral-aware since the first-load split: stages outside the boot set
+  // load AFTER the title, and a harness jumping straight to stage 3 must get
+  // the same held door the ride gives a player — not a bare stage. Returns a
+  // promise when it has to wait; page.evaluate awaits that transparently.
+  window.__startStage = (i) => {
+    const flight = loadLate();
+    if (flight && !stageArtReady(i)) return flight.then(() => startStage(i));
+    startStage(i);
+  };
   // The loaded image set. A card whose file failed to resolve is SILENTLY
   // skipped by the renderer — it simply never appears — so a harness checking
   // an assembly needs to be able to ask whether the art is actually there
@@ -830,6 +838,9 @@ function nextStage() {
     state.rideTo = state.stageIndex + 1;
     state.screen = 'riding';
     state.screenT = 0;
+    // If the background load failed earlier, the ride is 2.5 seconds of
+    // retry time before the gate at the end would have to hold.
+    loadLate();
     return;
   }
   state.screen = 'complete';
@@ -1098,7 +1109,19 @@ function update() {
   // actually make. See render/martamap.js.
   if (state.screen === 'riding') {
     state.screenT++;
-    if (state.screenT >= RIDE_TICKS) startStage(state.rideTo);
+    if (state.screenT >= RIDE_TICKS) {
+      // THE PLATFORM HOLD. The destination's art loads in the background
+      // from the title onward (FIRST-LOAD DEFERRAL); a player who outruns
+      // it — or whose load failed and is mid-retry — waits on the map screen
+      // at full progress rather than entering a stage with no city behind
+      // it. loadLate() is idempotent; held ticks just keep the retry warm.
+      if (stageArtReady(state.rideTo) && images.martamap) {
+        startStage(state.rideTo);
+      } else {
+        state.screenT = RIDE_TICKS;
+        loadLate();
+      }
+    }
     return;
   }
 
@@ -1990,6 +2013,82 @@ const stagePlates = (stages) => {
 };
 Object.assign(imageManifest, stagePlates(STAGES));
 
+// ── FIRST-LOAD DEFERRAL: THE BOOT BUYS THE TITLE AND STAGE ONE ───────────
+//
+// ~2.2 MB of the boot was art nobody can see before the first ride: stages
+// 2-4's plates and cards, and the MARTA map. The boot now loads everything
+// EXCEPT those keys; the rest is fetched quietly the moment the title is up,
+// so by the first stage clear it has long since arrived — and on a
+// production visit the service worker caches it as it lands, which is what
+// makes the SECOND visit instant as well. The ending art stays in the boot
+// on purpose: it is 0.36 MB and the moment it is needed is the worst moment
+// to discover it missing.
+//
+// The ?stage= dev flag boots straight into a later stage, so whichever stage
+// it names rides along in the boot set — the flag keeps working and
+// tools/harness/stageflag.mjs keeps grading it.
+//
+// The safety is the platform hold in update()'s 'riding' branch: a player
+// who outruns the background load waits on the map screen instead of
+// stepping into a stage backdrop.js would happily draw with no city in it.
+const BOOT_STAGES = new Set([0, startStageIndex()]);
+const LATE_KEYS = new Set(['martamap']);
+STAGES.forEach((s, i) => {
+  if (BOOT_STAGES.has(i)) return;
+  LATE_KEYS.add(s.id);
+  for (const c of s.bg.cards || []) LATE_KEYS.add(`${s.id}_${c.key}`);
+});
+const bootManifest = {};
+for (const [k, url] of Object.entries(imageManifest)) {
+  if (!LATE_KEYS.has(k)) bootManifest[k] = url;
+}
+
+// The background load. Idempotent and self-healing: call it anywhere it
+// might be needed — at the title, when a ride starts, on every held tick —
+// and it fetches only what is still missing, one flight at a time. A failed
+// flight clears itself (after a short cooldown, so a dead network is not
+// hammered at frame rate) and the next call retries; images.js already
+// gives each file its own timeout and one cache-busted retry per flight.
+//
+// ⚠️ THE TIME-OF-DAY GUARD. applyTimeOfDay() can swap every plate while a
+// late flight is still in the air, and the two halves share manifest KEYS —
+// the renderer looks up `images[stage.id]` either way. A resolved flight
+// therefore only lands entries whose URL is STILL the manifest's answer for
+// that key; a stale half is discarded, exactly as todWant discards the
+// panel's own superseded loads.
+let lateFlight = null;
+let lateRetryAt = 0;
+function loadLate() {
+  if (!images) return null;   // boot pass 2 not done — it kicks this itself
+  const want = {};
+  for (const k of LATE_KEYS) if (!images[k]) want[k] = imageManifest[k];
+  if (Object.keys(want).length === 0) return null;   // everything is in
+  if (lateFlight) return lateFlight;
+  if (performance.now() < lateRetryAt) return null;
+  lateFlight = loadImages(want).then((loaded) => {
+    lateFlight = null;
+    for (const [k, img] of Object.entries(loaded)) {
+      if (imageManifest[k] === want[k]) images[k] = img;
+    }
+  }).catch(() => {
+    lateFlight = null;
+    lateRetryAt = performance.now() + 3000;
+  });
+  return lateFlight;
+}
+
+// Is stage i's full image set — base plate plus every card — actually
+// loaded? Key shapes mirror stagePlates exactly. backdrop.js skips a
+// missing image SILENTLY, so "it renders" proves nothing; this asks.
+function stageArtReady(i) {
+  const s = STAGES[i];
+  if (!s || !images || !images[s.id]) return false;
+  for (const c of s.bg.cards || []) {
+    if (!images[`${s.id}_${c.key}`]) return false;
+  }
+  return true;
+}
+
 // ── SWAPPING DAY FOR NIGHT WITHOUT RESTARTING THE GAME ───────────────────
 //
 // See onTimeOfDayChange. The music keeps playing, the audio graph stays
@@ -2025,14 +2124,16 @@ function applyTimeOfDay() {
   }).catch(() => false);              // keep the half that still works
 }
 
-// ── TWO-STAGE LOAD: THE PICTURE, THEN THE GAME ─────────────────────────
+// ── THREE-STAGE LOAD: THE PICTURE, THE GAME, THEN THE REST ─────────────
 //
 // Everything used to arrive in one pass, so the first paint of the whole
 // product was a black rectangle for as long as the slowest stage plate took.
 // The title art is a handful of files and it is the only thing anybody looks
 // at during the wait, so it is fetched on its own first and handed to the
-// loading screen (bootPlate) while the remaining plates, cards and sprites
-// come down behind it.
+// loading screen (bootPlate); pass 2 is the BOOT manifest — sprites, props,
+// stage one, the ending — which is what PRESS START actually requires; and
+// stages 2-4 plus the MARTA map come down behind the title via loadLate()
+// (see FIRST-LOAD DEFERRAL above).
 //
 // The second pass re-lists the title images deliberately: loadImages resolves
 // a whole manifest to one object and `images` has to end up holding every key
@@ -2074,10 +2175,14 @@ loop.start();
 loadImages({ ...TITLE_IMAGES })
   .then((first) => { bootPlate = first.title_base || null; })
   .catch(() => { /* the loader just stays black — not worth failing boot for */ })
-  .then(() => loadImages(imageManifest))
+  .then(() => loadImages(bootManifest))
   .then((loaded) => {
     images = loaded;
     showTitle();
+    // Stages 2-4 and the MARTA map, behind the title — see the FIRST-LOAD
+    // DEFERRAL block. The player is looking at the title card; nothing on
+    // screen needs any of it yet, and the ride gate holds if they outrun it.
+    loadLate();
     // The TIME OF DAY reload used to leave a breadcrumb here so the panel could
     // be reopened on the settings pane afterwards. There is no reload now, so
     // the panel never closed and there is nothing to restore. One stale key is
