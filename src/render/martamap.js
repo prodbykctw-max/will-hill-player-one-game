@@ -143,7 +143,12 @@ export function createMartaMap(ctx, canvas) {
     ctx.imageSmoothingEnabled = false;
     ctx.fillStyle = '#0b0d09';
     ctx.fillRect(0, 0, w, h);
-    if (!map || !map.width) { ctx.restore(); return; }
+    // ⚠️ No early return when the map is late (it is deferred out of the boot
+    // now — see FIRST-LOAD DEFERRAL in main.js). The route, train and station
+    // names are drawn from their own coordinates, so they ride over the dark
+    // ground and the held screen reads as a train still moving; only the
+    // artwork itself waits for the file. The one thing that must never happen
+    // here is drawImage(undefined) — that guard is at the drawImage.
 
     // ── FRAMING. The map is 1122x1402 of dense detail and the four stations
     // that matter occupy a 215x67 patch of it. Fitting the whole thing to a
@@ -169,7 +174,7 @@ export function createMartaMap(ctx, canvas) {
     ctx.save();
     ctx.scale(zoom, zoom);
     ctx.translate(-camX, -camY);
-    ctx.drawImage(map, 0, 0);
+    if (map && map.width) ctx.drawImage(map, 0, 0);
 
     // TRAVELLED TRACK, lit up behind the train. The map already draws the
     // line; this is the part of it he has covered, so the journey reads as
