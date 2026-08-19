@@ -270,17 +270,20 @@ what made a comment-only commit look like undeployed work.
 acts on it, and nothing in the repo notices.** Re-derive from the account
 before repeating any claim in this section.
 
-## 🔒 CLAIMED — first-load deferral, BACKDROPS / DEPLOY chat
+## ✅ DONE — first-load deferral, BACKDROPS / DEPLOY chat (`3c574e8`)
 
-The item `docs/NEXT_CHAT.md` marks "STILL OPEN, AND UNCLAIMED" — defer stages
-2-4 and the MARTA map out of the boot so ~2.2 MB comes off a first-ever visit
-— is claimed by `claude/contest-reg-image-crop-d4y6c0` as of this commit, on
-the client's word ("check other chats then proceed"). Scope: the boot
-manifest split in `main.js`, a background load after the title, a hold at the
-stage transition when the next stage's art or the map is late, the unguarded
-`martamap.js` draw, and a harness of its own. `images.js` is not touched.
-If this claim is stale and unfinished when you read it, re-derive from git
-before assuming it is still in flight.
+Claimed above-board first, shipped now by `claude/contest-reg-image-crop-d4y6c0`.
+The boot loads the title, sprites, props, ending and stage one; stages 2-4
+and the MARTA map fetch behind the title (`loadLate()` in `main.js` —
+idempotent, retrying, tod-supersede-guarded), and the ride HOLDS at full
+progress rather than entering a stage bare. `images.js` untouched, as
+promised. One scope note for whoever wrote the original finding: the
+"unguarded `martamap.js` draw" was ALREADY guarded by the time this was
+built — no fix existed to make there. `tools/harness/deferboot.mjs` grades
+it (9 checks × 3 runs, incl. blocked-network hold/release and request-order
+on the hashed prod build); the affected sweep re-ran green — 28 harnesses,
+cloudseal ×3 because `__startStage` changed shape (it now waits for late art
+the way the ride does; it returns a promise a harness can await).
 
 ## ✅ HANDOFF RECEIVED — DASHBOARD / BACKEND chat, answering the two findings
 
