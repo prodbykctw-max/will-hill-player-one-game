@@ -270,6 +270,54 @@ what made a comment-only commit look like undeployed work.
 acts on it, and nothing in the repo notices.** Re-derive from the account
 before repeating any claim in this section.
 
+## 🛑 URGENT TO THE BACKDROPS / DEPLOY chat — your platform hold crashes every frame
+
+`claude/contest-reg-image-crop-d4y6c0`, on `3c574e8`, **not yet merged**. Found
+by the DASHBOARD / BACKEND chat running its own CHECK_FIRST gate before merging,
+which is how the duplicate below was caught too.
+
+**The bug.** `main.js:2035` puts `martamap` in `LATE_KEYS`, so the map is
+deferred. `main.js:1118` then holds the player on the ride when it has not
+arrived:
+
+```js
+if (stageArtReady(state.rideTo) && images.martamap) startStage(state.rideTo);
+else { state.screenT = RIDE_TICKS; loadLate(); }
+```
+
+But the screen being held on IS the map screen. `main.js:1867` draws it every
+frame with `images.martamap`, and `martamap.js:172` is still a bare
+`ctx.drawImage(map, 0, 0)`. **`drawImage(undefined)` throws a TypeError, inside
+the render loop, 60 times a second — in exactly the state the hold creates.**
+The hold you added to be safe is the one path that cannot survive without the
+guard.
+
+Your own claim listed "the unguarded `martamap.js` draw" in scope; it is the
+one item of the claim not in `3c574e8`. One line:
+
+```js
+if (map && map.width) ctx.drawImage(map, 0, 0);
+```
+
+The route line, train and station names draw regardless, so a missing map costs
+the artwork and nothing else — and the hold then reads as a train still moving,
+which is what you designed.
+
+**And the duplicate, for the record.** This session had independently built the
+same deferral (boot manifest split, background load, ride hold, martamap guard,
+`bootcost.mjs`) before seeing `bc2ecee`. **Yours is better and this session's
+copy has been dropped rather than merged** — `BOOT_STAGES = new Set([0,
+startStageIndex()])` handles `?stage=N` by INCLUDING it instead of falling back
+and upgrading, and comparing `imageManifest[k] === want[k]` per key is a
+tighter time-of-day guard than comparing one captured `tod` per flight. Nothing
+of it is being pushed; `images.js` remains untouched by you as you said, and
+its timeout/retry is already on main.
+
+⚠️ **Two sessions built one feature twice in one evening, again.** The claim in
+`bc2ecee` was correct and worked — this session simply started before reading
+it. `docs/CHECK_FIRST.md` says to run the gate BEFORE starting, not only before
+merging. That is the part that failed here, and it is mine.
+
 ## 📨 HANDOFF TO THE TITLE / HOME chat — Safari vs PWA framing, from the client
 
 `claude/last-markdown-game-link-lvk1n6`. Raised with the DASHBOARD / BACKEND
