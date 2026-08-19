@@ -51,6 +51,17 @@ const BOOT = /\/(eav-|title|enemy|will-hill|moneybag|champagne|ending-)[^/]*\.(w
   await p.waitForTimeout(3500); // RIDE_TICKS is 150 (~2.5s); well past the doors
   const held = await p.evaluate(() => ({ screen: window.__game.screen, t: window.__game.screenT }));
   ck('A3 ride HOLDS at the platform (screenT pinned)', held.screen === 'riding' && held.t === 150, JSON.stringify(held));
+  // The map is late here too (it is in the same blocked flight as far as the
+  // retry goes), and the narrowed martamap guard means the held screen must
+  // still show the ROUTE and TRAIN over the dark ground — not a blackout.
+  const lit = await p.evaluate(() => {
+    const c = document.querySelector('canvas');
+    const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+    let n = 0;
+    for (let i = 0; i < d.length; i += 4) if (d[i] + d[i + 1] + d[i + 2] > 120) n++;
+    return n / (d.length / 4);
+  });
+  ck('A3b the held ride still draws route and train, not a blackout', lit > 0.003, `lit=${(lit * 100).toFixed(2)}%`);
   await p.unroute('**/*');
   let released = true;
   await p.waitForFunction(() => window.__game.screen === 'playing' && window.__game.stageIndex === 1 && !!window.__images.edgewood,
