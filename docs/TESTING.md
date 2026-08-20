@@ -61,7 +61,7 @@ read them mechanically:
 
 `barescars` · `betweenscreens` · `btnglow` · `ceiling` · `cloudseal` · `daylamps` · `deferboot` · `endcue` · `entryfit` · `entrypaths` · `finishrun` · `howpage` · `idleflex` · `introorder` ·
 `loopbench` · `loopseam` · `musicbox` · `outbox` · `todlive` · `optionsmenu` · `padlift` · `panelnav` · `pausemenu` · `relaytod` ·
-`share` · `stageflag` · `titlefit` · `titlehome` · `titleintro`
+`share` · `stageflag` · `titlefit` · `titlehome` · `titleintro` · `titleshells`
 
 **Report-only** — they print a table or a contact sheet for a human to read,
 and have no pass/fail line at all:
@@ -430,6 +430,7 @@ drifts into grading last month's product and nobody notices.
 | `entrypaths` | a run reaches the board whether they enter before OR after it |
 | `padlift` | the movement pads' height, solidity, seam, and that a press still lights them |
 | `stageflag` | `?relay=1` / `?stage=N` work AND a plain URL is still the player's game |
+| `titleshells` | one build, two shells: the title's clouds show and the wordmark clears the top in Safari (short viewport), the installed PWA (islanded), an iPhone SE and a Pixel — graded from pixels per geometry. Exists because Safari cropped the plate to the wordmark's exact ink row while the PWA framed it perfectly, and every green suite was blind to the difference |
 | `stagesweep` | every screen of every stage, day and night, for background review |
 
 ### Two rules learned the hard way

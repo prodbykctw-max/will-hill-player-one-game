@@ -119,6 +119,27 @@ localStorage cannot brick boot, and re-encoding the art is off the table
 (WebP q85 visibly damages the dither — measured).
 
 
+### Safari and the PWA finally frame the same painting — the clouds show in both
+
+Client, with a photo of each shell: *"we need to find some middle ground so
+both of them... I've worked hard on them clouds bro and that's not showing
+up on the web browser."* The installed app was already correct; Safari (and
+every short browser viewport) cropped the title plate to the wordmark's
+exact ink row — 0-1px of sky, photographing as a clipped title. The cause
+was deliberate history: the fit's top margin was zeroed back when PRESS
+START was PAINTED at a fixed source row and an iPhone SE landed the drawn
+controls on his lettering. Both premises have since expired — the whole
+control block is drawn from the screen's bottom inset now, and the client
+overruled "sky is expendable." Fix in `stillscene.js` fit(): the top keeps
+`min(leftover budget, 110 rows)` — leftover-funded, so when the crop needs
+the whole budget nothing changes (the SE guarantee is intact by
+construction) and the already-correct PWA is untouched. Measured after:
+PWA 84px of sky (unchanged), Safari 39px, ~830-shells 56px, SE 21px, Pixel
+54px — clouds in every shell, wordmark clear of the top in every shell.
+New harness `tools/harness/titleshells.mjs` grades all five geometries from
+pixels (10 checks × 3 runs); titlefit 48, titlehome 176, titleintro 12,
+barescars 8, optionsmenu 31, entryfit 44 all green on top of it.
+
 ### The soundtrack is warm before its screen asks — and the worker stops burning its own cache
 
 Client, at Little 5 Points with the music arriving late: *"music that I

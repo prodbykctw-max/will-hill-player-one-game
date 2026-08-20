@@ -254,23 +254,35 @@ export function createStillScene(ctx, canvas) {
       // margin survives the crop is split 25% top / 75% bottom instead of
       // proportionally, which on the tightest shape measured moves OPTIONS
       // up enough to roughly double the room musicRect has to work with.
-      // ⚠️ ALL OF THE SLACK GOES TO THE BOTTOM, NOT 75% OF IT.
+      // ⚠️ THE CLOUDS GET A FUNDED SEAT, PAID FROM LEFTOVER ONLY.
       //
-      // This used to be a 25/75 split, bought to give the old MUSIC control a
-      // few more pixels. The home page now carries a banner and a 44px control
-      // row laid out from the bottom of the screen (title.js homeLayout), and
-      // on an iPhone SE the measurement is unforgiving: PRESS START's painted
-      // foot landed at screen y627 with only 40px of canvas below it, against
-      // 98px of controls. The stack ended up drawn straight over his
-      // lettering.
+      // History, because this line has now been tuned three times and each
+      // tune was answering a real photograph: it was proportional (44/56),
+      // then 25/75 for the old MUSIC control, then ZERO at the top — "the
+      // sky is the one part of this painting with nothing in it to lose" —
+      // because PRESS START was PAINTED at a fixed source row and an iPhone
+      // SE landed the drawn controls straight over his lettering.
       //
-      // Every row of slack spent above WILL HILL: is a row of pavement not
-      // shown below PRESS START, and the sky above the wordmark is the one
-      // part of this painting with nothing in it to lose. So the top margin
-      // is zero: crop from the top as hard as the budget allows, and the
-      // controls get the room.
+      // Two things have changed under that judgment. PRESS START and OPTIONS
+      // came OFF the plate (homeLayout stacks the whole drawn block from the
+      // screen's bottom inset, over open street — there is no painted
+      // lettering left to collide with). And the client overruled the "sky
+      // is expendable" premise from a Safari photograph that cropped to the
+      // wordmark's exact ink row: "I've worked hard on them clouds bro and
+      // that's not showing up on the web browser." The cloud puffs live in
+      // the rows directly above WILL HILL:, so a zero top margin deletes
+      // exactly the pixels he named.
+      //
+      // So the top now keeps the smaller of the LEFTOVER budget and a
+      // 110-row band (~half of what an uncropped fit shows). Leftover-funded
+      // means the guarantee the SE bought is intact: when the crop needs the
+      // whole budget, leftover is 0 and this is byte-identical to the old
+      // zero-margin fit; the band only appears on phones that had slack
+      // going spare at the bottom. Graded per shell geometry by
+      // tools/harness/titleshells.mjs, clouds and clearance both.
       const leftover = Math.max(0, budget - cropRows);
-      const topMargin = 0;
+      const CLOUD_BAND = 110;
+      const topMargin = Math.min(spareTop, leftover, CLOUD_BAND);
       const offTop = Math.max(0, Math.min(spareTop, cropRows, spareTop - topMargin));
       let dy = -offTop * s;
       // Keep the top of the safe band clear of the status bar / island. This
