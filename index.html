@@ -235,8 +235,13 @@
        18 -> 34px of lift. src/core/input.js hit-tests off
        getBoundingClientRect, so the touch targets travel with them and the
        26px of slop between ◀ and ▶ is untouched. */
-    #tL, #tR { bottom: calc(34px + env(safe-area-inset-bottom, 0px)); width: 70px; height: 70px; }
-    #tL { left: calc(16px + env(safe-area-inset-left, 0px)); }
+    /* Client, second round of placement: "lift both of the arrow buttons up
+       a little bit" — 34 -> 48px — and "the left arrow a little more to the
+       left, away from the right arrow" — the deliberate 4px seam opens to
+       14px. input.js's 26px slop still owns the whole widened seam, so there
+       is still no dead strip a thumb can rest in. */
+    #tL, #tR { bottom: calc(48px + env(safe-area-inset-bottom, 0px)); width: 70px; height: 70px; }
+    #tL { left: calc(6px + env(safe-area-inset-left, 0px)); }
     #tR { left: calc(90px + env(safe-area-inset-left, 0px)); }
     /* ⚠️ `:not(.on)`, and it is doing real work. `#touch .pad.on` is one id
        and two classes; a plain `#tL, #tR` is one id and NO class, so the base
@@ -254,7 +259,10 @@
       color: rgba(255,255,255,0.96);
     }
 
-    #tJump, #tDash { right: calc(16px + env(safe-area-inset-right, 0px)); }
+    /* Split since the client asked JUMP "up and into the left a little
+       more": JUMP carries its own right offset now; DASH keeps the edge. */
+    #tDash { right: calc(16px + env(safe-area-inset-right, 0px)); }
+    #tJump { right: calc(32px + env(safe-area-inset-right, 0px)); }
     /* ⚠️ `#touch .pad#tJump:not(.on)`, NOT `#tJump` — AND THE PLAIN VERSION
        SILENTLY DID NOTHING FOR THE WHOLE PROJECT.
 
@@ -283,7 +291,9 @@
        trusting two copies of a value. It is the check that would catch this
        happening again. */
     #tJump {
-      bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+      /* 18 -> 34: "jump button up... a little more." DASH rises the same
+         16px below, or JUMP's crown would cross into its footprint. */
+      bottom: calc(34px + env(safe-area-inset-bottom, 0px));
       width: 82px; height: 82px;
     }
     #touch .pad#tJump:not(.on) {
@@ -293,6 +303,10 @@
     }
     #tJump.on { background: rgba(120,220,255,0.32); border-color: rgba(120,220,255,0.85); }
     #tDash {
+      /* Client: "the dash remains where it is." It can: both pads are
+         circles, and with JUMP's 16px leftward step their centres sit 75px
+         apart against 73px of combined radius — clear, by geometry, not by
+         eye. */
       bottom: calc(114px + env(safe-area-inset-bottom, 0px));
       width: 64px; height: 64px;
     }
@@ -1416,9 +1430,13 @@
     @media (orientation: landscape) and (max-height: 560px) {
       /* Lifted here too, proportionally — 10 -> 20px. Landscape has less
          height to give away than portrait, so the pair rises half as far. */
-      #tL, #tR { width: 64px; height: 64px; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); }
+      /* The second placement round rides along at half scale: landscape has
+         less height to spend, so lifts are ~8px where portrait got 16. The
+         widened ◀▶ seam and JUMP's leftward step carry over unscaled. */
+      #tL, #tR { width: 64px; height: 64px; bottom: calc(28px + env(safe-area-inset-bottom, 0px)); }
+      #tL { left: calc(6px + env(safe-area-inset-left, 0px)); }
       #tR { left: calc(84px + env(safe-area-inset-left, 0px)); }
-      #tJump { width: 78px; height: 78px; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); }
+      #tJump { width: 78px; height: 78px; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); }
       #tDash { width: 62px; height: 62px; bottom: calc(96px + env(safe-area-inset-bottom, 0px)); }
     }
   </style>

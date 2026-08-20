@@ -251,6 +251,13 @@ export function createHaptics() {
     // than from a call — which is the only case where turning the setting off
     // has to physically remove something.
     isSwitchRoute: () => !canVibrate && (isIOS || force),
+    // ⚠️ NOT THE SAME QUESTION AS isSwitchRoute. That one also requires
+    // vibrate() to be absent, which desktop Chromium fails (it HAS the API),
+    // so ?haptest=1 could never exercise anything gated on it — measured as
+    // the canvas overlay layer silently not existing under the harness. This
+    // is attach()'s own precondition, verbatim: would a switch actually be
+    // wired if asked. main.js's canvas-button overlays gate on it.
+    wantsSwitches: () => (isIOS || force),
 
     setEnabled(v) {
       enabled = !!v;

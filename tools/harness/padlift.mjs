@@ -30,6 +30,7 @@ const geo = await p.evaluate(() => {
     const cs = getComputedStyle(el);
     out[id] = {
       gap: Math.round(window.innerHeight - r.bottom),
+      right: Math.round(window.innerWidth - r.right),
       w: Math.round(r.width), h: Math.round(r.height),
       bg: cs.backgroundColor, border: cs.borderTopColor, color: cs.color,
     };
@@ -44,16 +45,30 @@ const alpha = (c) => { const m = /rgba?\([^)]*?([\d.]+)\)/.exec(c); return c.sta
 
 check('the movement pair sits higher than JUMP does',
   geo.tL.gap > geo.tJump.gap, `L/R ${geo.tL.gap}px vs JUMP ${geo.tJump.gap}px`);
-check('lifted to 34px, up from 18', geo.tL.gap === 34 && geo.tR.gap === 34,
+// Second placement round, his words: "lift both of the arrow buttons up a
+// little bit as well" (34 -> 48), "jump button up into the left a little
+// more" (18 -> 34, edge 16 -> 32), and "the dash remains where it is."
+check('arrows lifted to 48px, up from 34', geo.tL.gap === 48 && geo.tR.gap === 48,
   `${geo.tL.gap} / ${geo.tR.gap}`);
-check('JUMP has NOT moved — he asked for the nav pair only', geo.tJump.gap === 18,
-  `${geo.tJump.gap}px`);
+check('JUMP came up and stepped left', geo.tJump.gap === 34 && geo.tJump.right === 32,
+  `gap ${geo.tJump.gap}px, right edge ${geo.tJump.right}px`);
+check('DASH stayed exactly where it was', geo.tDash.gap === 114 && geo.tDash.right === 16,
+  `gap ${geo.tDash.gap}px, right edge ${geo.tDash.right}px`);
+check('and the two circles still clear each other', (() => {
+  const jc = { x: geo.tJump.right + geo.tJump.w / 2, y: geo.tJump.gap + geo.tJump.h / 2 };
+  const dc = { x: geo.tDash.right + geo.tDash.w / 2, y: geo.tDash.gap + geo.tDash.h / 2 };
+  return Math.hypot(jc.x - dc.x, jc.y - dc.y) >= geo.tJump.w / 2 + geo.tDash.w / 2;
+})(), 'centre distance vs combined radius');
 check('the face is solider than the old 0.52', alpha(geo.tL.bg) >= 0.75,
   `${geo.tL.bg} -> alpha ${alpha(geo.tL.bg)}`);
 check('the gold edge is brighter than the old 0.34', alpha(geo.tL.border) >= 0.5,
   `${geo.tL.border}`);
 check('both pads got it, not just one', geo.tL.bg === geo.tR.bg);
-check('the 4px seam between them is untouched', geo.seam === 4, `${geo.seam}px`);
+// "the left arrow a little more to the left, away from the right arrow" —
+// the deliberate 4px seam opened to 14. input.js's 26px slop still owns all
+// of it, so the widened seam is still nobody's dead strip.
+check('the seam opened to 14px and no wider than the slop covers', geo.seam === 14 && geo.seam <= 52,
+  `${geo.seam}px`);
 check('they are still 70px', geo.tL.w === 70 && geo.tL.h === 70);
 
 // ⚠️ THE ONE A SPECIFICITY FIX BREAKS SILENTLY. `:not(.on)` is what keeps the

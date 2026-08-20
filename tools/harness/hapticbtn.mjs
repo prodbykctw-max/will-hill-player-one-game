@@ -208,6 +208,38 @@ const back = await page.evaluate(async () => {
 ok(back.setting === true && back.switches > 5,
   'and turning it back on puts them all back', JSON.stringify(back));
 
+// ── AND THE CANVAS BUTTONS — "every button should have haptic feedback" ──
+//
+// PRESS START, the banner, OPTIONS and MUSIC are painted on the canvas, so
+// main.js gives each an invisible overlay host carrying a switch and
+// forwards the tap into the canvas's own pointerdown. Graded here on the
+// forced path: the hosts exist over the title, each carries a switch, and a
+// tap on the PRESS START host still runs the start chain (the forwarding is
+// the part that could silently die).
+console.log('\nCANVAS — the painted controls carry switches too');
+await page.goto(BASE + '/?haptest=1', { waitUntil: 'networkidle' });
+await page.waitForFunction(() => window.__game && window.__game.screen === 'title', null, { timeout: 25000 });
+await page.waitForTimeout(600);
+const canv = await page.evaluate(() => {
+  const out = {};
+  for (const k of ['t_prompt', 't_banner', 't_options', 't_music']) {
+    const d = document.querySelector(`[data-haptic-host="${k}"]`);
+    out[k] = !!(d && d.style.display !== 'none' && d.querySelector('input[data-haptic]')
+      && d.getBoundingClientRect().width > 30);
+  }
+  return out;
+});
+for (const [k, okv] of Object.entries(canv)) ok(okv, `${k} host present, sized, and carrying a switch`);
+const started = await page.evaluate(async () => {
+  const d = document.querySelector('[data-haptic-host="t_prompt"]');
+  const r = d.getBoundingClientRect();
+  d.dispatchEvent(new PointerEvent('pointerdown', {
+    clientX: r.left + r.width / 2, clientY: r.top + r.height / 2, bubbles: true }));
+  await new Promise((res) => setTimeout(res, 900));
+  return window.__game.screen;
+});
+ok(started !== 'title', 'a tap on the PRESS START host still starts the chain', `screen=${started}`);
+
 console.log('\n' + (fail === 0 ? `ALL ${pass} PASS` : `${pass} pass, ${fail} FAIL`));
 await browser.close();
 process.exit(fail === 0 ? 0 : 1);

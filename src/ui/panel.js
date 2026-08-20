@@ -787,6 +787,15 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
   // the artwork, so they buzz like anything else. No-op off iOS, which is why
   // no harness sees a difference.
   haptics?.attachAll?.(el);
+  // ⚠️ AND ON THE ENTRY LAYER, WHICH IS NOT INSIDE `el` ANY MORE. When the
+  // contest form became its own top-level screen ("how to play is not
+  // supposed to be the background of the contest entry form"), its buttons —
+  // SAVE, NOT NOW, the ✕, the info dot — moved out of #panel, and this
+  // attachAll stopped reaching them. Client, from his phone: "I'm not
+  // feeling it." hapticbtn.mjs had been failing on exactly those four ids
+  // the whole time. Same call, second root; attach() is idempotent so a
+  // button can never end up with two switches.
+  haptics?.attachAll?.($('entryLayer'));
   // ── AND THE THREE SETTINGS PILLS ──────────────────────────────────────
   // "The haptics button should vibrate when turned on." Right, and it could
   // not: tap() is dead on iOS, so the confirmation he was reaching for never

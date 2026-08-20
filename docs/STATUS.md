@@ -119,6 +119,35 @@ localStorage cannot brick boot, and re-encoding the art is off the table
 (WebP q85 visibly damages the dither — measured).
 
 
+### The pads moved on his thumbs' orders, and every button buzzes now
+
+**Placement, round two** (client, from play): arrows lifted 34→48px and the
+deliberate 4px ◀▶ seam opened to 14 ("left arrow a little more to the
+left, away from the right arrow" — input.js's 26px slop still owns all of
+it); JUMP up 18→34 and stepped in 16px from the edge; DASH exactly where it
+was ("the dash remains where it is" — the two circles clear by geometry:
+centres 75px apart vs 73px combined radius). Landscape rides along at half
+lift. `padlift.mjs` rewritten to grade the new numbers, 13 checks.
+
+**Haptics: "every button should have haptic feedback."** Two finds:
+1. The contest form's four buttons (SAVE, NOT NOW, ✕, info) lost their iOS
+   switches when the form became its own screen — `attachAll` only covered
+   `#panel`, and `hapticbtn.mjs` had been failing on exactly those four ids
+   ON MAIN. One more `attachAll($('entryLayer'))`; attach() is idempotent.
+2. The CANVAS buttons (PRESS START, the banner, OPTIONS, MUSIC, the pause
+   control, every between-screen and pause-menu button) never had haptics at
+   all — no element under the thumb. main.js now builds invisible overlay
+   hosts carrying switches, synced to the live rects 5×/sec, forwarding
+   each tap as a synthetic pointerdown into the canvas's own handler —
+   synchronously, so the MUSIC unlock still counts as the gesture. Gated on
+   `haptics.wantsSwitches()` (attach()'s own precondition — NOT
+   isSwitchRoute, which desktop Chromium fails by having vibrate(), which
+   is why the layer was invisible to ?haptest=1 until the gate was split).
+   Off iOS none of it exists, so no desktop harness sees an overlay.
+`hapticbtn.mjs` now 27 checks: the four form ids restored, the four canvas
+hosts present/sized/switched, and a tap on the PRESS START host still runs
+the start chain.
+
 ### The spare portrait left the boot — 541 KB lighter, invisible
 
 Client, on the intro layers: *"we killed the transition of those... how can

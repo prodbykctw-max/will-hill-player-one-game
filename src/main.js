@@ -2349,6 +2349,79 @@ if (import.meta.env.PROD && 'serviceWorker' in navigator) {
   });
 }
 
+// ── HAPTICS FOR THE CANVAS BUTTONS — iOS ONLY, BY CONSTRUCTION ───────────
+//
+// Client: "I want all buttons with haptic feedback — the start button...
+// every button should have haptic feedback." The DOM buttons already buzz
+// (haptics.attachAll in panel.js), but PRESS START, the contest banner,
+// OPTIONS, MUSIC, the pause control and every between-screen button are
+// PAINTED on the canvas — there is no element under the thumb, and on iOS
+// the only haptic that exists is WebKit reacting to a real switch control.
+// So each canvas button gets an invisible overlay host carrying a switch
+// (haptics.attach), and the overlay FORWARDS the tap by re-dispatching a
+// synthetic pointerdown into the canvas's own handler — synchronously, so
+// it still counts as the user's gesture and the MUSIC box can still be the
+// audio unlock. Off iOS (and off ?haptest=1) none of this exists: the guard
+// is isSwitchRoute(), which is why no desktop harness ever sees an overlay.
+//
+// Rects re-sync 5x/sec and on resize — cheap for a handful of divs, and it
+// keeps the hosts glued to homeLayout through rotation and the screen
+// changes without wiring an event into every draw path.
+if (haptics.wantsSwitches && haptics.wantsSwitches()) {
+  const layer = document.createElement('div');
+  layer.id = 'hapticLayer';
+  layer.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:5';
+  document.body.appendChild(layer);
+  const hosts = new Map();
+  const forward = (e) => {
+    canvas.dispatchEvent(new PointerEvent('pointerdown', {
+      clientX: e.clientX, clientY: e.clientY,
+      pointerType: 'touch', bubbles: true, cancelable: true,
+    }));
+  };
+  const place = (key, r, s) => {
+    let d = hosts.get(key);
+    if (!d) {
+      d = document.createElement('div');
+      d.style.cssText = 'position:absolute;pointer-events:auto;overflow:hidden';
+      d.dataset.hapticHost = key;
+      d.addEventListener('pointerdown', forward);
+      layer.appendChild(d);
+      hosts.set(key, d);
+      haptics.attach(d);
+    }
+    d.style.left = (r.x * s) + 'px';
+    d.style.top = (r.y * s) + 'px';
+    d.style.width = (r.w * s) + 'px';
+    d.style.height = (r.h * s) + 'px';
+    d.style.display = 'block';
+  };
+  const sync = () => {
+    for (const d of hosts.values()) d.style.display = 'none';
+    const cw = canvas.getBoundingClientRect().width;
+    const s = cw > 0 ? cw / canvas.width : 0;
+    if (s > 0) {
+      if (state.screen === 'title' && state.titleBox && images && !panel.isOpen) {
+        const rects = {
+          prompt: title.promptRect(state.titleBox),
+          banner: title.bannerRect(state.titleBox),
+          options: title.optionsRect(state.titleBox),
+          music: title.musicRect(state.titleBox),
+        };
+        for (const [k, r] of Object.entries(rects)) if (r) place('t_' + k, r, s);
+      } else if (state.screen === 'playing' && hud.pauseRect) {
+        place('pause', hud.pauseRect, s);
+      } else if (state.screen === 'paused') {
+        menuButtons.forEach((b, i) => place('m' + i, b, s));
+      } else if (screenButtons.length) {
+        screenButtons.forEach((b, i) => place('s' + i, b, s));
+      }
+    }
+    setTimeout(sync, 200);
+  };
+  sync();
+}
+
 loop.start();
 // The title goes up on ITS OWN art — ~3 MB instead of the ~9.6 MB the whole
 // game weighs. Everything else arrives behind it: REST while the player is
