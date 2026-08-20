@@ -264,6 +264,61 @@ window.addEventListener('resize', resize);
 // comment in index.html for the matching CSS-side half of this fix).
 if (window.visualViewport) window.visualViewport.addEventListener('resize', resize);
 resize();
+// ⚠️ THE INSTALLED APP CAN RESOLVE ITS INSETS A BEAT LATE. The client's PWA
+// screenshot showed a 59pt black band below the painting and clipped button
+// feet on a build whose CSS calc AND standalone stretch were both live —
+// meaning the box was measured before iOS had settled its geometry, and no
+// later event re-ran the measurement. So the boot re-measures on a short
+// schedule; each re-run is a no-op when nothing changed, and the last one is
+// well past any launch animation. orientationchange re-measures after the
+// rotate settles, for the same reason.
+window.addEventListener('orientationchange', () => setTimeout(resize, 250));
+setTimeout(resize, 300);
+setTimeout(resize, 1200);
+setTimeout(resize, 3000);
+
+// ── ?probe=1 — THE GEOMETRY, PRINTED ON THE SCREEN ──────────────────────
+//
+// The bottom band has now been fixed "for sure" three times, each on a
+// different theory of which height unit was lying, and the client's phone
+// keeps producing photographs the theories say are impossible. resize()'s
+// own comment already states the rule this flag enforces: rather than guess
+// a FOURTH time, measure — on the exact device, in the exact shell. A URL
+// flag (never a button, like ?stage) overlays every number the sizing chain
+// reads, so his next screenshot IS the diagnosis. DOM, not canvas, so it
+// works even when the canvas itself is sized wrong.
+if (/[?&]probe=1\b/.test(location.search)) {
+  const el = document.createElement('div');
+  el.style.cssText = 'position:fixed;left:8px;top:35%;z-index:9999;'
+    + 'background:rgba(0,0,0,0.75);color:#9f9;font:12px/1.5 monospace;'
+    + 'padding:8px;white-space:pre;pointer-events:none;border:1px solid #4a4';
+  document.body.appendChild(el);
+  const envProbe = () => {
+    const t = document.createElement('div');
+    t.style.cssText = 'position:fixed;top:0;width:0;height:env(safe-area-inset-top,0px)';
+    const bo = document.createElement('div');
+    bo.style.cssText = 'position:fixed;bottom:0;width:0;height:env(safe-area-inset-bottom,0px)';
+    document.body.append(t, bo);
+    const r = { top: t.getBoundingClientRect().height, bot: bo.getBoundingClientRect().height };
+    t.remove(); bo.remove();
+    return r;
+  };
+  setInterval(() => {
+    const e = envProbe();
+    const vv = window.visualViewport;
+    const standalone = ((window.matchMedia
+      && window.matchMedia('(display-mode: standalone)').matches)
+      || window.navigator.standalone === true);
+    el.textContent = 'GEOMETRY PROBE\n'
+      + `inner  ${window.innerWidth}x${window.innerHeight}\n`
+      + `vviews ${vv ? Math.round(vv.width) + 'x' + Math.round(vv.height) : '-'}\n`
+      + `cssbox ${canvas.clientWidth}x${canvas.clientHeight}\n`
+      + `bitmap ${canvas.width}x${canvas.height}\n`
+      + `screen ${window.screen ? window.screen.width + 'x' + window.screen.height : '-'}\n`
+      + `env    top ${e.top.toFixed(0)}  bottom ${e.bot.toFixed(0)}\n`
+      + `standalone ${standalone}`;
+  }, 500);
+}
 
 const RIDE_TICKS = 150; // ~2.5s on the train between neighbourhoods
 const GEN_LOOKAHEAD_COLS = 24; // stream this many columns beyond the camera's right edge
@@ -878,7 +933,16 @@ function nextStage() {
   // always on a network; either way the run happened and the player should be
   // able to see it.
   bankLocalRun(state.score);
-  lbSubmit(state.finalLog);
+  // ⚠️ DEV DOORS DO NOT REACH THE PRIZE BOARD. `?relay=1` strips the enemies
+  // and the pit deaths, and `?stage=N` starts a run partway in — either one
+  // makes a "finished run" the contest never saw. Both stay fully playable
+  // (the client inspects backgrounds through them), but the submit is gated:
+  // a run goes to the Worker only when it began at stage one with the full
+  // game on. Found while reviewing an outside patch spec whose integrity
+  // section assumed this gate existed; it did not — a relay bag-farm would
+  // have landed on a board with a prize on it. The local bank above stays
+  // unconditional: the device's own list is the player's business.
+  if (!isRelay() && startStageIndex() === 0) lbSubmit(state.finalLog);
 }
 
 // GAME KNOCKED, with a continue to spend. Hearts come back full and the stage

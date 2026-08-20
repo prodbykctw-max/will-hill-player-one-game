@@ -119,6 +119,51 @@ localStorage cannot brick boot, and re-encoding the art is off the table
 (WebP q85 visibly damages the dither — measured).
 
 
+### Dash is safe passage, the dev doors are off the prize board, and links unfurl
+
+Three from one review round of an outside patch spec (client-supplied,
+reverse-engineered from the minified bundle — several of its claims were
+stale; these were the real ones, two of them reshaped by the client's own
+word):
+
+**Dash passes through enemies.** Client, overruling the spec's dash-kill
+proposal: *"as long as dashing doesn't hurt me, I will keep dashing — just
+being able to dash past enemies, instead of having to kill them."* Audited
+first: there were NEVER dash i-frames — the contact branch ignored
+`dashing` entirely, which is why dashing into an enemy always cost a heart.
+One check in `enemy.js resolveEnemyCollision`, after the stomp box (a
+dashing descent that reads as a stomp is still a stomp), before the damage
+roll. The enemy lives; no score, no bounce, no air-jump refund — the stomp
+keeps the kill as the higher-skill verb. `tools/harness/dashpass.mjs`
+grades both sides (5 checks; its own first version called the working stomp
+broken by sampling vy fifteen gravity ticks after the bounce — minimum-
+tracking fixed the instrument, not the game).
+
+**`?relay=1` and `?stage=N` runs no longer submit.** `lbSubmit` fired
+unconditionally on completion, so a relay bag-farm (no enemies, no pit
+deaths) would have landed on a board with a real prize on it. Gated in
+`nextStage`: submit only when the run began at stage one with the full game
+on; the doors stay fully playable and the local on-device bank stays
+unconditional. `tools/harness/relayboard.mjs` (3 checks × 3 runs): relay
+run → 0 submits, mid-game start → 0, plain run → exactly 1.
+
+**Shared links unfurl now.** `index.html` had zero og:/twitter: tags — a
+pasted link rendered blank in every messenger, in a share-driven contest.
+Full card set added; the image is a 1200×630 band cut from the title
+painting at `public/share-card.jpg` (un-hashed, stable URL — crawlers
+cannot run JS). Copy avoids naming contest dates (still blocked on Will
+Hill's team).
+
+**And the PWA bottom band is instrumented, not guessed at a fourth time.**
+The client's screenshot shows a 59pt black band below the painting and
+clipped button feet — on a build whose CSS calc AND standalone stretch are
+both live, so the box was measured before iOS settled its geometry.
+resize() now re-runs on a short schedule (300ms/1.2s/3s) and after
+orientationchange; and `?probe=1` (URL-only dev door) overlays every number
+the sizing chain reads — innerHeight, visualViewport, CSS box, bitmap,
+screen, env insets, standalone — so his next screenshot IS the diagnosis if
+the re-measure alone doesn't close it.
+
 ### START is a button now — tap-anywhere is dead, at the client's reversal
 
 Client, from his phone: *"I can still tap anywhere and start the game. I

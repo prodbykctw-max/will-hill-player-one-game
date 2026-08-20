@@ -261,6 +261,19 @@ export function resolveEnemyCollision(enemy, player, now) {
     return 'stomp';
   }
 
+  // ⚠️ A DASH PASSES THROUGH. The client, rethinking a patch spec that
+  // proposed dash-kills: "as long as dashing doesn't hurt me, I will keep
+  // dashing — just being able to dash past enemies, instead of having to
+  // kill them." So the dash is safe passage, not a weapon: the enemy lives,
+  // no score, no bounce — the stomp keeps the kill, the bounce and the
+  // refunded air jump as the higher-skill verb, and the two moves have
+  // different jobs. Checked after the stomp box (a dashing descent that
+  // reads as a stomp is still a stomp) and before the damage roll, so a
+  // dash through a crowd costs nothing. There were never dash i-frames to
+  // fix here — contact damage always ignored `dashing` — which is why
+  // dashing into an enemy cost a heart his whole time testing.
+  if (player.dashing) return null;
+
   // Only now, and on the tight box, does touching one cost you. Checked
   // second so a descent that was ALMOST a clean stomp reads as a stomp rather
   // than as walking into him — the forgiving case has to win the tie.

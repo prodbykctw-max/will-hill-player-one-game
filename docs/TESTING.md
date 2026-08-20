@@ -59,8 +59,8 @@ Pages is) serves `index.html` for the directory, so the URL the client gets is
 **Graded** — they end in `ALL n PASS` or `FAILED: <checks>`, and a sweep can
 read them mechanically:
 
-`barescars` · `betweenscreens` · `btnglow` · `ceiling` · `cloudseal` · `daylamps` · `deferboot` · `endcue` · `entryfit` · `entrypaths` · `finishrun` · `howpage` · `idleflex` · `introorder` ·
-`loopbench` · `loopseam` · `musicbox` · `outbox` · `todlive` · `optionsmenu` · `padlift` · `panelnav` · `pausemenu` · `relaytod` ·
+`barescars` · `betweenscreens` · `btnglow` · `ceiling` · `cloudseal` · `dashpass` · `daylamps` · `deferboot` · `endcue` · `entryfit` · `entrypaths` · `finishrun` · `howpage` · `idleflex` · `introorder` ·
+`loopbench` · `loopseam` · `musicbox` · `outbox` · `todlive` · `optionsmenu` · `padlift` · `panelnav` · `pausemenu` · `relayboard` · `relaytod` ·
 `share` · `stageflag` · `titlefit` · `titlehome` · `titleintro` · `titleshells`
 
 **Report-only** — they print a table or a contact sheet for a human to read,
@@ -430,6 +430,8 @@ drifts into grading last month's product and nobody notices.
 | `entrypaths` | a run reaches the board whether they enter before OR after it |
 | `padlift` | the movement pads' height, solidity, seam, and that a press still lights them |
 | `stageflag` | `?relay=1` / `?stage=N` work AND a plain URL is still the player's game |
+| `dashpass` | dash is safe passage: through an enemy with no heart lost and the enemy alive; the same overlap NOT dashing still costs the heart; the stomp still kills, bounces, and refunds the air jump |
+| `relayboard` | the dev doors never reach the prize board: a completed `?relay=1` or `?stage=N` run submits nothing, a plain completed run submits exactly once |
 | `titleshells` | one build, two shells: the title's clouds show, the wordmark clears the top, AND the drawn control block clears the home-indicator strip — in Safari (short viewport), the installed PWA (islanded, bottom inset simulated), an iPhone SE and a Pixel — graded from pixels and homeLayout's own rects per geometry. Exists because Safari cropped the plate to the wordmark's exact ink row while the PWA framed it perfectly, and every green suite was blind to the difference |
 | `stagesweep` | every screen of every stage, day and night, for background review |
 
