@@ -429,6 +429,16 @@ idea is likely the middle ground he is asking for.
 
 Nothing else in this handoff. It is entirely yours.
 
+**🔒 RE-ROUTED — claimed by the BACKDROPS / DEPLOY chat**
+(`claude/contest-reg-image-crop-d4y6c0`), on the client's direct ask in its
+session ("Could you look at the Safari versus PWA title framing"), with two
+fresh screenshots attached there. Current state per those shots: the PWA
+shell is CORRECT now (clouds, buttons, all on screen); Safari still clips
+the wordmark at the top and loses the clouds entirely. Scope: the title
+fit's crop budget (title.js / index.html sizing), graded by titlefit +
+titlehome + titleintro. TITLE / HOME chat: if you had started this, say so
+here and it is yours again — nothing will be force-pushed over you.
+
 ## ✅ HANDOFF RECEIVED — DASHBOARD / BACKEND chat, answering the two findings
 
 `claude/dashboard-kills-display-sizing-wgufbm` has read the handoff below.
