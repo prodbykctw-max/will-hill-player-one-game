@@ -41,7 +41,9 @@
 // painting has not been through that pass, so titleCards() is empty and the
 // intro is a straight reveal until it has. Cutting it is the next job — SAM
 // and its checkpoint are both present (tools/sam_segment.py, /root/sam).
-import titleBase from '../assets/backgrounds/title-portrait.webp';
+// title-portrait.webp is deliberately NOT imported any more — see the note
+// in TITLE_IMAGES. An asset import ships the file even when the binding goes
+// unused, so the import itself had to go for the 541 KB to leave the build.
 // The same painting with the title lettering lifted out and the sky closed
 // behind it — the intro's first beat. tools/cut_title_bare.py.
 import titleBare from '../assets/backgrounds/title-portrait-bare.webp';
@@ -145,7 +147,13 @@ export const CLOUD_SPRITES = CLOUD_LIST.map((s, i) => ({
 
 // Loaded through the same manifest as everything else; see main.js.
 export const TITLE_IMAGES = {
-  title_base: titleBase,
+  // ⚠️ title-portrait.webp (541 KB) LEFT THE BOOT on the client's word
+  // ("how can we lighten this up?"). It had two jobs left — the dim loading
+  // backdrop and the eye-pupil source — and both source from title_noopts
+  // now, the plate the player actually sees. Measured before cutting: the
+  // two files' 9x9 eye patches differ by <=24 levels (mean ~3) on 7px pupils
+  // drawn at half scale — invisible. The import and the fallbacks below stay
+  // so the key merely being absent can never throw.
   title_bare: titleBare,
   title_noopts: titleNoOpts,
   tp_prompt: titlePrompt,
@@ -470,7 +478,7 @@ export function createTitle(ctx, canvas, still) {
     if (!splash) drawGlints(box, tick);
     // After the hero card has landed, so the pupils sit on the face rather
     // than on the empty street it flies in over.
-    if (!splash) drawEyes(images.title_base, box, mouse);
+    if (!splash) drawEyes(images.title_noopts || images.title_base, box, mouse);
     // The one control that is NOT part of the painting comes up with the last
     // layer, so the page finishes as the menu instead of cutting to it.
     const a = splash ? splashControlAlpha(introT || 0) : 1;

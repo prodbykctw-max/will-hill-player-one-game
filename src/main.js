@@ -2359,7 +2359,7 @@ loop.start();
 loadImages({ ...TITLE_IMAGES })
   .catch(() => loadImages({ ...TITLE_IMAGES }))
   .then((first) => {
-    bootPlate = first.title_base || null;
+    bootPlate = first.title_noopts || first.title_base || null;
     images = first;
     showTitle();
     backgroundLoad();

@@ -119,6 +119,26 @@ localStorage cannot brick boot, and re-encoding the art is off the table
 (WebP q85 visibly damages the dither — measured).
 
 
+### The spare portrait left the boot — 541 KB lighter, invisible
+
+Client, on the intro layers: *"we killed the transition of those... how can
+we lighten this up?"* The re-encode suite's free lane, shipped:
+`title-portrait.webp` had two jobs left — the dim loading backdrop and the
+7px eye-pupil source — and both source from `title_noopts` (the plate the
+player actually sees) now. Measured before cutting: the two files' eye
+patches differ ≤24 levels on pupils drawn at half scale. The import itself
+had to go (an asset import ships the file even unused); the `title_base`
+key fallbacks stay so its absence can never throw. Title wait: 3.78 →
+3.25 MB. Eyes verified tracking after (10% gaze-region change between
+cursor extremes). NOT cut, deliberately: the sign/hero/pole card files
+(~121 KB) still drive the settled screen's sway — the signs breathe;
+killing them buys pocket change and a static painting. The sign FLY-IN
+question is settled separately: it died 08-14 in `5aca0cd` as a side effect
+of background-first (the bare plate carries the furniture painted, flying
+cards would double-print), the client says painting-first was all he
+wanted, and the fly-in stays gone. Suite green: titleshells 15, titlefit
+48, titlehome 176, titleintro 12, barescars 8, introorder 4, deferboot 12.
+
 ### Dash is safe passage, the dev doors are off the prize board, and links unfurl
 
 Three from one review round of an outside patch spec (client-supplied,
