@@ -74,7 +74,17 @@ async function fresh() {
 // of the screen is the card; mouse.click, not touchscreen.tap, because a
 // touch's delayed synthetic click lands on whatever DOM button the panel puts
 // under that point once it is open.
-const tapTitle = async (p) => { await p.mouse.click(215, 500); await p.waitForTimeout(700); };
+const tapTitle = async (p) => {
+  // PRESS START itself — open art does nothing since the client's reversal.
+  const pr = await p.evaluate(() => {
+    const r = window.__title.promptRect(window.__game.titleBox);
+    const cv = document.querySelector('canvas');
+    const s = cv.getBoundingClientRect().width / cv.width;
+    return { x: (r.x + r.w / 2) * s, y: (r.y + r.h / 2) * s };
+  });
+  await p.mouse.click(pr.x, pr.y);
+  await p.waitForTimeout(700);
+};
 const clickBtn = async (p, id) => {
   await p.evaluate((i) => document.getElementById(i).click(), id);
   await p.waitForTimeout(600);

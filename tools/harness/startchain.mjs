@@ -31,13 +31,26 @@ async function clickIfShown(p, id) {
 }
 
 /**
- * Tap the title card and walk whatever the start chain puts in the way, until
- * the run is actually going. `x`/`y` default to the middle of a 430x932 phone.
- * Returns the screen it ended on, so a caller can assert on it.
+ * Tap PRESS START and walk whatever the start chain puts in the way, until
+ * the run is actually going. Returns the screen it ended on, so a caller can
+ * assert on it.
+ *
+ * ⚠️ THE TAP LANDS ON HIS LETTERING NOW, NOT ON OPEN ART. Client: "I can
+ * still tap anywhere and start the game. I thought we removed that." Since
+ * that landed, a tap anywhere that is not a control does NOTHING — so this
+ * asks the title for its own promptRect and taps its centre. The old x/y
+ * arguments are accepted and ignored, so existing callers keep working;
+ * they used to name a patch of empty skyline anyway.
  */
-export async function startFromTitle(p, { x = 215, y = 300, tap = 'touch' } = {}) {
-  if (tap === 'mouse') await p.mouse.click(x, y);
-  else await p.touchscreen.tap(x, y);
+export async function startFromTitle(p, { x = 0, y = 0, tap = 'touch' } = {}) {
+  const pt = await p.evaluate(() => {
+    const r = window.__title.promptRect(window.__game.titleBox);
+    const cv = document.querySelector('canvas');
+    const s = cv.getBoundingClientRect().width / cv.width;
+    return { x: (r.x + r.w / 2) * s, y: (r.y + r.h / 2) * s };
+  });
+  if (tap === 'mouse') await p.mouse.click(pt.x, pt.y);
+  else await p.touchscreen.tap(pt.x, pt.y);
   await p.waitForTimeout(900);
   // NOT NOW past the contest form (a registered player never sees it), then
   // PLAY off the end of HOW TO PLAY. Both are no-ops if the stop is absent.

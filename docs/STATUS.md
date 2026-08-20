@@ -119,6 +119,29 @@ localStorage cannot brick boot, and re-encoding the art is off the table
 (WebP q85 visibly damages the dither — measured).
 
 
+### START is a button now — tap-anywhere is dead, at the client's reversal
+
+Client, from his phone: *"I can still tap anywhere and start the game. I
+thought we removed that."* What was removed back then was the black TAP
+ANYWHERE card; press-anywhere-starts had deliberately outlived it ("PRESS
+START means press anywhere," his instruction of that day). His new word
+supersedes it: the run now starts ONLY from his painted PRESS START
+lettering (`title.hitPrompt`, 24px slop — the most generous of the four
+controls since the sky above it is free and OPTIONS/banner/dead-band are
+hit-tested first). A tap on open art does nothing except the free audio
+unlock. Keyboard Space/Enter is unchanged. The intro skip rides the same
+target — a tap on the prompt's position mid-assembly still starts, open art
+mid-assembly no longer does. Seven harnesses that tapped open art to start
+runs were moved to the prompt in the same commit (startchain — which every
+flow harness rides — plus direct taps in relaytod, titleintro, panelnav,
+musiccheck, startflow, optionsmenu); `relaytod`'s "open space is START"
+check is INVERTED to grade the new rule both ways.
+
+**And the PWA bottom, measured, is fine**: `titleshells` now simulates the
+home-indicator strip (`__safeBottomOverride: 34`) and the control block's
+foot clears the usable screen by 8px on the PWA geometry — the earlier
+homeLayout inset fix holds. 15 checks × 3 runs across five geometries.
+
 ### Safari and the PWA finally frame the same painting — the clouds show in both
 
 Client, with a photo of each shell: *"we need to find some middle ground so

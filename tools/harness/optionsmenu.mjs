@@ -125,7 +125,13 @@ await p.evaluate(() => window.__panel.close());
 // because the lesson is the next link in the chain, not the run.
 await p.evaluate(() => { const g = window.__game; g.screenT = g.introAt + 999; });
 await p.waitForTimeout(120);
-await p.mouse.click(215, 700);
+const prO = await p.evaluate(() => {
+  const r = window.__title.promptRect(window.__game.titleBox);
+  const cv = document.querySelector('canvas');
+  const sc = cv.getBoundingClientRect().width / cv.width;
+  return { x: (r.x + r.w / 2) * sc, y: (r.y + r.h / 2) * sc };
+});
+await p.mouse.click(prO.x, prO.y);
 await p.waitForTimeout(450);
 const firstRun = await p.evaluate(() => ({
   screen: window.__game.screen,
@@ -147,7 +153,7 @@ await p.evaluate(() => {
 });
 await p.evaluate(() => { const g = window.__game; g.screen = 'title'; g.screenT = g.introAt + 999; });
 await p.waitForTimeout(150);
-await p.mouse.click(215, 700);
+await p.mouse.click(prO.x, prO.y);   // PRESS START again — open art is dead since the reversal
 await p.waitForTimeout(450);
 const offered = await p.evaluate(() => ({
   // ⚠️ NOT THE PANEL TITLE ANY MORE FOR THE SIGN-UP. His card is lettered

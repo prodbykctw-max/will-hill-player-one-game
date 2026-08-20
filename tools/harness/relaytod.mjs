@@ -213,8 +213,19 @@ const sep = await pd.evaluate(() => {
 });
 check('OPTIONS and MUSIC are two separate controls, both real tap targets',
   !sep.overlap && sep.optH >= 34 && sep.musicH >= 34, JSON.stringify(sep));
-await pd.touchscreen.tap(215, 240); await pd.waitForTimeout(1700);
-check('open space is START', await pd.evaluate(() => window.__game.screen) === 'playing');
+// ⚠️ INVERTED with the client's reversal: "I can still tap anywhere and
+// start the game. I thought we removed that." Open space does NOTHING now;
+// only his painted PRESS START commits to a run.
+await pd.touchscreen.tap(215, 240); await pd.waitForTimeout(900);
+check('open space is NOT a start any more', await pd.evaluate(() => window.__game.screen) === 'title');
+const pr0 = await pd.evaluate(() => {
+  const r = window.__title.promptRect(window.__game.titleBox);
+  const cv = document.querySelector('canvas');
+  const s = cv.getBoundingClientRect().width / cv.width;
+  return { x: (r.x + r.w / 2) * s, y: (r.y + r.h / 2) * s };
+});
+await pd.touchscreen.tap(pr0.x, pr0.y); await pd.waitForTimeout(1700);
+check('PRESS START is', await pd.evaluate(() => window.__game.screen) === 'playing');
 
 console.log('');
 console.log(checks.every(([, p]) => p)

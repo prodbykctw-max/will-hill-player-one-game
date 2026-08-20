@@ -22,17 +22,22 @@ const checks = []; const ck = (w, ok, d = '') => { checks.push([w, ok]); console
 const shots = process.argv.includes('--shots');
 
 const GEOMS = [
-  ['PWA 430x932', 430, 932, 59],      // standalone: status-bar inset is real
-  ['Safari 430x780', 430, 780, 0],
-  ['Safari 430x830', 430, 830, 0],
-  ['SE 375x667', 375, 667, 0],
-  ['Pixelish 412x780', 412, 780, 0],
+  // name, width, height, top inset (island/clock), bottom inset (home bar).
+  // Insets are the PWA's problem: Safari accounts for its own bars.
+  ['PWA 430x932', 430, 932, 59, 34],
+  ['Safari 430x780', 430, 780, 0, 0],
+  ['Safari 430x830', 430, 830, 0, 0],
+  ['SE 375x667', 375, 667, 0, 0],
+  ['Pixelish 412x780', 412, 780, 0, 0],
 ];
 
-for (const [name, w, h, inset] of GEOMS) {
+for (const [name, w, h, inset, insetBot] of GEOMS) {
   const ctx = await b.newContext({ viewport: { width: w, height: h }, hasTouch: true, deviceScaleFactor: 2 });
   const p = await ctx.newPage();
-  await p.addInitScript((px) => { window.__safeTopOverride = px; }, inset);
+  await p.addInitScript(([top, bot]) => {
+    window.__safeTopOverride = top;
+    if (bot) window.__safeBottomOverride = bot;
+  }, [inset, insetBot]);
   p.on('pageerror', (e) => console.log('  THROWN: ' + e.message));
   await p.goto('http://localhost:5199/', { waitUntil: 'networkidle' });
   await p.waitForFunction(() => window.__game && window.__game.screen === 'title', null, { timeout: 25000 });
@@ -88,6 +93,24 @@ for (const [name, w, h, inset] of GEOMS) {
   // rather than as a blue sliver.
   ck(`${name}: clouds show above the wordmark`, Number(cssSky) >= 20, `${cssSky}px of sky`);
   ck(`${name}: the wordmark clears the top edge`, Number(cssInk) >= (inset ? 59 : 8) + 2, `ink at ${cssInk}px`);
+  // THE OTHER END — the client's PWA question: "What about the bottom?" The
+  // whole drawn control block (PRESS START, the bar, OPTIONS | MUSIC) must
+  // clear the home-indicator strip homeLayout reserves. Measured from the
+  // layout's own rects, in CSS px, against the canvas's CSS height minus the
+  // inset this geometry declared.
+  const lay = await p.evaluate(() => {
+    const t = window.__title, bx = window.__game.titleBox;
+    const l = t.homeLayout(bx);
+    const o = t.optionsRect(bx), m = t.musicRect(bx);
+    const cv = document.querySelector('canvas');
+    const s = cv.getBoundingClientRect().width / cv.width;
+    const bot = Math.max(l.prompt.y + l.prompt.h, l.banner.y + l.banner.h,
+      o.y + o.h, m.y + m.h);
+    return { botCss: bot * s, cssH: cv.getBoundingClientRect().height };
+  });
+  ck(`${name}: the control block clears the bottom inset`,
+    lay.botCss <= lay.cssH - insetBot + 1,
+    `block foot ${lay.botCss.toFixed(0)}px vs usable ${(lay.cssH - insetBot).toFixed(0)}px`);
   await ctx.close();
 }
 console.log('\n' + (checks.every(([, o]) => o) ? `ALL ${checks.length} PASS` : 'FAILED'));

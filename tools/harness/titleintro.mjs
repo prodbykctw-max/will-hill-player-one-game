@@ -131,13 +131,23 @@ const starLeak = await p.evaluate(async () => {
 check('no card but tp_stars carries a star pixel', starLeak.length === 0,
   JSON.stringify(starLeak));
 
-// And the skip still works mid-assembly.
+// And the skip still works mid-assembly — ON THE PROMPT. Open art does
+// nothing since the client's reversal ("I thought we removed that"), so the
+// skip rides the same target the settled screen uses; promptRect is
+// computable from the very first frame even while the lettering is still
+// flying in.
 await p.reload({ waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__game && window.__game.screen === 'title', null, { timeout: 25000 });
 await p.waitForTimeout(500);
-await p.touchscreen.tap(215, 300);
+const prI = await p.evaluate(() => {
+  const r = window.__title.promptRect(window.__game.titleBox);
+  const cv = document.querySelector('canvas');
+  const s = cv.getBoundingClientRect().width / cv.width;
+  return { x: (r.x + r.w / 2) * s, y: (r.y + r.h / 2) * s };
+});
+await p.touchscreen.tap(prI.x, prI.y);
 await p.waitForTimeout(1700);
-check('a tap during the assembly still starts the run',
+check('a tap on PRESS START during the assembly still starts the run',
   await p.evaluate(() => window.__game.screen) === 'playing');
 
 // ── DO THE FAR CLOUDS ACTUALLY GO BEHIND THE TOWERS? ─────────────────────

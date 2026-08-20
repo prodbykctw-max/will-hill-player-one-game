@@ -1434,7 +1434,29 @@ export function createTitle(ctx, canvas, still) {
     return x >= r.x - HIT_MARGIN && x <= r.x + r.w + HIT_MARGIN
       && y >= r.y - HIT_MARGIN_TOP && y <= r.y + r.h + HIT_MARGIN;
   }
+
+  // ⚠️ START IS A BUTTON NOW, NOT THE REST OF THE SCREEN. The note above
+  // hitOptions says "every other pixel on this screen is the one big START"
+  // — that was the client's instruction in its day, and he has since turned
+  // it around from his own phone: "I can still tap anywhere and start the
+  // game. I thought we removed that." What he remembered removing was the
+  // black TAP ANYWHERE card; the press-anywhere start had stayed behind it.
+  // So the run now starts from his painted PRESS START lettering and nothing
+  // else — a tap on open art does nothing but buy the audio unlock, the same
+  // price a miss pays everywhere else on this screen (see deadZone).
+  //
+  // The slop is deliberately the most generous of the four controls: the
+  // lettering is wide and shallow, the sky above it is free (nothing else to
+  // hit until the hero), and below it the OPTIONS/banner hit-tests run FIRST
+  // in main.js's handler, so a fat bottom margin cannot steal their taps.
+  const HIT_MARGIN_PROMPT = 24;
+  function hitPrompt(box, x, y) {
+    const r = promptRect(box);
+    if (!r) return false;
+    return x >= r.x - HIT_MARGIN_PROMPT && x <= r.x + r.w + HIT_MARGIN_PROMPT
+      && y >= r.y - HIT_MARGIN_PROMPT && y <= r.y + r.h + HIT_MARGIN_PROMPT;
+  }
   return { draw, hitOptions, optionsRect,
-    hitMusic, musicRect, drawMusic,
+    hitMusic, musicRect, drawMusic, hitPrompt,
     hitBanner, bannerRect, bannerLabel, promptRect, deadZone, homeLayout };
 }

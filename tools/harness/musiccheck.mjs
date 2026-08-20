@@ -38,7 +38,14 @@ await show('boot -> title');
 
 // The handoff he asked about: title fades out as stage one comes up.
 console.log('\nPRESS START, watching the cross-fade:');
-await p.touchscreen.tap(215, 330);            // upper half = start, not OPTIONS
+// On PRESS START itself — open art does nothing since the client's reversal.
+const prM = await p.evaluate(() => {
+  const r = window.__title.promptRect(window.__game.titleBox);
+  const cv = document.querySelector('canvas');
+  const s = cv.getBoundingClientRect().width / cv.width;
+  return { x: (r.x + r.w / 2) * s, y: (r.y + r.h / 2) * s };
+});
+await p.touchscreen.tap(prM.x, prM.y);
 const t0 = Date.now();
 for (let i = 0; i < 9; i++) {
   const s = await snap();

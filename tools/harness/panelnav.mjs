@@ -153,7 +153,14 @@ check('and BACK TO GAME from there closes it — two taps, no dead end',
 // actually guards is unchanged and still worth guarding: nothing the panel
 // did left the game unable to start. So it walks the whole chain. The order
 // itself is startflow.mjs's job, not this file's.
-await p.touchscreen.tap(215, 300);
+// On the prompt, not open art — a bare tap does nothing since the reversal.
+const prN = await p.evaluate(() => {
+  const r = window.__title.promptRect(window.__game.titleBox);
+  const cv = document.querySelector('canvas');
+  const s = cv.getBoundingClientRect().width / cv.width;
+  return { x: (r.x + r.w / 2) * s, y: (r.y + r.h / 2) * s };
+});
+await p.touchscreen.tap(prN.x, prN.y);
 await p.waitForTimeout(900);
 for (const id of ['btnSkip', 'btnHowBack']) {
   if (await p.evaluate((i) => !!document.getElementById(i)?.offsetParent, id)) {
