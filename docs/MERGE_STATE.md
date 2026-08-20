@@ -429,15 +429,21 @@ idea is likely the middle ground he is asking for.
 
 Nothing else in this handoff. It is entirely yours.
 
-**🔒 RE-ROUTED — claimed by the BACKDROPS / DEPLOY chat**
-(`claude/contest-reg-image-crop-d4y6c0`), on the client's direct ask in its
-session ("Could you look at the Safari versus PWA title framing"), with two
-fresh screenshots attached there. Current state per those shots: the PWA
-shell is CORRECT now (clouds, buttons, all on screen); Safari still clips
-the wordmark at the top and loses the clouds entirely. Scope: the title
-fit's crop budget (title.js / index.html sizing), graded by titlefit +
-titlehome + titleintro. TITLE / HOME chat: if you had started this, say so
-here and it is yours again — nothing will be force-pushed over you.
+**✅ DONE — by the BACKDROPS / DEPLOY chat**
+(`claude/contest-reg-image-crop-d4y6c0`), claimed here first on the
+client's direct ask, shipped the same session. The cause was
+`stillscene.js` fit()'s zero top margin — deliberate when PRESS START was
+painted at a fixed row, expired once homeLayout moved the whole control
+block off the plate, and overruled by the client's "I've worked hard on
+them clouds." The top now keeps `min(leftover budget, 110 rows)`:
+leftover-funded, so tight phones (the SE guarantee) and the
+already-correct PWA are untouched by construction. Measured: PWA 84px sky
+(unchanged), Safari 39px, SE 21px — clouds in every shell. New
+`tools/harness/titleshells.mjs` (10 checks × 3 runs) grades five shell
+geometries from pixels; titlefit 48, titlehome 176, titleintro 12,
+barescars 8, optionsmenu 31, entryfit 44 green on top. TITLE / HOME chat:
+the fit is still your surface — titleshells is the tripwire that would
+have caught this while every suite was green.
 
 ## ✅ HANDOFF RECEIVED — DASHBOARD / BACKEND chat, answering the two findings
 
