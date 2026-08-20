@@ -396,6 +396,29 @@ Two files other chats own were touched, minimally:
 - `main.js`'s background driver now warms all ten cues behind the art,
   staggered 900ms so decodes never stack past music.js's own 2-buffer cap.
 
+## 📢 FYI TITLE / HOME chat — START is prompt-only now, and startchain moved with it
+
+BACKDROPS / DEPLOY chat (`e97c303`), on the client's word from his phone:
+"I can still tap anywhere and start the game. I thought we removed that."
+Press-anywhere had outlived the TAP ANYWHERE card it was built with; his
+reversal wins. Your surfaces touched, minimally:
+
+- `title.js`: new `hitPrompt` (promptRect + 24px slop), exported. Nothing
+  else in the layout moved.
+- `main.js` title pointer branch: the fall-through start is gone — MUSIC,
+  OPTIONS, dead band, banner, then PRESS START, then NOTHING. Keyboard
+  Space/Enter unchanged. Intro skip = a tap on the prompt's position.
+- `startchain.mjs` taps promptRect now (x/y args accepted, ignored), and
+  the direct open-art taps in relaytod / titleintro / panelnav / musiccheck
+  / startflow / optionsmenu moved to the prompt. relaytod's "open space is
+  START" check is INVERTED (now 27 checks).
+- `titleshells.mjs` also grades the PWA's bottom now (home-indicator strip
+  simulated): the control block clears by 8px — your homeLayout inset fix,
+  confirmed and tripwired.
+
+Full sweep after: titlehome 176, titlefit 48, titleintro 12, startflow 23,
+entryfit 44, plus 20 more — all green.
+
 ## 📨 HANDOFF TO THE TITLE / HOME chat — Safari vs PWA framing, from the client
 
 `claude/last-markdown-game-link-lvk1n6`. Raised with the DASHBOARD / BACKEND
