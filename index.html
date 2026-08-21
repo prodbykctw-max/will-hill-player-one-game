@@ -1,0 +1,926 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#0a0810" />
+  
+  <meta name="description" content="Run Atlanta with Will Hill. Dash, jump, and stack bags through EAV, Edgewood, The Underground, and Little 5 Points. Top scores win real prizes." />
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="Will Hill: Player One" />
+  <meta property="og:description" content="Run Atlanta. Stack bags. Top the board — real prizes." />
+  <meta property="og:url" content="https://prodbykctw-max.github.io/will-hill-player-one-game/" />
+  <meta property="og:image" content="https://prodbykctw-max.github.io/will-hill-player-one-game/share-card.jpg" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Will Hill: Player One" />
+  <meta name="twitter:description" content="Run Atlanta. Stack bags. Top the board — real prizes." />
+  <meta name="twitter:image" content="https://prodbykctw-max.github.io/will-hill-player-one-game/share-card.jpg" />
+  
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  
+  <meta name="apple-mobile-web-app-title" content="Will Hill" />
+  
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icons/favicon.ico" sizes="any" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+  
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+  <title>Will Hill: Player One</title>
+  <style>
+    html, body {
+      
+      margin: 0; padding: 0; background: #080a0b; height: 100%;
+      overflow: hidden;
+      
+      overscroll-behavior: none;
+      -webkit-user-select: none; user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      -webkit-touch-callout: none;
+      
+      touch-action: none;
+    }
+    
+    #game {
+      display: block; image-rendering: pixelated;
+      touch-action: none;
+      
+      position: fixed; left: 0; top: 0; width: 100vw;
+      height: 100vh; height: 100dvh;
+      height: calc(100dvh + env(safe-area-inset-bottom, 0px));
+    }
+
+    
+    
+    #touch { display: none; }
+    body.touch.playing #touch { display: block; }
+
+    #touch .pad {
+      position: fixed; z-index: 10;
+      box-sizing: border-box;   
+      display: flex; align-items: center; justify-content: center;
+      font: 700 15px/1 system-ui, sans-serif; letter-spacing: 0.06em;
+      color: rgba(255,255,255,0.82);
+      background: rgba(18,14,28,0.42);
+      border: 2px solid rgba(255,214,110,0.34);
+      border-radius: 16px;
+      touch-action: none;
+      
+      -webkit-touch-callout: none;
+      -webkit-user-select: none; user-select: none;
+      
+      
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.13) 0%,
+                                rgba(255,255,255,0.03) 42%,
+                                rgba(0,0,0,0.16) 100%),
+        rgba(18,14,28,0.52);
+      box-shadow:
+        inset 0 1.5px 0 rgba(255,255,255,0.34),
+        inset 0 -2px 0 rgba(0,0,0,0.42),
+        0 4px 0 rgba(0,0,0,0.34),
+        0 6px 10px rgba(0,0,0,0.34);
+      text-shadow: 0 1px 0 rgba(0,0,0,0.55);
+      transition: background 90ms linear, border-color 90ms linear,
+                  transform 90ms linear, box-shadow 90ms linear;
+    }
+    
+    #touch .pad.on {
+      background:
+        linear-gradient(180deg, rgba(0,0,0,0.20) 0%,
+                                rgba(255,214,110,0.20) 60%,
+                                rgba(255,214,110,0.34) 100%),
+        rgba(255,214,110,0.22);
+      border-color: rgba(255,214,110,0.85);
+      transform: translateY(2px) scale(0.97);
+      box-shadow:
+        inset 0 2px 3px rgba(0,0,0,0.45),
+        inset 0 -1px 0 rgba(255,255,255,0.16),
+        0 1px 0 rgba(0,0,0,0.30);
+      transition: none;
+    }
+
+    
+    
+    
+    
+    #tL, #tR { bottom: calc(48px + env(safe-area-inset-bottom, 0px)); width: 70px; height: 70px; }
+    #tL { left: calc(6px + env(safe-area-inset-left, 0px)); }
+    #tR { left: calc(90px + env(safe-area-inset-left, 0px)); }
+    
+    #touch .pad.move:not(.on) {
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.16) 0%,
+                                rgba(255,255,255,0.04) 42%,
+                                rgba(0,0,0,0.20) 100%),
+        rgba(18,14,28,0.80);
+      border-color: rgba(255,214,110,0.58);
+      color: rgba(255,255,255,0.96);
+    }
+
+    
+    #tDash { right: calc(16px + env(safe-area-inset-right, 0px)); }
+    #tJump { right: calc(32px + env(safe-area-inset-right, 0px)); }
+    
+    #tJump {
+      
+      bottom: calc(34px + env(safe-area-inset-bottom, 0px));
+      width: 82px; height: 82px;
+    }
+    #touch .pad#tJump:not(.on) {
+      border-radius: 50%;
+      border-color: rgba(120,220,255,0.45);
+      background: rgba(30,60,90,0.42);
+    }
+    #tJump.on { background: rgba(120,220,255,0.32); border-color: rgba(120,220,255,0.85); }
+    #tDash {
+      
+      bottom: calc(114px + env(safe-area-inset-bottom, 0px));
+      width: 64px; height: 64px;
+    }
+    #touch .pad#tDash:not(.on) { border-radius: 50%; font-size: 13px; }
+
+    
+    #panel {
+      position: fixed; inset: 0; z-index: 30;
+      
+      display: flex; align-items: flex-start; justify-content: center;
+      background: rgba(6,5,10,0.82);
+      padding: calc(14px + env(safe-area-inset-top, 0px)) 14px
+               calc(14px + env(safe-area-inset-bottom, 0px));
+      
+      overflow-y: auto; -webkit-overflow-scrolling: touch;
+      touch-action: pan-y;
+      
+      scrollbar-width: none;
+    }
+    #panel::-webkit-scrollbar { width: 0; height: 0; display: none; }
+    #panel[hidden] { display: none; }
+    #panelCard {
+      
+      margin: auto;
+      position: relative; width: 100%; max-width: 420px;
+      box-sizing: border-box; padding: 18px 18px 16px;
+      background: #12101c;
+      border: 2px solid rgba(255,214,110,0.40); border-radius: 14px;
+      color: #f2ead8; font: 400 15px/1.45 system-ui, sans-serif;
+      box-shadow: 0 18px 60px rgba(0,0,0,0.6);
+    }
+    
+    
+    #panelCard.bare {
+      background: none; border: 0; box-shadow: none;
+      padding: 0; max-width: none; width: 100%;
+    }
+    #panelTitle {
+      margin: 0 0 12px; font: 800 20px/1 system-ui, sans-serif;
+      letter-spacing: 0.08em; color: #ffd66e;
+    }
+    #panelTitle[hidden] { display: none; }
+
+    
+    #panelScreen { display: contents; }
+    
+    #panelCard.cabinet {
+      background-image: var(--cabinet-plate);
+      background-position: center; background-size: 100% 100%;
+      background-repeat: no-repeat; background-color: transparent;
+      aspect-ratio: 852 / 1846;
+      border: 0; box-shadow: none; padding: 0;
+      container-type: inline-size;
+      margin: 0; max-width: none;
+      
+      width: max(100vw, calc(var(--vp-h, 100lvh) * 852 / 1846));
+      
+      flex: none;
+    }
+    
+    #panel.cabinetView {
+      padding: 0; overflow: hidden; align-items: center;
+    }
+    
+    #panelCard.cabinet #panelScreen {
+      
+      display: block;
+      position: absolute;
+      left: 16.784%; top: 12.784%; width: 58.803%;
+      background-position: top center; background-size: 100% 100%;
+      background-repeat: no-repeat;
+    }
+    #panelCard.cabinet-menu #panelScreen {
+      background-image: var(--panel-options);
+      aspect-ratio: 546 / 1002;
+    }
+    #panelCard.cabinet-settings #panelScreen {
+      background-image: var(--panel-settings);
+      aspect-ratio: 499 / 1148;
+    }
+    
+    #panelCard.cabinet #pvSettings:not([hidden]) { display: contents; }
+    #panelCard.cabinet #pvSettings .note,
+    #panelCard.cabinet #pvSettings label.row > span { display: none; }
+    
+    #panelCard.cabinet #pvSettings label.row {
+      position: absolute; margin: 0; display: block;
+    }
+    #panelCard.cabinet #pvSettings label.row input[type=checkbox] {
+      appearance: none; -webkit-appearance: none;
+      display: block; width: 100%; height: 100%; margin: 0;
+      background: var(--pill-off) center / 100% 100% no-repeat;
+      border: 0; cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    #panelCard.cabinet #pvSettings label.row input[type=checkbox]:checked {
+      background-image: var(--pill-on);
+    }
+    #panelCard.cabinet #pvSettings label.row input[type=checkbox]:disabled {
+      opacity: 0.4; cursor: default;
+    }
+    #panelCard.cabinet #pvSettings label.row:has(#sSound) {
+      left: 70.14%; top: 21.52%; width: 22.85%; height: 4.62%;
+    }
+    #panelCard.cabinet #pvSettings label.row:has(#sSfx) {
+      left: 70.14%; top: 31.01%; width: 22.85%; height: 4.62%;
+    }
+    #panelCard.cabinet #pvSettings label.row:has(#sHaptics) {
+      left: 70.14%; top: 40.51%; width: 22.85%; height: 4.70%;
+    }
+    
+    #panelCard.cabinet #pvSettings label.row:has(#sTod) {
+      left: 49.70%; top: 51.13%; width: 43.89%; height: 3.57%;
+    }
+    #panelCard.cabinet #sTod {
+      width: 100%; height: 100%; margin: 0; padding: 0;
+      background: var(--tod-value) center / 100% 100% no-repeat;
+      border: 0; border-radius: 0; color: transparent; font-size: 0;
+      appearance: none; -webkit-appearance: none;
+    }
+    #panelCard.cabinet #sTod option { color: #f2ead8; font-size: 15px; }
+    #panelCard.cabinet #btnBack {
+      left: 6.61%; top: 62.37%; width: 87.17%; height: 5.84%;
+    }
+    
+    #panelCard.cabinet #panelTitle { display: none; }
+    
+    
+    #panelCard.cabinet .pv .btn,
+    #entryLayer .pv .btn {
+      position: absolute; margin: 0; padding: 0;
+      background: none; border: 0; border-radius: 1.6cqw;
+      color: transparent; font-size: 0;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+    #panelCard.cabinet .pv .btn:active,
+    #entryLayer .pv .btn:active { background: rgba(240,168,58,0.16); }
+    #panelCard.cabinet #pvMenu:not([hidden]) { display: contents; }
+    #panelCard.cabinet #btnMenuBoard {
+      left: 6.59%; top: 21.06%; width: 86.81%; height: 14.77%;
+    }
+    #panelCard.cabinet #btnMenuHow {
+      left: 6.59%; top: 40.52%; width: 86.81%; height: 14.57%;
+    }
+    #panelCard.cabinet #btnMenuSettings {
+      left: 6.59%; top: 59.78%; width: 86.81%; height: 14.37%;
+    }
+    #panelCard.cabinet #btnMenuClose {
+      left: 6.59%; top: 78.84%; width: 86.81%; height: 14.17%;
+    }
+    
+    
+    
+    #entryLayer {
+      
+      position: fixed; inset: 0; z-index: 31;
+      display: flex; align-items: center; justify-content: center;
+      padding: calc(10px + env(safe-area-inset-top, 0px)) 10px
+               calc(10px + env(safe-area-inset-bottom, 0px));
+      
+      background: rgba(6,5,10,0.62);
+    }
+    #entryLayer[hidden] { display: none; }
+    #entryPlate {
+      position: relative;
+      background-image: var(--entry-plate);
+      background-position: center; background-size: 100% 100%;
+      background-repeat: no-repeat;
+      aspect-ratio: 853 / 992;
+      
+      
+      width: min(96vw, 620px,
+                 calc((86dvh - env(safe-area-inset-top, 0px)
+                             - env(safe-area-inset-bottom, 0px)) * 853 / 992));
+      container-type: inline-size;
+      
+      box-shadow: 0 2.6cqw 6cqw rgba(0,0,0,0.72), 0 0.5cqw 1.4cqw rgba(0,0,0,0.5);
+      
+      isolation: isolate;
+      transition: transform 0.18s ease-out;
+    }
+    
+    @media (orientation: portrait) and (pointer: coarse) {
+      #entryPlate.typing { transform: translateY(-17vh); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      #entryPlate { transition: none; }
+    }
+    
+    #entryLayer #pvForm:not([hidden]) { display: contents; }
+    
+    #entryLayer #pvForm .note,
+    #entryLayer #pvForm label > span { display: none; }
+    #entryLayer #pvForm label {
+      position: absolute; display: block; margin: 0; padding: 0; font-size: 0;
+    }
+    
+    #entryLayer #pvForm label:has(#fName) {
+      left: 19.578%; top: 60.484%; width: 38.921%; height: 9.577%;
+    }
+    #entryLayer #pvForm label:has(#fPhone) {
+      left: 19.578%; top: 72.883%; width: 38.921%; height: 9.577%;
+    }
+    #entryLayer #pvForm label:has(#fEmail) {
+      left: 19.578%; top: 85.283%; width: 38.921%; height: 9.577%;
+    }
+    #entryLayer #pvForm label input {
+      position: absolute; left: 0; top: 16.84%; width: 100%; height: 66.32%;
+      margin: 0; padding: 0 4%; border: 0; border-radius: 0.7cqw;
+      background: transparent; color: #dfe8f7;
+      
+      font: inherit; font-size: max(13px, 3.1cqw); line-height: 1;
+      appearance: none; -webkit-appearance: none; outline: none;
+    }
+    
+    #entryLayer #pvForm input::placeholder { color: transparent; }
+    #entryLayer #pvForm input:not(:placeholder-shown),
+    #entryLayer #pvForm input:focus { background: #0d2038; }
+    #entryLayer #pvForm input:focus {
+      box-shadow: inset 0 0 0 0.18cqw rgba(120,170,255,0.6);
+    }
+    #entryLayer #pvForm input.bad {
+      background: #24080a; box-shadow: inset 0 0 0 0.22cqw rgba(255,92,74,0.9);
+    }
+    
+    #entryLayer #btnSave {
+      left: 70.692%; top: 54.133%; width: 10.668%; height: 9.879%;
+      border-radius: 50%;
+    }
+    
+    #entryLayer #btnSkip {
+      left: 68.464%; top: 71.775%; width: 15.944%; height: 10.281%;
+    }
+    #entryLayer #btnFormX {
+      left: 71.395%; top: 82.058%; width: 9.144%; height: 8.367%;
+      border-radius: 50%;
+    }
+    
+    #entryLayer #btnFormInfo {
+      left: 84.408%; top: 65.020%; width: 10.199%; height: 34.480%;
+    }
+    
+    #panel .btn.cabOnly { display: none; }
+    #entryLayer .btn.cabOnly { display: block; }
+    
+    #panelCard.cabinet-menu #panelScreen,
+    #panelCard.cabinet-settings #panelScreen { isolation: isolate; }
+    #entryPlate::after,
+    #panelCard.cabinet-menu #panelScreen::after,
+    #panelCard.cabinet-settings #panelScreen::after {
+      content: ''; position: absolute; inset: 0;
+      
+      pointer-events: none;
+      background-repeat: no-repeat;
+      
+      background-size: 100% 100%;
+      mix-blend-mode: screen;
+      
+      animation: glyphglow 3.6s ease-in-out infinite;
+    }
+    #entryPlate::after { background-image: var(--entry-glow); }
+    #panelCard.cabinet-menu #panelScreen::after { background-image: var(--options-glow); }
+    #panelCard.cabinet-settings #panelScreen::after { background-image: var(--settings-glow); }
+    @keyframes glyphglow {
+      0%, 100% { opacity: 0.26; }
+      50%      { opacity: 1; }
+    }
+    
+    #panelCard.cabinet .pv .btn:active,
+    #entryLayer .pv .btn:active {
+      background: radial-gradient(closest-side,
+                  rgba(255,214,110,0.34), rgba(255,214,110,0) 76%);
+    }
+    
+    @media (prefers-reduced-motion: reduce) {
+      #entryPlate::after,
+      #panelCard.cabinet-menu #panelScreen::after,
+      #panelCard.cabinet-settings #panelScreen::after {
+        animation-name: glyphglowcalm;
+        animation-duration: 7s;
+      }
+      @keyframes glyphglowcalm {
+        0%, 100% { opacity: 0.62; }
+        50%      { opacity: 1; }
+      }
+    }
+    
+    #lbActions .btn.card, #panel .btn.ghost {
+      animation: textglow 3.6s ease-in-out infinite;
+    }
+    @keyframes textglow {
+      0%, 100% { text-shadow: 0 0 0.5cqw rgba(255,255,255,0.35); }
+      50%      { text-shadow: 0 0 0.5cqw rgba(255,255,255,0.95),
+                             0 0 1.6cqw rgba(255,255,255,0.75),
+                             0 0 3.4cqw rgba(255,214,110,0.45); }
+    }
+    
+    #panel .btn.ghost { animation-name: textglowpx; }
+    
+    #panelCard.cabinet .pv .btn,
+    #entryLayer .pv .btn { animation: none; }
+    @keyframes textglowpx {
+      0%, 100% { text-shadow: 0 0 2px rgba(255,255,255,0.35); }
+      50%      { text-shadow: 0 0 2px rgba(255,255,255,0.95),
+                             0 0 7px rgba(255,255,255,0.75),
+                             0 0 14px rgba(255,214,110,0.45); }
+    }
+    
+    @media (prefers-reduced-motion: reduce) {
+      #lbActions .btn.card { animation-name: textglowcalm; animation-duration: 7s; }
+      #panel .btn.ghost { animation-name: textglowpxcalm; animation-duration: 7s; }
+      @keyframes textglowcalm {
+        0%, 100% { text-shadow: 0 0 0.5cqw rgba(255,255,255,0.75),
+                               0 0 1.6cqw rgba(255,255,255,0.40); }
+        50%      { text-shadow: 0 0 0.5cqw rgba(255,255,255,0.95),
+                               0 0 1.6cqw rgba(255,255,255,0.75); }
+      }
+      @keyframes textglowpxcalm {
+        0%, 100% { text-shadow: 0 0 2px rgba(255,255,255,0.75),
+                               0 0 7px rgba(255,255,255,0.40); }
+        50%      { text-shadow: 0 0 2px rgba(255,255,255,0.95),
+                               0 0 7px rgba(255,255,255,0.75); }
+      }
+    }
+
+    
+    #entryLayer #formErr {
+      position: absolute; margin: 0; padding: 0.55cqw 2cqw; border: 0;
+      
+      box-sizing: border-box;
+      
+      left: 19.109%; top: 52.218%; width: 39.859%;
+      min-height: 6.250%;
+      display: flex; align-items: center; justify-content: center;
+      background: #0f2744; color: #ff7a5e; text-align: center;
+      font-weight: 700; font-size: max(11px, 2.6cqw); line-height: 1.15;
+      letter-spacing: 0.01em; border-radius: 0.6cqw;
+    }
+    #entryLayer #formErr[hidden] { display: none; }
+
+    
+    
+    #lbActions {
+      position: absolute; left: 2.184%; right: 2.184%;
+      top: 90.723%; height: 8.559%;
+      display: flex; align-items: stretch;
+    }
+    #lbActions .btn.card {
+      flex: 1; margin: 0; padding: 0;
+      display: flex; align-items: center; justify-content: center;
+      font: 800 3.8cqw/1 system-ui, sans-serif; letter-spacing: 0.06em;
+      color: #f7f1e2; background: #16131f;
+      border: 0.54cqw solid rgba(255,214,110,0.75); border-radius: 2.17cqw;
+      box-shadow: 0 0.65cqw 0 rgba(0,0,0,0.45);
+      cursor: pointer;
+    }
+    #lbActions .btn.card:active { transform: translateY(0.33cqw); box-shadow: none; }
+    #lbActions .btn.card[hidden] { display: none; }
+
+    
+    .hp {
+      position: absolute; left: -9999px; top: auto;
+      width: 1px; height: 1px; overflow: hidden;
+    }
+
+    
+    #howIntro {
+      margin: 0 0 12px; font-size: 14px; line-height: 1.4;
+      color: rgba(242,234,216,0.8); text-align: center;
+    }
+    #howList {
+      margin: 0 0 14px; padding: 0; list-style: none;
+      display: flex; flex-direction: column; gap: 9px;
+    }
+    
+    #howList li {
+      display: flex; align-items: center; gap: 11px;
+      background: rgba(20,16,30,0.55);
+      border: 2px solid rgba(255,214,110,0.22);
+      border-radius: 11px; padding: 8px 11px;
+    }
+    
+    #howList .howPair { display: flex; gap: 4px; flex: 0 0 168px; }
+    
+    #howList .howKey {
+      flex: 0 0 168px;
+      display: flex; align-items: center; justify-content: center; gap: 7px;
+    }
+    #howList .howPad {
+      display: flex; align-items: center; justify-content: center;
+      font: 700 15px/1 system-ui, sans-serif; letter-spacing: 0.06em;
+      color: rgba(255,255,255,0.82);
+      border: 2px solid rgba(255,214,110,0.34);
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.13) 0%,
+                                rgba(255,255,255,0.03) 42%,
+                                rgba(0,0,0,0.16) 100%),
+        rgba(18,14,28,0.52);
+      box-shadow:
+        inset 0 1.5px 0 rgba(255,255,255,0.34),
+        inset 0 -2px 0 rgba(0,0,0,0.42),
+        0 3px 0 rgba(0,0,0,0.34);
+      text-shadow: 0 1px 0 rgba(0,0,0,0.55);
+    }
+    
+    #howList .howPad.move {
+      flex: 1 1 0; min-height: 40px; border-radius: 14px;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.16) 0%,
+                                rgba(255,255,255,0.04) 42%,
+                                rgba(0,0,0,0.20) 100%),
+        rgba(18,14,28,0.80);
+      border-color: rgba(255,214,110,0.58);
+      color: rgba(255,255,255,0.96);
+    }
+    
+    #howList .howPad.jump {
+      width: 46px; height: 46px; border-radius: 50%;
+      border-color: rgba(120,220,255,0.45);
+      background: rgba(30,60,90,0.42);
+    }
+    
+    #howList .howPad.dash {
+      width: 40px; height: 40px; border-radius: 50%; font-size: 11px;
+    }
+    
+    #howList figure {
+      position: relative; margin: 0; flex: 1 1 0;
+      border-radius: 8px; overflow: hidden;
+      border: 2px solid rgba(255,214,110,0.28);
+      background: #0b0912; line-height: 0;
+    }
+    #howList .howShot { display: block; width: 100%; height: auto; }
+    #howList .mark {
+      position: absolute; left: 4px; bottom: 3px;
+      font: 800 15px/1 system-ui, sans-serif;
+      text-shadow: 0 0 4px #000, 0 2px 3px #000;
+    }
+    #howList .bad { color: #ff5f52; }
+    #howList .good { color: #57e08a; }
+    #howList .howTxt {
+      flex: 1 1 auto; font-size: 13px; line-height: 1.3;
+      color: rgba(242,234,216,0.9);
+    }
+    #howList .howTxt b {
+      display: block; font: 800 12px/1.25 system-ui, sans-serif;
+      letter-spacing: 0.06em; color: #ffd66e;
+    }
+    
+    @media (max-height: 700px) {
+      #howIntro { margin-bottom: 7px; font-size: 12px; }
+      #howList { gap: 4px; margin-bottom: 10px; }
+      #howList li { padding: 4px 8px; gap: 8px; }
+      #howList .howPair, #howList .howKey { flex-basis: 112px; }
+      #howList .howPad { font-size: 13px; }
+      #howList .howPad.move { min-height: 32px; border-radius: 11px; }
+      #howList .howPad.jump { width: 38px; height: 38px; }
+      #howList .howPad.dash { width: 33px; height: 33px; font-size: 10px; }
+      #howList .howTxt { font-size: 12px; }
+      #howList .howTxt b { font-size: 11px; }
+    }
+    #panel .note { margin: 10px 0; font-size: 13px; color: rgba(242,234,216,0.72); }
+    #panel .note b { color: #ffd66e; font-weight: 700; }
+    #panel .err { margin: 8px 0 0; font-size: 13px; color: #ff8f7a; }
+    #panel label {
+      display: block; margin: 12px 0 0;
+      font: 700 12px/1 system-ui, sans-serif; letter-spacing: 0.07em;
+      color: rgba(242,234,216,0.75);
+    }
+    #panel label .sub {
+      font-weight: 400; letter-spacing: 0; text-transform: none;
+      color: rgba(242,234,216,0.42);
+    }
+    #panel label .req {
+      font-weight: 700; letter-spacing: 0; text-transform: none;
+      color: rgba(255,143,122,0.85);
+    }
+    
+    #panel ::placeholder { color: rgba(242,234,216,0.38); opacity: 1; }
+    #panel input.bad { border-color: rgba(255,143,122,0.85); }
+    #panel input[type=text], #panel input[type=tel], #panel input[type=email],
+    #panel select {
+      display: block; width: 100%; box-sizing: border-box; margin-top: 6px;
+      padding: 11px 12px;
+      
+      font: 400 16px/1.2 system-ui, sans-serif;
+      color: #f2ead8; background: #0b0913;
+      border: 1px solid rgba(255,214,110,0.28); border-radius: 9px;
+    }
+    #panel input:focus, #panel select:focus {
+      outline: none; border-color: rgba(255,214,110,0.75);
+    }
+    #panel label.row {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 12px; margin-top: 16px;
+    }
+    #panel label.row select { width: auto; margin-top: 0; }
+    #panel label.row input[type=checkbox] { width: 22px; height: 22px; accent-color: #ffd66e; }
+    
+    #panel .btn,
+    #panel button,
+    #panel input,
+    #panel select,
+    #panel label {
+      touch-action: manipulation;
+    }
+    #panel .btn {
+      display: block; width: 100%; margin-top: 12px; padding: 13px;
+      font: 800 14px/1 system-ui, sans-serif; letter-spacing: 0.08em;
+      color: #1a1408; background: #ffd66e;
+      border: 0; border-radius: 10px; cursor: pointer;
+    }
+    #panel .btn.ghost {
+      color: rgba(242,234,216,0.82); background: none;
+      border: 1px solid rgba(255,214,110,0.32);
+    }
+    
+    #lbCard {
+      
+      position: relative; aspect-ratio: 784 / 1596;
+      
+      
+      height: min(calc(100dvh - 28px - env(safe-area-inset-top, 0px)
+                       - env(safe-area-inset-bottom, 0px)), 1596px);
+      width: auto; max-width: 100%; margin: 0 auto;
+      container-type: inline-size;
+      background: center/100% 100% no-repeat;   
+      
+      overflow: hidden;
+    }
+    
+    
+    #pvBoard .note {
+      position: absolute; left: 2.184%; right: 2.184%; top: 88.526%;
+      margin: 0; text-align: right;
+      font: 700 2.83cqw/1 ui-monospace, Menlo, Consolas, monospace;
+      color: rgba(255,214,110,0.85); text-shadow: 0 1px 2px rgba(0,0,0,0.85);
+    }
+    #pvBoard .note:empty { display: none; }
+    #board { margin: 0; padding: 0; list-style: none; }
+    #board li {
+      position: absolute; left: 0; right: 0; height: 4.78cqw;
+      display: flex; align-items: center;
+      
+      font: 700 4.35cqw/1 ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+      letter-spacing: 0.06em; font-variant-numeric: tabular-nums;
+      color: #cfcabf; text-shadow: 0 0.27cqw 0 rgba(0,0,0,0.55);
+    }
+    #board li .r { position: absolute; left: 9.465%; }
+    #board li .n {
+      position: absolute; left: 26.744%; right: 9.791%;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    #board li .s { position: absolute; right: 8.704%; }
+    
+    #board li:first-child, #board li.me { color: #f0b429; }
+    #lbYou {
+      position: absolute; left: 0; right: 0; top: 82.742%; height: 5.65cqw;
+      display: flex; align-items: center;
+      font: 700 4.78cqw/1 ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+      letter-spacing: 0.06em; font-variant-numeric: tabular-nums;
+      color: #f0b429; text-shadow: 0 0.27cqw 0 rgba(0,0,0,0.55);
+    }
+    #lbYou .r { position: absolute; left: 9.465%; }
+    #lbYou .n { position: absolute; left: 26.744%; right: 9.791%;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #lbYou .s { position: absolute; right: 8.704%; }
+    #lbEmpty {
+      position: absolute; left: 4.357%; right: 4.357%; top: 56.718%; margin: 0;
+      text-align: center; color: rgba(242,234,216,0.62);
+      font: 600 3.69cqw/1.5 ui-monospace, Menlo, monospace; letter-spacing: 0.04em;
+    }
+
+    
+    @media (orientation: landscape) and (max-height: 560px) {
+      
+      
+      #tL, #tR { width: 64px; height: 64px; bottom: calc(28px + env(safe-area-inset-bottom, 0px)); }
+      #tL { left: calc(6px + env(safe-area-inset-left, 0px)); }
+      #tR { left: calc(84px + env(safe-area-inset-left, 0px)); }
+      #tJump { width: 78px; height: 78px; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); }
+      #tDash { width: 62px; height: 62px; bottom: calc(96px + env(safe-area-inset-bottom, 0px)); }
+    }
+  </style>
+  <script type="module" crossorigin src="./assets/index-B4Iq0Zjg.js"></script>
+</head>
+<body>
+  <canvas id="game"></canvas>
+
+  
+  <div id="safe" aria-hidden="true" style="
+    position: fixed; top: 0; left: 0; width: 1px; height: 1px;
+    pointer-events: none; visibility: hidden;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    padding-left: env(safe-area-inset-left, 0px);"></div>
+
+  <div id="touch" aria-hidden="true">
+    <div class="pad move" id="tL" data-act="left">◀</div>
+    <div class="pad move" id="tR" data-act="right">▶</div>
+    <div class="pad" id="tDash" data-act="dash">DASH</div>
+    <div class="pad" id="tJump" data-act="jump">JUMP</div>
+  </div>
+
+  
+  <div id="panel" hidden>
+    <div id="panelCard" role="dialog" aria-modal="true" aria-labelledby="panelTitle">
+      
+      <div id="panelScreen">
+      <h2 id="panelTitle">LEADERBOARD</h2>
+
+      
+      <div id="pvMenu" class="pv" hidden>
+        <button class="btn" id="btnMenuBoard" type="button">LEADERBOARD</button>
+        <button class="btn" id="btnMenuHow" type="button">HOW TO PLAY</button>
+        <button class="btn ghost" id="btnMenuSettings" type="button">SETTINGS</button>
+        <button class="btn ghost" id="btnMenuClose" type="button">BACK TO GAME</button>
+      </div>
+
+      <div id="pvHow" class="pv" hidden>
+        
+        <p id="howIntro">Get to the show with the money.</p>
+        <ul id="howList">
+          
+          <li>
+            <span class="howKey"><span class="howPad move">◀</span><span class="howPad move">▶</span></span>
+            <span class="howTxt">Move</span>
+          </li>
+          <li>
+            <span class="howKey"><span class="howPad jump">JUMP</span></span>
+            <span class="howTxt">Jump &mdash; twice for a double jump</span>
+          </li>
+          
+          <li>
+            <span class="howKey"><span class="howPad dash">DASH</span></span>
+            <span class="howTxt">Roll past trouble. Can&rsquo;t be hit.</span>
+          </li>
+          <li>
+            <span class="howPair">
+              <figure><img class="howShot" data-shot="pothole-bad" alt="Stepping into a pothole" /><span class="mark bad">✕</span></figure>
+              <figure><img class="howShot" data-shot="pothole-good" alt="Jumping the pothole" /><span class="mark good">✓</span></figure>
+            </span>
+            <span class="howTxt"><b>POTHOLE</b>Jump it.</span>
+          </li>
+          <li>
+            <span class="howPair">
+              <figure><img class="howShot" data-shot="manhole-bad" alt="Falling into an open manhole" /><span class="mark bad">✕</span></figure>
+              <figure><img class="howShot" data-shot="manhole-good" alt="Jumping the manhole" /><span class="mark good">✓</span></figure>
+            </span>
+            <span class="howTxt"><b>MANHOLE</b>Jump it.</span>
+          </li>
+          <li>
+            <span class="howPair">
+              <figure><img class="howShot" data-shot="ninja-bad" alt="Walking into a street ninja" /><span class="mark bad">✕</span></figure>
+              <figure><img class="howShot" data-shot="ninja-good" alt="Landing on the ninja's head" /><span class="mark good">✓</span></figure>
+            </span>
+            <span class="howTxt"><b>NINJA</b>Jump on him. +$50</span>
+          </li>
+          <li>
+            <span class="howPair">
+              <figure><img class="howShot" data-shot="champagne-bad" alt="Running past the champagne" /><span class="mark bad">✕</span></figure>
+              <figure><img class="howShot" data-shot="champagne-good" alt="Grabbing the champagne" /><span class="mark good">✓</span></figure>
+            </span>
+            <span class="howTxt"><b>CHAMPAGNE</b>Double money, 9 seconds.</span>
+          </li>
+        </ul>
+        <button class="btn ghost" id="btnHowBack" type="button">BACK</button>
+      </div>
+
+      <div id="pvBoard" class="pv">
+        <div id="lbCard">
+          <ol id="board"></ol>
+          <div id="lbYou" hidden><span class="r"></span><span class="n"></span><span class="s"></span></div>
+          <p id="lbEmpty" hidden></p>
+          
+          <p id="boardNote" class="note"></p>
+          
+          <div id="lbActions">
+            <button class="btn card" id="btnRegister" type="button">ENTER THE CONTEST</button>
+            <button class="btn card" id="btnShare" type="button">SHARE MY SCORE</button>
+            <button class="btn card" id="btnBoardBack" type="button">BACK</button>
+          </div>
+        </div>
+        
+        
+        
+      </div>
+
+      <div id="pvSettings" class="pv" hidden>
+        
+        <label class="row"><span>MUSIC</span>
+          <input id="sSound" type="checkbox" checked /></label>
+        <label class="row"><span>SOUND EFFECTS</span>
+          <input id="sSfx" type="checkbox" checked /></label>
+        <label class="row"><span>VIBRATION</span>
+          <input id="sHaptics" type="checkbox" checked /></label>
+        <p class="note" id="hapticsNote" hidden></p>
+        <label class="row"><span>TIME OF DAY</span>
+          
+          <select id="sTod">
+            <option value="atl">Atlanta time</option>
+            <option value="day">Always day</option>
+            <option value="night">Always night</option>
+            <option value="local">My local time</option>
+          </select></label>
+        <p class="note" id="todNote"></p>
+        <button class="btn ghost" id="btnBack" type="button">BACK</button>
+      </div>
+      </div>
+    </div>
+
+  </div>
+
+  
+    
+    <div id="entryLayer" hidden>
+      <div id="entryPlate">
+        
+        <div id="pvForm" class="pv" hidden>
+          <p class="note">
+            All three are required. Your <b>name</b> and score go on the board.
+            Your <b>phone</b> and <b>email</b> stay private — they are only how
+            Will Hill's team reaches you if you win.
+          </p>
+          
+          <label>NAME <span class="req">required</span> <span class="sub">shown publicly</span>
+            <input id="fName" type="text" maxlength="16" autocomplete="nickname" required
+                   enterkeyhint="next" placeholder="The name on the leaderboard" />
+          </label>
+          <label>PHONE <span class="req">required</span> <span class="sub">private</span>
+            <input id="fPhone" type="tel" inputmode="tel" maxlength="20" required
+                   autocomplete="tel" enterkeyhint="next"
+                   placeholder="10 digits — how we reach a winner" />
+          </label>
+          <label>EMAIL <span class="req">required</span> <span class="sub">private</span>
+            <input id="fEmail" type="email" inputmode="email" maxlength="128" required
+                   autocomplete="email" enterkeyhint="done"
+                   placeholder="Backup contact, never shown" />
+          </label>
+          
+          <div class="hp" aria-hidden="true">
+            <label>Website
+              <input id="fWebsite" type="text" tabindex="-1" autocomplete="off" />
+            </label>
+          </div>
+          <p id="formErr" class="err" hidden></p>
+          <button class="btn" id="btnSave" type="button">SAVE &amp; ENTER</button>
+          <button class="btn ghost" id="btnSkip" type="button">NOT NOW</button>
+          
+          <button class="btn cabOnly" id="btnFormX" type="button">CANCEL</button>
+          <button class="btn cabOnly" id="btnFormInfo" type="button">CONTEST INFO</button>
+        </div>
+      </div>
+    </div>
+
+  
+  <script>
+    for (const t of ['gesturestart', 'gesturechange', 'gestureend']) {
+      document.addEventListener(t, (e) => e.preventDefault(), { passive: false });
+    }
+    document.addEventListener('touchmove', (e) => {
+      if (e.touches.length > 1) e.preventDefault();
+    }, { passive: false });
+    // And the OTHER magnifier: iOS zooms the whole page when a field smaller
+    // than 16px takes focus, then leaves it zoomed. The sign-up inputs size
+    // themselves off the cabinet so they sit in his painted boxes, which puts
+    // them under 16px on a small phone. Rather than break his layout with a
+    // 16px floor, the viewport is pinned at the moment of focus and released
+    // on blur — Safari only re-zooms on a fresh focus, so a locked scale
+    // during that window is enough.
+    const vp = document.querySelector('meta[name=viewport]');
+    const BASE = vp && vp.content;
+    document.addEventListener('focusin', (e) => {
+      if (vp && e.target && e.target.matches('input, select, textarea')) {
+        vp.content = BASE + ', maximum-scale=1.0';
+      }
+    });
+    document.addEventListener('focusout', () => { if (vp) vp.content = BASE; });
+  </script>
+</body>
+</html>
