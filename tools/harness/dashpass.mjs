@@ -34,33 +34,56 @@ const run = (mode) => p.evaluate((m) => new Promise((done) => {
   if (m === 'dash') { pl.dashing = true; pl.dashT = 30; pl.dashVx = 0; }
   else { pl.dashing = false; pl.dashT = 0; }
   if (m === 'stomp') { pl.onGround = false; pl.vy = 6; pl.y = en.y - pl.h + 4; pl.airJumps = 0; }
-  // ⚠️ SAMPLE THE BOUNCE WHILE IT IS A BOUNCE. The first version read vy once
-  // at +250ms — fifteen gravity ticks after a -10.5 launch, by which time it
-  // measured +2.8 and called a working stomp broken. Track the minimum.
-  let vyMin = 99;
-  const iv = setInterval(() => { vyMin = Math.min(vyMin, pl.vy); }, 8);
-  setTimeout(() => {
-    clearInterval(iv);
-    done({ before, hearts: pl.hearts, enemyAlive: en.alive,
-      vyMin, airJumps: pl.airJumps });
-  }, 250);
+  // ⚠️ GRADE THE BOUNCE BY POSITION — AND EXPECT THE SHORT HOP. This check
+  // was rebuilt three times before the frame trace told the truth: the
+  // stomp DOES launch at -10.5, and the VARIABLE JUMP mechanic then
+  // curtails it to ~-2.9 one tick later because no thumb is holding JUMP —
+  // a parked test dummy gets the short hop BY DESIGN (~11px), a real player
+  // holding the button rides the full ~106px arc (combo.mjs walks that).
+  // The first two samplers randomly caught or missed the single -10.5 tick
+  // and read the mechanic as a flake. Position is the stable signal: any
+  // real bounce lifts him and the lift persists across missed samples.
+  const y0 = pl.y;
+  let yMin = y0;
+  let frames = 0;
+  const sample = () => {
+    yMin = Math.min(yMin, pl.y);
+    frames += 1;
+    if (frames < 45) requestAnimationFrame(sample);
+    else done({ before, hearts: pl.hearts, enemyAlive: en.alive,
+      rise: Math.round(y0 - yMin), airJumps: pl.airJumps });
+  };
+  requestAnimationFrame(sample);
 }), mode);
+
+// Spy the Android vibration route: the game-feel haptics fire alongside the
+// same events this file already exercises. haptics.js reads nav.vibrate at
+// call time, so patching the property is enough.
+await p.evaluate(() => {
+  window.__vibes = [];
+  navigator.vibrate = (pat) => { window.__vibes.push(pat); return true; };
+});
+const vibes = () => p.evaluate(() => window.__vibes.length);
 
 const dash = await run('dash');
 ck('dashing through costs no heart', dash.hearts === dash.before.hearts, `hearts ${dash.before.hearts}->${dash.hearts}`);
 ck('and the enemy LIVES — passage, not a kill', dash.enemyAlive === true);
+const vAfterDash = await vibes();
+ck('and a safe pass does not buzz', vAfterDash === 0, `${vAfterDash} vibrations`);
 
 // Reset position away, heal state, then the control case.
 await p.evaluate(() => { const g = window.__game; g.player.x -= 200; g.player.inv = 0; });
 const contact = await run('contact');
 ck('the same overlap NOT dashing still costs the heart', contact.hearts === contact.before.hearts - 1,
   `hearts ${contact.before.hearts}->${contact.hearts}`);
+const vAfterHit = await vibes();
+ck('and the hit BUZZES on the Android route', vAfterHit > vAfterDash, `${vAfterHit} vibrations`);
 
 await p.evaluate(() => { const g = window.__game; g.player.x -= 200; g.player.inv = 0; g.player.hearts = 3; });
 const stomp = await run('stomp');
 ck('a stomp still kills him', stomp.enemyAlive === false);
-ck('and still bounces with the air jump refunded', stomp.vyMin < -5 && stomp.airJumps === 1,
-  `vyMin=${stomp.vyMin?.toFixed(1)} airJumps=${stomp.airJumps}`);
+ck('and still bounces with the air jump refunded', stomp.rise >= 8 && stomp.airJumps === 1,
+  `rose ${stomp.rise}px (short hop — no JUMP held; see comment) airJumps=${stomp.airJumps}`);
 
 console.log('\n' + (checks.every(([, o]) => o) ? `ALL ${checks.length} PASS` : 'FAILED'));
 await b.close();

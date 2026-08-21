@@ -63,6 +63,37 @@ async function completedRun(query) {
   return { submits, screen };
 }
 
+// The OTHER exit — a run that DIES also submits (death path in main.js),
+// and it was gated later than the completion path was: a ?stage=4 run that
+// died still reached the board after the completion gate landed. Both exits
+// are graded now.
+async function deadRun(query) {
+  const ctx = await b.newContext({ viewport: { width: 430, height: 932 }, hasTouch: true });
+  const p = await ctx.newPage();
+  let submits = 0;
+  await p.route('**/submit', (route) => {
+    if (route.request().method() === 'POST') submits += 1;
+    return route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+  });
+  await p.addInitScript(() => {
+    localStorage.setItem('wh_contest_reg', JSON.stringify({ phone: '4045550100', email: '' }));
+  });
+  await p.goto(`http://localhost:5199/${query}`, { waitUntil: 'networkidle' });
+  await p.waitForFunction(() => window.__game && window.__game.screen === 'title', null, { timeout: 25000 });
+  await p.evaluate(async () => { await window.__startStage(3); });
+  await p.waitForFunction(() => window.__game.screen === 'playing', null, { timeout: 15000 });
+  await p.evaluate(() => {
+    const g = window.__game;
+    g.continues = 0;   // no continue screen in the way
+    g.player.hearts = 0; g.player.dead = true; g.player.deathCause = 'enemy';
+  });
+  await p.waitForFunction(() => window.__game.screen !== 'playing', null, { timeout: 10000 }).catch(() => {});
+  await p.waitForTimeout(1200);
+  const screen = await p.evaluate(() => window.__game.screen);
+  await ctx.close();
+  return { submits, screen };
+}
+
 const lb = '&lb=http://localhost:5199/__stub';
 const relay = await completedRun('?relay=1&tod=night' + lb);
 ck('a completed RELAY run never reaches the board', relay.submits === 0, `submits=${relay.submits} screen=${relay.screen}`);
@@ -70,6 +101,12 @@ const staged = await completedRun('?stage=4&tod=night' + lb);
 ck('a run that began mid-game never reaches the board', staged.submits === 0, `submits=${staged.submits} screen=${staged.screen}`);
 const plain = await completedRun('?tod=night' + lb);
 ck('and a plain completed run still submits exactly once', plain.submits === 1, `submits=${plain.submits} screen=${plain.screen}`);
+const stagedDeath = await deadRun('?stage=4&tod=night' + lb);
+ck('a mid-game run that DIES never reaches the board either', stagedDeath.submits === 0,
+  `submits=${stagedDeath.submits} screen=${stagedDeath.screen}`);
+const plainDeath = await deadRun('?tod=night' + lb);
+ck('and a plain death still submits its run once', plainDeath.submits === 1,
+  `submits=${plainDeath.submits} screen=${plainDeath.screen}`);
 
 console.log('\n' + (checks.every(([, o]) => o) ? `ALL ${checks.length} PASS` : 'FAILED'));
 await b.close();

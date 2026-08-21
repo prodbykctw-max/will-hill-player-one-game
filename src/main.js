@@ -1323,6 +1323,7 @@ function update() {
       audio.play('punch');
       state.score += 50; // matches SCORE_RULES.stomp in cloudflare/leaderboard-worker.js
       state.runLog.record('stomp');
+      haptics.stomp();   // Android; iOS has no in-run haptic and never will
       // ── CHAIN ────────────────────────────────────────────────────────
       // The mechanic this counts was ALREADY HERE and nobody was reading
       // it: resolveEnemyCollision pogos him off a stomp at vy -10.5 and
@@ -1348,6 +1349,7 @@ function update() {
         audio.combo(state.combo);
       }
     } else if (result === 'contact') {
+      haptics.hurt();
       // AN ENEMY KNOCKS THE MONEY OUT OF YOU. Deliberately different from a
       // pothole, which only trips you: a pothole is the street, an enemy robs
       // you. It also self-sequences into the three-touch rule without any
@@ -1449,6 +1451,7 @@ function update() {
       audio.powerUp();
       grantInvulnerability(player, now, CHAMPAGNE_SECONDS);
       state.runLog.record('champagne');
+      haptics.pickup();
     }
   }
 
@@ -1475,7 +1478,7 @@ function update() {
     if (!player.onGround) continue;
     const foot = player.x + player.w * 0.5;
     if (foot > hz.x && foot < hz.x + hz.w) {
-      if (trip(player, now)) state.runLog.record('pothole');
+      if (trip(player, now)) { state.runLog.record('pothole'); haptics.hurt(); }
     }
   }
 
@@ -1568,9 +1571,14 @@ function update() {
     // contest run. player.deathCause is set in three places: 'enemy' and
     // 'pothole' in entities/player.js, 'fall' here at FALL_DEATH_Y.
     state.runLog.record(`death_${player.deathCause || 'enemy'}`);
+    haptics.knockout();
     const log = state.runLog.finish();
     recordRunStats(log, state.score);
-    lbSubmit(log);
+    // ⚠️ SAME GATE AS THE COMPLETE PATH. The dev doors (relay, ?stage=N)
+    // must not reach the prize board from EITHER exit — this line used to be
+    // unconditional, so a ?stage=4 run that DIED still submitted while the
+    // completion path was gated. relayboard.mjs grades the death exit too.
+    if (!isRelay() && startStageIndex() === 0) lbSubmit(log);
     // Banked locally too, exactly like the complete path. A knocked-down run
     // already SUBMITS to the contest (the line above), but it never reached
     // wh_local_runs — so "your best on this device" and the share card lied

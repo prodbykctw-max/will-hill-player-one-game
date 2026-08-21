@@ -105,6 +105,28 @@ Three rules, in order:
    disagree.** Report the discarded ones as discarded. A harness that quietly
    drops what it could not measure is how one gets trusted while blind.
 
+## Grade persistent state, never a transient — and ask what trims the physics
+
+A stomp bounce sets vy to −10.5 for exactly one tick. A check asserting
+`vy < −5` was rebuilt three times — one-shot read, setInterval(8ms), rAF
+sampling — and every sampler sometimes slept through the launch tick and
+called a working stomp broken (measured: pass 4-of-5, then 1-of-3, on the
+same build). Two rules came out of the frame trace that finally settled it:
+
+1. **A transient graded by sampling is a flake factory.** Grade the state
+   the transient LEAVES BEHIND instead: velocity is gone next tick, but the
+   height it bought persists across any number of missed samples. `yMin`
+   over 45 frames cannot sleep through a launch, because the launch is
+   still visible at frame 20.
+2. **Before asserting a physics magnitude, ask which MECHANIC trims it.**
+   The full −10.5 arc only exists while JUMP is held — variable jump height
+   curtails an unheld bounce to ~−2.9 one tick later, so a parked test
+   dummy gets an ~11px hop BY DESIGN and a player holding the button gets
+   ~106px. The harness was asserting numbers the game deliberately never
+   produces for its input state. The trace, not the theory, is what caught
+   it: sample `[frame, y, vy, onGround, anim]` for 30 frames and read what
+   actually happens before rebuilding a "flaky" check a fourth time.
+
 ## Isolate a layer by DRAWING IT TWICE, not by colour-keying
 
 To ask "what does this card contribute?", render the frame with it and without

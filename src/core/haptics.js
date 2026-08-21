@@ -36,6 +36,16 @@ const KEY = 'wh_haptics';
 const TICK = 8;      // a movement or action pad going down
 const TAP = 14;      // a menu button
 const CONFIRM = [14, 40, 26];   // buzz, pause, longer buzz — something happened
+// ── GAME FEEL — Android only, by physics, not by choice ──────────────────
+// Client: "what about game haptics?" On iOS there is no programmatic route
+// to the Taptic Engine (three rounds measured on his phone — see the notes
+// above), so the in-run events buzz where vibrate() exists and stay honest
+// silence where it does not. Patterns are short: a run fires these dozens of
+// times and anything long turns into a phone that will not stop.
+const STOMP = 18;               // landing on someone — one solid knock
+const HURT = [35, 30, 35];      // a heart gone: hit, breath, hit
+const PICKUP = [10, 20, 16];    // champagne — a little flourish
+const KNOCKOUT = [70, 50, 90];  // the run ending, felt
 
 export function createHaptics() {
   const nav = typeof navigator !== 'undefined' ? navigator : null;
@@ -233,6 +243,12 @@ export function createHaptics() {
     tick: () => fire(TICK),
     // A menu button, a screen tap, anything that is a decision.
     tap: () => fire(TAP),
+    // The in-run events. Each is a single fire() — enabled-gated, Android
+    // only — called from main.js beside the runLog.record of the same name.
+    stomp: () => fire(STOMP),
+    hurt: () => fire(HURT),
+    pickup: () => fire(PICKUP),
+    knockout: () => fire(KNOCKOUT),
     // A decision that committed something — the run starting, the form saving.
     confirm: () => fire(CONFIRM),
 
