@@ -37,23 +37,29 @@ in a commit of its own.** And for any quote this file attributes to a source
 file, grep the quote — one of them had been deleted from the source and was
 still being repeated here as current.
 
-## State at main `afe1930` — ALL THREE BRANCHES ARE FULLY MERGED
+## State at main `3132eda` — ALL THREE BRANCHES ARE FULLY MERGED
 
-Re-derived, not remembered. Every branch is an ancestor of main; none of them
-holds anything.
+Re-derived, not remembered (2026-08-26 ~23:50 UTC, BACKDROPS / DEPLOY chat
+after merging the board revert + the Jandé sign-up card).
 
 | branch | ahead | behind | tip |
 |---|---|---|---|
-| `claude/contest-reg-image-crop-d4y6c0` | 0 | 0 | `afe1930` |
-| `claude/dashboard-kills-display-sizing-wgufbm` | 0 | 0 | `afe1930` |
-| `claude/last-markdown-game-link-lvk1n6` | 0 | 3 | `0455b14` |
+| `claude/contest-reg-image-crop-d4y6c0` | 0 | 0 | `3132eda` |
+| `claude/dashboard-kills-display-sizing-wgufbm` | 0 | 15 | `b0a9d02` |
+| `claude/last-markdown-game-link-lvk1n6` | 0 | 5 | `91f5e72` |
 
-`gh-pages` is at `ab5d05a`, deployed `2026-08-18T13:31:28Z`. Proof that the
-live game is current is a rebuild, not the commit hash: `npm run build` from
-`afe1930` produces an asset list **identical to the live tree**, and
-`assets/index-SzTflqL2.js` is **byte-identical** (md5 `6c2989b6d566a4d78dc1324f7d33bff9`).
-The four `*-day-skystruct` hashes match, which is the check that the night-cloud
-work actually shipped rather than merely merged.
+`gh-pages` was union-deployed from `3132eda` (bundle
+`assets/index-JGsom3NT.js`; 195 current + 260 carried assets, 13 source
+trees). ⚠️ Two things merged TOGETHER in `f088378`+`3132eda` that read as
+opposites unless you know the client's correction: the leaderboard went BACK
+to the MARTA ticket, and the JANDÉ REGISTRY look moved to the CONTEST
+REGISTRATION FORM — his words: "So sorry, not the leaderboard but the
+registration form. Revert the leaderboard. But the registration form should
+be the color scheme of the game." Do not "fix" the board back to Jandé.
+`contest-entry.webp` / `glow-entry.webp` are deliberately no longer imported
+(the painted sign-up cabinet is gone; ~134 KB off boot) — do not re-import
+them. entryfit.mjs is rewritten for the DOM card; btnglow's entry section
+grades a no-bloom contract now.
 
 ⚠️ **ONLY `ahead` IS A DEBT.** He caught a report of a branch as "13 behind"
 that read as a stalled chat; it was 0 ahead — owing nothing — and pushed three
