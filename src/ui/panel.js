@@ -27,11 +27,7 @@ import {
 // one function, from the module that owns the rule, rather than a second
 // copy of the timezone maths living in the interface layer.
 import { atlantaHour } from '../world/stages.js';
-// ⚠️ leaderboard-card.webp is NOT imported here any more. Client: "The
-// leaderboard needs to be like the Jandé registration board. No MARTA frame.
-// Client scrapped." The in-game board is a clean CSS card now (see #lbCard
-// in index.html); the ticket artwork's ONLY remaining renderer is
-// src/ui/share.js, which owns its own import and its own ROW_TOP.
+import leaderboardCard from '../assets/backgrounds/leaderboard-card.webp';
 // ⚠️ THE CLIENT'S ARTWORK IS THE SCREEN. Two painted layers, cut by
 // tools/cut_cabinet.py: the MARTA housing with its screen emptied, and his
 // painted OPTIONS panel that lays into the opening. The painted buttons are
@@ -167,8 +163,8 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
     fn();
   });
 
-  // The board card carries no artwork since the MARTA frame was scrapped —
-  // its whole dress is the #lbCard rules in index.html.
+  const card = $('lbCard');
+  if (card) card.style.backgroundImage = `url(${leaderboardCard})`;
   // ⚠️ A CUSTOM PROPERTY, NOT `style.backgroundImage`. Setting the image
   // directly would paint the cabinet behind EVERY view: an inline style beats
   // any stylesheet rule, so `#panelCard`'s own dark plate could never win it
@@ -368,25 +364,33 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
     if (view === 'settings') fillSettings();
   }
 
-  // ── the board, on its own clean card ──────────────────────────────────
+  // ── the board, laid over his MARTA card ───────────────────────────────
   //
-  // The MARTA ticket is scrapped ("no MARTA frame. Client scrapped"), and
-  // with it went the whole measured-fraction rig: the five-row cap was the
-  // artwork's five painted bands, and ROW_TOP was a measurement of a
-  // painting this view no longer shows. share.js still renders the ticket
-  // for the SHARE CARD and owns that measurement alone now. Rows are
-  // ordinary flow items — ten of them, the Jandé registry being a top-N
-  // list — and a long name still ellipsises inside its own row because the
-  // name span is the flex child that gives.
-  const BOARD_ROWS = 10;
+  // The card carries five rows and a YOUR RANK line, so that is what the board
+  // shows — his design decides the shape, not the other way round. It used to
+  // list twenty; the rest are one tap away in the run log and nobody reads
+  // past five on a phone anyway.
+  //
+  // Row TOPS are fractions of the card, measured off the artwork and matching
+  // the bands its placeholder rows were blanked out of. Positioning each `li`
+  // absolutely means a name too long to fit ellipsises inside its own row
+  // instead of pushing the ones below it off their measured line.
+  // ⚠️ REMAPPED FOR THE TRIMMED TICKET. These were fractions of the whole
+  // 852x1846 plate; the card is now cropped out of it at x34-818, y147-1743, so
+  // every one of them moved. tools/trim_lb_card.py prints the conversion —
+  // v' = (v * 1846 - 147) / 1596 — and re-running it prints them again if the
+  // crop ever changes. Old values, for the record:
+  // [0.5385, 0.5850, 0.6300, 0.6745, 0.7180]
+  const ROW_TOP = [0.53075, 0.58453, 0.63658, 0.68805, 0.73836];
 
   function render(runs, note) {
     const ol = $('board');
     ol.innerHTML = '';
     const me = lbName().toLowerCase();
-    const top = runs.slice(0, BOARD_ROWS);
+    const top = runs.slice(0, ROW_TOP.length);
     top.forEach((r, i) => {
       const li = document.createElement('li');
+      li.style.top = `${ROW_TOP[i] * 100}%`;
       if (r.me || String(r.name || '').toLowerCase() === me) li.className = 'me';
       const rank = document.createElement('span');
       rank.className = 'r';
@@ -414,9 +418,6 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
     } else {
       you.hidden = true;
     }
-    // The YOUR RANK lettering was in the ticket's paint; the DOM label rides
-    // the row's own visibility now.
-    $('lbYouLabel').hidden = you.hidden;
 
     const empty = $('lbEmpty');
     empty.hidden = !!runs.length;
