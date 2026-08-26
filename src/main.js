@@ -1004,7 +1004,12 @@ function endRun() {
 // ⚠️ AND screenT STOPS WHILE IT IS UP. update() returns early when the panel
 // is open, so the tally does not run on behind the board and the delay below
 // is measured in ticks the player actually saw.
-const RESULTS_AFTER = 140;      // ticks: the eight rows tally in 56, then a beat
+// The eight rows tally in 56; the rest is the hold. It was one beat (140)
+// until the client asked for more: "slow the transition time down after
+// completing the game so the scores and stats are on screen longer in the
+// current flow." ~5.3s at 60fps before the board arrives on its own — a tap
+// still brings it up sooner.
+const RESULTS_AFTER = 320;
 
 function restartRun() {
   commit();
@@ -1025,7 +1030,19 @@ function buttonsFor(screen) {
     return state.continues > 0
       ? [{ label: 'GET BACK UP', action: getBackUp },
         { label: 'END RUN', action: endRun }]
-      : [{ label: 'SEE YOUR SCORE', action: endRun }];
+      // Out of continues, the client wants the exits named for where they go:
+      // "Buttons should read MAIN MENU and a second button should read ENTER
+      // THE CONTEST." SEE YOUR SCORE (endRun) is gone from this card — safe to
+      // drop, because the death path already submitted the run to the Worker
+      // and banked it locally before this screen ever drew; endRun only ever
+      // navigated. MAIN MENU is the pause menu's own exit, same action shape
+      // (goBack is just the sound-and-haptic pair, nothing panel-bound). ENTER
+      // THE CONTEST opens what the title banner opens — the sign-up card, or
+      // the board for a player already on it. No press() in either: the tap
+      // handler plays it for every screenButton before calling the action.
+      : [{ label: 'MAIN MENU', action: () => { goBack(); showTitle(); } },
+        { label: 'ENTER THE CONTEST',
+          action: () => panel.open(isRegistered() ? 'board' : 'form', { flow: 'title' }) }];
   }
   // 'complete' is not here: its button is PAINTED, on his ending plate, and is
   // registered where that plate is drawn. Nothing of mine goes on that artwork.
@@ -2071,8 +2088,9 @@ function draw() {
     drawPauseMenu(stage);
   } else if (state.screen === 'stageClear') {
     // PM: "let's add a score here. So people can see how much they have before
-    // entering a new level." Same line GAME KNOCKED already draws, at the same
-    // size, so the two cards read as one family.
+    // entering a new level." Same line GAME KNOCKED draws — though that card
+    // now sizes it up at the client's ask; mid-run the money is a readout, not
+    // the headline, so 18 stays right here.
     drawOverlayText([
       ['STAGE CLEAR', 28],
       [stage.name.toUpperCase(), 15, '#e8d9a0'],
@@ -2090,14 +2108,19 @@ function draw() {
     // The prompt no longer has to carry which-thing-JUMP-does — the buttons
     // say it. What is left is the state: the score, and whether there is a
     // continue to spend.
+    // The dollar figure is the biggest thing on the card, above the heading —
+    // client: "Once you've been knocked your score should be a lot larger."
+    // 40 here where STAGE CLEAR keeps 18; the two cards stop being twins on
+    // this one line on purpose. drawOverlayText spaces each line by its own
+    // size, so the stack absorbs it.
     drawOverlayText(state.continues > 0 ? [
       ['GAME KNOCKED', 28, '#e8a13f'],
-      [`$${state.score.toLocaleString()}`, 18],
+      [`$${state.score.toLocaleString()}`, 40],
       [`${state.continues} CONTINUE`, 15, '#8fe08f'],
       [`back at ${STAGES[state.stageIndex].name}`, 13, 'rgba(255,255,255,0.7)'],
     ] : [
       ['GAME KNOCKED', 28, '#e8a13f'],
-      [`$${state.score.toLocaleString()}`, 18],
+      [`$${state.score.toLocaleString()}`, 40],
       ['no continues left', 13, 'rgba(255,140,120,0.85)'],
     ], buttonsFor('gameOver'));
   }

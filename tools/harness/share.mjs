@@ -80,9 +80,11 @@ const GAME_URL = 'https://prodbykctw-max.github.io/will-hill-player-one-game/';
     cv.width = bm.width; cv.height = bm.height;
     const c = cv.getContext('2d');
     c.drawImage(bm, 0, 0);
-    // The raw artwork, for the empty-band reference.
-    const bgUrl = getComputedStyle(document.getElementById('lbCard'))
-      .backgroundImage.slice(5, -2);
+    // The raw artwork, for the empty-band reference. ⚠️ NOT read off #lbCard
+    // any more: the in-game board dropped the MARTA frame ("no MARTA frame.
+    // Client scrapped"), so the ticket artwork now lives ONLY in share.js's
+    // render. The dev server serves the module asset at its source path.
+    const bgUrl = '/src/assets/backgrounds/leaderboard-card.webp';
     const raw = await new Promise((res, rej) => {
       const im = new Image(); im.onload = () => res(im); im.onerror = rej; im.src = bgUrl;
     });

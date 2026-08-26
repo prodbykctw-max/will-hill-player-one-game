@@ -176,11 +176,42 @@ check('GET BACK UP spends one and restarts the stage',
   JSON.stringify(back));
 
 // ── GAME KNOCKED, out of continues ──────────────────────────────────────
+// Client: "Buttons should read MAIN MENU and a second button should read
+// ENTER THE CONTEST." SEE YOUR SCORE is gone from this card — the death path
+// already submitted and banked the run before it drew, so neither exit here
+// touches scoring. Both destinations are graded, not just the labels.
 await park('gameOver', { continues: 0 });
 bs = await buttons();
-check('one button when there is nothing left to spend',
-  bs.length === 1 && bs[0].label === 'SEE YOUR SCORE',
+check('two buttons when there is nothing left to spend',
+  bs.length === 2 && bs[0].label === 'MAIN MENU'
+    && bs[1].label === 'ENTER THE CONTEST',
   bs.map((x) => x.label).join(' | '));
+await p.mouse.click(bs[0].x + bs[0].w / 2, bs[0].y + bs[0].h / 2);
+await p.waitForTimeout(500);
+check('MAIN MENU goes home', await screen() === 'title', await screen());
+
+await park('gameOver', { continues: 0 });
+bs = await buttons();
+await p.mouse.click(bs[1].x + bs[1].w / 2, bs[1].y + bs[1].h / 2);
+await p.waitForTimeout(700);
+// Same either-surface read as END RUN above: on an unregistered device the
+// thing that opens is the SIGN-UP, its own top-level layer, and #panel is
+// deliberately shut behind it.
+check('ENTER THE CONTEST opens the entry form or the board',
+  await p.evaluate(() => !document.getElementById('panel').hidden
+    || !document.getElementById('entryLayer').hidden));
+// Dismiss whichever surface arrived, same chain the ending teardown uses,
+// or the next park is testing taps against a dialog that is still up.
+for (const id of ['btnSkip', 'btnBack']) {
+  const shown = await p.evaluate((i) => {
+    const el = document.getElementById(i);
+    return !!(el && el.offsetParent);
+  }, id);
+  if (shown) { await p.evaluate((i) => document.getElementById(i).click(), id); }
+  await p.waitForTimeout(400);
+}
+await p.evaluate(() => { if (window.__panel.isOpen) window.__panel.close(); });
+await p.waitForTimeout(400);
 
 // ── KEYBOARD PARITY. Space presses the FIRST button, so the two paths ────
 // cannot disagree about what a screen does.
@@ -287,7 +318,9 @@ check("the run's own numbers are drawn, inside his stat block",
 
 // ── the board arrives on its own, once ──────────────────────────────────
 await toEnding(false);
-await p.evaluate(() => { window.__game.screenT = 200; });
+// Just past RESULTS_AFTER — 320 now, up from 140 at the client's "on screen
+// longer" ask — so the arrival being graded is the latch, not a long wait.
+await p.evaluate(() => { window.__game.screenT = 340; });
 await p.waitForTimeout(900);
 // Same reason as the END RUN check above: on an unregistered device the thing
 // that arrives is the SIGN-UP, which is its own top-level layer now and shuts
