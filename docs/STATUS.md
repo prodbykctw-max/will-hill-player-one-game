@@ -119,25 +119,60 @@ localStorage cannot brick boot, and re-encoding the art is off the table
 (WebP q85 visibly damages the dither — measured).
 
 
+### The sign-up is the Jandé card, in the game's colors — and the painted cabinet left the build
+
+Client, correcting the round below: *"not the leaderboard but the
+registration form. Revert the leaderboard. But the registration form should
+be the color scheme of the game."* Two references on record: his Jandé
+registry screenshot (the LAYOUT — centred rounded card, letterspaced kicker,
+big heading, stacked fields, ONE glossy gold button, underlined skip link)
+and his crop of the old form (the COLORS — deep navy, gold #f0b429 heading,
+red "required", cream text).
+
+The form is real DOM now: navy gradient card with a thin gold border,
+"WILL HILL · PLAYER ONE" kicker over a gold ENTER THE CONTEST heading, three
+labelled fields (white caps + red required + dim private/public note), a
+gold-gradient SAVE & ENTER with a bevel ledge, an italic underlined "play
+without entering" (btnSkip, same notNow), CONTEST INFO as a dim gold link.
+The ✕ stays dead (`display:none`, id kept for wiring) per "exes don't need
+to be back buttons." Everything load-bearing survived untouched: scrim eats
+taps, honeypot, validation, keyboard lift (now 22vh under 640px tall —
+17vh left SAVE 17px under the small-phone keyboard, measured), haptic
+switches, all button ids.
+
+**contest-entry.webp and glow-entry.webp are OUT of the build** — imports
+removed from panel.js, ~134 KB off the boot, dist verified clean. The title
+lockup still hangs above the card but only on 'post'/'menu' journeys: on
+'start'/'title' the real title screen shows its own full-width lockup
+through the scrim right there, and a second small copy read as a misprint
+(panel.js stamps `data-flow` on the layer; also hidden ≤640px tall, where
+the centred card leaves less band than the lockup is tall — it was poking
+13px off-screen). Found en route: `overflow` on the card clips the
+`bottom:100%` lockup to nothing — the scroll lives on #pvForm instead.
+
+Harnesses: **entryfit rewritten** for the DOM card (72 checks ×3 green —
+fit/taps/palette/lift/logo-gating/error/no-plate-fetches), btnglow's entry
+section regraded to the no-bloom contract with the pulse checks moved to
+the settings cabinet (25 ×3), hapticbtn drops the dead ✕ (26 ×3),
+entrypaths 9, startflow 23, panelnav 16, titlehome 176, betweenscreens 22,
+optionsmenu 31, outbox 13, relayboard 5.
+
 ### The five-part post-game round — board, form logo, ending pace, knocked card
 
 Five client requests, built in one round (three by subagents, verified by
 their own harness runs, integrated here):
 
-1. **The board is the Jandé registry now — MARTA frame scrapped.** Client:
+1. **~~The board is the Jandé registry~~ — REVERSED, the Jandé look was for
+   the FORM.** The round below built the board as the Jandé registry card off
    "The leaderboard needs to be like the Jandé registration board. No MARTA
-   frame. Client scrapped" — reversing the earlier blank-card rejection on
-   his own word, and he then sent a SCREENSHOT of Jandé's live registry
-   ("QUEEN'S REGISTRY / Enter the Kingdom"), which is the recorded visual
-   target: warm brown card (#33261a), tan border, kicker + big heading, one
-   glossy gold primary button. Rebuilt as flow DOM: ten rows (the five-row
-   cap was the ticket's painted bands), RANK/PLAYER/SCORE re-lettered in
-   DOM, YOUR RANK under a gold rule, gold #1 and gold `.me`. ROW_TOP and
-   the measured-fraction rig deleted from panel.js — share.js is the ticket
-   artwork's only renderer now and owns that measurement alone. share.mjs's
-   empty-band reference reads the asset path instead of #lbCard's computed
-   background. Board suite green: optionsmenu 31×3, pausemenu 13, btnglow
-   26, ceiling 15, share 12, panelnav 16.
+   frame. Client scrapped." His next message corrected the target: *"So
+   sorry, not the leaderboard but the registration form. Revert the
+   leaderboard."* The board is **fully reverted to the MARTA ticket**
+   (`f088378`, spliced back from `05b3065`: leaderboard-card.webp bg,
+   ROW_TOP fractions, five cqw rows, absolute #lbActions) and the Jandé
+   layout went to the CONTEST REGISTRATION FORM instead — see "The sign-up
+   is the Jandé card" below. Post-revert board suite green: optionsmenu
+   31×3, pausemenu 13, btnglow, ceiling 15, share 12, panelnav 16.
 
 2. **The title lockup sits above the contest form.** "Logo from title
    screen should be neatly fit at the top of form" — the three SAM-cut

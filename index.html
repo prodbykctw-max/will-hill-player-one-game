@@ -566,23 +566,21 @@
        `color: transparent` rather than empty text: the label has to stay in
        the DOM or a screen reader finds an unnamed button, since the words
        here live in a painting. */
-    /* ⚠️ #entryLayer TOO, and forgetting it is a silent, total failure. The
-       sign-up used to be the third cabinet, so it inherited this rule through
-       `.cabinet`; cropping it into an overlay took that class away and left
-       every one of its painted controls as a static, full-width, VISIBLE
-       button stacked down the card. `position: absolute` is what turns a
-       <button> into a hit target over a painting, and there is nothing else in
-       the stylesheet that does it. */
-    #panelCard.cabinet .pv .btn,
-    #entryLayer .pv .btn {
+    /* ⚠️ #entryLayer IS NOT IN THIS RULE ANY MORE. The sign-up was the third
+       painted surface and shared it; the client then pointed the Jandé
+       registry layout at the CONTEST FORM — "the registration form should be
+       the color scheme of the game" — so that card is real DOM again (see
+       the ENTER THE CONTEST section below) and its buttons are visible,
+       lettered controls, not transparent boxes over paint. The cabinets keep
+       this rule; they are still his paintings. */
+    #panelCard.cabinet .pv .btn {
       position: absolute; margin: 0; padding: 0;
       background: none; border: 0; border-radius: 1.6cqw;
       color: transparent; font-size: 0;
       -webkit-tap-highlight-color: transparent;
       touch-action: manipulation;
     }
-    #panelCard.cabinet .pv .btn:active,
-    #entryLayer .pv .btn:active { background: rgba(240,168,58,0.16); }
+    #panelCard.cabinet .pv .btn:active { background: rgba(240,168,58,0.16); }
     #panelCard.cabinet #pvMenu:not([hidden]) { display: contents; }
     #panelCard.cabinet #btnMenuBoard {
       left: 6.59%; top: 21.06%; width: 86.81%; height: 14.77%;
@@ -613,135 +611,93 @@
        the menu, BACK on settings and on the board and on HOW TO PLAY, and his
        own painted NOT NOW / CANCEL disc on the entry card — so nothing is
        stranded and no screen has two ways to leave it. */
-    /* ── ENTER CONTEST IS AN OVERLAY, AND THAT STARTS WITH THE CROP ─────
-       Client, in one message: "crop this image out of the contest registration
-       image. It will alone be the sole contest reg view." Before that: "an
-       overlay over how to play."
+    /* ── ENTER THE CONTEST — THE JANDÉ CARD, IN THIS GAME'S COLORS ──────
+       Client, pointing the reference at the right target this time: "not the
+       leaderboard but the registration form... the registration form should
+       be the color scheme of the game." The reference is his Jandé registry
+       screenshot — centred rounded card on a dim scrim, letterspaced kicker,
+       one big display heading, stacked fields, ONE glossy gold button, and a
+       small underlined skip link. The colors are this game's own, read off
+       his crop of the old form: deep navy panel, gold heading, red
+       "required", cream text.
 
-       ⚠️ THE CROP IS WHAT MAKES THE OVERLAY POSSIBLE, and the order matters.
-       His plate arrived as a whole machine, 853x1844, marquee to receipt slot
-       — and against his 430x932 phone that shape can only fill the screen. A
-       full-height cabinet laid over HOW TO PLAY covers it completely, which is
-       the full-screen form with extra steps. Cropped at y992 (see
-       tools/crop_entry_plate.py — that row is a black rule he painted, not a
-       line chosen for it) the plate is 853x992, aspect 0.860, and a card of
-       that shape sits on a phone with the screen behind it still visible.
+       ⚠️ THE PAINTED CABINET IS GONE FROM THIS SCREEN, deliberately. The
+       plate (contest-entry.webp) and its bloom (glow-entry.webp) are no
+       longer imported anywhere, which is what actually removes them from the
+       build — an unused import still ships the file. That is 134 KB off the
+       boot. Every control here is real DOM with real text again: no
+       transparent boxes over paint, no fraction remaps, no glow layer cut
+       from artwork. tools/crop_entry_plate.py and the entry rows of
+       cut_glow_glyphs.py describe a surface this screen no longer has.
 
-       So this is no longer #panelCard's background. It is #entryLayer, a
-       sibling of the card inside #panel, and every fraction below is a
-       fraction of #entryPlate — which IS the plate, so they are fractions of
-       his artwork exactly as before.
-
-       ⚠️ EVERY VERTICAL FRACTION MOVED BY x1.8589 AND EVERY HORIZONTAL ONE DID
-       NOT MOVE AT ALL. The crop keeps full width and starts at y0, so the
-       remap is one factor: v' = v * 1844 / 992. `crop_entry_plate.py` prints
-       the table; do not re-measure these by hand.
-
-       ⚠️ NO cqw CORRECTION, unlike the leaderboard ticket. When
-       tools/trim_lb_card.py cropped that card the element stayed
-       HEIGHT-constrained, so the artwork grew for the same box and type sized
-       in cqw had to grow with it. This card is WIDTH-constrained, so 1cqw
-       still buys the same painted width it always did and every font-size
-       below carries over untouched. The absence is the surprising part. */
+       WHAT SURVIVED, UNCHANGED: the layer/scrim (still eats taps — the
+       canvas underneath is PRESS START), the title lockup hung above the
+       card, the keyboard lift, the honeypot, validation, and every button
+       ID, so panel.js's handlers and the harnesses' clicks work untouched. */
     #entryLayer {
-      /* `fixed` and z-index 31 — ABOVE #panel's 30. It used to be z-index 3
-         inside #panel, where it only had to beat its siblings; out here it
-         stacks against the panel itself. They are never both up in the normal
-         flow, but the ordering has to be right for the frame where one
-         replaces the other or the form flashes behind the panel.
-         `fixed` was already right and still is: it must not scroll with
-         anything. */
+      /* `fixed` and z-index 31 — ABOVE #panel's 30. They are never both up
+         in the normal flow, but the ordering has to be right for the frame
+         where one replaces the other or the form flashes behind the panel. */
       position: fixed; inset: 0; z-index: 31;
       display: flex; align-items: center; justify-content: center;
       padding: calc(10px + env(safe-area-inset-top, 0px)) 10px
                calc(10px + env(safe-area-inset-bottom, 0px));
       /* ⚠️ THE SCRIM IS LOAD-BEARING, NOT DECORATION — and it is deliberately
          SEE-THROUGH. Client, asked what should sit behind the form: "the home
-         screen behind it." So this dims the title art rather than hiding it,
-         and the form reads as a card laid over his home screen instead of
-         floating on flat black.
-         It still has to eat taps: the canvas is underneath, and a tap that
-         reached it on the title screen is PRESS START — a run launched out
-         from under a half-filled form. An opaque-to-pointers element is the
-         whole guard. */
+         screen behind it." It still has to eat taps: the canvas is
+         underneath, and a tap that reached it on the title screen is PRESS
+         START — a run launched out from under a half-filled form. */
       background: rgba(6,5,10,0.62);
     }
     #entryLayer[hidden] { display: none; }
     #entryPlate {
       position: relative;
-      background-image: var(--entry-plate);
-      background-position: center; background-size: 100% 100%;
-      background-repeat: no-repeat;
-      aspect-ratio: 853 / 992;
-      /* Width-first, with a height fallback so a short landscape window fits
-         instead of overflowing, and a cap so it does not balloon on a desktop.
-         ⚠️ `dvh` IS RIGHT HERE and `lvh` was right on the full cabinet — the
-         opposite of the old rule, for the opposite reason. The cabinet was
-         sized to COVER, where under-covering leaves a visible gap and
-         over-covering is invisible, so it wanted the largest the screen gets.
-         This one is sized to FIT inside the screen, where over-sizing is what
-         shows. */
-      /* ⚠️ 86dvh, NOT 100dvh MINUS THE PADDING, and the 14% is the overlay
-         itself. On a phone held upright the width term wins and this never
-         binds; in a short landscape window it does, and at full height the
-         card came out 96% of the screen — fitting, not overflowing, but with
-         nothing of HOW TO PLAY visible around it, which is the full-screen
-         form again by another route. Measured at 900x600: 86dvh gives a
-         444x516 card with the view it is covering legible down both sides. */
-      width: min(96vw, 620px,
-                 calc((86dvh - env(safe-area-inset-top, 0px)
-                             - env(safe-area-inset-bottom, 0px)) * 853 / 992));
+      /* A CONTENT card now, not an artwork with an aspect ratio: width is
+         set, height is whatever the stack needs, and a window too short for
+         the stack scrolls inside the card rather than overflowing the
+         screen. 420px reads as the Jandé card does on his 430px phone —
+         nearly full width — without ballooning on a desktop. */
+      width: min(92vw, 420px);
+      max-height: calc(100dvh - 24px - env(safe-area-inset-top, 0px)
+                                     - env(safe-area-inset-bottom, 0px));
+      /* ⚠️ THE SCROLL LIVES ON #pvForm, NOT HERE. The title lockup hangs
+         OUTSIDE this box (bottom: 100%), and overflow on the card clips it
+         to nothing — found by screenshotting the layer over an opaque
+         scrim, where the band above the card came back black. The card is
+         a flex column so the form can shrink and scroll inside it. */
+      display: flex; flex-direction: column;
+      /* cqw for the type below, and for #entryLogo's crop math — 1cqw is 1%
+         of the card, so everything tracks the card at any viewport. */
       container-type: inline-size;
-      /* It has to READ as a layer, and on a phone it cannot do that by letting
-         you see round it: HOW TO PLAY's card is 402px wide on his 430px screen
-         and his artwork is 410, so the backdrop is covered whatever happens.
-         What makes it an overlay instead of a screen is the vertical space —
-         the old cabinet was 100% of the height and this is 51% — plus a shadow
-         with somewhere to fall. Both are visible; neither depends on seeing
-         the view underneath. */
-      box-shadow: 0 2.6cqw 6cqw rgba(0,0,0,0.72), 0 0.5cqw 1.4cqw rgba(0,0,0,0.5);
-      /* ⚠️ Or the bloom's screen blend reaches the dimmed street behind the
-         panel and lifts the game as well as his plate. */
-      isolation: isolate;
+      /* The game's own navy, lit at the top the way his stage skies are. The
+         thin gold border is the Jandé card's frame in this game's amber. */
+      background: linear-gradient(180deg, #16283f 0%, #0d1b2e 44%, #0a1626 100%);
+      border: 1px solid rgba(240,180,74,0.55);
+      border-radius: 18px;
+      box-shadow: 0 18px 44px rgba(0,0,0,0.72), 0 4px 12px rgba(0,0,0,0.5),
+                  inset 0 1px 0 rgba(255,255,255,0.06);
       transition: transform 0.18s ease-out;
     }
     /* ── THE TITLE SCREEN'S LOCKUP, IN THE BAND ABOVE THE CARD ─────────
        Client: "Logo from title screen should be neatly fit at the top of
-       form."
-
-       ⚠️ ABOVE the card, not ON it, and the plate decided that. Its top is
-       already spoken for: the ENTER CONTEST marquee, then his painted banner.
-       There is no empty paint up there to sit in, and the one band that IS
-       empty is the dimmed home screen the scrim shows above the card — which
-       is where this logo already lives, since the scrim dims the very title
-       screen it was cut from.
-
-       ⚠️ THE PIXELS ARE THE TITLE SCREEN'S, NOT A COPY. The three cards
-       render/title.js animates (wordmark, logo, stars — panel.js imports the
-       same files, same hash, zero new bytes) share one 853x1844 frame, so one
-       size/position crops all three at once. The crop window is the lockup's
-       measured ink (x30-826, y169-388) plus 3px of frame all round: x27-829
-       (802 wide) by y166-391 (225 tall). Every calc below is that mapping
-       written out — 56cqw of card buys 802 frame px, so the frame scales by
-       56/802 and slides up-left to put the window at the origin. Change the
-       width and the calcs follow; change the crop and they must be re-derived
-       together.
-
-       56cqw: a touch over half the card, reading as a masthead over the
-       410px-wide card on his phone (230px) without shouting over the plate's
-       own painted banner directly below it. Sized in cqw like every fraction
-       on this card, so it tracks the plate at any viewport.
+       form." Unchanged by the rebuild: the three cards render/title.js
+       animates (wordmark, logo, stars — same files, same hash, zero new
+       bytes) share one 853x1844 frame, cropped to the lockup's measured ink
+       window x27-829 (802 wide) by y166-391 (225 tall). 56cqw of card buys
+       802 frame px, so the frame scales by 56/802 and slides up-left to put
+       the window at the origin. Change the width and the calcs follow;
+       change the crop and they must be re-derived together.
 
        A child of #entryPlate hung off `bottom: 100%`: it rides the card —
        centring, the keyboard lift, everything — for free, and cqw resolves
        against the plate because the plate is the container. pointer-events
        none: pure decoration, and a tap through it lands on the scrim, which
-       eats it (see the scrim note on the markup). */
+       eats it. */
     #entryLogo {
       position: absolute;
       left: 50%; bottom: 100%;
       transform: translateX(-50%);
-      margin-bottom: 1.6cqw;                      /* breathing room off the marquee */
+      margin-bottom: 2.4cqw;
       width: 56cqw;
       aspect-ratio: 802 / 225;                    /* the crop window's own shape */
       pointer-events: none;
@@ -751,163 +707,194 @@
       background-position: calc(-27 * 56cqw / 802) calc(-166 * 56cqw / 802);
       transition: opacity 0.18s ease-out;
     }
-    /* ⚠️ HIDDEN WHERE THE HEIGHT BUDGET LEAVES NO BAND. The card's 86dvh term
-       binds in a short landscape window and the card top lands at ~7% of the
-       screen — less than this lockup is tall, always, so there it would clip
-       off the top rather than fit "neatly". 2/3 is the width-bound arithmetic:
-       card + lockup + gap stack to ~1.5x the card's width, so any screen at
-       least half again as tall as it is wide holds them (his 430x932, the SE's
-       375x667 and a 320x568 all clear it with room); anything squarer does
-       not. entryfit.mjs grades both sides of this. */
+    /* ⚠️ HIDDEN WHERE THE HEIGHT BUDGET LEAVES NO BAND. In a short landscape
+       window the card fills the height and there is no band above it for the
+       lockup to sit in — it would clip off the top rather than fit "neatly".
+       Any screen at least half again as tall as it is wide holds the stack
+       (his 430x932, the SE's 375x667 and a 320x568 all clear it); anything
+       squarer does not. entryfit.mjs grades both sides of this. */
     @media (min-aspect-ratio: 2/3) {
       #entryLogo { display: none; }
     }
+    /* ⚠️ AND HIDDEN WHEN THE REAL THING IS ALREADY BEHIND THE SCRIM. On the
+       start and title-banner journeys the form opens over the TITLE SCREEN,
+       whose own full-width lockup shows through the see-through scrim right
+       above the card — that IS the "logo from title screen neatly fit at the
+       top of form", at full size. A second, smaller copy floating over it
+       reads as a misprint. After a run ('post'/'menu') the canvas behind is
+       the knocked screen with no lockup anywhere, and this crop earns the
+       band. panel.js stamps the journey on the layer as data-flow. */
+    #entryLayer[data-flow='start'] #entryLogo,
+    #entryLayer[data-flow='title'] #entryLogo { display: none; }
+    /* ⚠️ AND ON A SHORT PHONE, where the centred card leaves less band above
+       it than the lockup is tall — a 320x568 puts the card top at ~31px and
+       the lockup needs ~52, so it poked 13px off the top of the screen
+       (entryfit.mjs caught it at rest, not just mid-lift). 640px clears the
+       SE's 667 (band just fits there) and catches everything shorter. */
+    @media (max-height: 640px) {
+      #entryLogo { display: none; }
+    }
     /* ── LIFT THE CARD WHILE THE KEYBOARD IS UP ────────────────────────
-       The card is centred with space above and below, and #panel clips rather
-       than scrolls under it, so the browser cannot nudge a covered field into
-       view the way it would on an ordinary page. Focusing a field slides the
-       whole card up so his tick clears an iPhone keyboard (~340px of a 932px
+       The card is centred with space above and below, and nothing scrolls
+       under it, so the browser cannot nudge a covered field into view the
+       way it would on an ordinary page. Focusing a field slides the whole
+       card up so SAVE & ENTER clears an iPhone keyboard (~340px of a 932px
        screen) and puts it straight back on blur.
 
-       17vh, and the binding case is the SMALL phone, not his. At 430x932 the
-       card is 410x477 and 14vh already cleared the keyboard by 45px; at
-       320x568 the card is 300x349 against a proportionally taller keyboard and
-       the same 14vh cleared it by three. 17vh holds both with room, and still
-       does not push the card's top off the screen (13px clear at 320x568,
-       which is the tighter of the two).
+       ⚠️ vh, NOT A PERCENTAGE OF THE CARD: what the lift has to clear is a
+       fixed slab of SCREEN, so it is measured in screen units. Tuned against
+       the rects, not guessed — see tools/harness/entryfit.mjs.
 
-       ⚠️ vh, NOT A PERCENTAGE OF THE CARD, and that changed with the crop. The
-       old rule was translateY(-12%) of an 1844-tall cabinet; the same 12% of a
-       992-tall card is roughly half the travel against exactly the same
-       keyboard, so a straight remap would have quietly under-lifted it. What
-       the lift has to clear is a fixed slab of SCREEN, so it is measured in
-       screen units. Tuned against the rects, not guessed — see
-       tools/harness/entryfit.mjs.
-
-       Gated to a coarse pointer in portrait, because that is the only place an
-       on-screen keyboard exists; on a desktop it would just be a lurch. */
+       Gated to a coarse pointer in portrait, because that is the only place
+       an on-screen keyboard exists; on a desktop it would just be a lurch. */
     @media (orientation: portrait) and (pointer: coarse) {
       #entryPlate.typing { transform: translateY(-17vh); }
-      /* ⚠️ THE LOCKUP BOWS OUT OF THE LIFT. It rides the plate, and 17vh of
-         travel puts its top past the screen edge on a small phone (the SE's
-         card top is ~124px and the lift is ~113 — the card just clears, the
-         band above it cannot). A half-clipped logo over a keyboard is worse
-         than none: the eye is in the field, so it fades for exactly the
-         frames the lift holds and is back on blur. Same media gate as the
-         lift because it exists only because of the lift. */
+      /* ⚠️ THE LOCKUP BOWS OUT OF THE LIFT. It rides the card, and the
+         travel puts its top past the screen edge on a small phone. A
+         half-clipped logo over a keyboard is worse than none: the eye is in
+         the field, so it fades for exactly the frames the lift holds and is
+         back on blur. Same media gate as the lift because it exists only
+         because of the lift. */
       #entryPlate.typing #entryLogo { opacity: 0; }
+    }
+    /* ⚠️ A SHORT PHONE NEEDS MORE TRAVEL. At 320x568 the keyboard is a
+       proportionally taller slab (~210 of 568) and 17vh left SAVE 17px under
+       it — measured by entryfit.mjs, not guessed. 22vh clears it by 11px.
+       The card's heading slides off the top for exactly the frames the lift
+       holds; the eye is in the field, and blur puts everything back. */
+    @media (orientation: portrait) and (pointer: coarse) and (max-height: 640px) {
+      #entryPlate.typing { transform: translateY(-22vh); }
     }
     @media (prefers-reduced-motion: reduce) {
       #entryPlate, #entryLogo { transition: none; }
     }
-    /* The form generates no box of its own; its children position against the
-       plate. */
-    #entryLayer #pvForm:not([hidden]) { display: contents; }
-    /* Every word in here is painted. A second copy in live text on top of his
-       would be the exact thing he objected to. */
-    #entryLayer #pvForm .note,
-    #entryLayer #pvForm label > span { display: none; }
+    /* The Jandé stack: kicker, heading, note, fields, one gold button, then
+       the quiet ways out. Type in cqw so the card reads the same at 294px
+       and 420px wide, each with a px floor so nothing dips under legible. */
+    #entryLayer #pvForm:not([hidden]) {
+      display: flex; flex-direction: column;
+      padding: 7cqw 6.4cqw 6cqw;
+      text-align: center;
+      /* The card's scroll, when a short window binds its max-height. */
+      overflow-y: auto; min-height: 0;
+    }
+    #entryLayer .kick {
+      font: 700 max(10px, 2.8cqw)/1 system-ui, sans-serif;
+      letter-spacing: 0.42em; text-indent: 0.42em;   /* recentre the tracking */
+      color: rgba(240,180,74,0.85);
+      text-transform: uppercase;
+    }
+    #entryLayer #entryHead {
+      margin: 2.6cqw 0 0;
+      font: 800 max(21px, 6.6cqw)/1.05 system-ui, sans-serif;
+      letter-spacing: 0.04em;
+      color: #f0b429;
+      text-shadow: 0 2px 0 rgba(0,0,0,0.45);
+    }
+    #entryLayer #pvForm .note {
+      margin: 2.8cqw 0 1cqw;
+      font: 400 max(12px, 3.1cqw)/1.45 system-ui, sans-serif;
+      color: rgba(242,234,216,0.72);
+    }
+    #entryLayer #pvForm .note b { color: #ffd66e; font-weight: 700; }
     #entryLayer #pvForm label {
-      position: absolute; display: block; margin: 0; padding: 0; font-size: 0;
+      display: block; margin: 3.4cqw 0 0;
+      font: 700 max(11px, 3.2cqw)/1 system-ui, sans-serif;
+      letter-spacing: 0.07em;
+      color: #f2ead8; text-align: left;
     }
-    /* His three fields sat at x167-499 of 853, y616-679, 739-802 and 862-925 on
-       the uncropped plate. The LABEL box is deliberately taller than the field:
-       clicking a label focuses the input it wraps, so the tap target is the
-       tall box while the paint stays exactly on the field he drew. */
-    #entryLayer #pvForm label:has(#fName) {
-      left: 19.578%; top: 60.484%; width: 38.921%; height: 9.577%;
+    /* His crop, exactly: NAME in white, "required" in red beside it, the
+       private/public note in the dim cream. */
+    #entryLayer #pvForm label .req {
+      font-weight: 700; letter-spacing: 0; text-transform: none;
+      color: #ff5c4a;
     }
-    #entryLayer #pvForm label:has(#fPhone) {
-      left: 19.578%; top: 72.883%; width: 38.921%; height: 9.577%;
-    }
-    #entryLayer #pvForm label:has(#fEmail) {
-      left: 19.578%; top: 85.283%; width: 38.921%; height: 9.577%;
+    #entryLayer #pvForm label .sub {
+      font-weight: 400; letter-spacing: 0; text-transform: none;
+      color: rgba(242,234,216,0.45);
     }
     #entryLayer #pvForm label input {
-      position: absolute; left: 0; top: 16.84%; width: 100%; height: 66.32%;
-      margin: 0; padding: 0 4%; border: 0; border-radius: 0.7cqw;
-      background: transparent; color: #dfe8f7;
-      /* Sized to sit in his field, with a floor so it stays legible on a
-         small phone.
-         ⚠️ iOS zooms into any focused input under 16px; what stops that here
+      display: block; width: 100%; box-sizing: border-box;
+      margin-top: 1.8cqw; padding: 3.4cqw 3.4cqw;
+      border: 1px solid rgba(120,170,255,0.28); border-radius: 10px;
+      background: #0a1626; color: #f2ead8;
+      /* ⚠️ iOS zooms into any focused input under 16px; what stops that here
          is `maximum-scale=1.0, user-scalable=no` in the viewport meta at the
          top of this file. If that line ever changes, this needs 16px. */
-      font: inherit; font-size: max(13px, 3.1cqw); line-height: 1;
+      font: 400 max(13px, 3.6cqw)/1.2 system-ui, sans-serif;
       appearance: none; -webkit-appearance: none; outline: none;
     }
-    /* ⚠️ HIS PLACEHOLDER, NOT MINE — and this is why the field is see-through
-       until it is used. He painted "The name on the leaderboard", "10 digits
-       — how we reach a winner" and "Backup contact, never shown" into the
-       glass, word for word what index.html already had. So the input hides
-       its own placeholder and shows HIS through the transparent background;
-       the moment there is a value it paints the field's own interior and his
-       words are covered by the thing that replaces them. Empty screen: every
-       pixel his.
-       ⚠️ The placeholder ATTRIBUTE has to stay non-empty or
-       :placeholder-shown never matches and the fill is permanent. */
-    #entryLayer #pvForm input::placeholder { color: transparent; }
-    #entryLayer #pvForm input:not(:placeholder-shown),
-    #entryLayer #pvForm input:focus { background: #0d2038; }
+    /* The in-field helper is the line the player can still see once the
+       keyboard has pushed the label off screen, so it stays legible. */
+    #entryLayer #pvForm input::placeholder {
+      color: rgba(242,234,216,0.4); opacity: 1;
+    }
     #entryLayer #pvForm input:focus {
-      box-shadow: inset 0 0 0 0.18cqw rgba(120,170,255,0.6);
+      border-color: rgba(240,180,74,0.75);
+      box-shadow: 0 0 0 2px rgba(240,168,58,0.18);
     }
     #entryLayer #pvForm input.bad {
-      background: #24080a; box-shadow: inset 0 0 0 0.22cqw rgba(255,92,74,0.9);
+      border-color: rgba(255,92,74,0.9); background: #1a0c10;
+      box-shadow: 0 0 0 2px rgba(255,92,74,0.22);
     }
-    /* ── SAVE IS THE KNOB NOW, AND IT IS A GREEN TICK ───────────────────
-       The crop cut at y992 and his gold ENTER disc is centred at y1182, so
-       cropping the cabinet threw its own submit button away. The silver knob
-       survives at x603-694, y537-635 and is where the control goes.
-
-       A green tick rather than his gold ENTER shrunk onto it: his cabinet
-       already teaches that the round buttons in that column are the actions —
-       red X is cancel, so a green tick is confirm, and the pair reads
-       instantly with no words to translate. ENTER at knob size would be 232
-       plate px of lettering squeezed into 91, unreadable on a phone.
-
-       The button itself is HIS red CANCEL disc with the cross inpainted out
-       and the tick redrawn in his own measured ink, then R and G swapped —
-       see tools/crop_entry_plate.py. It is baked into the plate, so the bloom
-       cutter finds its ink and lights it exactly like the red X beside it.
-
-       Elliptical hit target, because the control is a disc: a rectangle would
-       take taps on the housing either side of it. */
+    /* ── ONE GLOSSY GOLD BUTTON, LIKE HIS ─────────────────────────────
+       The Jandé card's single call to action, in this game's amber. The
+       bevel is the shadow stack: a hard 4px ledge under it, a soft drop
+       behind that, and a white inner top edge — pressed, the ledge collapses
+       and the button travels down onto it. */
     #entryLayer #btnSave {
-      left: 70.692%; top: 54.133%; width: 10.668%; height: 9.879%;
-      border-radius: 50%;
+      display: block; width: 100%; margin: 5.4cqw 0 0; padding: 4.2cqw 0;
+      border: 0; border-radius: 12px; cursor: pointer;
+      background: linear-gradient(180deg, #ffe9a8 0%, #f6c65a 40%,
+                                          #f0a83a 62%, #c77f1f 100%);
+      color: #3a2405;
+      font: 800 max(15px, 4.3cqw)/1 system-ui, sans-serif;
+      letter-spacing: 0.14em; text-indent: 0.14em;
+      box-shadow: 0 4px 0 rgba(94,58,10,0.9), 0 9px 18px rgba(0,0,0,0.5),
+                  inset 0 1px 0 rgba(255,255,255,0.65);
+      -webkit-tap-highlight-color: transparent; touch-action: manipulation;
     }
-    /* ⚠️ 3.634% TALL ON THE OLD PLATE, NOT 4.881%, and the reason survives the
-       remap. The first number came from the ink bbox of his NOT NOW / CANCEL
-       plate, and that bbox had swallowed the top rim of the red button below
-       it — so this control overlapped btnFormX by 12 plate pixels and, being
-       earlier in the DOM, lost that strip to it. The haptic-button grader
-       found it by asking what a thumb actually lands on at each corner, which
-       is a question no rect comparison asks. Re-measured off his plate
-       afterwards from the plate's own borders rather than from its lettering:
-       x584-720, y710-818, stopping 3px clear of the red button's rim at 817. */
-    #entryLayer #btnSkip {
-      left: 68.464%; top: 71.775%; width: 15.944%; height: 10.281%;
+    #entryLayer #btnSave:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 rgba(94,58,10,0.9), 0 4px 10px rgba(0,0,0,0.5),
+                  inset 0 1px 0 rgba(255,255,255,0.65);
     }
-    #entryLayer #btnFormX {
-      left: 71.395%; top: 82.058%; width: 9.144%; height: 8.367%;
-      border-radius: 50%;
-    }
-    /* The CONTEST INFO column beside the screen, "See rules, prizes and full
-       details."
-       ⚠️ CLAMPED, NOT REMAPPED. Its rect ran to y1049 on the old plate — 57px
-       past the cut — so the honest conversion comes out 65.020% + 40.726% =
-       105.7% and would hang the hit target off the bottom of the card. The
-       height is cut to what is still on the plate. */
+    /* The quiet ways out, exactly as the Jandé card ranks them: the skip is
+       a small underlined line, not a second button competing with the gold
+       one, and CONTEST INFO sits under it dimmer still. Real text on a
+       transparent control — the glow harness's textglow doesn't apply, these
+       are links by design. */
+    #entryLayer #btnSkip,
     #entryLayer #btnFormInfo {
-      left: 84.408%; top: 65.020%; width: 10.199%; height: 34.480%;
+      display: block; margin: 0 auto; padding: 1.2cqw 2cqw;
+      border: 0; background: none; cursor: pointer;
+      -webkit-tap-highlight-color: transparent; touch-action: manipulation;
     }
-    /* ⚠️ `#panel .btn` is 1-1-0 and a bare `.cabOnly` is 0-1-0, so hiding
-       these needed the id too — without it the cabinet-only buttons were never
-       hidden, and any view of the plain sign-up panel (a plate 404, a revert)
-       would show stray full-width buttons under NOT NOW. Both halves have to
-       move together or the cabinet loses them. */
+    #entryLayer #btnSkip {
+      margin-top: 5.6cqw;
+      font: italic 400 max(13px, 3.4cqw)/1 system-ui, sans-serif;
+      color: rgba(242,234,216,0.8);
+      text-decoration: underline; text-underline-offset: 3px;
+    }
+    #entryLayer #btnFormInfo {
+      margin-top: 1.6cqw;
+      font: 700 max(11px, 2.9cqw)/1 system-ui, sans-serif;
+      letter-spacing: 0.12em; text-indent: 0.12em;
+      color: rgba(240,180,74,0.7);
+    }
+    #entryLayer #btnSkip:active, #entryLayer #btnFormInfo:active {
+      color: #ffd66e;
+    }
+    /* ⚠️ NO ✕, STILL. Client: "basically exes don't need to be places to
+       have back buttons." The painted card had his red ✗ disc doubling
+       NOT NOW; this card has one skip link doing that job, so the X control
+       stays in the DOM for panel.js's wiring but never renders. */
+    #entryLayer #btnFormX { display: none; }
+    /* The old painted-cabinet split: cabOnly controls existed only on the
+       artwork. The X above is dead everywhere; INFO is a real link now. The
+       #panel half stays so the plain in-panel form (a fallback that no
+       normal flow shows) never grows stray buttons. */
     #panel .btn.cabOnly { display: none; }
-    #entryLayer .btn.cabOnly { display: block; }
     /* ── HIS PAINTED WORDS ARE WHAT GLOWS ──────────────────────────────
        "Can we make all tappable buttons a little more noticeable... it needs
        to be a lot more obvious they could be clicked." Then, on the first
@@ -945,7 +932,6 @@
        would lift the game as well as his plate. */
     #panelCard.cabinet-menu #panelScreen,
     #panelCard.cabinet-settings #panelScreen { isolation: isolate; }
-    #entryPlate::after,
     #panelCard.cabinet-menu #panelScreen::after,
     #panelCard.cabinet-settings #panelScreen::after {
       content: ''; position: absolute; inset: 0;
@@ -964,7 +950,9 @@
          to feel like a flicker on a screen with six lit controls on it. */
       animation: glyphglow 3.6s ease-in-out infinite;
     }
-    #entryPlate::after { background-image: var(--entry-glow); }
+    /* ⚠️ NO #entryPlate::after ANY MORE — the sign-up left the painted
+       cabinets for a real-DOM card (see the ENTER THE CONTEST section) and
+       took its bloom layer with it; glow-entry.webp is no longer shipped. */
     #panelCard.cabinet-menu #panelScreen::after { background-image: var(--options-glow); }
     #panelCard.cabinet-settings #panelScreen::after { background-image: var(--settings-glow); }
     @keyframes glyphglow {
@@ -974,8 +962,7 @@
     /* A press is unmistakable — but NOT as an outline. A radial wash has no
        edge of its own, so it reads as the control lighting up under the thumb
        rather than as a box appearing around it. */
-    #panelCard.cabinet .pv .btn:active,
-    #entryLayer .pv .btn:active {
+    #panelCard.cabinet .pv .btn:active {
       background: radial-gradient(closest-side,
                   rgba(255,214,110,0.34), rgba(255,214,110,0) 76%);
     }
@@ -994,7 +981,6 @@
        keeps the affordance for him without putting motion in front of someone
        who asked for less of it. */
     @media (prefers-reduced-motion: reduce) {
-      #entryPlate::after,
       #panelCard.cabinet-menu #panelScreen::after,
       #panelCard.cabinet-settings #panelScreen::after {
         animation-name: glyphglowcalm;
@@ -1031,8 +1017,7 @@
        transparent text — the words are in his painting — so a text-shadow there
        paints nothing while still running an animation per control on top of a
        live game. The bloom layer is their glow. */
-    #panelCard.cabinet .pv .btn,
-    #entryLayer .pv .btn { animation: none; }
+    #panelCard.cabinet .pv .btn { animation: none; }
     @keyframes textglowpx {
       0%, 100% { text-shadow: 0 0 2px rgba(255,255,255,0.35); }
       50%      { text-shadow: 0 0 2px rgba(255,255,255,0.95),
@@ -1059,43 +1044,17 @@
       }
     }
 
-    /* ── THE ERROR TAKES THE CARD'S OWN HEADING ────────────────────────
-       ⚠️ NOT THE MARQUEE, and that was measured rather than guessed. The
-       marquee looked like the obvious home — a dot-matrix sign whose whole
-       job is to tell you something, on glass that is already black. But the
-       error appears the instant SAVE is refused, save() focuses the field
-       that is wrong, and focusing a field lifts the cabinet to clear the
-       keyboard. At 430x932 that lift is 112px and the marquee sits at screen
-       y10-50, so the message was pushed off the top of the screen at exactly
-       the moment it had to be read. On a 320x568 phone it is worse, and the
-       lift there is not optional: without it his SAVE button is entirely
-       behind the keyboard.
-
-       So the message goes where the eye already is — inside his card, in the
-       band from its top edge down to the NAME label, with his title inside
-       it. Painted in the card's own fill so it reads as the heading changing
-       rather than as a box dropped on top; cleared by the next keystroke,
-       and then his ENTER THE CONTEST is back. The field still goes red and
-       the refusal cue still plays — this is the third signal, not the only
-       one. */
+    /* ── THE ERROR SITS ABOVE THE BUTTON IT REFUSED ────────────────────
+       The card is a real flow layout again, so the message needs no plate
+       fractions: it lives in the stack right above SAVE & ENTER, where the
+       eye lands when a save is refused. save() still focuses the bad field,
+       the field still goes red, the refusal cue still plays — this is the
+       third signal, not the only one. Cleared by the next keystroke. */
     #entryLayer #formErr {
-      position: absolute; margin: 0; padding: 0.55cqw 2cqw; border: 0;
-      /* ⚠️ border-box, or the padding is ADDED to the width and the box
-         spills over the rounded corners of his card. There is no global
-         border-box in this stylesheet — only the rules that ask for it. */
-      box-sizing: border-box;
-      /* ⚠️ HEIGHT IS AUTO, not a fixed band. His pass-3 card is 367 plate px
-         wide against pass 2's 568, so the longest message this form can
-         produce needs two lines at 430px and three at 320. A fixed band
-         either clips the tail or sits permanently over his NAME label. Auto
-         height anchored at the card's top edge grows downward only as far as
-         the words need, so a one-line message never touches his label. */
-      left: 19.109%; top: 52.218%; width: 39.859%;
-      min-height: 6.250%;
-      display: flex; align-items: center; justify-content: center;
-      background: #0f2744; color: #ff7a5e; text-align: center;
-      font-weight: 700; font-size: max(11px, 2.6cqw); line-height: 1.15;
-      letter-spacing: 0.01em; border-radius: 0.6cqw;
+      margin: 3.4cqw 0 0; padding: 2.4cqw 3cqw; box-sizing: border-box;
+      border: 1px solid rgba(255,92,74,0.5); border-radius: 8px;
+      background: #24080a; color: #ff8f7a; text-align: center;
+      font: 700 max(12px, 3cqw)/1.3 system-ui, sans-serif;
     }
     #entryLayer #formErr[hidden] { display: none; }
 
@@ -1752,46 +1711,40 @@
        flow, but the ordering has to be right for the frame where one is
        replacing the other, or the form would flash behind the panel. -->
     <!-- ── THE CARD ITSELF ─────────────────────────────────────────────
-         Client: "crop this image out of the contest registration image. It
-         will alone be the sole contest reg view."
+         Client: "not the leaderboard but the registration form... the
+         registration form should be the color scheme of the game." The shape
+         is his Jandé registry card — kicker, big heading, stacked fields,
+         one gold button, an underlined skip — rebuilt as real DOM in this
+         game's navy and gold. The painted contest-entry cabinet this used to
+         be is out of the build entirely; see the ENTER THE CONTEST section
+         of the stylesheet for the full record.
 
-         His cabinet arrived as a whole machine and filled the screen, which is
-         the only thing a 853x1844 plate CAN do on a phone. Cropped to 853x992
-         it is a card, and a card can sit on top of something — which is what
-         made the layer above possible at all.
-
-         ⚠️ IT NEVER COULD LIVE IN #panelCard. The plate used to be that card's
-         own background — the card WAS the cabinet — and a card cannot show
-         another view through its own background. #panelScreen's single-view
+         ⚠️ IT STILL CANNOT LIVE IN #panelCard. #panelScreen's single-view
          show() machinery has one job and does it well; this layer is not one
          of its views and never was.
 
-         ⚠️ THE SCRIM STILL EATS TAPS, for a changed reason. It used to guard
-         HOW TO PLAY sitting live underneath with its footer reading PLAY. The
-         panel is CLOSED under the form now, so what is underneath is the game
-         canvas — and a tap that reached the canvas on the title screen is
-         PRESS START, which would launch a run out from under a half-filled
-         form. Same guard, same necessity. There is no `pointer-events: none`
-         anywhere in this layer except the bloom and the title lockup — and a
-         tap through the lockup lands on this scrim, which eats it. -->
+         ⚠️ THE SCRIM STILL EATS TAPS. The panel is CLOSED under the form, so
+         what is underneath is the game canvas — and a tap that reached the
+         canvas on the title screen is PRESS START, which would launch a run
+         out from under a half-filled form. There is no `pointer-events:
+         none` anywhere in this layer except the title lockup — and a tap
+         through the lockup lands on this scrim, which eats it. -->
     <div id="entryLayer" hidden>
       <div id="entryPlate">
         <!-- The title screen's lockup, hung above the card's top edge —
              client: "Logo from title screen should be neatly fit at the top
-             of form." An empty div wearing three background layers, like
-             every painted surface here — decoration, not content, so
-             aria-hidden keeps it from ever growing an accessible name. All
-             geometry and the crop live in the #entryLogo rule in the
-             stylesheet. -->
+             of form." An empty div wearing three background layers —
+             decoration, not content, so aria-hidden keeps it from ever
+             growing an accessible name. All geometry and the crop live in
+             the #entryLogo rule in the stylesheet. -->
         <div id="entryLogo" aria-hidden="true"></div>
-        <!-- ⚠️ THE TINY ✕ THAT WAS HERE IS GONE, PAINT AND ALL. Client:
-             "there is also an X on the screen of the contest entry thing that
-             doesn't need to be an ex." It was a third way out of one card:
-             his NOT NOW / CANCEL plate and his red ✗ disc are the same
-             control and both call notNow, and this was a smaller, unlabelled
-             copy of them wearing a transparent hit target. Erased from the
-             plate in tools/crop_entry_plate.py; his two painted ones stay. -->
         <div id="pvForm" class="pv" hidden>
+          <!-- The Jandé card's masthead: a letterspaced kicker over one big
+               display heading, in the game's gold. Real text — the heading
+               his old plate painted, now a heading a screen reader can
+               read. -->
+          <div class="kick" aria-hidden="true">WILL HILL · PLAYER ONE</div>
+          <h2 id="entryHead">ENTER THE CONTEST</h2>
           <p class="note">
             All three are required. Your <b>name</b> and score go on the board.
             Your <b>phone</b> and <b>email</b> stay private — they are only how
@@ -1832,21 +1785,16 @@
           </div>
           <p id="formErr" class="err" hidden></p>
           <button class="btn" id="btnSave" type="button">SAVE &amp; ENTER</button>
-          <button class="btn ghost" id="btnSkip" type="button">NOT NOW</button>
-          <!-- ── THE TWO HE PAINTED THAT THE PLAIN PANEL NEVER HAD ──────────
-               His ENTER CONTEST cabinet has a red X beside CANCEL, and a
-               CONTEST INFO column down the right-hand side. They only exist as
-               controls when his artwork is on screen — outside the cabinet
-               there is nothing to sit on top of — so `.cabOnly` keeps them out
-               of the plain panel's layout and out of its tab order. They still
-               carry real text: the words here are in a painting, and a screen
-               reader cannot read a painting.
-
-               ⚠️ LEADERBOARD AND RULES & PRIZES USED TO BE HERE AND ARE GONE.
-               Both sat below y992 and went with the crop. Neither was a door
-               of its own: CONTEST INFO opens exactly what RULES & PRIZES
-               opened — he drew two doors to one room — and after a run NOT NOW
-               already lands on the board. Nothing became unreachable. -->
+          <!-- The Jandé card's quiet exit: a small underlined line under the
+               gold button, not a second button competing with it. Same id,
+               same notNow handler the painted NOT NOW plate had. -->
+          <button class="btn ghost" id="btnSkip" type="button">play without entering</button>
+          <!-- ⚠️ THE X STAYS DEAD. Client: "basically exes don't need to be
+               places to have back buttons." btnFormX keeps its id and handler
+               for panel.js's wiring but `display: none` in the stylesheet —
+               the skip link above is the same notNow. CONTEST INFO is a real
+               link now (it opens what RULES & PRIZES opened — two doors to
+               one room). -->
           <button class="btn cabOnly" id="btnFormX" type="button">CANCEL</button>
           <button class="btn cabOnly" id="btnFormInfo" type="button">CONTEST INFO</button>
         </div>

@@ -65,11 +65,11 @@ await page.waitForTimeout(700);
 
 for (const [view, ids] of [
   ['menu', ['btnMenuBoard', 'btnMenuHow', 'btnMenuSettings', 'btnMenuClose']],
-  // ⚠️ btnFormBoard AND btnFormRules ARE GONE. Both sat below y992 on his
-  // cabinet and went with the crop that turned the sign-up into a card; SAVE
-  // is the green tick on the knob now, and the x on his card is #entryClose
-  // rather than #panelClose. See tools/crop_entry_plate.py.
-  ['form', ['btnSave', 'btnSkip', 'btnFormX', 'btnFormInfo']],
+  // ⚠️ NO btnFormX. The sign-up is the Jandé card in the game's colors now
+  // (real DOM, not the painted cabinet) and the ✕ is display:none by the
+  // client's own rule — "exes don't need to be places to have back buttons".
+  // A hidden control gets no switch and needs none.
+  ['form', ['btnSave', 'btnSkip', 'btnFormInfo']],
   ['settings', ['btnBack']],
 ]) {
   await page.evaluate((v) => window.__panel && window.__panel.open(v), view);

@@ -212,6 +212,20 @@ m = inRect(map, rs.btnBack);
 check('BACK lights up', m.max > 12 && m.cover > 0.01,
   `cover ${(m.cover * 100).toFixed(1)}% max +${m.max.toFixed(0)}`);
 
+// The pulse itself has to be real, running, and SLOW — "they should slowly
+// pulse so people can know that they're accessible". Graded HERE, on a
+// cabinet, because the cabinets are where the bloom lives now: the sign-up
+// left the painted plates for a real-DOM card (see below) and took its
+// glyphglow with it.
+const anims = await p.evaluate((names) => document.getAnimations()
+  .filter((a) => names.includes(a.animationName))
+  .map((a) => ({ n: a.animationName, d: a.effect.getTiming().duration,
+    state: a.playState })), NAMES);
+const pulse = anims.find((a) => a.n === 'glyphglow');
+check('the pulse is running on the cabinet', !!pulse, JSON.stringify(anims));
+check('and it is a slow breath, not a blink', !!pulse && pulse.d >= 3000 && pulse.d <= 6000,
+  pulse ? `${pulse.d}ms` : 'absent');
+
 // ── THE SIGN-UP CABINET, where he was looking when he asked ──────────────
 await p.click('#btnBack');
 await p.waitForTimeout(400);
@@ -228,76 +242,50 @@ for (const [id, r] of Object.entries(rs)) {
 
 await p.click('#btnRegister');
 await p.waitForTimeout(650);
-console.log('\nENTER CONTEST cabinet');
-map = await litMap();
-rs = await rects(['btnSave', 'btnSkip', 'btnFormX',
-  'btnFormInfo']);
-// ⚠️ FIVE, NOT SEVEN, since the sign-up cabinet became a card. LEADERBOARD
-// and RULES & PRIZES were below the y992 cut and are gone; SAVE moved onto the
-// knob as a green tick; the x on his card is #entryClose now, because on an
-// overlay a x closes the overlay and #panelClose went back to belonging to the
-// panel underneath. tools/crop_entry_plate.py holds the geometry.
-check('all four painted controls are on screen', Object.keys(rs).length === 4,
-  Object.keys(rs).join(' '));
-for (const [id, r] of Object.entries(rs)) {
-  const m2 = inRect(map, r);
-  check(`${id} lights up`, m2.max > 12 && m2.cover > 0.005,
-    `cover ${(m2.cover * 100).toFixed(1)}% mean +${m2.mean.toFixed(0)} max +${m2.max.toFixed(0)}`);
-}
-// The three form fields are not buttons and must not be lit — a glowing input
-// on this plate would read as "tap here" on something already obvious.
-const fields = await rects(['fName', 'fPhone', 'fEmail']);
-const litField = Object.entries(fields)
-  .map(([id, r]) => [id, inRect(map, r)])
-  .filter(([, m2]) => m2.cover > 0.02);
-check('the form fields are not lit', litField.length === 0,
-  litField.map(([id, m2]) => `${id} ${(m2.cover * 100).toFixed(1)}%`).join(' '));
+console.log('\nENTER CONTEST card (real DOM, no bloom)');
+// ⚠️ THE SIGN-UP LEFT THE PAINTED SURFACES. Client: "the registration form
+// should be the color scheme of the game" — it is his Jandé registry card
+// now, real DOM in the game's navy and gold, and its affordances are the
+// controls THEMSELVES: a glossy gold gradient button, an underlined skip
+// link. No bloom layer, no glyphglow, no transparent boxes over paint. What
+// this section guards is that contract — and that the old plate's glow
+// machinery never quietly comes back to a screen that no longer has ink for
+// it. (tools/harness/entryfit.mjs owns the card's fit, palette and taps.)
+const card = await p.evaluate(() => {
+  const plate = document.getElementById('entryPlate');
+  const after = getComputedStyle(plate, '::after');
+  const save = getComputedStyle(document.getElementById('btnSave'));
+  const skip = getComputedStyle(document.getElementById('btnSkip'));
+  const x = document.getElementById('btnFormX');
+  const glow = document.getAnimations()
+    .filter((a) => a.animationName === 'glyphglow').length;
+  return {
+    bloom: after.content !== 'none' && after.backgroundImage !== 'none',
+    saveGradient: /linear-gradient/.test(save.backgroundImage),
+    saveRaised: save.boxShadow !== 'none',
+    skipUnderlined: /underline/.test(skip.textDecorationLine),
+    xShown: x && x.getBoundingClientRect().width > 0,
+    glow,
+  };
+});
+check('no bloom layer on the card — the plate is gone', !card.bloom);
+check('no glyphglow runs on this screen', card.glow === 0, `${card.glow} running`);
+check('the gold button is a real gradient', card.saveGradient);
+check('and visibly raised — the bevel IS its affordance', card.saveRaised);
+check('the skip link is underlined, not a second button', card.skipUnderlined);
+check('the dead ✕ stays dead', !card.xShown);
 const eaten2 = await p.evaluate(() => {
   const out = [];
-  for (const id of ['btnSave', 'btnSkip', 'btnFormX',
-    'btnFormInfo']) {
+  for (const id of ['btnSave', 'btnSkip', 'btnFormInfo']) {
     const el = document.getElementById(id);
     const r = el.getBoundingClientRect();
     const hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
-    if (hit && hit.id !== id) out.push(`${id}->${hit.id || hit.tagName}`);
+    if (hit && hit.id !== id && !el.contains(hit)) out.push(`${id}->${hit.id || hit.tagName}`);
   }
   return out;
 });
-check('the glow layer eats no taps on the cabinet', eaten2.length === 0, eaten2.join(' '));
-
-// ⚠️ NO RECTANGLES, ANYWHERE ON THIS SCREEN. He asked for the square outlines
-// gone, so nothing may still be drawing one: no animated box-shadow is left on
-// any cabinet control, at either end of the pulse.
-// ⚠️ ONLY THE PAINTED ONES. A first version selected every `.btn` under a
-// `.pv`, which reached into the hidden leaderboard view and flagged the
-// ticket's action bar — those are real raised buttons and their `0 0.65cqw 0
-// rgba(0,0,0,0.45)` is a drop shadow under a button, not a glow around a
-// transparent box. The rule is about his artwork, so the list is his artwork's
-// controls.
-const shadows = await p.evaluate(() => {
-  const out = [];
-  for (const id of ['btnSave', 'btnSkip', 'btnFormX',
-    'btnFormInfo']) {
-    const el = document.getElementById(id);
-    if (!el) continue;
-    const cs = getComputedStyle(el);
-    if (cs.boxShadow && cs.boxShadow !== 'none') out.push(id + ': ' + cs.boxShadow);
-  }
-  return out;
-});
-check('no box-shadow left on any painted control', shadows.length === 0, shadows.join(' | '));
-
-// The pulse itself has to be real, running, and SLOW — "they should slowly
-// pulse so people can know that they're accessible". A glow that does not move
-// is indistinguishable from paint on a screen that is entirely paint.
-const anims = await p.evaluate((names) => document.getAnimations()
-  .filter((a) => names.includes(a.animationName))
-  .map((a) => ({ n: a.animationName, d: a.effect.getTiming().duration,
-    state: a.playState })), NAMES);
-const pulse = anims.find((a) => a.n === 'glyphglow');
-check('the pulse is running on the cabinet', !!pulse, JSON.stringify(anims));
-check('and it is a slow breath, not a blink', !!pulse && pulse.d >= 3000 && pulse.d <= 6000,
-  pulse ? `${pulse.d}ms` : 'absent');
+check('nothing sits between a thumb and the card\'s controls', eaten2.length === 0,
+  eaten2.join(' '));
 
 // ⚠️ AND IT STILL BREATHES WITH MOTION REDUCED. It used to stop dead there,
 // which is the likeliest reason he asked for a pulse he had already been sent:

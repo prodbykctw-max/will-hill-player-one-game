@@ -1,21 +1,24 @@
-// DOES THE CROPPED SIGN-UP CARD ACTUALLY FIT, AND IS IT STILL AN OVERLAY?
+// DOES THE JANDÉ CARD FIT, READ, AND STILL GUARD THE GAME UNDER IT?
 //
-// The ENTER CONTEST cabinet was 853x1844 and covered the screen. Cropped to
-// 853x992 (tools/crop_entry_plate.py) it is a card laid OVER whatever view the
-// panel is already showing — client: "an overlay over how to play."
+// The sign-up used to be the client's painted cabinet with transparent hit
+// targets over the artwork; he then pointed his Jandé registry layout at it —
+// "the registration form should be the color scheme of the game" — so it is
+// real DOM now: navy card, gold heading, red required tags, one glossy gold
+// button, an underlined skip. This harness graded plate fractions before; the
+// plate is gone, so what it grades now is what can silently break on a card:
 //
-// Three things can go wrong with that and none of them throws:
+//   1. the card overflows a viewport it should fit, or clips its controls
+//   2. the scrim stops eating taps and PRESS START fires under the form
+//   3. the keyboard lift stops clearing an on-screen keyboard, burying SAVE
+//   4. the title lockup doubles over the real title screen, or vanishes on
+//      the flows where it is the only logo on screen
+//   5. the palette drifts off his colors, or the dead ✕ comes back
+//   6. the painted plate sneaks back into the network (an unused import
+//      still ships the file — the imports left panel.js on purpose)
 //
-//   1. the card is sized off the wrong axis and overflows a short window
-//   2. a control's fraction was remapped wrong, so the hit target drifts off
-//      the thing he painted — invisible, because the target is transparent
-//   3. the backdrop is reachable through the overlay, and a tap meant for the
-//      form starts the run instead
-//
-// ⚠️ elementFromPoint, NOT rect arithmetic. Every control here is a
-// transparent box over a painting; comparing numbers to numbers tells you the
-// numbers agree with each other, not that a thumb lands on the button. Same
-// lesson as tools/harness/hapticbtn.mjs.
+// ⚠️ elementFromPoint, NOT rect arithmetic, for every tap question. Numbers
+// agreeing with numbers does not put a thumb on a button — same lesson as
+// tools/harness/hapticbtn.mjs.
 //
 //   PLAYWRIGHT=... CHROMIUM=... BASE=... node tools/harness/entryfit.mjs
 const _pw = await import(process.env.PLAYWRIGHT || 'playwright');
@@ -28,15 +31,10 @@ const check = (what, pass, detail = '') => {
   console.log(`  ${pass ? 'PASS' : 'FAIL'}  ${what}${detail ? '   ' + detail : ''}`);
 };
 
-// The painted controls that survived the crop. LEADERBOARD and RULES & PRIZES
-// were below the cut and are gone; SAVE moved onto the knob as a green tick.
-// The tiny ✕ is gone, paint and hit target both — see tools/crop_entry_plate.py.
-const CONTROLS = ['btnSave', 'btnSkip', 'btnFormX', 'btnFormInfo'];
-
-// An on-screen keyboard, as a fraction of the viewport. iOS is ~340 of 932 and
-// ~216 of 568, so 0.37 covers both within a few pixels. Modelled rather than
-// real because no headless browser raises one — the point is to catch a lift
-// that stops clearing it, not to reproduce Safari.
+// An on-screen keyboard, as a fraction of the viewport. iOS is ~340 of 932
+// and ~216 of 568, so 0.37 covers both within a few pixels. Modelled rather
+// than real because no headless browser raises one — the point is to catch a
+// lift that stops clearing it, not to reproduce Safari.
 const KB = 0.37;
 
 const SIZES = [
@@ -46,183 +44,170 @@ const SIZES = [
 ];
 
 for (const size of SIZES) {
+  const portrait = size.height > size.width;
   const ctx = await b.newContext({
     viewport: { width: size.width, height: size.height },
-    hasTouch: true, isMobile: size.height > size.width,
+    hasTouch: true, isMobile: portrait,
   });
   const p = await ctx.newPage();
   p.on('pageerror', (e) => console.log('  THROWN: ' + e.message));
   await p.goto(`${BASE}/?tod=night`, { waitUntil: 'networkidle' });
   await p.waitForFunction(() => window.__game && window.__game.screen === 'title',
     null, { timeout: 25000 });
-  await p.waitForTimeout(2200);
+  await p.waitForTimeout(1200);
 
   console.log(`\n${size.name}  ${size.width}x${size.height}`);
   await p.evaluate(() => window.__panel.open('form', { flow: 'start' }));
   await p.waitForTimeout(450);
 
+  // ── the card fits, and its controls are really on screen ───────────────
   const geo = await p.evaluate(() => {
-    const r = (id) => {
-      const el = document.getElementById(id);
-      if (!el) return null;
-      const b = el.getBoundingClientRect();
-      return { x: b.x, y: b.y, w: b.width, h: b.height };
-    };
-    const logoEl = document.getElementById('entryLogo');
-    return {
-      plate: r('entryPlate'),
-      logo: r('entryLogo'),
-      logoShown: !!logoEl && getComputedStyle(logoEl).display !== 'none',
-      layerShown: !document.getElementById('entryLayer').hidden,
-      howShown: !document.getElementById('pvHow').hidden,
-      formShown: !document.getElementById('pvForm').hidden,
-      panelHidden: document.getElementById('panel').hidden,
-      vw: innerWidth, vh: innerHeight,
-    };
-  });
-
-  // ── IT IS ITS OWN SCREEN — nothing of the panel behind it ──────────────
-  //
-  // ⚠️ THIS CHECK USED TO ASSERT THE EXACT OPPOSITE, and the reversal is the
-  // client's, not a drift. It read "HOW TO PLAY is behind it, not replaced by
-  // it" and required `geo.howShown` — built from his earlier note, "an overlay
-  // over how to play". He then sent a screenshot of the cabinet floating in a
-  // visible HOW TO PLAY panel and said: "it's supposed to be independent from
-  // the how to play... how to play is NOT supposed to be the background of the
-  // contest entry form... the how to play is his own thing, just how they load
-  // on top of one another."
-  //
-  // So the panel is shut underneath the form now and what shows through the
-  // scrim is the game canvas — his home screen, which is what he asked to be
-  // behind it. Asserting the old rule here would hold the code to an
-  // instruction that has been withdrawn.
-  check('the sign-up layer is showing', geo.layerShown);
-  check('it is its own screen — the panel is SHUT behind it', geo.panelHidden,
-    JSON.stringify({ panelHidden: geo.panelHidden, form: geo.formShown }));
-  check('HOW TO PLAY is NOT the background of the form', !geo.howShown,
-    JSON.stringify({ how: geo.howShown }));
-
-  // ── it FITS, on both axes, with no overflow ────────────────────────────
-  const pl = geo.plate;
-  check('the card fits the viewport',
-    pl.x >= -1 && pl.y >= -1 && pl.x + pl.w <= geo.vw + 1 && pl.y + pl.h <= geo.vh + 1,
-    `card ${pl.w.toFixed(0)}x${pl.h.toFixed(0)} at ${pl.x.toFixed(0)},${pl.y.toFixed(0)} in ${geo.vw}x${geo.vh}`);
-  // and it is a CARD, not the screen — the whole point of the crop
-  check('it does not cover the screen', pl.h < geo.vh * 0.94,
-    `${(pl.h / geo.vh * 100).toFixed(0)}% of the height`);
-  check("the plate keeps his artwork's aspect",
-    Math.abs(pl.w / pl.h - 853 / 992) < 0.01, (pl.w / pl.h).toFixed(4));
-
-  // ── the title lockup sits at the top of the form ──────────────────────
-  // Client: "Logo from title screen should be neatly fit at the top of form."
-  // #entryLogo hangs the title screen's own three cards in the band above the
-  // card, so "neatly fit" decomposes into: it shows, it is wholly on screen,
-  // it is wholly ABOVE the plate (over nothing painted, so it can cover no
-  // control), and it is centred at roughly half the card's width. On a phone
-  // held upright all four must hold; in a short landscape window the card's
-  // 86dvh budget leaves no band above it, so there the honest fit is not to
-  // show it at all — see the min-aspect-ratio gate in index.html.
-  const lg = geo.logo;
-  if (size.height > size.width) {
-    check('the title lockup shows above the card', geo.logoShown && lg && lg.w > 0,
-      lg ? `${lg.w.toFixed(0)}x${lg.h.toFixed(0)}` : 'missing');
-    check('the lockup is wholly on screen and wholly above the card',
-      lg && lg.y >= -1 && lg.x >= -1 && lg.x + lg.w <= geo.vw + 1
-        && lg.y + lg.h <= pl.y + 1,
-      lg ? `lockup ${lg.y.toFixed(0)}..${(lg.y + lg.h).toFixed(0)} vs card top ${pl.y.toFixed(0)}` : '');
-    check('the lockup is centred on the card at a masthead width',
-      lg && Math.abs((lg.x + lg.w / 2) - (pl.x + pl.w / 2)) < 2
-        && lg.w / pl.w > 0.45 && lg.w / pl.w < 0.65,
-      lg ? `${(lg.w / pl.w * 100).toFixed(0)}% of the card wide` : '');
-  } else {
-    check('the lockup stands down where the height budget leaves no band',
-      !geo.logoShown, geo.logoShown ? 'still showing' : 'hidden');
-  }
-
-  // ── every control lands on itself ─────────────────────────────────────
-  const hits = await p.evaluate((ids) => {
-    const out = {};
-    for (const id of ids) {
-      const el = document.getElementById(id);
-      if (!el) { out[id] = 'MISSING'; continue; }
-      const r = el.getBoundingClientRect();
-      const at = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
-      out[id] = at ? (at.id || at.tagName) : 'null';
-    }
-    return out;
-  }, CONTROLS);
-  for (const id of CONTROLS) {
-    check(`${id} takes its own tap`, hits[id] === id, `-> ${hits[id]}`);
-  }
-  // and nothing hangs off the card, which is what a bad remap looks like
-  const inside = await p.evaluate((ids) => {
-    const c = document.getElementById('entryPlate').getBoundingClientRect();
-    return ids.concat(['fName', 'fPhone', 'fEmail']).filter((id) => {
+    const r = (id) => document.getElementById(id)?.getBoundingClientRect() || null;
+    const vis = (id) => {
       const el = document.getElementById(id);
       if (!el) return false;
-      const r = el.getBoundingClientRect();
-      return r.x < c.x - 1 || r.y < c.y - 1
-        || r.x + r.width > c.right + 1 || r.y + r.height > c.bottom + 1;
-    });
-  }, CONTROLS);
-  check('no control hangs off the card', inside.length === 0, inside.join(' '));
-
-  // ── the backdrop is NOT reachable through the scrim ───────────────────
-  // HOW TO PLAY's footer reads PLAY here and starts the run. A tap that gets
-  // to it launches the game out from under a half-filled form.
-  const leak = await p.evaluate(() => {
-    const back = document.getElementById('btnHowBack');
-    if (!back) return 'no btnHowBack';
-    const r = back.getBoundingClientRect();
-    if (r.width === 0) return 'ok:not-rendered';
-    const at = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
-    return at === back ? 'REACHABLE' : 'ok:' + (at?.id || at?.tagName);
+      const b2 = el.getBoundingClientRect();
+      return b2.width > 0 && b2.height > 0 && getComputedStyle(el).display !== 'none';
+    };
+    return {
+      plate: r('entryPlate'), save: r('btnSave'), skip: r('btnSkip'),
+      info: r('btnFormInfo'), name: r('fName'),
+      xVisible: vis('btnFormX'), logoVisible: vis('entryLogo'),
+      logoRect: r('entryLogo'),
+    };
   });
-  check('the backdrop cannot be tapped through the overlay',
-    leak !== 'REACHABLE', leak);
+  const inView = (r2) => r2 && r2.top >= 0 && r2.left >= 0
+    && r2.bottom <= size.height && r2.right <= size.width;
+  check('the card is on screen and inside the viewport', inView(geo.plate),
+    geo.plate && `${Math.round(geo.plate.top)}..${Math.round(geo.plate.bottom)} of ${size.height}`);
+  check('SAVE & ENTER is inside the card and visible',
+    inView(geo.save) && geo.save.top > geo.plate.top && geo.save.bottom < geo.plate.bottom);
+  check('the skip link sits under the gold button, not beside it',
+    !!geo.skip && geo.skip.top >= geo.save.bottom);
+  check('CONTEST INFO is a live link under the skip',
+    !!geo.info && geo.info.top >= geo.skip.bottom - 1);
+  check('the ✕ stays dead — "exes don\'t need to be back buttons"', !geo.xVisible);
 
-  // ── the lift clears a keyboard ────────────────────────────────────────
-  if (size.height > size.width) {
-    await p.click('#fEmail');
-    await p.waitForTimeout(320);
-    const typing = await p.evaluate(() => {
-      const q = (id) => {
-        const b = document.getElementById(id).getBoundingClientRect();
-        return { top: b.y, bottom: b.bottom };
-      };
-      return {
-        lifted: document.getElementById('entryPlate').classList.contains('typing'),
-        email: q('fEmail'), save: q('btnSave'), plate: q('entryPlate'),
-      };
-    });
-    const kbTop = size.height * (1 - KB);
-    check('focus lifts the card', typing.lifted);
-    // ⚠️ WITH MARGIN, not just clear of it. The first version asserted
-    // `bottom <= kbTop` and passed on the small phone by three pixels, which
-    // is not a passing lift — it is a failing one that happened to round the
-    // right way. A keyboard's height varies by a good 20px with the predictive
-    // bar and the accessory row.
-    const MARGIN = 12;
-    check('the field being typed in clears the keyboard',
-      typing.email.bottom <= kbTop - MARGIN,
-      `email bottom ${typing.email.bottom.toFixed(0)} vs keyboard at ${kbTop.toFixed(0)}`);
-    check('the tick clears the keyboard',
-      typing.save.bottom <= kbTop - MARGIN,
-      `tick bottom ${typing.save.bottom.toFixed(0)} vs keyboard at ${kbTop.toFixed(0)}`);
-    check('the lift does not push the card off the top',
-      typing.plate.top >= -1, `card top ${typing.plate.top.toFixed(0)}`);
-    // The lockup rides the plate, and 17vh of lift puts its top past the
-    // screen edge on a small phone — so it fades for exactly the frames the
-    // lift holds. A half-clipped logo over a keyboard is not "neatly fit".
-    const logoGone = await p.evaluate(() =>
-      getComputedStyle(document.getElementById('entryLogo')).opacity);
-    check('the lockup bows out of the lift', Number(logoGone) === 0,
-      `opacity ${logoGone}`);
+  // ── the thumb lands on what the eye sees ───────────────────────────────
+  const hits = await p.evaluate(() => {
+    const hit = (id) => {
+      const el = document.getElementById(id);
+      if (!el) return 'missing';
+      const r = el.getBoundingClientRect();
+      const at = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      return at === el || el.contains(at) ? 'self' : (at && (at.id || at.tagName));
+    };
+    // A tap OUTSIDE the card must die on the scrim — the canvas under it is
+    // PRESS START, a run launched out from under a half-filled form.
+    const plate = document.getElementById('entryPlate').getBoundingClientRect();
+    const gx = plate.left / 2, gy = Math.min(plate.top / 2, 20);
+    const guard = document.elementFromPoint(gx, gy);
+    return {
+      save: hit('btnSave'), skip: hit('btnSkip'), info: hit('btnFormInfo'),
+      name: hit('fName'), phone: hit('fPhone'), email: hit('fEmail'),
+      guard: guard ? (guard.id || guard.tagName) : 'nothing',
+    };
+  });
+  for (const k of ['save', 'skip', 'info', 'name', 'phone', 'email']) {
+    check(`a tap on ${k} lands on ${k}`, hits[k] === 'self', String(hits[k]));
   }
+  check('a tap beside the card dies on the scrim, never the canvas',
+    hits.guard === 'entryLayer' || hits.guard === 'entryPlate', hits.guard);
+
+  // ── his colors, not approximately his colors ───────────────────────────
+  const palette = await p.evaluate(() => {
+    const cs = (id) => getComputedStyle(document.getElementById(id));
+    return {
+      head: cs('entryHead').color,
+      req: getComputedStyle(document.querySelector('#pvForm .req')).color,
+      saveBg: cs('btnSave').backgroundImage,
+      skipDecor: cs('btnSkip').textDecorationLine,
+      placeholder: getComputedStyle(document.getElementById('fName')).color,
+    };
+  });
+  check('the heading is the game\'s gold', palette.head === 'rgb(240, 180, 41)', palette.head);
+  check('"required" is red', palette.req === 'rgb(255, 92, 74)', palette.req);
+  check('the button is a real gold gradient, not a flat fill',
+    /linear-gradient/.test(palette.saveBg));
+  check('the skip is underlined like his Jandé link',
+    /underline/.test(palette.skipDecor), palette.skipDecor);
+
+  // ── the title lockup: only where the title screen is NOT already there ──
+  check('start flow: no doubled logo over the real title screen',
+    !geo.logoVisible);
+  const postLogo = await p.evaluate(() => {
+    window.__panel.open('form', { flow: 'post' });
+    const lg = document.getElementById('entryLogo');
+    const pl = document.getElementById('entryPlate');
+    const r = lg.getBoundingClientRect();
+    const shown = r.width > 0 && r.height > 0 && getComputedStyle(lg).display !== 'none';
+    return { shown, above: r.bottom <= pl.getBoundingClientRect().top, top: r.top };
+  });
+  if (portrait && size.height > 640) {
+    check('post flow: the lockup fills the band above the card',
+      postLogo.shown && postLogo.above && postLogo.top >= 0,
+      `top ${Math.round(postLogo.top)}`);
+  } else {
+    // Landscape has no band; a short portrait phone (≤640px) has less band
+    // than the lockup is tall. Both hide it rather than clip it.
+    check('no band, no lockup — hidden rather than clipped', !postLogo.shown);
+  }
+  await p.evaluate(() => window.__panel.open('form', { flow: 'start' }));
+  await p.waitForTimeout(150);
+
+  // ── refusal: the error appears where the eye is ────────────────────────
+  await p.click('#btnSave');
+  await p.waitForTimeout(200);
+  const err = await p.evaluate(() => {
+    const e = document.getElementById('formErr');
+    const r = e.getBoundingClientRect();
+    const pl = document.getElementById('entryPlate').getBoundingClientRect();
+    return { hidden: e.hidden, text: e.textContent.trim(),
+      inCard: r.top > pl.top && r.bottom < pl.bottom && r.width > 0 };
+  });
+  check('an empty SAVE refuses with a visible message',
+    !err.hidden && err.text.length > 0, err.text);
+  check('the message sits inside the card, above the button', err.inCard);
+
+  // ── the keyboard lift still clears a keyboard (portrait only) ──────────
+  if (portrait) {
+    await p.focus('#fName');
+    await p.waitForTimeout(420);
+    const lift = await p.evaluate(() => ({
+      typing: document.getElementById('entryPlate').classList.contains('typing'),
+      saveBottom: document.getElementById('btnSave').getBoundingClientRect().bottom,
+      nameTop: document.getElementById('fName').getBoundingClientRect().top,
+    }));
+    const kbTop = size.height * (1 - KB);
+    check('focusing a field lifts the card', lift.typing);
+    check('SAVE & ENTER clears the modelled keyboard',
+      lift.saveBottom <= kbTop,
+      `save bottom ${Math.round(lift.saveBottom)} vs keyboard top ${Math.round(kbTop)}`);
+    check('the focused field is still on screen after the lift',
+      lift.nameTop >= 0, `name top ${Math.round(lift.nameTop)}`);
+    await p.evaluate(() => document.getElementById('fName').blur());
+    await p.waitForTimeout(250);
+  }
+
+  // ── the painted plate stays out of the build AND the network ───────────
+  const plates = await p.evaluate(() =>
+    performance.getEntriesByType('resource')
+      .filter((r) => /contest-entry|glow-entry/.test(r.name)).length);
+  check('contest-entry.webp and glow-entry.webp are never fetched', plates === 0,
+    `${plates} requests`);
+
+  // ── the skip actually leaves ───────────────────────────────────────────
+  await p.click('#btnSkip');
+  await p.waitForTimeout(300);
+  const gone = await p.evaluate(() => document.getElementById('entryLayer').hidden);
+  check('the skip link dismisses the form', gone);
+
   await ctx.close();
 }
 
+console.log('');
+console.log(checks.every(([, ok]) => ok)
+  ? `ALL ${checks.length} PASS`
+  : `FAILED: ${checks.filter(([, ok]) => !ok).map(([w]) => w).join(', ')}`);
 await b.close();
-const bad = checks.filter(([, ok]) => !ok);
-console.log(`\n${checks.length - bad.length}/${checks.length} passed`);
-if (bad.length) { for (const [w] of bad) console.log('  FAILED: ' + w); process.exit(1); }
+process.exit(checks.every(([, ok]) => ok) ? 0 : 1);

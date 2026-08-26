@@ -35,11 +35,12 @@ import leaderboardCard from '../assets/backgrounds/leaderboard-card.webp';
 // Imported for the same reason the card above is: a literal path 404s under
 // the Pages subpath.
 import cabinetPlate from '../assets/ui/cabinet.webp';
-// The sign-up screen is his too, and it is a WHOLE cabinet rather than a
-// panel that drops into one — housing, marquee, coin column and all. It also
-// has its own aspect ratio, 1086x1448 against the other two at 852x1846, so
-// #panelCard.cabinet-entry overrides both the plate and the sizing.
-import entryPlate from '../assets/ui/contest-entry.webp';
+// ⚠️ NO contest-entry.webp AND NO glow-entry.webp ANY MORE. The sign-up was
+// the third painted surface; the client then pointed his Jandé registry
+// layout at it — "the registration form should be the color scheme of the
+// game" — so the card is real DOM styled in index.html and the plate and its
+// bloom left the build. Removing the IMPORTS is what actually removes the
+// files: an unused import still ships. 134 KB off the boot.
 import panelOptionsPlate from '../assets/ui/panel-options.webp';
 import panelSettingsPlate from '../assets/ui/panel-settings.webp';
 // ⚠️ HIS WORDS ARE WHAT GLOWS, so the glow is cut off his own plates rather
@@ -49,7 +50,6 @@ import panelSettingsPlate from '../assets/ui/panel-settings.webp';
 // tools/cut_glow_glyphs.py; index.html screens it back over the plate and
 // pulses it. See the long note in the stylesheet for why this cannot be a
 // box-shadow or a CSS filter.
-import entryGlow from '../assets/ui/glow-entry.webp';
 import optionsGlow from '../assets/ui/glow-options.webp';
 import settingsGlow from '../assets/ui/glow-settings.webp';
 // ⚠️ THE TITLE SCREEN'S OWN LOCKUP, NOT A REDRAW OF IT. Client: "Logo from
@@ -180,12 +180,11 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
   // which needs no ancestor to be right.
   const layer = $('entryLayer');
   if (layer) {
-    layer.style.setProperty('--entry-plate', `url(${entryPlate})`);
-    layer.style.setProperty('--entry-glow', `url(${entryGlow})`);
     // One var, three layers. The lockup's cards composite in CSS exactly as
     // the title screen draws them — stars in front, then his "WILL HILL:",
     // then the gold PLAYER ONE — and a single var keeps the stack in one
-    // place the same way --entry-plate does for the card itself.
+    // place. (The plate and glow vars that sat beside this are gone with the
+    // painted card — see the import note at the top of this file.)
     layer.style.setProperty('--title-lockup',
       `url(${tpStars}), url(${tpWordmark}), url(${tpLogo})`);
   }
@@ -273,7 +272,15 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
     // whatever actually comes next, so the chain is unchanged and the two
     // screens merely load one on top of the other.
     const overlay = view === 'form';
-    if (layer) layer.hidden = !overlay;
+    if (layer) {
+      layer.hidden = !overlay;
+      // The stylesheet hides the card's own title-lockup crop on the
+      // journeys where the REAL title screen is behind the scrim showing its
+      // full-width lockup already ('start'/'title') — a small copy floating
+      // over the big one reads as a misprint. Stamped here because this is
+      // the one place that knows the journey.
+      layer.dataset.flow = flow;
+    }
     const form = $('pvForm');
     if (form) form.hidden = !overlay;
     if (!overlay) $('entryPlate')?.classList.remove('typing');
