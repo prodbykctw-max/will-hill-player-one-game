@@ -68,8 +68,11 @@ for (const size of SIZES) {
       const b = el.getBoundingClientRect();
       return { x: b.x, y: b.y, w: b.width, h: b.height };
     };
+    const logoEl = document.getElementById('entryLogo');
     return {
       plate: r('entryPlate'),
+      logo: r('entryLogo'),
+      logoShown: !!logoEl && getComputedStyle(logoEl).display !== 'none',
       layerShown: !document.getElementById('entryLayer').hidden,
       howShown: !document.getElementById('pvHow').hidden,
       formShown: !document.getElementById('pvForm').hidden,
@@ -109,6 +112,32 @@ for (const size of SIZES) {
     `${(pl.h / geo.vh * 100).toFixed(0)}% of the height`);
   check("the plate keeps his artwork's aspect",
     Math.abs(pl.w / pl.h - 853 / 992) < 0.01, (pl.w / pl.h).toFixed(4));
+
+  // ── the title lockup sits at the top of the form ──────────────────────
+  // Client: "Logo from title screen should be neatly fit at the top of form."
+  // #entryLogo hangs the title screen's own three cards in the band above the
+  // card, so "neatly fit" decomposes into: it shows, it is wholly on screen,
+  // it is wholly ABOVE the plate (over nothing painted, so it can cover no
+  // control), and it is centred at roughly half the card's width. On a phone
+  // held upright all four must hold; in a short landscape window the card's
+  // 86dvh budget leaves no band above it, so there the honest fit is not to
+  // show it at all — see the min-aspect-ratio gate in index.html.
+  const lg = geo.logo;
+  if (size.height > size.width) {
+    check('the title lockup shows above the card', geo.logoShown && lg && lg.w > 0,
+      lg ? `${lg.w.toFixed(0)}x${lg.h.toFixed(0)}` : 'missing');
+    check('the lockup is wholly on screen and wholly above the card',
+      lg && lg.y >= -1 && lg.x >= -1 && lg.x + lg.w <= geo.vw + 1
+        && lg.y + lg.h <= pl.y + 1,
+      lg ? `lockup ${lg.y.toFixed(0)}..${(lg.y + lg.h).toFixed(0)} vs card top ${pl.y.toFixed(0)}` : '');
+    check('the lockup is centred on the card at a masthead width',
+      lg && Math.abs((lg.x + lg.w / 2) - (pl.x + pl.w / 2)) < 2
+        && lg.w / pl.w > 0.45 && lg.w / pl.w < 0.65,
+      lg ? `${(lg.w / pl.w * 100).toFixed(0)}% of the card wide` : '');
+  } else {
+    check('the lockup stands down where the height budget leaves no band',
+      !geo.logoShown, geo.logoShown ? 'still showing' : 'hidden');
+  }
 
   // ── every control lands on itself ─────────────────────────────────────
   const hits = await p.evaluate((ids) => {
@@ -182,6 +211,13 @@ for (const size of SIZES) {
       `tick bottom ${typing.save.bottom.toFixed(0)} vs keyboard at ${kbTop.toFixed(0)}`);
     check('the lift does not push the card off the top',
       typing.plate.top >= -1, `card top ${typing.plate.top.toFixed(0)}`);
+    // The lockup rides the plate, and 17vh of lift puts its top past the
+    // screen edge on a small phone — so it fades for exactly the frames the
+    // lift holds. A half-clipped logo over a keyboard is not "neatly fit".
+    const logoGone = await p.evaluate(() =>
+      getComputedStyle(document.getElementById('entryLogo')).opacity);
+    check('the lockup bows out of the lift', Number(logoGone) === 0,
+      `opacity ${logoGone}`);
   }
   await ctx.close();
 }

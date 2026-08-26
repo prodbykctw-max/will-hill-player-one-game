@@ -27,7 +27,11 @@ import {
 // one function, from the module that owns the rule, rather than a second
 // copy of the timezone maths living in the interface layer.
 import { atlantaHour } from '../world/stages.js';
-import leaderboardCard from '../assets/backgrounds/leaderboard-card.webp';
+// ⚠️ leaderboard-card.webp is NOT imported here any more. Client: "The
+// leaderboard needs to be like the Jandé registration board. No MARTA frame.
+// Client scrapped." The in-game board is a clean CSS card now (see #lbCard
+// in index.html); the ticket artwork's ONLY remaining renderer is
+// src/ui/share.js, which owns its own import and its own ROW_TOP.
 // ⚠️ THE CLIENT'S ARTWORK IS THE SCREEN. Two painted layers, cut by
 // tools/cut_cabinet.py: the MARTA housing with its screen emptied, and his
 // painted OPTIONS panel that lays into the opening. The painted buttons are
@@ -52,6 +56,17 @@ import panelSettingsPlate from '../assets/ui/panel-settings.webp';
 import entryGlow from '../assets/ui/glow-entry.webp';
 import optionsGlow from '../assets/ui/glow-options.webp';
 import settingsGlow from '../assets/ui/glow-settings.webp';
+// ⚠️ THE TITLE SCREEN'S OWN LOCKUP, NOT A REDRAW OF IT. Client: "Logo from
+// title screen should be neatly fit at the top of form." These are the same
+// three SAM-cut multiplane cards render/title.js already imports — identical
+// specifiers, so Vite resolves them to the same hashed files and the form's
+// logo adds ZERO bytes to a boot that already carries the title art. They
+// share one 853x1844 frame (wordmark y169-261, logo y278-388, stars flanking
+// at y318-359), which is what lets index.html crop all three with a single
+// background-size/position pair — see #entryLogo there.
+import tpWordmark from '../assets/backgrounds/titlep-wordmark.webp';
+import tpLogo from '../assets/backgrounds/titlep-logo.webp';
+import tpStars from '../assets/backgrounds/titlep-stars.webp';
 import pillOn from '../assets/ui/pill-on.webp';
 import pillOff from '../assets/ui/pill-off.webp';
 import todAtl from '../assets/ui/tod-atl.webp';
@@ -152,8 +167,8 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
     fn();
   });
 
-  const card = $('lbCard');
-  if (card) card.style.backgroundImage = `url(${leaderboardCard})`;
+  // The board card carries no artwork since the MARTA frame was scrapped —
+  // its whole dress is the #lbCard rules in index.html.
   // ⚠️ A CUSTOM PROPERTY, NOT `style.backgroundImage`. Setting the image
   // directly would paint the cabinet behind EVERY view: an inline style beats
   // any stylesheet rule, so `#panelCard`'s own dark plate could never win it
@@ -171,6 +186,12 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
   if (layer) {
     layer.style.setProperty('--entry-plate', `url(${entryPlate})`);
     layer.style.setProperty('--entry-glow', `url(${entryGlow})`);
+    // One var, three layers. The lockup's cards composite in CSS exactly as
+    // the title screen draws them — stars in front, then his "WILL HILL:",
+    // then the gold PLAYER ONE — and a single var keeps the stack in one
+    // place the same way --entry-plate does for the card itself.
+    layer.style.setProperty('--title-lockup',
+      `url(${tpStars}), url(${tpWordmark}), url(${tpLogo})`);
   }
   if (panelCard) {
     panelCard.style.setProperty('--cabinet-plate', `url(${cabinetPlate})`);
@@ -347,33 +368,25 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
     if (view === 'settings') fillSettings();
   }
 
-  // ── the board, laid over his MARTA card ───────────────────────────────
+  // ── the board, on its own clean card ──────────────────────────────────
   //
-  // The card carries five rows and a YOUR RANK line, so that is what the board
-  // shows — his design decides the shape, not the other way round. It used to
-  // list twenty; the rest are one tap away in the run log and nobody reads
-  // past five on a phone anyway.
-  //
-  // Row TOPS are fractions of the card, measured off the artwork and matching
-  // the bands its placeholder rows were blanked out of. Positioning each `li`
-  // absolutely means a name too long to fit ellipsises inside its own row
-  // instead of pushing the ones below it off their measured line.
-  // ⚠️ REMAPPED FOR THE TRIMMED TICKET. These were fractions of the whole
-  // 852x1846 plate; the card is now cropped out of it at x34-818, y147-1743, so
-  // every one of them moved. tools/trim_lb_card.py prints the conversion —
-  // v' = (v * 1846 - 147) / 1596 — and re-running it prints them again if the
-  // crop ever changes. Old values, for the record:
-  // [0.5385, 0.5850, 0.6300, 0.6745, 0.7180]
-  const ROW_TOP = [0.53075, 0.58453, 0.63658, 0.68805, 0.73836];
+  // The MARTA ticket is scrapped ("no MARTA frame. Client scrapped"), and
+  // with it went the whole measured-fraction rig: the five-row cap was the
+  // artwork's five painted bands, and ROW_TOP was a measurement of a
+  // painting this view no longer shows. share.js still renders the ticket
+  // for the SHARE CARD and owns that measurement alone now. Rows are
+  // ordinary flow items — ten of them, the Jandé registry being a top-N
+  // list — and a long name still ellipsises inside its own row because the
+  // name span is the flex child that gives.
+  const BOARD_ROWS = 10;
 
   function render(runs, note) {
     const ol = $('board');
     ol.innerHTML = '';
     const me = lbName().toLowerCase();
-    const top = runs.slice(0, ROW_TOP.length);
+    const top = runs.slice(0, BOARD_ROWS);
     top.forEach((r, i) => {
       const li = document.createElement('li');
-      li.style.top = `${ROW_TOP[i] * 100}%`;
       if (r.me || String(r.name || '').toLowerCase() === me) li.className = 'me';
       const rank = document.createElement('span');
       rank.className = 'r';
@@ -401,6 +414,9 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
     } else {
       you.hidden = true;
     }
+    // The YOUR RANK lettering was in the ticket's paint; the DOM label rides
+    // the row's own visibility now.
+    $('lbYouLabel').hidden = you.hidden;
 
     const empty = $('lbEmpty');
     empty.hidden = !!runs.length;

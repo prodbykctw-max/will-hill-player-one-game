@@ -705,6 +705,63 @@
       isolation: isolate;
       transition: transform 0.18s ease-out;
     }
+    /* ── THE TITLE SCREEN'S LOCKUP, IN THE BAND ABOVE THE CARD ─────────
+       Client: "Logo from title screen should be neatly fit at the top of
+       form."
+
+       ⚠️ ABOVE the card, not ON it, and the plate decided that. Its top is
+       already spoken for: the ENTER CONTEST marquee, then his painted banner.
+       There is no empty paint up there to sit in, and the one band that IS
+       empty is the dimmed home screen the scrim shows above the card — which
+       is where this logo already lives, since the scrim dims the very title
+       screen it was cut from.
+
+       ⚠️ THE PIXELS ARE THE TITLE SCREEN'S, NOT A COPY. The three cards
+       render/title.js animates (wordmark, logo, stars — panel.js imports the
+       same files, same hash, zero new bytes) share one 853x1844 frame, so one
+       size/position crops all three at once. The crop window is the lockup's
+       measured ink (x30-826, y169-388) plus 3px of frame all round: x27-829
+       (802 wide) by y166-391 (225 tall). Every calc below is that mapping
+       written out — 56cqw of card buys 802 frame px, so the frame scales by
+       56/802 and slides up-left to put the window at the origin. Change the
+       width and the calcs follow; change the crop and they must be re-derived
+       together.
+
+       56cqw: a touch over half the card, reading as a masthead over the
+       410px-wide card on his phone (230px) without shouting over the plate's
+       own painted banner directly below it. Sized in cqw like every fraction
+       on this card, so it tracks the plate at any viewport.
+
+       A child of #entryPlate hung off `bottom: 100%`: it rides the card —
+       centring, the keyboard lift, everything — for free, and cqw resolves
+       against the plate because the plate is the container. pointer-events
+       none: pure decoration, and a tap through it lands on the scrim, which
+       eats it (see the scrim note on the markup). */
+    #entryLogo {
+      position: absolute;
+      left: 50%; bottom: 100%;
+      transform: translateX(-50%);
+      margin-bottom: 1.6cqw;                      /* breathing room off the marquee */
+      width: 56cqw;
+      aspect-ratio: 802 / 225;                    /* the crop window's own shape */
+      pointer-events: none;
+      background-image: var(--title-lockup);
+      background-repeat: no-repeat;
+      background-size: calc(56cqw * 853 / 802) auto;
+      background-position: calc(-27 * 56cqw / 802) calc(-166 * 56cqw / 802);
+      transition: opacity 0.18s ease-out;
+    }
+    /* ⚠️ HIDDEN WHERE THE HEIGHT BUDGET LEAVES NO BAND. The card's 86dvh term
+       binds in a short landscape window and the card top lands at ~7% of the
+       screen — less than this lockup is tall, always, so there it would clip
+       off the top rather than fit "neatly". 2/3 is the width-bound arithmetic:
+       card + lockup + gap stack to ~1.5x the card's width, so any screen at
+       least half again as tall as it is wide holds them (his 430x932, the SE's
+       375x667 and a 320x568 all clear it with room); anything squarer does
+       not. entryfit.mjs grades both sides of this. */
+    @media (min-aspect-ratio: 2/3) {
+      #entryLogo { display: none; }
+    }
     /* ── LIFT THE CARD WHILE THE KEYBOARD IS UP ────────────────────────
        The card is centred with space above and below, and #panel clips rather
        than scrolls under it, so the browser cannot nudge a covered field into
@@ -731,9 +788,17 @@
        on-screen keyboard exists; on a desktop it would just be a lurch. */
     @media (orientation: portrait) and (pointer: coarse) {
       #entryPlate.typing { transform: translateY(-17vh); }
+      /* ⚠️ THE LOCKUP BOWS OUT OF THE LIFT. It rides the plate, and 17vh of
+         travel puts its top past the screen edge on a small phone (the SE's
+         card top is ~124px and the lift is ~113 — the card just clears, the
+         band above it cannot). A half-clipped logo over a keyboard is worse
+         than none: the eye is in the field, so it fades for exactly the
+         frames the lift holds and is back on blur. Same media gate as the
+         lift because it exists only because of the lift. */
+      #entryPlate.typing #entryLogo { opacity: 0; }
     }
     @media (prefers-reduced-motion: reduce) {
-      #entryPlate { transition: none; }
+      #entryPlate, #entryLogo { transition: none; }
     }
     /* The form generates no box of its own; its children position against the
        plate. */
@@ -949,8 +1014,11 @@
        ⚠️ NOT on `#panel .btn` — that one is dark text on solid amber, and a
        white glow behind black lettering is a smudge. Only the light-on-dark
        ones get it. */
+    /* Both on the px keyframes now: the board card stopped declaring
+       container-type with the ticket art gone, so cqw has nothing to resolve
+       against there any more. */
     #lbActions .btn.card, #panel .btn.ghost {
-      animation: textglow 3.6s ease-in-out infinite;
+      animation: textglowpx 3.6s ease-in-out infinite;
     }
     @keyframes textglow {
       0%, 100% { text-shadow: 0 0 0.5cqw rgba(255,255,255,0.35); }
@@ -978,7 +1046,8 @@
        The keyframes only drop the widest, softest ring — the one doing the
        visible travelling — and keep the tight core lit throughout. */
     @media (prefers-reduced-motion: reduce) {
-      #lbActions .btn.card { animation-name: textglowcalm; animation-duration: 7s; }
+      /* px calm for both — see the container-type note at the glow rules. */
+      #lbActions .btn.card { animation-name: textglowpxcalm; animation-duration: 7s; }
       #panel .btn.ghost { animation-name: textglowpxcalm; animation-duration: 7s; }
       @keyframes textglowcalm {
         0%, 100% { text-shadow: 0 0 0.5cqw rgba(255,255,255,0.75),
@@ -1039,21 +1108,33 @@
     /* The ticket's cream footer, used as the action bar. Positioned in card
        fractions like the score rows, so it tracks the artwork at any size —
        the dark body ends at 0.857 and the cream runs to 0.946. */
+    /* Footer buttons, in flow at the card's foot — the Jandé shape ("one big
+       button at the foot") in this game's own dress. px, not cqw: the card
+       stopped being a container when the ticket art left. */
     #lbActions {
-      position: absolute; left: 2.184%; right: 2.184%;
-      top: 90.723%; height: 8.559%;
-      display: flex; align-items: stretch;
+      display: flex; align-items: stretch; gap: 8px;
+      margin-top: 12px; height: 46px;
     }
     #lbActions .btn.card {
       flex: 1; margin: 0; padding: 0;
       display: flex; align-items: center; justify-content: center;
-      font: 800 3.8cqw/1 system-ui, sans-serif; letter-spacing: 0.06em;
-      color: #f7f1e2; background: #16131f;
-      border: 0.54cqw solid rgba(255,214,110,0.75); border-radius: 2.17cqw;
-      box-shadow: 0 0.65cqw 0 rgba(0,0,0,0.45);
+      font: 800 clamp(12px, 3.6vw, 15px)/1 system-ui, sans-serif; letter-spacing: 0.1em;
+      color: #f4ead2; background: rgba(0,0,0,0.25);
+      border: 2px solid rgba(169,139,82,0.8); border-radius: 12px;
+      box-shadow: 0 3px 0 rgba(0,0,0,0.45);
       cursor: pointer;
     }
-    #lbActions .btn.card:active { transform: translateY(0.33cqw); box-shadow: none; }
+    /* ENTER / SHARE wear Jandé's glossy gold — the one big button the
+       screenshot leads with; BACK stays the quiet tan outline beside it. */
+    #btnRegister, #btnShare {
+      flex: 1.6;
+      color: #3a2410;
+      background: linear-gradient(180deg, #f9e08a 0%, #edc25a 45%, #c9962f 100%);
+      border-color: #8a6a2e;
+      text-shadow: 0 1px 0 rgba(255,244,200,0.6);
+      box-shadow: inset 0 1.5px 0 rgba(255,250,220,0.8), 0 3px 0 rgba(0,0,0,0.5);
+    }
+    #lbActions .btn.card:active { transform: translateY(2px); box-shadow: none; }
     #lbActions .btn.card[hidden] { display: none; }
 
     /* ⚠️ THE HONEYPOT MUST BE INVISIBLE BUT NOT `display:none`. A capable bot
@@ -1297,133 +1378,119 @@
       color: rgba(242,234,216,0.82); background: none;
       border: 1px solid rgba(255,214,110,0.32);
     }
-    /* ── THE BOARD, ON HIS MARTA CARD ──────────────────────────────────
-       The leaderboard is his breeze-card design and the rows are laid over
-       it, not drawn next to it. Everything here is a FRACTION of the card,
-       measured off the artwork itself, so the layout survives the card being
-       shown at any width.
+    /* ── THE BOARD, AS A CLEAN OVERLAY — THE MARTA FRAME IS SCRAPPED ─────
+       Client: "The leaderboard needs to be like the Jandé registration
+       board. No MARTA frame. Client scrapped." That reverses the earlier
+       blank-card rejection ON HIS OWN WORD, so the breeze-card artwork
+       (leaderboard-card.webp) no longer backs this view — the SHARE CARD
+       still uses it (src/ui/share.js owns that render alone now), the
+       in-game board does not.
 
-       ⚠️ THE CARD IS THE TICKET ALONE NOW — 784x1596, cropped out of the
-       852x1846 plate at x34-818, y147-1743 by tools/trim_lb_card.py, because
-       he asked for the painted surround gone: "I just used red dots to touch
-       the edge of the card that I wanna keep and I've used yellow to show the
-       part that I want removed... I just want the actual card." Cropping moved
-       the coordinate space, so every fraction below is the remapped one and the
-       numbers in the older commits no longer apply. The script prints the
-       conversion and reprints it if the crop ever changes.
-
-         rank column   left edge   0.0947   (was 0.127)
-         player        left edge   0.2674   (was 0.286)
-         score         RIGHT edge  0.9130   (was 0.880)
-         row TOPS      0.53075  0.58453  0.63658  0.68805  0.73836
-         your rank     0.8274   (was 0.795)
-
-       The row tops are the list panel.js and share.js both carry as ROW_TOP —
-       three renderers reading one measurement of one painting, which is the
-       standing risk here and the reason all three are named in each other's
-       comments.
-
-       Aspect-ratio holds the box to the card's shape, so a percentage top
-       lands on the row it was measured against on any screen. Font size is
-       in cqw — container-query width — for the same reason: the lettering
-       has to scale WITH the card, and vw would scale with the window
-       instead and drift off the rows on a wide one. */
+       The Jandé reference is structural, not visual — no picture of its
+       board exists in this repo, only the pattern (docs/GDD.md:289): a
+       top-N row list on a plain overlay, the player's own row highlighted,
+       buttons at the foot. So the shape is Jandé's and the dress is this
+       game's own: the pads' dark plate, the gold edge every button wears,
+       mono tabular rows. Everything that was a FRACTION of a painting is
+       ordinary flow now — no aspect-ratio, no container units, no measured
+       row tops. Ten rows instead of the ticket's five painted bands: the
+       five-row cap was the artwork's, never the product's. */
+    /* THE VISUAL TARGET IS NOW ON RECORD: the client sent a screenshot of
+       Jandé's live registry ("QUEEN'S REGISTRY / Enter the Kingdom") — a
+       warm dark-brown card, thin tan border, generous rounding, a small
+       letter-spaced kicker over a big heading, and ONE glossy gold primary
+       button. That palette and shape, with this game's own mono face. */
     #lbCard {
-      /* ⚠️ SIZED BY HEIGHT, NOT WIDTH — that is what stops the scrolling.
-         Client: "change the UX so no scroll needed."
-         At width:100% his card is 852x1846, so on a 430px phone it came out
-         ~849px tall before the title, the note and the buttons were added —
-         taller than the screen, every time, on every phone. Driving the
-         HEIGHT from what is left of the viewport and letting aspect-ratio
-         derive the width means the whole card is always on screen; on a tall
-         phone it still reaches its natural size and the cap never engages.
-         100dvh, not 100vh, because Safari's toolbars are exactly the pixels
-         being fought over. The reserve is MEASURED, not guessed: 268 left the
-         card 17px over on a 430x932 phone, so it is 300 — and the note can
-         wrap to two lines when a share result comes back, which is where the
-         extra headroom goes. 300 was right while ENTER and BACK were both
-         stacked below; with the action moved onto the ticket only the title,
-         the note and BACK are left outside, so the reserve is 196 and the
-         card takes the difference. */
-      position: relative; aspect-ratio: 784 / 1596;
-      /* ⚠️ THE RESERVE IS NOW ZERO, because nothing is stacked outside the
-         card any more. It was 300 when a note, ENTER and BACK sat below the
-         artwork, then 196 when ENTER moved onto the ticket's own footer. With
-         the heading hidden, the note moved onto the ticket and BACK sharing
-         the footer, there is nothing left outside it to reserve for — so the
-         artwork takes the entire panel. Measured on a 430x932 phone: 259px
-         wide before, 336px after, and full-height instead of 561px.
-         The one thing this CANNOT do is fill the last sliver left and right.
-         The ticket is 784x1596 — aspect 0.491, up from 0.462 now the painted
-         surround is off it — and the frame it sits in is nearer 0.55, so
-         covering it edge to edge means cropping his artwork,
-         which is not a thing to do to solve a layout problem. Any remaining
-         gap shows the dimmed game, never a plate. If he wants it truly
-         edge-to-edge the ticket needs re-rendering at the frame's shape. */
-      /* The reserve is only the PANEL'S OWN padding now — 14px top and bottom
-         plus whatever the notch and home indicator take. Forgetting it made
-         the card exactly 28px too tall and put the scrollbar straight back. */
-      height: min(calc(100dvh - 28px - env(safe-area-inset-top, 0px)
-                       - env(safe-area-inset-bottom, 0px)), 1596px);
-      width: auto; max-width: 100%; margin: 0 auto;
-      container-type: inline-size;
-      background: center/100% 100% no-repeat;   /* image set in panel.js */
-      /* ⚠️ NO border-radius NOW. The ticket carries its own rounded corners
-         in the alpha channel — see tools/trim_lb_card.py — so a CSS radius on
-         top of them would clip his card a second time, slightly differently,
-         and show as a flat chord across each corner. */
-      overflow: hidden;
+      position: relative;
+      width: min(92vw, 420px);
+      margin: 0 auto;
+      padding: 18px 16px 14px;
+      background:
+        linear-gradient(180deg, rgba(255,236,190,0.06) 0%,
+                                rgba(0,0,0,0.0) 30%,
+                                rgba(0,0,0,0.28) 100%),
+        #33261a;
+      border: 2px solid #a98b52;
+      border-radius: 22px;
+      box-shadow:
+        inset 0 1px 0 rgba(255,236,190,0.18),
+        inset 0 -2px 0 rgba(0,0,0,0.4),
+        0 10px 26px rgba(0,0,0,0.6);
     }
-    /* The note used to sit under the card and cost it height. It lives on the
-       ticket now, in the dark band just above the cream footer. */
-    /* ⚠️ IN THE GAP BELOW `YOUR RANK`, NOT ON IT. At 79.4% it landed on the
-       0.824 rank row and printed across the label. The rank row runs to about
-       0.842 and the cream footer starts at 0.864, so 0.845 is the strip
-       between them — right-aligned, because the rank line fills from the
-       left and the two must never meet. */
+    #lbKicker {
+      margin: 0 0 6px; text-align: center;
+      font: 700 11px/1 ui-monospace, Menlo, Consolas, monospace;
+      letter-spacing: 0.34em; color: #cdb083;
+    }
+    #lbHead {
+      margin: 0 0 12px; text-align: center;
+      font: 800 clamp(22px, 6vw, 28px)/1 ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+      letter-spacing: 0.1em; color: #f4ead2;
+      text-shadow: 0 2px 0 rgba(0,0,0,0.5);
+    }
+    /* The artwork used to carry RANK / PLAYER / SCORE in paint; with the
+       frame gone the lettering comes back as DOM. */
+    #lbCols {
+      display: flex; align-items: baseline; gap: 8px; padding: 0 6px 6px;
+      font: 700 11px/1 ui-monospace, Menlo, Consolas, monospace;
+      letter-spacing: 0.12em; color: rgba(205,176,131,0.75);
+      border-bottom: 1px solid rgba(169,139,82,0.5);
+    }
+    /* Ordinary FLOW from here down — nothing below is a fraction of a
+       painting any more. Mono with wide tracking stays: it was chosen to sit
+       beside the ticket's pixel lettering, and with the ticket gone it is
+       simply the game's own board face (which also retires the pixel-font
+       licence question docs/HANDOFF.md carried — nothing hand-lettered is
+       left to mismatch). The .r/.n/.s class shape is a harness contract
+       (ceiling.mjs reads it) and survives unchanged. */
+    #board { margin: 0; padding: 0; list-style: none; }
+    #board li {
+      display: flex; align-items: center; gap: 8px;
+      padding: 7px 6px;
+      font: 700 clamp(13px, 3.7vw, 16px)/1 ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+      letter-spacing: 0.06em; font-variant-numeric: tabular-nums;
+      color: #e8dcc0; text-shadow: 0 1px 0 rgba(0,0,0,0.55);
+      border-bottom: 1px dashed rgba(205,176,131,0.16);
+    }
+    #board li .r, #lbCols .r { width: 2.4em; flex: none; }
+    #board li .n, #lbCols .n {
+      flex: 1; min-width: 0;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    #board li .s, #lbCols .s { margin-left: auto; flex: none; }
+    /* Rank one is gold, and so is whoever is reading it. */
+    #board li:first-child, #board li.me { color: #f0c24b; }
+    /* YOUR RANK — where the player actually placed, below a gold rule, even
+       when that is well under the ten on show. */
+    #lbYouLabel {
+      margin: 8px 6px 0; padding-top: 8px;
+      border-top: 1px solid rgba(169,139,82,0.6);
+      font: 700 11px/1 ui-monospace, Menlo, Consolas, monospace;
+      letter-spacing: 0.12em; color: rgba(205,176,131,0.75);
+    }
+    #lbYouLabel[hidden] { display: none; }
+    #lbYou {
+      display: flex; align-items: center; gap: 8px; padding: 7px 6px 2px;
+      font: 700 clamp(14px, 4vw, 17px)/1 ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+      letter-spacing: 0.06em; font-variant-numeric: tabular-nums;
+      color: #f0c24b; text-shadow: 0 1px 0 rgba(0,0,0,0.55);
+    }
+    #lbYou[hidden] { display: none; }
+    #lbYou .r { width: 2.4em; flex: none; }
+    #lbYou .n { flex: 1; min-width: 0;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #lbYou .s { margin-left: auto; flex: none; }
+    #lbEmpty {
+      margin: 0; padding: 34px 10px;
+      text-align: center; color: rgba(242,234,216,0.62);
+      font: 600 clamp(12px, 3.4vw, 15px)/1.5 ui-monospace, Menlo, monospace; letter-spacing: 0.04em;
+    }
     #pvBoard .note {
-      position: absolute; left: 2.184%; right: 2.184%; top: 88.526%;
-      margin: 0; text-align: right;
-      font: 700 2.83cqw/1 ui-monospace, Menlo, Consolas, monospace;
+      margin: 8px 6px 0; text-align: right;
+      font: 700 11px/1.35 ui-monospace, Menlo, Consolas, monospace;
       color: rgba(255,214,110,0.85); text-shadow: 0 1px 2px rgba(0,0,0,0.85);
     }
     #pvBoard .note:empty { display: none; }
-    #board { margin: 0; padding: 0; list-style: none; }
-    #board li {
-      position: absolute; left: 0; right: 0; height: 4.78cqw;
-      display: flex; align-items: center;
-      /* Monospace, not the panel's system-ui. His card is lettered in a
-         pixel arcade face and a proportional sans over it reads as a caption
-         someone stuck on top. Mono with wide tracking is the closest thing
-         available without shipping a font file. */
-      font: 700 4.35cqw/1 ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
-      letter-spacing: 0.06em; font-variant-numeric: tabular-nums;
-      color: #cfcabf; text-shadow: 0 0.27cqw 0 rgba(0,0,0,0.55);
-    }
-    #board li .r { position: absolute; left: 9.465%; }
-    #board li .n {
-      position: absolute; left: 26.744%; right: 9.791%;
-      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-    }
-    #board li .s { position: absolute; right: 8.704%; }
-    /* Rank one is gold in his art, and so is whoever is reading it. */
-    #board li:first-child, #board li.me { color: #f0b429; }
-    #lbYou {
-      position: absolute; left: 0; right: 0; top: 82.742%; height: 5.65cqw;
-      display: flex; align-items: center;
-      font: 700 4.78cqw/1 ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
-      letter-spacing: 0.06em; font-variant-numeric: tabular-nums;
-      color: #f0b429; text-shadow: 0 0.27cqw 0 rgba(0,0,0,0.55);
-    }
-    #lbYou .r { position: absolute; left: 9.465%; }
-    #lbYou .n { position: absolute; left: 26.744%; right: 9.791%;
-      overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    #lbYou .s { position: absolute; right: 8.704%; }
-    #lbEmpty {
-      position: absolute; left: 4.357%; right: 4.357%; top: 56.718%; margin: 0;
-      text-align: center; color: rgba(242,234,216,0.62);
-      font: 600 3.69cqw/1.5 ui-monospace, Menlo, monospace; letter-spacing: 0.04em;
-    }
 
     /* Landscape on a phone is short: shrink and tuck the pads in so they
        never eat the play area. */
@@ -1590,9 +1657,18 @@
 
       <div id="pvBoard" class="pv">
         <div id="lbCard">
+          <!-- The frame's paint used to carry these words; DOM carries them
+               now the ticket is gone. Kicker + heading is the Jandé registry
+               shape ("QUEEN'S REGISTRY / Enter the Kingdom"). -->
+          <div id="lbKicker">WILL HILL: PLAYER ONE</div>
+          <h2 id="lbHead">LEADERBOARD</h2>
+          <div id="lbCols" aria-hidden="true">
+            <span class="r">RANK</span><span class="n">PLAYER</span><span class="s">SCORE</span>
+          </div>
           <ol id="board"></ol>
-          <div id="lbYou" hidden><span class="r"></span><span class="n"></span><span class="s"></span></div>
           <p id="lbEmpty" hidden></p>
+          <div id="lbYouLabel" hidden>YOUR RANK</div>
+          <div id="lbYou" hidden><span class="r"></span><span class="n"></span><span class="s"></span></div>
           <!-- ⚠️ THE ACTION LIVES ON THE TICKET, IN ITS OWN FOOTER.
                Client: "maybe it should be on the card at the bottom so you
                don't have to scroll it", and later, tapping through to the
@@ -1707,9 +1783,18 @@
          canvas — and a tap that reached the canvas on the title screen is
          PRESS START, which would launch a run out from under a half-filled
          form. Same guard, same necessity. There is no `pointer-events: none`
-         anywhere in this layer except the bloom. -->
+         anywhere in this layer except the bloom and the title lockup — and a
+         tap through the lockup lands on this scrim, which eats it. -->
     <div id="entryLayer" hidden>
       <div id="entryPlate">
+        <!-- The title screen's lockup, hung above the card's top edge —
+             client: "Logo from title screen should be neatly fit at the top
+             of form." An empty div wearing three background layers, like
+             every painted surface here — decoration, not content, so
+             aria-hidden keeps it from ever growing an accessible name. All
+             geometry and the crop live in the #entryLogo rule in the
+             stylesheet. -->
+        <div id="entryLogo" aria-hidden="true"></div>
         <!-- ⚠️ THE TINY ✕ THAT WAS HERE IS GONE, PAINT AND ALL. Client:
              "there is also an X on the screen of the contest entry thing that
              doesn't need to be an ex." It was a third way out of one card:

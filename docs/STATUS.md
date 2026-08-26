@@ -119,6 +119,45 @@ localStorage cannot brick boot, and re-encoding the art is off the table
 (WebP q85 visibly damages the dither — measured).
 
 
+### The five-part post-game round — board, form logo, ending pace, knocked card
+
+Five client requests, built in one round (three by subagents, verified by
+their own harness runs, integrated here):
+
+1. **The board is the Jandé registry now — MARTA frame scrapped.** Client:
+   "The leaderboard needs to be like the Jandé registration board. No MARTA
+   frame. Client scrapped" — reversing the earlier blank-card rejection on
+   his own word, and he then sent a SCREENSHOT of Jandé's live registry
+   ("QUEEN'S REGISTRY / Enter the Kingdom"), which is the recorded visual
+   target: warm brown card (#33261a), tan border, kicker + big heading, one
+   glossy gold primary button. Rebuilt as flow DOM: ten rows (the five-row
+   cap was the ticket's painted bands), RANK/PLAYER/SCORE re-lettered in
+   DOM, YOUR RANK under a gold rule, gold #1 and gold `.me`. ROW_TOP and
+   the measured-fraction rig deleted from panel.js — share.js is the ticket
+   artwork's only renderer now and owns that measurement alone. share.mjs's
+   empty-band reference reads the asset path instead of #lbCard's computed
+   background. Board suite green: optionsmenu 31×3, pausemenu 13, btnglow
+   26, ceiling 15, share 12, panelnav 16.
+
+2. **The title lockup sits above the contest form.** "Logo from title
+   screen should be neatly fit at the top of form" — the three SAM-cut
+   lockup cards (wordmark, PLAYER ONE, stars) composited via one crop
+   window, hung off the card's top edge in the scrim band, zero added bytes
+   (same hashed files the title ships). Hidden in short-landscape and
+   faded during the keyboard lift. entryfit grew 9 checks: 53/53 ×3.
+
+3. **The ending holds the stats longer.** RESULTS_AFTER 140 → 320 (~5.3s)
+   before the board arrives over his painting; a tap still brings it sooner.
+
+4. **The knocked score is big.** GAME KNOCKED's dollar line 18 → 40 in both
+   variants; the stacked-line renderer spaces by size, so the card reflows.
+
+5. **The knocked card's buttons are MAIN MENU + ENTER THE CONTEST** (no
+   continue left; GET BACK UP with a continue is untouched). Submission is
+   unaffected — the death path submits before the card draws.
+   betweenscreens regraded (22 ×3); optionsmenu's death-path check now
+   presses the CONTEST button by label, not [0].
+
 ### The pads moved on his thumbs' orders, and every button buzzes now
 
 **Placement, round two** (client, from play): arrows lifted 34→48px and the

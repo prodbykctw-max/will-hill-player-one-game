@@ -215,12 +215,13 @@ const dead = await p2.evaluate(async () => {
   return g.screen;
 });
 // ⚠️ PRESS THE BUTTON, NOT THE MIDDLE OF THE SCREEN. GAME KNOCKED used to
-// advance on a tap anywhere; it draws SEE YOUR SCORE now and that tap is the
-// only one it takes. A click at 215,500 lands on nothing and this check read
-// "the sign-up is never offered after death" when the offer was one button
-// press away. See tools/harness/betweenscreens.mjs.
+// advance on a tap anywhere; since the client's relabel it draws MAIN MENU
+// and ENTER THE CONTEST, and the contest offer is the SECOND button —
+// pressing [0] now goes to the title, which is exactly how this check
+// briefly read "the sign-up is never offered after death" again. See
+// tools/harness/betweenscreens.mjs, which grades both buttons.
 const knockedBtn = await p2.evaluate(() => {
-  const r = (window.__screenButtons || [])[0];
+  const r = (window.__screenButtons || []).find((b) => /CONTEST/.test(b.label));
   return r ? { x: r.x + r.w / 2, y: r.y + r.h / 2, label: r.label } : null;
 });
 check('GAME KNOCKED offers a way on', !!knockedBtn, JSON.stringify(knockedBtn));
