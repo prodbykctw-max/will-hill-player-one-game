@@ -785,18 +785,15 @@
       text-transform: uppercase;
     }
     #entryLayer #entryHead {
-      margin: 2.6cqw 0 0;
+      /* 2.4cqw below: with the note gone (client: "kind of redundant"), the
+         heading hands straight to the NAME label — this plus the label's own
+         3.4cqw top margin is the breathing room he asked for. */
+      margin: 2.6cqw 0 2.4cqw;
       font: 800 max(21px, 6.6cqw)/1.05 system-ui, sans-serif;
       letter-spacing: 0.04em;
       color: #f0b429;
       text-shadow: 0 2px 0 rgba(0,0,0,0.45);
     }
-    #entryLayer #pvForm .note {
-      margin: 2.8cqw 0 1cqw;
-      font: 400 max(12px, 3.1cqw)/1.45 system-ui, sans-serif;
-      color: rgba(242,234,216,0.72);
-    }
-    #entryLayer #pvForm .note b { color: #ffd66e; font-weight: 700; }
     #entryLayer #pvForm label {
       display: block; margin: 3.4cqw 0 0;
       font: 700 max(11px, 3.2cqw)/1 system-ui, sans-serif;
@@ -1745,11 +1742,13 @@
                read. -->
           <div class="kick" aria-hidden="true">WILL HILL · PLAYER ONE</div>
           <h2 id="entryHead">ENTER THE CONTEST</h2>
-          <p class="note">
-            All three are required. Your <b>name</b> and score go on the board.
-            Your <b>phone</b> and <b>email</b> stay private — they are only how
-            Will Hill's team reaches you if you win.
-          </p>
+          <!-- ⚠️ NO NOTE UNDER THE HEADING, on the client's word: "Remove the
+               all three are required statement... It's kind of redundant, it
+               says required in the helper texts on each form." Every fact it
+               carried survives at field level — the red "required" tag, the
+               shown-publicly / private subs, and the placeholders ("how we
+               reach a winner", "never shown"). -->
+
           <!-- The helper text lives INSIDE each field as a placeholder as well
                as beside the label. On a phone the label scrolls out of view the
                moment the keyboard opens and the field is all you can still see,
