@@ -13,11 +13,24 @@ and a stranger's thumbs at a party.
 
 ## 1. The automated suite
 
-Every harness lives in `tools/harness/` and prints `ALL n PASS` or
-`FAILED: <checks>` as its last line. They need the dev server up:
+Every harness lives in `tools/harness/`. Most print `ALL n PASS` or
+`FAILED: <checks>` as their last line — but not all, and the exact wordings
+are below, because a sweep that greps for the wrong one reports a green
+harness as broken. They need the dev server up:
 
 ```
 (nohup npx vite --port 5199 --strictPort > /tmp/vite.log 2>&1 &)
+```
+
+⚠️ **And `deferboot` also needs the PRODUCTION build served on :5210.** Its
+section C proves the request order on the real hashed bundle, which the dev
+server cannot show. Without it the harness fails at
+`ERR_CONNECTION_REFUSED` after nine green checks, which looks exactly like a
+product failure and is not:
+
+```
+npm run build
+(nohup npx vite preview --port 5210 --strictPort > /tmp/preview.log 2>&1 &)
 ```
 
 and the browser wired in:
@@ -28,13 +41,23 @@ export CHROMIUM=/opt/pw-browsers/chromium-1194/chrome-linux/chrome
 export SEAM_OUT=shots
 ```
 
-Run the lot:
+Run the lot. ⚠️ **The grep has to cover four wordings** — `ALL n PASS`,
+`n/n passed` (betweenscreens), `n/n checks passed` (startflow) and
+`n/n checks pass` (loopbench) — or four green harnesses read as no verdict.
+The 420s timeout matters too: `daylamps` and `titlehome` both run past 300.
 
 ```
 for h in tools/harness/*.mjs; do
-  echo "$h :: $(timeout 300 node "$h" 2>&1 | grep -E '^ALL|^FAILED' | tail -1)"
+  n=$(basename "$h" .mjs); [ "$n" = startchain ] && continue
+  echo "$n :: $(timeout 420 node "$h" 2>&1 \
+    | grep -E '^ALL|^FAILED|checks pass|/[0-9]+ (checks )?pass' | tail -1)"
 done
 ```
+
+⚠️ **`workerguards` is the one harness that needs neither** — no browser, no
+dev server, `node tools/harness/workerguards.mjs` and nothing else. It drives
+the Worker module directly over an in-memory SQLite built from
+`cloudflare/schema.sql`. Run it before any deploy of either worker.
 
 ⚠️ **`SEAM_OUT=shots` is not optional.** Several harnesses write PNGs and JSON,
 and a harness that defaults to the repo root drops them beside the source.
@@ -54,39 +77,63 @@ the bench, silently and with confusing errors. Static hosting (which is what
 Pages is) serves `index.html` for the directory, so the URL the client gets is
 `/bench/` and it is correct there.
 
-### ⚠️ Six of these do not print a verdict, and that is not a failure
+### ⚠️ Seven of these do not print a verdict, and that is not a failure
 
-**Graded** — they end in `ALL n PASS` or `FAILED: <checks>`, and a sweep can
-read them mechanically:
+**Graded** — they end in a pass/fail line a sweep can read mechanically (see
+the four wordings above):
 
-`barescars` · `betweenscreens` · `btnglow` · `ceiling` · `cloudseal` · `dashpass` · `daylamps` · `deferboot` · `endcue` · `entryfit` · `entrypaths` · `finishrun` · `howpage` · `idleflex` · `introorder` ·
-`loopbench` · `loopseam` · `musicbox` · `outbox` · `todlive` · `optionsmenu` · `padlift` · `panelnav` · `pausemenu` · `relayboard` · `relaytod` ·
-`share` · `stageflag` · `titlefit` · `titlehome` · `titleintro` · `titleshells`
+`barescars` · `betweenscreens` · `booterror` · `btnglow` · `ceiling` · `cloudseal` · `combo` · `dashfit` · `dashglow` · `dashload` · `dashpass` · `daylamps` · `deferboot` · `endcue` · `entryfit` · `entrypaths` · `finishrun` · `graphwire` · `hapticbtn` · `howpage` · `idleflex` · `introorder` ·
+`loopbench` · `loopseam` · `musicbox` · `optionsmenu` · `outbox` · `padlift` · `panelnav` · `pausemenu` · `pitsky` · `relay` · `relayboard` · `relaytod` ·
+`share` · `skyleak` · `stageflag` · `startflow` · `statsync` · `titlefit` · `titlehome` · `titleintro` · `titleshells` · `todlive` · `workerguards`
 
 **Report-only** — they print a table or a contact sheet for a human to read,
 and have no pass/fail line at all:
 
-`daynight` · `graphwire` · `joinshot` · `musiccheck` · `relay` · `seamsweep` ·
+`cutcheck` · `daynight` · `joinshot` · `musiccheck` · `seamsweep` ·
 `stagestrip` · `stagesweep`
 
 The one-liner above reports those as `NO VERDICT`. Do not read that as broken —
 `seamsweep` prints per-stage seam measurements, `stagestrip` stitches the whole
-stage day-above-night for eyeballing, `daynight` prints a difference table.
-They are the eyes-on tools; the graded set is the tripwire.
+stage day-above-night for eyeballing, `daynight` prints a difference table,
+`cutcheck` ranks the nine flagged cards by how much of their cut actually
+reaches the screen. They are the eyes-on tools; the graded set is the tripwire.
 
-### Last sweep
+⚠️ **This list was wrong in both directions and cost a sweep an hour.**
+`cutcheck` was in neither list; `daylamps`, `deferboot` and `loopbench` were
+called graded and then read as no-verdict, three different reasons — a 300s
+timeout, a missing preview server, and a wording the grep did not cover. When
+a harness reports NO VERDICT, run it alone and read its output before writing
+it down as expected. Two of those three were real problems.
 
-**Green at main `afe1930` — the whole suite, after all three chats' work was
-merged into one tree.** Every harness in `tools/harness/` run against a fresh
-dev server, zero failures:
+### Last sweep — the pre-contest pass, 2026-09-01 at main `3f1de20`
 
-titlehome 163, dashfit 100, titlefit 48, optionsmenu 31, btnglow 26,
-dashglow 26, relaytod 26, howpage 24, hapticbtn 22, betweenscreens 20,
-musicbox 20, panelnav 16, ceiling 15, outbox 13, pausemenu 13, share 12,
-cloudseal 12, combo 12, daylamps 12, finishrun 12, titleintro 12, todlive 12,
-padlift 11, endcue 11, entryfit 41, startflow 23, loopseam 9, entrypaths 9,
-barescars 8, idleflex 8, pitsky 8, statsync 7, stageflag 6, introorder 4,
-skyleak 4, dashload and relay clean on their own wordings.
+**44 graded harnesses green, ~954 checks, one red.** Everything in
+`tools/harness/` run against a fresh dev server, plus a production preview on
+:5210 for `deferboot`'s section C:
+
+titlehome 176, dashfit 100, titlefit 48, loopbench 32, optionsmenu 31,
+relaytod 27, btnglow 25, dashglow 26, hapticbtn 26, howpage 24, startflow 23,
+betweenscreens 22, workerguards 22, musicbox 20, outbox 20, panelnav 16,
+ceiling 15, titleshells 15, padlift 13, pausemenu 13, combo 12, cloudseal 12,
+daylamps 12, deferboot 12, finishrun 12, share 12, titleintro 12, todlive 12,
+endcue 11, booterror 10, entryfit 72, loopseam 9, entrypaths 9, barescars 8,
+idleflex 8, pitsky 8, dashpass 7, statsync 7, stageflag 6, relayboard 5,
+skyleak 4, dashload · relay · graphwire clean on their own wordings.
+
+**The one red is `introorder`** — "there is a visible beat between them". That
+is the three-beat intro ordering, which is NOT BUILT (see Known open below and
+CAT 4 in STATUS). Expected red, not a regression.
+
+Two things that were red in earlier passes and are now clean, both re-measured
+rather than assumed:
+
+- **`musiccheck`: all ten cues match the cut plan.** The four loop-length
+  mismatches are gone.
+- **`seamsweep`: the L5P join is 5.1px** at ratio 0.34x — below that frame's
+  own p99, i.e. under the noise. The 193px join is gone.
+
+Worst joins that remain, from `joinshot`: underground 13.9, edgewood 10.3,
+l5p 5.7, and on eav the join never reaches the screen at all.
 
 ⚠️ **`startchain.mjs` IS NOT A HARNESS** and printing nothing is correct — it
 is the shared library the others import to walk title → CONTEST → HOW TO PLAY
@@ -493,8 +540,10 @@ Everything here needs a real phone. The container cannot do any of it.
       through OPTIONS.
 - [ ] Volume in a car on max. He measured this before and it was 25%-quiet;
       it is now +5 dB. Confirm on the actual system.
-- [ ] Let the title sit two minutes — the loop wraps without a hard cut.
-      **This is the known-open one** (loop-seam crossfade, not yet built).
+- [ ] Let the title sit two minutes — the loop wraps without a hard cut. The
+      crossfade IS built (`crossfade_wrap()` + the two-element lap, graded by
+      `loopseam`); what is open is where the loops should END, which is his ear
+      at `/bench/`, not a seam measurement. See Known open.
 - [ ] Cross a finish line: the map music is already running behind the clear
       card, and tapping through does not restart it.
 - [ ] Finish stage four: the credits are already running behind the clear card.
@@ -512,11 +561,20 @@ Everything here needs a real phone. The container cannot do any of it.
 - [ ] Share a run. The card carries the right score and the right brag line.
 - [ ] Leaderboard: no scrolling needed, buttons reachable on the card.
 
-### The contest itself — blocked until the backend is up
-- [ ] Cloudflare KV namespace created and the Worker deployed.
+### The contest itself
+- [x] ~~Cloudflare KV namespace created and the Worker deployed.~~ **D1**, not
+      KV, and both are done — database `980cd717…`, five tables, six indexes,
+      worker live since 2026-08-16. Verified against the live database in the
+      pre-contest pass, not assumed.
 - [ ] A score submitted from one phone appears on another.
-- [ ] Name and score are public; phone and email are not.
-- [ ] The 3-day window opens and closes on the right dates.
+- [ ] **⚠️ REDEPLOY THE LEADERBOARD WORKER FIRST.** Two fixes are committed and
+      not live: sub-60s runs are refused (`invalid run` on any early death),
+      and `/top` publishes the hashed phone number. `workerguards` covers both.
+- [ ] Name and score are public; phone and email are not — re-check by eye on
+      `curl .../top` after the redeploy. It was NOT true before it.
+- [ ] The 3-day window opens and closes on the right dates. `CONTEST_START` and
+      `CONTEST_END` are both still `0` in both workers, which means the window
+      is not enforced at all. One line each, once the dates exist.
 
 ---
 
@@ -543,5 +601,20 @@ Everything here needs a real phone. The container cannot do any of it.
   `introorder` grades the ordering that *did* ship: his name before PLAYER ONE.
   The three-beat version needs the signs, hero and pole lifted cleanly off the
   plate, and the last inpaint came back smeared.
-- **The leaderboard is genuinely empty** until the Worker is deployed. That is
-  not a bug to chase on a device.
+- ~~**The leaderboard is genuinely empty** until the Worker is deployed.~~
+  Stale on both halves. The Worker has been live since 2026-08-16, and the
+  board is **not empty**: `/top` returns Bri 9,200 and Kk 8,400 right now.
+  Whether those two stay or the contest starts from zero is the client's call
+  — see task #38 — but a device showing scores is correct behaviour, not a bug.
+
+- **⚠️ Nothing tested the backend until 2026-09-01**, which is how a 60s
+  minimum-run floor and a published phone hash both survived in production for
+  weeks. `workerguards.mjs` now drives the real Worker against the real schema
+  with no browser. Run it before deploying either worker; it is three seconds.
+
+- **No rate limiting on `/submit`, and the WAF cannot provide it** —
+  Cloudflare's rate-limiting rules are zone-level and this worker is on
+  `*.workers.dev`, which has no zone. The fix that works from there is the
+  `[[ratelimits]]` binding in `cloudflare/wrangler.toml`, checked at the top
+  of `/submit`. Not built. Until it is, the billing alert is the only thing
+  between a hammering and a bill.
