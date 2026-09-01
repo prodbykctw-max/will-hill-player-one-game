@@ -60,7 +60,10 @@ const check = (w, ok, d = '') => {
   console.log(`  ${ok ? 'PASS' : 'FAIL'}  ${w}${d ? '   ' + d : ''}`);
 };
 
-const STAGES = ['eav', 'edgewood', 'underground', 'l5p'];
+// ⚠️ buckhead joins this list when its day cloud cards are cut — it ships
+// The buckhead finale joined once its day clouds were cut (scrub +
+// spread + skystruct seal, 2026-09) — five day skies to grade now.
+const STAGES = ['eav', 'edgewood', 'underground', 'l5p', 'buckhead'];
 // ⚠️ PROVE THE TEST CAN FAIL. `CLOUDSEAL_BREAK=1` strips the skystruct seal
 // back out, which is exactly the state the bug shipped in. A green harness
 // that would also be green on the broken code is a comment, and this project
@@ -84,7 +87,7 @@ p.on('pageerror', (e) => console.log('  THROWN: ' + e.message));
 await p.goto('http://localhost:5199/?tod=day', { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__game && window.__game.screen === 'title', null, { timeout: 25000 });
 
-for (let si = 0; si < 4; si++) {
+for (let si = 0; si < 5; si++) {
  const perPos = [];
  for (const frac of POSITIONS) {
   const r = await p.evaluate(async ([idx, ticks, brk, frac]) => {

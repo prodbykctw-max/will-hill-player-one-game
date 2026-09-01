@@ -64,6 +64,17 @@
 // this, so if it were the untouched painting each item would appear
 // twice the moment the parallax moved it.
 import bgEavDay from '../assets/backgrounds/eav-day-base.webp';
+import bgBuckheadDay from '../assets/backgrounds/buckhead-day-base.webp';
+import bhdClouds from '../assets/backgrounds/buckhead-day-clouds.webp';
+import bhdSkystruct from '../assets/backgrounds/buckhead-day-skystruct.webp';
+import bhdTheatre from '../assets/backgrounds/buckhead-day-theatre.webp';
+import bhdLeftblock from '../assets/backgrounds/buckhead-day-leftblock.webp';
+import bhdRightblock from '../assets/backgrounds/buckhead-day-rightblock.webp';
+import bhdBanners from '../assets/backgrounds/buckhead-day-banners.webp';
+import bhdMarquee from '../assets/backgrounds/buckhead-day-marquee.webp';
+import bhdTrees from '../assets/backgrounds/buckhead-day-trees.webp';
+import bhdPlanters from '../assets/backgrounds/buckhead-day-planters.webp';
+import bhdLamps from '../assets/backgrounds/buckhead-day-lamps.webp';
 // THE INPAINTED BASE, not the whole plate. Every card is drawn OVER
 // this, so if it were the untouched painting each item would appear
 // twice the moment the parallax moved it.
@@ -123,6 +134,15 @@ import l5pDayKerb from '../assets/backgrounds/l5p-day-kerb.webp';
 import l5pDayPole from '../assets/backgrounds/l5p-day-pole.webp';
 
 import bgEav from '../assets/backgrounds/eav-base.webp';
+import bgBuckhead from '../assets/backgrounds/buckhead-base.webp';
+import bhTheatre from '../assets/backgrounds/buckhead-theatre.webp';
+import bhLeftblock from '../assets/backgrounds/buckhead-leftblock.webp';
+import bhRightblock from '../assets/backgrounds/buckhead-rightblock.webp';
+import bhBanners from '../assets/backgrounds/buckhead-banners.webp';
+import bhMarquee from '../assets/backgrounds/buckhead-marquee.webp';
+import bhTrees from '../assets/backgrounds/buckhead-trees.webp';
+import bhPlanters from '../assets/backgrounds/buckhead-planters.webp';
+import bhLamps from '../assets/backgrounds/buckhead-lamps.webp';
 import eavClouds from '../assets/backgrounds/eav-clouds.webp';
 import eavSkyline from '../assets/backgrounds/eav-skyline.webp';
 import eavMcdonalds from '../assets/backgrounds/eav-mcdonalds.webp';
@@ -1283,6 +1303,172 @@ const STAGE_DEFS = [
     enemyVariants: ['a', 'b', 'c'],
     stageEnd: 450,
     recipe: { gap: 0.126, plat: 0.26, haz: 0.414, gapMax: 4, vert: 0.40, enemy: 0.432, bags: 110 },
+  },
+  {
+    // ── STAGE 5, THE FINALE ──────────────────────────────────────────────
+    // Client, sending the pair: "5th and final stage." The Buckhead Theatre,
+    // marquee lit, headliner banners up — the show Will Hill has been running
+    // toward for four stages. The ending scene (his stage bow) now follows
+    // THIS finish line; nextStage() is STAGES.length-driven so the handoff
+    // moved by itself.
+    id: 'buckhead',
+    name: 'Buckhead Theatre',
+    bgRef: 'Buckhead Theatre facade — twin red BUCKHEAD THEATRE banners, lit marquee, flanking storefronts (Gallery 3180, Roswell Road, Henry\'s Bakery, Cocina 307), midtown towers behind',
+    bg: {
+      img: bgBuckhead,
+      // THE PLATE. Client-supplied 1536x1024 pair, same shape as the
+      // Underground pair and geometry-matched to each other (planters, lamps
+      // and doors coincide to the pixel between halves, so the tod swap does
+      // not jump). Ground line is the kerb where the theatre's pavement meets
+      // the wet street, measured at y≈788 on both halves: 788/1024 = 0.770.
+      // 9.0m over the 788-row band draws ~488px against the ~559px above the
+      // world's ground — an 87% fill like L5P, so the marquee reads at
+      // street height and the spires still clear the top of a tall phone.
+      meters: 9.0,
+      groundFrac: 0.770,
+      // A street made of words — the marquee, two red banners, four
+      // storefront fascias, the BUCK HEAD ATL pennants — so it takes the
+      // lettering clamp, same as Underground and for the same reason: 16px
+      // of double on a word is a second word. ⚠️ Stated on BOTH bg blocks;
+      // `?tod=day` swaps bg wholesale, and daylight is where doubling shows.
+      separation: 4,
+      // Sampled off the plate's own top rows (median across the width), not
+      // picked: the night sky runs to near-black at the frame's top edge, so
+      // the gradient meets it there and deepens barely at all overhead.
+      sky: ['#000004', '#010103'],
+      horizon: '#141327',
+      glow: 'rgba(255,200,120,0.10)',
+      rain: 0.75, // the street is already rain-slicked in his painting
+      // Used only while the stage ships flat (no cards yet) — the flanking
+      // street trees breathe a little so the wait for the cut isn't static.
+      windBands: [
+        { top: 0.30, pivot: 0.62, amp: 3, freq: 0.9, xRanges: [[0.00, 0.10]] },
+        { top: 0.30, pivot: 0.64, amp: 3, freq: 1.1, xRanges: [[0.76, 0.86]] },
+      ],
+      // ── THE MULTIPLANE SET, far -> near ──────────────────────────────
+      // Cut by the SAM cascade (tools/sam_groups/buckhead.json), spans are
+      // the cutter's own reported fracs. Nearly everything rides BASE_DEPTH
+      // 0.50 on the Underground lesson: this street is made of words — the
+      // marquee, the two red banners, four storefront fascias — and 0.50 is
+      // the one depth at which a lettering card cannot ghost against the
+      // base's own copy of itself. The depth the eye actually reads comes
+      // from the near furniture row, exactly the pair the client praised on
+      // Five Points: planters at 0.76, lamps at 0.78.
+      cards: [
+        { key: 'theatre', img: bhTheatre, depth: 0.50, span: [0.294, 0.720] },
+        { key: 'leftblock', img: bhLeftblock, depth: 0.50, span: [0.103, 0.299] },
+        { key: 'rightblock', img: bhRightblock, depth: 0.50, span: [0.728, 0.995] },
+        // The open-book pair of red banners and the bulb marquee — lettering
+        // cards; the marquee exists as its own card so the night glow below
+        // can bolt to it by name.
+        { key: 'banners', img: bhBanners, depth: 0.50, span: [0.443, 0.596] },
+        { key: 'marquee', img: bhMarquee, depth: 0.50, span: [0.410, 0.611] },
+        {
+          // Four street trees on one card, swayed per canopy — pivots at the
+          // bottom of each moving mass so the trunks stay planted.
+          key: 'trees', img: bhTrees, depth: 0.50, span: [0.000, 1.000],
+          sway: [
+            { top: 0.40, pivot: 0.79, amp: 3, freq: 0.9, xRanges: [[0.000, 0.117]] },
+            { top: 0.40, pivot: 0.80, amp: 3, freq: 1.1, xRanges: [[0.166, 0.273]] },
+            { top: 0.40, pivot: 0.79, amp: 3, freq: 1.0, xRanges: [[0.762, 0.876]] },
+            { top: 0.40, pivot: 0.80, amp: 2.5, freq: 0.85, xRanges: [[0.954, 1.000]] },
+          ],
+        },
+        // ⚠️ 0.50, NOT THE FURNITURE DEPTH — cut_audit flagged both halves
+        // as RULER CUT: the pots' mask runs into the crop's own bottom edge
+        // (they stand ON the pavement, and the pavement is the base), so any
+        // slide prints a flat line along the kerb. Planted things take the
+        // ground's depth; the lamps keep 0.78 because their thin posts have
+        // no flat edge to print.
+        { key: 'planters', img: bhPlanters, depth: 0.50, span: [0.000, 1.000] },
+        { key: 'lamps', img: bhLamps, depth: 0.78, span: [0.323, 1.000] },
+      ],
+      // The marquee bulbs and the two flanking lamp standards are the
+      // emitters at night. `layer` bolts each glow to its card so it travels
+      // with the thing that emits it instead of sliding off it.
+      lights: [
+        { x: 0.500, y: 0.585, r: 0.24, rgb: '255,214,140', a: 0.26, flicker: 0.028, layer: 'marquee' },
+        { x: 0.335, y: 0.560, r: 0.10, rgb: '255,196,110', a: 0.16, flicker: 0.012, layer: 'lamps' },
+        { x: 0.690, y: 0.560, r: 0.10, rgb: '255,196,110', a: 0.16, flicker: 0.012, layer: 'lamps' },
+      ],
+    },
+    light: { pool: 'rgba(255,190,110,0.22)', shaft: 'rgba(255,190,110,0.05)', bloom: 'rgba(255,120,90,0.12)', key: '255,210,150', bounce: '150,100,70', shadowRgb: '10,9,18' },
+    day: {
+      bg: {
+        img: bgBuckheadDay,
+        meters: 9.0,
+        groundFrac: 0.770,  // same kerb, same row — the pair is geometry-matched
+        separation: 4,      // stated twice on purpose; bg is replaced, not merged
+        // Sampled: the day plate's top rows median #4696d1, zenith the same
+        // colour down 28% red / 14% green with blue held.
+        sky: ['#3281d1', '#4696d1'],
+        horizon: '#4696d1',
+        glow: 'rgba(255,240,200,0.08)',
+        rain: 0.0,
+        windBands: [
+          { top: 0.30, pivot: 0.62, amp: 3, freq: 0.9, xRanges: [[0.00, 0.10]] },
+          { top: 0.30, pivot: 0.64, amp: 3, freq: 1.1, xRanges: [[0.76, 0.86]] },
+        ],
+        // Same set as the night half, cut from the day plate's own SAM pass;
+        // depths deliberately identical so the tod swap changes the paint
+        // and nothing else.
+        cards: [
+          // ⚠️ CLOUDS FIRST, SEAL DIRECTLY AFTER — array order IS draw
+          // order; depth only sets the rate. The puffs drift at 0.02; the
+          // skystruct seal carries the base's own sky-band pixels at
+          // BASE_DEPTH so it registers to the pixel and the weather passes
+          // BEHIND every roofline. tools/scrub_stage_clouds.py +
+          // spread_clouds.py wrote both (one lifted puff, 19 spread copies,
+          // 61% column cover).
+          { key: 'clouds', img: bhdClouds, depth: 0.02, drift: -0.030, span: [0.014, 0.976] },
+          { key: 'skystruct', img: bhdSkystruct, depth: 0.5, span: [0.000, 1.000] },
+          { key: 'theatre', img: bhdTheatre, depth: 0.50, span: [0.292, 0.729] },
+          { key: 'leftblock', img: bhdLeftblock, depth: 0.50, span: [0.103, 0.295] },
+          { key: 'rightblock', img: bhdRightblock, depth: 0.50, span: [0.720, 0.997] },
+          { key: 'banners', img: bhdBanners, depth: 0.50, span: [0.417, 0.587] },
+          { key: 'marquee', img: bhdMarquee, depth: 0.50, span: [0.389, 0.633] },
+          {
+            key: 'trees', img: bhdTrees, depth: 0.50, span: [0.000, 1.000],
+            sway: [
+              { top: 0.40, pivot: 0.79, amp: 3, freq: 0.9, xRanges: [[0.000, 0.117]] },
+              { top: 0.40, pivot: 0.80, amp: 3, freq: 1.1, xRanges: [[0.166, 0.273]] },
+              { top: 0.40, pivot: 0.79, amp: 3, freq: 1.0, xRanges: [[0.762, 0.876]] },
+              { top: 0.40, pivot: 0.80, amp: 2.5, freq: 0.85, xRanges: [[0.954, 1.000]] },
+            ],
+          },
+          // 0.50 — same RULER CUT flag as the night half; see the note there.
+          { key: 'planters', img: bhdPlanters, depth: 0.50, span: [0.000, 1.000] },
+          { key: 'lamps', img: bhdLamps, depth: 0.78, span: [0.322, 0.995] },
+        ],
+        lights: [],
+      },
+      light: { pool: 'rgba(255,244,214,0.10)', shaft: 'rgba(255,246,220,0.04)', bloom: 'rgba(255,240,200,0.07)', key: '255,248,226', bounce: '150,170,200', shadowRgb: '30,36,52' },
+    },
+    under: {
+      // Buckhead is the upscale end of the line: pale stone and marble over
+      // the same Atlanta clay, so the section reads lighter than the other
+      // four, with the theatre's own red as the accent.
+      asphalt: '#2e2d31', base: '#4a463f', fill: '#564a3c', mid: '#5e4a38', bottom: '#1e1a18',
+      brick: '#7a5240', metal: '#8d939b', metalDark: '#41454a', concrete: '#5e5a52',
+      concreteDark: '#3c3934', gas: '#b8952e', accent: '#b03636', root: '#443220',
+      tile: '#4e5862', ballast: '#37332d', void_: '#0a090f', lamp: 'rgba(255,206,130,0.30)', rat: '#2a2523',
+      kinds: ['conduit', 'water', 'sewer', 'rats', 'footings'],
+    },
+    enemyVariants: ['a', 'b', 'c'],
+    // The ramp continues its +30 columns; the recipe keeps every step's
+    // direction (position carries difficulty, identity does not).
+    stageEnd: 480,
+    // ⚠️ bags: 25, DELIBERATELY OFF THE +7 PATTERN — and measured DOWN from a
+    // first guess of 30. Three ceilings bind, and ceiling.mjs graded all of
+    // them: the DEPLOYED worker's MAX_LEGIT_SCORE 70000 (perfect run measures
+    // 67,600 — no live worker change needed), bags alone must not clear the
+    // 50,000 champagne watermark (425 bags = 42,500), and — the one that
+    // caught the 30 — a FLAWLESS NO-BOTTLE run must not clear it either:
+    // at 30 bags it hit 50,100, one hundred over, and the doubler stopped
+    // being what closes the gap. 25 puts it at 49,600. The finale is the
+    // show, not the payday. Re-derive with tools/harness/ceiling.mjs before
+    // changing this.
+    recipe: { gap: 0.144, plat: 0.28, haz: 0.45, gapMax: 4, vert: 0.45, enemy: 0.486, bags: 25 },
   },
 ];
 

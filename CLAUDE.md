@@ -80,7 +80,7 @@ Two workers, deliberately separate:
 
 **Dev URL flags** — URL only, never a button, nothing a player is ever shown:
 `?relay=1` (CHAMPAGNE RELAY: no enemies, no pit deaths, aura always lit),
-`?stage=1..4` (one-indexed; out of range falls through to stage one),
+`?stage=1..5` (one-indexed; out of range falls through to stage one),
 `?tod=day|night`, and `?lb=<url>` which is **DEV-build only** and folded to
 dead code by Vite in production. `tools/harness/stageflag.mjs` grades both that
 they work and that a plain URL is still the player's game.

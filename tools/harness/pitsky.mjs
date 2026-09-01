@@ -39,7 +39,10 @@ p.on('pageerror', (e) => check('no exception', false, e.message));
 // ⚠️ INDEX, NOT ID. window.__startStage is the game's own startStage(i) and
 // it takes the stage index; passing an id throws inside createLevel on
 // `undefined.recipe`, one frame later, which reads as a level-generation bug.
-const STAGES = [[0, 'eav'], [1, 'edgewood'], [2, 'l5p'], [3, 'underground']];
+// Order matches src/world/stages.js — this table used to swap underground and
+// l5p, so a failure was reported against the wrong stage's name.
+const STAGES = [[0, 'eav'], [1, 'edgewood'], [2, 'underground'], [3, 'l5p'],
+                [4, 'buckhead']];
 
 await p.goto(`${BASE}/?tod=day`, { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__game && window.__game.screen === 'title', null, { timeout: 25000 });

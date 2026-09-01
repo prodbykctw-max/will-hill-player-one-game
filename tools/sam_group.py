@@ -144,6 +144,50 @@ REGIONS = {
         # arch and the columns so it cannot swallow them.
         ('backdrop',  360,   0,  914, 540),
     ],
+    # ══ BUCKHEAD THEATRE — STAGE 5, THE FINALE ═══════════════════════════
+    # Measured against 1536x788 (the 0.770 crop of the client's 1536x1024
+    # pair) off a 100px grid over the plate. Day and night are geometry-
+    # matched to the pixel (planters, lamps and doors coincide), so the two
+    # tables start identical — but they stay SEPARATE tables on the
+    # Underground lesson: a box 10px out at 70% containment silently drops a
+    # card, and the halves are graded independently.
+    #
+    # The marquee and the two red banners are LETTERING and get their own
+    # cards so the night marquee glow has a card to bolt to; the storefront
+    # fascias (GALLERY 3180, ROSWELL ROAD, HENRY'S BAKERY, COCINA 307) stay
+    # on their blocks — flat paint on flat wall, no gap behind them, exactly
+    # the UNDERGROUND-arch reasoning. The BUCK HEAD ATL pennants hang on the
+    # lamp poles, so they ride 'lamps'.
+    'buckhead': [
+        ('marquee',    610, 515,  960, 670),
+        ('banners',    650, 275,  915, 530),
+        ('lamps',      485, 495,  575, 775),
+        ('lamps',     1010, 495, 1085, 775),
+        ('lamps',     1430, 520, 1520, 775),
+        ('planters',   180, 690, 1400, 788),
+        ('trees',        0, 315,  180, 765),
+        ('trees',      255, 325,  420, 765),
+        ('trees',     1170, 325, 1345, 765),
+        ('trees',     1465, 295, 1536, 765),
+        ('theatre',    435, 190, 1110, 750),
+        ('leftblock',    0, 325,  450, 750),
+        ('rightblock',1095, 325, 1536, 750),
+    ],
+    'buckhead-day': [
+        ('marquee',    610, 515,  960, 670),
+        ('banners',    650, 275,  915, 530),
+        ('lamps',      485, 495,  575, 775),
+        ('lamps',     1010, 495, 1085, 775),
+        ('lamps',     1430, 520, 1520, 775),
+        ('planters',   180, 690, 1400, 788),
+        ('trees',        0, 315,  180, 765),
+        ('trees',      255, 325,  420, 765),
+        ('trees',     1170, 325, 1345, 765),
+        ('trees',     1465, 295, 1536, 765),
+        ('theatre',    435, 190, 1110, 750),
+        ('leftblock',    0, 325,  450, 750),
+        ('rightblock',1095, 325, 1536, 750),
+    ],
     'underground': [
         # Same scene at night. The Coca-Cola disc and the Waffle House
         # frontage are cards because the night `lights` entries are bolted to

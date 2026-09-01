@@ -112,6 +112,15 @@ STAGES = {
                         # invalidates that cut for a correction smaller than
                         # the error bar on the measurement.
                         hold='already cut at 0.78; match is weak (0.315)'),
+    # The theatre's marquee block, front and centre in both plates. This pair
+    # is GEOMETRY-MATCHED at source — the kerb sits at y≈788 in both — so day
+    # groundFrac 0.770 and meters 9.0 are simply night's values, not a derived
+    # correction; the row exists so the sweep still looks instead of assuming.
+    'buckhead': dict(night='buckhead', day='buckhead-day', ngf=0.770, nm=9.0,
+                     dgf=0.770, dm=9.0, mark=(560, 180, 980, 520),
+                     what='Buckhead Theatre marquee',
+                     hold='geometry-matched pair (kerb y≈788 both); '
+                          'day 0.770/9.0 equals night by construction'),
 }
 
 SCALES = np.arange(0.60, 1.65, 0.005)

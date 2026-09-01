@@ -89,7 +89,8 @@ FEATHER_SOLID = 200
 FLAT_RUN = 40
 
 STAGES = ['eav', 'eav-day', 'edgewood', 'edgewood-day',
-          'underground', 'underground-day', 'l5p', 'l5p-day']
+          'underground', 'underground-day', 'l5p', 'l5p-day',
+          'buckhead', 'buckhead-day']
 
 # ⚠️ FLAGGED BY METRIC, CLEARED BY EYE. A number can say a cut is bad; only a
 # rendered frame can say a player would notice. Anything in here scored badly

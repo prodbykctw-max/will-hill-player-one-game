@@ -210,20 +210,25 @@ const LOCAL_KEY = 'wh_local_runs';
 //
 // THE BAGS THEN BECAME A ROUND NUMBER ON PURPOSE. Client: "make it 400 bags
 // total." They used to be a dice roll that happened to land on 379; they are
-// now a quota the generator cannot miss (world/generator.js wantsBag), so
-// every bag in the game is exactly 40,000.
+// now a quota the generator cannot miss (world/generator.js wantsBag).
+// ⚠️ 425 NOW, NOT 400: the Buckhead finale ("5th and final stage") carries a
+// deliberately small quota of 25 — sized by ceiling.mjs against three
+// ceilings at once: the deployed worker's MAX_LEGIT_SCORE 70000 (the new
+// perfect run measures 66,900, so no live worker change), bags alone staying
+// under 50,000, and a flawless no-bottle run staying under it too (a first
+// guess of 30 bags put that at 50,100 and broke the doubler's job).
 //
 // 50,000 is a better number than either that or the arithmetic ceiling, for a
 // reason worth writing down: IT IS BEATABLE, BUT ONLY JUST. Every line below
 // is MEASURED off the shipping levels by tools/harness/ceiling.mjs, which
-// walks all four stages, forces every spawn, and counts the bags that actually
+// walks all five stages, forces every spawn, and counts the bags that actually
 // fall inside each bottle's real 9-second window (2,602px of road at the
 // measured 4.80 px/tick) rather than assuming an average density.
 //
-//   400 bags at 100                                       40,000
-//   105 masked enemies stomped at 50                      +5,250
-//   ── flawless with no bottle at all                      45,250
-//   164 of those bags doubled, bottles where they sit     +16,400
+//   425 bags at 100                                       42,500
+//   142 masked enemies stomped at 50                      +7,100
+//   ── flawless with no bottle at all                      49,600
+//   173 of those bags doubled, bottles where they sit     +17,300
 //   ── PERFECT RUN, as the map is built                    61,650
 //
 // (The ENEMIES are the masked hoodie figures — docs/GDD.md "Enemy design",
@@ -232,24 +237,26 @@ const LOCAL_KEY = 'wh_local_runs';
 // render/undercroft.js, cannot be touched, and are worth nothing. An earlier
 // draft of this note called the enemies rats and the client caught it.)
 //
-// So he sits at 81% of a perfect run. Note the middle line: even with 400
-// bags, a flawless run that never touches a bottle tops out at 45,250 — SO
-// 50,000 STILL CANNOT BE REACHED WITHOUT THE DOUBLER. That was true at 379
-// bags and it survives the raise, which is the property worth protecting: if
-// the bag count ever goes past 447, bags alone clear him and the champagne
-// stops mattering at the top of the board.
+// So the watermark sits at 74.7% of a perfect run. Note the middle line: even
+// with 425 bags, a flawless run that never touches a bottle tops out at
+// 49,600 — SO 50,000 STILL CANNOT BE REACHED WITHOUT THE DOUBLER. That was
+// true at 379 bags, survived the raise to 400, and survives the Buckhead
+// finale BY 400 POINTS — which is why the finale's quota is 25 and not the
+// ramp's natural 117: the property worth protecting is that the champagne
+// matters at the top of the board, and ceiling.mjs grades it directly now
+// ("the doubler is what closes the gap").
 //
-// Reaching him means all eight bottles, all 164 bags inside their windows,
-// every enemy stomped, and about 50% of the 236 bags outside the windows —
-// and no enemy touch late, because a touch dumps the whole purse on the
-// pavement. A real target with a real route behind it, which is what the top
-// of a contest board should be — not an unbeatable wall, and not a number the
-// first decent player strolls past.
+// Reaching the watermark means the bottles, the bags inside their windows,
+// the stomps, and a real share of the rest — and no enemy touch late,
+// because a touch dumps the whole purse on the pavement. A real target with
+// a real route behind it, which is what the top of a contest board should be
+// — not an unbeatable wall, and not a number the first decent player strolls
+// past.
 //
 // The card art paints 125,680 next to his name. That was always decoration;
 // no run can approach it.
-export const BAGS_IN_GAME = 400;
-export const PERFECT_RUN = 61650;      // measured — tools/harness/ceiling.mjs
+export const BAGS_IN_GAME = 425;
+export const PERFECT_RUN = 66900;      // measured — tools/harness/ceiling.mjs
 // ⚠️ WILL HILL IS NO LONGER PINNED TO THE BOARD.
 //
 // He used to sit at rank 1 with 50,000 as the benchmark to beat. The client,

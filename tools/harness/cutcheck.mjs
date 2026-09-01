@@ -32,7 +32,7 @@ const fs = await import('fs');
 const PNG = (b) => b;
 
 // The nine the audit still flags, with the stage index and time of day each
-// lives on. eav 0, edgewood 1, underground 2, l5p 3.
+// lives on. eav 0, edgewood 1, underground 2, l5p 3, buckhead 4.
 const NINE = [
   { s: 1, tod: 'night', card: 'skyline',  d: 0.05 },
   { s: 1, tod: 'day',   card: 'trees',    d: 0.70 },

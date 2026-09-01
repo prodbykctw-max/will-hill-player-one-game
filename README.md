@@ -17,7 +17,7 @@ src/
   main.js       # bootstraps canvas + game loop
   core/         # loop, input, camera
   entities/     # player, enemies
-  world/        # map/level data for the 4 stages
+  world/        # map/level data for the 5 stages
   render/       # canvas rendering
   audio/
   net/          # leaderboard client

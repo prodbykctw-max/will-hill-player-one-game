@@ -1,6 +1,6 @@
 // Street enemy — masked-hoodie archetype, generated via the autosprite MCP
 // (see docs/GDD.md "Enemy design" + tools/compose_enemy_sheet.py). General
-// variety across all 4 stages, no unique per-stage bosses.
+// variety across all 5 stages, no unique per-stage bosses.
 //
 // Behavior is the classic Mario ruleset (docs/GDD.md "Story & core loop"):
 // bounded patrol (simpler than Jandé's ledge-detection ground-walker —

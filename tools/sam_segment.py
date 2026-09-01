@@ -56,6 +56,12 @@ GROUND_FRAC = {'eav': 0.88, 'underground': 0.71, 'l5p': 0.80, 'edgewood': 0.82,
                # THE PORTRAIT TITLE. Same reasoning as the landscape one — the
                # whole picture is the picture, wet road included.
                'title-portrait': 1.0,
+               # BUCKHEAD THEATRE — the 5th and final stage. The client's pair
+               # arrived geometry-matched (same planters, lamps and doors to
+               # the pixel), 1536x1024 like the underground pair. The ground
+               # line is the kerb where the pavement meets the wet street,
+               # measured at y≈788 on BOTH halves: 788/1024 = 0.770.
+               'buckhead': 0.770, 'buckhead-day': 0.770,
                # ENDING SCREEN. Also not a stage — the whole frame is the
                # picture, crowd to ceiling, so nothing is cropped off.
                'ending': 1.0}

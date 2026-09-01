@@ -2283,8 +2283,12 @@ function backgroundLoad() {
   if (f) { f.then(backgroundLoad); return; }
   if (restLoad.done()) warmMusic(['title', 'stage_01', 'map_01_02']);
   if (!restLoad.done() || !lateLoad.done()) { setTimeout(backgroundLoad, 3200); return; }
+  // stage_05 / map_04_05 are REPRISE keys aliasing stage_01 / map_01_02's
+  // own files (music.js) — warming them costs nothing but keeps this list
+  // honest against STAGE_SLOTS, so a future real Buckhead cue is warmed the
+  // day it lands.
   warmMusic(['stage_02', 'map_02_03', 'stage_03', 'map_03_04', 'stage_04',
-    'ui_pause', 'credits']);
+    'map_04_05', 'stage_05', 'ui_pause', 'credits']);
 }
 
 // Is stage i's full image set — base plate plus every card — actually

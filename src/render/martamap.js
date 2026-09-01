@@ -52,6 +52,16 @@ const STATIONS = {
   inman: { x: 565, y: 813, label: 'INMAN PARK', stage: 'l5p' },
   edgewood: { x: 598, y: 783, label: 'EDGEWOOD', stage: 'edgewood' },
   eastlake: { x: 685, y: 774, label: 'EAST LAKE', stage: 'eav' },
+  // ── THE RED LINE NORTH, for the Buckhead finale ────────────────────
+  // Measured off the artwork with the same bright-ring-blob method the
+  // east-west stops were (never eyeballed): N7 BUCKHEAD rings at (497,451),
+  // 61 ring px — squarely in the 55-63 cluster the original pass recorded.
+  // The intermediates keep the train on the red line's actual bends.
+  civic: { x: 471, y: 787, label: 'CIVIC CENTER' },
+  northave: { x: 464, y: 706, label: 'NORTH AVENUE' },
+  artscenter: { x: 463, y: 665, label: 'ARTS CENTER' },
+  lindbergh: { x: 495, y: 570, label: 'LINDBERGH CENTER' },
+  buckhead: { x: 497, y: 451, label: 'BUCKHEAD', stage: 'buckhead' },
 };
 
 // The line, west to east. The train follows this POLYLINE rather than lerping
@@ -59,6 +69,11 @@ const STATIONS = {
 // intermediate stops and the real track bends at each one, so a straight
 // interpolation would cut across the map and leave the rails behind.
 const ARM = ['fivepoints', 'gastate', 'king', 'inman', 'edgewood', 'eastlake'];
+// The red line, south to north. Five Points appears on BOTH arms because it
+// is the transfer — the one place the two lines touch, exactly as on the
+// real map. route() concatenates through it for any cross-arm trip.
+const NORTH_ARM = ['fivepoints', 'civic', 'northave', 'artscenter',
+  'lindbergh', 'buckhead'];
 
 const HOT = '#ffc46b';
 const PALE = '#fff6e2';
@@ -88,18 +103,33 @@ export function createMartaMap(ctx, canvas) {
 
   function stationFor(stageId) {
     for (const k of ARM) if (STATIONS[k].stage === stageId) return k;
+    for (const k of NORTH_ARM) if (STATIONS[k].stage === stageId) return k;
     return 'fivepoints';
   }
 
-  // Walk the arm from `a` to `b` and return the ordered list of points, so a
+  // Walk one arm from `a` to `b` and return the ordered list of points, so a
   // ride in either direction follows the same rails.
-  function route(aKey, bKey) {
-    const i = ARM.indexOf(aKey);
-    const j = ARM.indexOf(bKey);
+  function walkArm(arm, aKey, bKey) {
+    const i = arm.indexOf(aKey);
+    const j = arm.indexOf(bKey);
     const step = j >= i ? 1 : -1;
     const out = [];
-    for (let k = i; k !== j + step; k += step) out.push(STATIONS[ARM[k]]);
+    for (let k = i; k !== j + step; k += step) out.push(STATIONS[arm[k]]);
     return out;
+  }
+
+  // A trip whose ends sit on different arms changes trains at Five Points,
+  // like the real system: ride in to the transfer, then out the other line.
+  // The L5P -> Buckhead finale leg is Inman Park west to Five Points, then
+  // the red line north — concatenated, minus the duplicated transfer point,
+  // so along() sees one continuous polyline and the train never teleports.
+  function route(aKey, bKey) {
+    const aArm = ARM.includes(aKey) ? ARM : NORTH_ARM;
+    const bArm = ARM.includes(bKey) ? ARM : NORTH_ARM;
+    if (aArm === bArm) return walkArm(aArm, aKey, bKey);
+    const inbound = walkArm(aArm, aKey, 'fivepoints');
+    const outbound = walkArm(bArm, 'fivepoints', bKey);
+    return inbound.concat(outbound.slice(1));
   }
 
   // Position at 0..1 along a polyline, by arc length — so the train keeps a

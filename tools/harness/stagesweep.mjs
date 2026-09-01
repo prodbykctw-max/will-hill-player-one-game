@@ -2,7 +2,8 @@
 //
 // Client: "present to me the full layout of each stage, all four stages...
 // basically a full strip of the stage for me to scroll through and look for
-// errors and I'm gonna highlight those."
+// errors and I'm gonna highlight those." (Four when he said it; buckhead
+// makes it five and rides the same loop.)
 //
 // ⚠️ THIS IS NOT stagestrip.mjs, AND THE DIFFERENCE IS THE WHOLE POINT.
 // That file steps the camera by one BACKDROP PERIOD (~6700px) because it is
@@ -35,7 +36,7 @@ for (const tod of ['day', 'night']) {
   await p.goto(`http://localhost:5199/?tod=${tod}`, { waitUntil: 'networkidle' });
   await p.waitForFunction(() => window.__game && window.__game.screen === 'title', null, { timeout: 25000 });
 
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < 5; i++) {
     const r = await p.evaluate(async ([idx, scale]) => {
       const frame = () => new Promise((res) => requestAnimationFrame(() => requestAnimationFrame(res)));
       const g = window.__game; const cam = window.__camera;

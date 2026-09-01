@@ -42,7 +42,7 @@ for (const tod of ['day', 'night']) {
   await p.goto(`http://localhost:5199/?tod=${tod}`, { waitUntil: 'networkidle' });
   await p.waitForFunction(() => window.__game && window.__game.screen === 'title', null, { timeout: 25000 });
 
-  for (let si = 0; si < 4; si++) {
+  for (let si = 0; si < 5; si++) {
     const r = await p.evaluate(async ([stageIdx, SPACING]) => {
       const frame = () => new Promise((res) => requestAnimationFrame(() => requestAnimationFrame(res)));
       const g = window.__game;

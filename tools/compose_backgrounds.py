@@ -21,7 +21,7 @@ REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC_DIR = os.path.join(REPO_ROOT, 'assets', 'backgrounds')
 OUT_DIR = os.path.join(REPO_ROOT, 'src', 'assets', 'backgrounds')
 
-STAGES = ['eav', 'edgewood', 'l5p', 'underground']
+STAGES = ['eav', 'edgewood', 'l5p', 'underground', 'buckhead', 'buckhead-day']
 
 
 def main():

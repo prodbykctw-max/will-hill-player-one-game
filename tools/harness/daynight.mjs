@@ -24,7 +24,7 @@ for (const tod of ['night', 'day']) {
   await p.goto(`http://localhost:5199/?tod=${tod}`, { waitUntil: 'networkidle' });
   await p.waitForFunction(() => window.__game && window.__game.screen === 'title', null, { timeout: 25000 });
 
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < 5; i++) {
     const meta = await p.evaluate(async (idx) => {
       const frame = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
       const g = window.__game;
@@ -96,7 +96,7 @@ for (const tod of ['night', 'day']) {
 
 console.log('\nhardColumns/flatRows per position (2%, 25%, 50%, 75%, 95% of the stage)');
 console.log('\nDAY MINUS NIGHT — positive means the day cut has more of it:');
-for (const id of ['eav', 'edgewood', 'underground', 'l5p']) {
+for (const id of ['eav', 'edgewood', 'underground', 'l5p', 'buckhead']) {
   const row = [0, 1, 2, 3, 4].map((k) => {
     const d = scores[`day:${id}_${k}`], n = scores[`night:${id}_${k}`];
     if (!d || !n) return '  ?  ';

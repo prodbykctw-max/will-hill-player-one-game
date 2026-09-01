@@ -73,7 +73,7 @@ on him, not the corner. He gets a warm pulsing bloom with motes orbiting, and
 it fades over the last two seconds so the power running out is something you
 see coming instead of discovering by dying.
 
-## Setting: Atlanta, 4 stages
+## Setting: Atlanta, 5 stages
 
 **Criminal Records is the finale.** Stage order is EAV -> Edgewood ->
 Underground (Five Points) -> Little Five Points. Will Hill is travelling to
@@ -82,12 +82,14 @@ The route is a real MARTA journey — East Lake, Edgewood-Candler Park, Five
 Points to transfer, then back east to Inman Park-Reynoldstown — which is what
 the between-stage map screen will show.
 
-Four stages, each a real Atlanta neighborhood, rendered as an exact-replica map using real landmarks — in the visual/structural spirit of *Michael Jordan: Chaos in the Windy City* (SNES beat-'em-up built around a real-city map; referenced for its real-city-map structure only, not its combat system), with a gritty 90s tone.
+Five stages, each a real Atlanta neighborhood, rendered as an exact-replica map using real landmarks — in the visual/structural spirit of *Michael Jordan: Chaos in the Windy City* (SNES beat-'em-up built around a real-city map; referenced for its real-city-map structure only, not its combat system), with a gritty 90s tone.
 
 1. **East Atlanta Village (EAV)**
 2. **Edgewood**
 3. **The Underground (5 Points)**
 4. **Little 5 Points**
+
+Stage 5, the finale: the Buckhead Theatre — client-supplied night/day pair, added 2026-09; the ending scene follows its finish line.
 
 ### The game keeps Atlanta's clock, wherever it is played
 
@@ -108,7 +110,7 @@ It is a default, not a cage: TIME OF DAY offers `Atlanta time` (default),
 
 ### Visual style & background references
 
-Backgrounds are **real Atlanta photos converted into a stylized night pixel-art look** — not invented/fictional scenes. Moody rain-slicked streets, warm interior/streetlight glow against a cool purple-blue night sky, dense pixel-level signage detail, a mix of real brands and real local spots. This is the definitive art direction for all 4 stage backgrounds — new environment art should be measured against these references.
+Backgrounds are **real Atlanta photos converted into a stylized night pixel-art look** — not invented/fictional scenes. Moody rain-slicked streets, warm interior/streetlight glow against a cool purple-blue night sky, dense pixel-level signage detail, a mix of real brands and real local spots. This is the definitive art direction for all 5 stage backgrounds — new environment art should be measured against these references.
 
 4 reference background images were provided in development chat (not yet saved as files — see `assets/backgrounds/` convention below):
 
@@ -162,7 +164,7 @@ A single base enemy archetype in 3 palette variations, matching the background a
 - **Variation B** — grey hoodie, blue jeans
 - **Variation C** — brown/rust hoodie, dark grey jeans
 
-**Confirmed:** the 3 palette variations are general enemy variety used across all 4 stages (not stage-locked). **No bosses** — unlike the Jandé game's 9 unique per-stage bosses, this masked enemy (in its 3 palette variants) is the full enemy roster.
+**Confirmed:** the 3 palette variations are general enemy variety used across all 5 stages (not stage-locked). **No bosses** — unlike the Jandé game's 9 unique per-stage bosses, this masked enemy (in its 3 palette variants) is the full enemy roster.
 
 ### Note on "Street Ninja" concept sheets (archived, not in scope)
 

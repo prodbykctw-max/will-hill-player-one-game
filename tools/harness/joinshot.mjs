@@ -24,7 +24,7 @@ p.on('pageerror', (e) => console.log('THROWN:', e.message));
 await p.goto(`http://localhost:5199/?tod=${TOD}`, { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__game && window.__game.screen === 'title', null, { timeout: 25000 });
 
-for (let i = 0; i < 4; i++) {
+for (let i = 0; i < 5; i++) {
   const r = await p.evaluate(async (stageIndex) => {
     const frame = () => new Promise((res) => requestAnimationFrame(() => requestAnimationFrame(res)));
     const pm = (a, m) => ((a % m) + m) % m;

@@ -11,7 +11,7 @@ const probe = async (url, label) => {
   await p.goto(url, { waitUntil: 'networkidle' });
   await p.waitForFunction(() => window.__game && window.__game.screen === 'title', null, { timeout: 25000 });
   const out = [];
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < 5; i++) {
     const r = await p.evaluate(async (idx) => {
       const frame = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
       const g = window.__game;

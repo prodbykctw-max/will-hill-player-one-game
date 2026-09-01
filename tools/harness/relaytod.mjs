@@ -53,10 +53,10 @@ const enter = async (p) => {
   await p.waitForTimeout(2600);
 };
 
-// Walk all four stages: what spawned, is the aura up, does a pit kill him.
+// Walk all five stages: what spawned, is the aura up, does a pit kill him.
 async function sweep(p) {
   const out = [];
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < 5; i++) {
     out.push(await p.evaluate(async (idx) => {
       const frame = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
       const g = window.__game;

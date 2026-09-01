@@ -1,4 +1,4 @@
-// FIRST-LOAD DEFERRAL: the boot buys the title and stage one; stages 2-4 and
+// FIRST-LOAD DEFERRAL: the boot buys the title and stage one; stages 2-5 and
 // the MARTA map arrive BEHIND the title, and the ride HOLDS if they are late.
 //
 // Client: "My goal is to have an instant load every visit." The first visit

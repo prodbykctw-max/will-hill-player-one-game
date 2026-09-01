@@ -119,6 +119,59 @@ localStorage cannot brick boot, and re-encoding the art is off the table
 (WebP q85 visibly damages the dither — measured).
 
 
+### STAGE 5: BUCKHEAD THEATRE — the finale, cut, wired, sealed, and shipped
+
+Client, with a geometry-matched 1536x1024 night/day pair: *"5th and final
+stage."* The Buckhead Theatre — marquee lit, twin red banners, Gallery 3180 /
+Roswell Road / Henry's Bakery / Cocina 307 flanking — is stage 5, after L5P,
+with the ending scene following its finish line (nextStage() is
+STAGES.length-driven, so the handoff moved by itself).
+
+**The build, end to end in one session:**
+- **Art:** full SAM cascade run IN THIS CONTAINER (torch CPU + vit_b
+  checkpoint installed fresh) — 349/446 masks per half, grouped to 8 cards
+  each (theatre, left/right blocks, banners, marquee, trees ×4-window sway,
+  planters, lamps), recompose diff 0.003%/0.000%. Ground line measured at the
+  kerb, y≈788 both halves → groundFrac 0.770, meters 9.0. Lettering rides
+  BASE_DEPTH; depth lives in planters/lamps — until cut_audit flagged the
+  planters RULER CUT (mask runs into the crop's bottom edge) and they went to
+  0.50: planted things take the ground's depth.
+- **Day weather:** scrub lifted one puff, spread placed 19 copies (61%
+  column cover), and the skystruct seal fought three rounds: the size-floored
+  "cloudish" exclusion dropped 31,755px of sunlit glass-tower structure from
+  the seal. Diagnosed by rendering structure-minus-seal (30,742 red px → the
+  mullion lattice) and by TERM (hue rejected 0; the size floor rejected all
+  of it). Fix: the skill's ring test made executable — `cloud_ring_min` in
+  scrub_stage_clouds.py (a cloud floats in sky-ring; a facade sits in
+  structure) plus `blue_gap_r` at least as strict as cloudseal's own air
+  test. 556 unsealed px remain; **cloudseal 15/15 ×3**. Skill updated in the
+  same commit.
+- **Wiring:** stages.js entry (sky sampled off the plates: near-black night,
+  #4696d1 day; separation 4 — a street made of words), music as a REPRISE
+  (stage_05/map_04_05 alias stage_01/map_01_02's files, zero new bytes — a
+  real Buckhead cue drops into the slot whenever the client cuts one),
+  martamap grew the RED LINE NORTH (civic/northave/artscenter/lindbergh/
+  buckhead at ring-measured coords) with a Five Points transfer junction in
+  route() — the ride runs Inman Park → Five Points → north, on the rails.
+- **The score ceiling, re-derived by measurement** (ceiling.mjs): finale
+  quota 25 bags — NOT the ramp's 117 — because three ceilings bind: the
+  deployed worker's MAX_LEGIT_SCORE 70000 (new perfect run measures 66,900,
+  NO live worker change needed), bags alone < 50,000 (42,500), and flawless
+  no-bottle < 50,000 (49,600 — a first guess of 30 bags hit 50,100 and broke
+  "the doubler is what closes the gap", which ceiling.mjs now grades
+  directly). BAGS_IN_GAME 425, PERFECT_RUN 66900.
+- **Verification:** ceiling all-green, cloudseal 15×3, relay, relaytod 27,
+  stageflag 8 (+?stage=5 door), relayboard 5 (last-stage submit gate moved to
+  index 4), endcue 13 (map_04_05 → credits chain), finishrun 15, deferboot 12
+  (new slots warm), daylamps 15, pitsky 10, skyleak 5, loopseam 9, musiccheck,
+  daynight (buckhead: ZERO hard columns/flat rows at every position — the
+  cleanest cut of the five). The 4→5 sweep also touched ten harnesses, seven
+  tool registries, GDD/README/manifest/TESTING prose.
+- **Deliberately NOT done here:** the dashboard's painted 4-row stage funnel
+  (his artwork holds four rows; a fifth sits on the border — DASHBOARD chat's
+  call), and any Cloudflare change (none needed — the point of the 25-bag
+  quota).
+
 ### The sign-up is the Jandé card, in the game's colors — and the painted cabinet left the build
 
 Client, correcting the round below: *"not the leaderboard but the

@@ -12,7 +12,7 @@
 // jump to the last stage, teleport across its finish line so the run
 // completes, and count the POSTs that arrive at /submit.
 //   relay run       -> 0 submits
-//   ?stage=4 run    -> 0 submits (did not begin at stage one)
+//   ?stage=5 run    -> 0 submits (did not begin at stage one)
 //   plain run       -> 1 submit  (the gate must not eat real runs)
 //
 //   PLAYWRIGHT=... CHROMIUM=... node tools/harness/relayboard.mjs
@@ -38,7 +38,7 @@ async function completedRun(query) {
   });
   await p.goto(`http://localhost:5199/${query}`, { waitUntil: 'networkidle' });
   await p.waitForFunction(() => window.__game && window.__game.screen === 'title', null, { timeout: 25000 });
-  await p.evaluate(async () => { await window.__startStage(3); });
+  await p.evaluate(async () => { await window.__startStage(4); });   // the LAST stage (buckhead)
   await p.waitForFunction(() => window.__game.screen === 'playing', null, { timeout: 15000 });
   // Across the finish line of the last stage: the run completes and the
   // submit decision fires. A registered identity is stubbed so the submit
@@ -80,7 +80,7 @@ async function deadRun(query) {
   });
   await p.goto(`http://localhost:5199/${query}`, { waitUntil: 'networkidle' });
   await p.waitForFunction(() => window.__game && window.__game.screen === 'title', null, { timeout: 25000 });
-  await p.evaluate(async () => { await window.__startStage(3); });
+  await p.evaluate(async () => { await window.__startStage(4); });   // the LAST stage (buckhead)
   await p.waitForFunction(() => window.__game.screen === 'playing', null, { timeout: 15000 });
   await p.evaluate(() => {
     const g = window.__game;
@@ -97,11 +97,11 @@ async function deadRun(query) {
 const lb = '&lb=http://localhost:5199/__stub';
 const relay = await completedRun('?relay=1&tod=night' + lb);
 ck('a completed RELAY run never reaches the board', relay.submits === 0, `submits=${relay.submits} screen=${relay.screen}`);
-const staged = await completedRun('?stage=4&tod=night' + lb);
+const staged = await completedRun('?stage=5&tod=night' + lb);
 ck('a run that began mid-game never reaches the board', staged.submits === 0, `submits=${staged.submits} screen=${staged.screen}`);
 const plain = await completedRun('?tod=night' + lb);
 ck('and a plain completed run still submits exactly once', plain.submits === 1, `submits=${plain.submits} screen=${plain.screen}`);
-const stagedDeath = await deadRun('?stage=4&tod=night' + lb);
+const stagedDeath = await deadRun('?stage=5&tod=night' + lb);
 ck('a mid-game run that DIES never reaches the board either', stagedDeath.submits === 0,
   `submits=${stagedDeath.submits} screen=${stagedDeath.screen}`);
 const plainDeath = await deadRun('?tod=night' + lb);

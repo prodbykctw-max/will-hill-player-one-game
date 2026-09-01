@@ -79,7 +79,7 @@ from scipy import ndimage
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BG = os.path.join(ROOT, 'src', 'assets', 'backgrounds')
 
-STAGES = ['eav-day', 'edgewood-day', 'underground-day', 'l5p-day']
+STAGES = ['eav-day', 'edgewood-day', 'underground-day', 'l5p-day', 'buckhead-day']
 
 MIN_PUFF = 120      # px — below this it is a wisp, not worth repeating
 GAP = 24            # px — keep this much clear air between placed puffs

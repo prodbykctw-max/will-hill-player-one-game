@@ -73,7 +73,7 @@ from scipy import ndimage
 
 ROOT = Path(__file__).resolve().parent.parent
 BG = ROOT / 'src' / 'assets' / 'backgrounds'
-STAGES = ['eav-day', 'edgewood-day', 'l5p-day', 'underground-day']
+STAGES = ['eav-day', 'edgewood-day', 'l5p-day', 'underground-day', 'buckhead-day']
 SKY_MIN_V = 0.50      # see the note above
 
 

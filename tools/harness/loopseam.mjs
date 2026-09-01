@@ -199,6 +199,10 @@ async function stageSeam(slot, stageIndex, refuseSpare) {
   return out;
 }
 
+// First and last DISTINCT cue. stage_05 is deliberately absent: it is an
+// alias of stage_01's file (a reprise — see src/audio/music.js), so its seam
+// is already covered by the first entry and testing it would grade the same
+// bytes twice.
 for (const [slot, idx] of [['stage_01', 0], ['stage_04', 3]]) {
   const ok = await stageSeam(slot, idx, false);
   console.log(`  ${slot} normal   `, JSON.stringify(ok));

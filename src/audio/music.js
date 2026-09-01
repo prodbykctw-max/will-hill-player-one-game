@@ -95,12 +95,22 @@ export const MANIFEST = {
   // is 41.4s against a cut plan of 41.4, i.e. it is the loop-ready cut, so
   // `loop` here wraps at the point that was chosen for wrapping.
   credits:   { src: mCredits, loop: true,  gain: 0.60, startAt: 0 },  // Project 9          @ 1:57.5
+  // ── STAGE 5, THE BUCKHEAD FINALE — A REPRISE, NOT A NEW FILE ─────────
+  // The 5th stage reuses the opener's cue and the first ride's cue: the
+  // song that started the run comes back for the show, which reads as a
+  // finale and costs ZERO bytes (Vite dedupes the import, so these keys
+  // point at the same hashed mp3s the game already ships). If the client
+  // cuts a real Buckhead track, it drops in here — change the `src`, keep
+  // the keys, and give tools/cue_sheet.json a duration so musiccheck
+  // grades the loop.
+  map_04_05: { src: mMap0102, loop: true,  gain: 0.50, startAt: 0 },  // Knowledge B.Jordan @ 0:40.5 (reprise)
+  stage_05:  { src: mStage01, loop: true,  gain: 0.50, startAt: 0 },  // 3.10.26 (2)        @ 0:56.6 (reprise)
 };
 
 // Which cue belongs to which stage index, so main.js never builds a slot name
 // by string concatenation — a typo there is a silent missing track.
-export const STAGE_SLOTS = ['stage_01', 'stage_02', 'stage_03', 'stage_04'];
-export const MAP_SLOTS = ['map_01_02', 'map_02_03', 'map_03_04'];
+export const STAGE_SLOTS = ['stage_01', 'stage_02', 'stage_03', 'stage_04', 'stage_05'];
+export const MAP_SLOTS = ['map_01_02', 'map_02_03', 'map_03_04', 'map_04_05'];
 
 const FADE = 0.9;      // seconds to cross from one cue to the next
 // ── THE LOOP SEAM ────────────────────────────────────────────────────────

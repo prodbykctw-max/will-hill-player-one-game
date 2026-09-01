@@ -311,6 +311,24 @@ Three more traps, all of which bit:
   in ink and never outlines weather, which is what makes the second test work.
   **Where the two disagree, SEAL** — a cloud sealed by mistake merely stops
   drifting; a building freed by mistake is the bug.
+- **⚠️ …AND A SIZE FLOOR IS NOT THAT TEST. IT BIT AGAIN, ON GLASS AND PALE
+  STONE.** After the pier lesson the seal excluded "cloudish" blobs by
+  component size alone (real puffs ran 800–11,000px, glints under 300px), and
+  that held for four plates — then the Buckhead finale arrived: sunlit
+  curtain-wall towers and a cream parapet whose bright-unsaturated faces
+  CONNECT into components far past any floor. 31,755px of real structure left
+  the seal, and cloudseal read 10–35px cloud blobs inside tower faces. The
+  fix is the ring test made executable (`scrub_stage_clouds.py`,
+  `cloud_ring_min` per plate): a cloud FLOATS — its dilated ring is mostly
+  open sky — a facade SITS in other structure, whatever its size. Diagnosed
+  by term, not by theory: render (structure minus seal) over the plate and
+  count which classifier term rejected the missing pixels — hue rejected 0,
+  the size-floored cloudish rejected all 31,755. Two wrong guesses (enclosed
+  panes, blue-gap widths) went nowhere until that render existed. The same
+  plate also needed the seal's sky test at least as strict as the GRADER'S
+  air test (`blue_gap_r` ≥ the harness's `B > R+12`) — two classifiers with
+  different thresholds disagree exactly in the gap between them, and the gap
+  is where grey-blue mullions live.
 - **Do not over-seal, or you kill the weather.** Sealing everything that is not
   sky swallows the clouds still painted into the plate, and the drifting ones
   then hide behind them: one stage went to **9px of moving cloud on screen**.

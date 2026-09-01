@@ -413,6 +413,44 @@ def pyramid_inpaint(rgb, hole, levels=9):
 # Rates live in src/world/stages.js. This script only cuts.
 
 PLANES = {
+    # ══ BUCKHEAD THEATRE — STAGE 5, THE FINALE ═══════════════════════════
+    # Both halves cut from frozen SAM masks (tools/sam_masks/buckhead*/,
+    # decided in tools/sam_groups/buckhead*.json). Far -> near; the nearer
+    # card wins overlap. The storefront fascias (GALLERY 3180, ROSWELL ROAD,
+    # HENRY'S BAKERY, COCINA 307) stay ON their blocks — flat paint on flat
+    # wall, no gap behind them, same reasoning as UNDERGROUND's letters.
+    # `holes: False` on theatre and trees: sky shows between the parapet
+    # spires and through the foliage, and filling it comes back a slab.
+    'buckhead': [
+        {'name': 'theatre',   'mask': 'theatre',   'min_px': 150, 'feather': 0.7,
+         'holes': False},
+        {'name': 'leftblock', 'mask': 'leftblock', 'min_px': 200, 'feather': 0.7},
+        {'name': 'rightblock', 'mask': 'rightblock', 'min_px': 200, 'feather': 0.7},
+        # The two red BUCKHEAD THEATRE banners stand proud of the facade like
+        # an open book, and the marquee carries the bulbs the night `lights`
+        # entry bolts to — both are lettering, both ride at BASE_DEPTH.
+        {'name': 'banners',   'mask': 'banners',   'min_px': 80,  'feather': 0.6},
+        {'name': 'marquee',   'mask': 'marquee',   'min_px': 60,  'feather': 0.6},
+        {'name': 'trees',     'mask': 'trees',     'min_px': 120, 'feather': 0.8,
+         'holes': False},
+        # Topiary pots along the frontage — the near furniture row.
+        {'name': 'planters',  'mask': 'planters',  'min_px': 50,  'feather': 0.6},
+        # Lamp standards with the BUCK HEAD ATL pennants on them. Thin
+        # verticals; keep the feather tight or a 4px post dissolves.
+        {'name': 'lamps',     'mask': 'lamps',     'min_px': 50,  'feather': 0.6},
+    ],
+    'buckhead-day': [
+        {'name': 'theatre',   'mask': 'theatre',   'min_px': 150, 'feather': 0.7,
+         'holes': False},
+        {'name': 'leftblock', 'mask': 'leftblock', 'min_px': 200, 'feather': 0.7},
+        {'name': 'rightblock', 'mask': 'rightblock', 'min_px': 200, 'feather': 0.7},
+        {'name': 'banners',   'mask': 'banners',   'min_px': 80,  'feather': 0.6},
+        {'name': 'marquee',   'mask': 'marquee',   'min_px': 60,  'feather': 0.6},
+        {'name': 'trees',     'mask': 'trees',     'min_px': 120, 'feather': 0.8,
+         'holes': False},
+        {'name': 'planters',  'mask': 'planters',  'min_px': 50,  'feather': 0.6},
+        {'name': 'lamps',     'mask': 'lamps',     'min_px': 50,  'feather': 0.6},
+    ],
     'eav': [
         {
             # Cloud bank across the top of the sky — SAM-traced, and the only

@@ -86,6 +86,12 @@ SLOTS = [
     ('stage_04', 'STAGE 4 — Little Five Points'),
     ('title', 'TITLE — the intro music'),
 ]
+# stage_05 / map_04_05 are NOT rows here on purpose: they are reprises —
+# src/audio/music.js points both at stage_01.mp3 / map_01_02.mp3 — so there is
+# no fifth file to trim, no cue_sheet.json entry to read (the loop below would
+# KeyError on one), and benching them would serve the stage-one bytes twice
+# under a second name. Whatever he decides about stage_01's loop IS the
+# decision for stage_05.
 
 # ⚠️ ONE TEMPO TABLE, AND IT LIVES IN THE CUTTER. This file kept its own copy
 # for about an hour, which was long enough to be wrong: he confirmed the intro

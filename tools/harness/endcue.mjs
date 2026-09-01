@@ -6,7 +6,7 @@
 // start sooner."
 //
 // So the clear card never plays the stage it just ended — it plays whatever
-// comes next. Stages 1-3 hand to their map cue, stage 4 hands to the credits,
+// comes next. Stages 1-4 hand to their map cue, stage 5 hands to the credits,
 // and in both cases the tap that leaves the card must change nothing in the
 // audio: same cue, no restart, no cross-fade, no seam.
 //
@@ -43,9 +43,12 @@ await p.goto('http://localhost:5199/?tod=night', { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__game && window.__game.screen === 'title', null, { timeout: 25000 });
 
 // What each stage's clear card must ask for: the thing that comes NEXT.
-const EXPECT = ['map_01_02', 'map_02_03', 'map_03_04', 'credits'];
+// Stage 4 rides to Buckhead on map_04_05 now; only stage FIVE hands to the
+// credits (both new cues are reprises — see src/audio/music.js — but the
+// SLOT asked for is what this grades, not the bytes behind it).
+const EXPECT = ['map_01_02', 'map_02_03', 'map_03_04', 'map_04_05', 'credits'];
 
-for (let si = 0; si < 4; si++) {
+for (let si = 0; si < 5; si++) {
   const r = await p.evaluate(async (idx) => {
     const frame = () => new Promise((res) => requestAnimationFrame(res));
     const g = window.__game;
@@ -63,7 +66,7 @@ for (let si = 0; si < 4; si++) {
   }, si);
 
   check(`stage ${si + 1} plays its own track while running`,
-    r.during === (si === 3 ? 'stage_04' : `stage_0${si + 1}`), JSON.stringify(r.during));
+    r.during === `stage_0${si + 1}`, JSON.stringify(r.during));
   check(`stage ${si + 1} clear card asks for ${EXPECT[si]}`,
     r.reached === 'stageClear' && r.cue === EXPECT[si], JSON.stringify(r));
 }

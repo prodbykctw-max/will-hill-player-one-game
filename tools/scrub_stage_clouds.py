@@ -99,6 +99,21 @@ CFG = {
         'base': 'underground-day-base.webp', 'card': 'underground-day-clouds.webp',
         'sky_frac': 0.30,
     },
+    'buckhead-day': {
+        # Stage 5. The white puffs sit between the tower tops, y~10-300 of
+        # the 788-row crop; the storefront blocks top out at y~319, so 0.42
+        # (y331) bounds the search safely below the lowest real sky.
+        # fill_holes: the skyline is blue curtain-wall glass — see the note
+        # in seal().
+        'base': 'buckhead-day-base.webp', 'card': 'buckhead-day-clouds.webp',
+        'sky_frac': 0.42, 'fill_holes': True,
+        # Glass-tower plate: widen the blue gap past the harness's own air
+        # test (B > R+12) and raise dark_v like l5p — see the seal() notes.
+        # cloud_ring_min 0.45: only pale blobs whose ring is mostly open sky
+        # are weather; the sunlit tower faces fail it and get sealed.
+        'blue_gap_r': 14, 'blue_gap_g': 6, 'dark_v': 0.66,
+        'cloud_ring_min': 0.45,
+    },
 }
 
 MIN_BLOB = 40          # px — below this it's dither, leave it alone
@@ -558,7 +573,17 @@ def seal(name, cfg, rgb, healed, grown, base_new, sky_rows, H, W, write,
     s2, v2 = hsv(rgb)
     r2, g2, b2 = (rgb[..., 0].astype(int), rgb[..., 1].astype(int),
                   rgb[..., 2].astype(int))
-    blueish = (b2 > r2 + 8) & (b2 > g2 + 2)
+    # ⚠️ THE BLUE GAP IS PER-PLATE. At the default (+8/+2) buckhead-day's
+    # grey-blue curtain-wall mullions scanned as "blueish" and the seal came
+    # out a lattice — 30,742px of tower grid unsealed, measured by rendering
+    # structure-without-seal over the plate. cloudseal.mjs's own air test
+    # demands B > R+12, so anything in the 8..12 window was structure to the
+    # harness and sky to this seal. Real sky never lives in that window
+    # (this plate's blue runs B-R ≈ 139), so widening the gap flips only the
+    # near-neutral grid pixels. Same asymmetry as ever: where the two tests
+    # disagree, SEAL.
+    blueish = ((b2 > r2 + cfg.get('blue_gap_r', 8))
+               & (b2 > g2 + cfg.get('blue_gap_g', 2)))
     # ⚠️ cloudish IS SIZE-FLOORED, because "bright and unsaturated" is a baked
     # cloud AND a sunlit ledge — the pale-stone-pier trap from the skill, hit
     # here a second time. Measured on these plates the two are cleanly
@@ -572,6 +597,27 @@ def seal(name, cfg, rgb, healed, grown, base_new, sky_rows, H, W, write,
     if cl_n:
         cl_sizes = ndimage.sum(cloudish, cl_lbl, np.arange(1, cl_n + 1))
         cloudish = np.isin(cl_lbl, np.arange(1, cl_n + 1)[cl_sizes >= 300])
+    # ⚠️ SIZE ALONE IS NOT ENOUGH ON A PALE-STONE PLATE. buckhead-day's
+    # sunlit tower faces and cream parapet connect into bright-unsaturated
+    # components far past 300px, and the size floor excluded 31,755px of
+    # REAL STRUCTURE from the seal — measured by term, not guessed: hue
+    # rejected 0, the cloudish dilation rejected 31,755. The skill's ring
+    # test is the discriminator that size is not: a cloud FLOATS (its 3px
+    # ring is mostly open sky), a facade SITS (its ring is other structure).
+    # Measured across four plates clouds ran 0.50-0.76 sky-ring, structure
+    # 0.00-0.11. cloud_ring_min sits in the gap; where the two disagree,
+    # SEAL.
+    ring_min = cfg.get('cloud_ring_min')
+    if ring_min is not None and cl_n:
+        skyish = blueish & (v2 >= cfg.get('dark_v', 0.55))
+        keep_cloud = np.zeros_like(cloudish)
+        cl_lbl2, cl_n2 = ndimage.label(cloudish, structure=np.ones((3, 3)))
+        for idx in range(1, cl_n2 + 1):
+            blob = cl_lbl2 == idx
+            ring = ndimage.binary_dilation(blob, iterations=3) & ~blob
+            if ring.sum() and (skyish & ring).sum() / ring.sum() >= ring_min:
+                keep_cloud |= blob
+        cloudish = keep_cloud
     # Wires AA'd against bright sky come out blue-tinted, so the hue rule
     # alone dropped them — and the wires are half the overlay's point. A
     # pixel clearly DARKER than sky is structure whatever its hue.
@@ -584,6 +630,18 @@ def seal(name, cfg, rgb, healed, grown, base_new, sky_rows, H, W, write,
     if n2:
         sizes2 = ndimage.sum(struct, lbl2, np.arange(1, n2 + 1))
         struct = np.isin(lbl2, np.arange(1, n2 + 1)[sizes2 >= 12])
+    # ⚠️ GLASS TOWERS ARE BLUE, BRIGHT, AND NOT SKY. Buckhead-day's skyline
+    # is curtain-wall glass: every pane between the dark mullions classifies
+    # as sky (blueish, above dark_v), so the seal came out a lattice and
+    # cloudseal measured 10-35px of drifting cloud INSIDE tower faces.
+    # The panes are ENCLOSED by the sealed mullion grid, which is the handle:
+    # fill_holes closes regions not connected to the open sky (the open sky
+    # touches the frame border and never fills). A truly-enclosed sky pocket
+    # between two towers gets sealed too, and that is the skill's own
+    # asymmetry taken on purpose — a cloud sealed by mistake merely passes
+    # behind the gap; a pane freed by mistake is the bug.
+    if cfg.get('fill_holes'):
+        struct = ndimage.binary_fill_holes(struct)
     sa = ndimage.gaussian_filter(struct.astype(float), 0.6)
     sa = np.clip((sa - 0.25) / 0.5, 0, 1)
     skystruct = np.dstack([rgb, (sa * 255).astype(np.uint8)])

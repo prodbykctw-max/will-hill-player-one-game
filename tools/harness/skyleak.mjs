@@ -35,7 +35,8 @@ p.on('pageerror', (e) => check('no exception', false, e.message));
 // DAY on every stage. At night the horizon colour is near-black and a leak is
 // invisible — grading this at night would pass a broken build, the same trap
 // the multiplane doubling hid behind for weeks.
-const STAGES = [[0, 'eav'], [1, 'edgewood'], [2, 'underground'], [3, 'l5p']];
+const STAGES = [[0, 'eav'], [1, 'edgewood'], [2, 'underground'], [3, 'l5p'],
+                [4, 'buckhead']];
 
 await p.goto(`${BASE}/?tod=day`, { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__game && window.__game.screen === 'title', null, { timeout: 25000 });

@@ -41,7 +41,7 @@ const STEP_MS = 16.6;
 const CHAMP_MS = 9000;
 const WINDOW_PX = Math.round((CHAMP_MS / STEP_MS) * RUN_PX_PER_TICK);
 
-const ctx = await b.newContext({ viewport: { width: 430, height: 932 }, hasTouch: true });
+const ctx = await b.newContext({ viewport: { width: 425, height: 932 }, hasTouch: true });
 const p = await ctx.newPage();
 p.on('pageerror', (e) => console.log('  THROWN: ' + e.message));
 await p.goto('http://localhost:5199/', { waitUntil: 'networkidle' });
@@ -49,7 +49,7 @@ await p.waitForFunction(() => window.__game && window.__game.screen === 'title',
 
 // ── 1. walk the stages ───────────────────────────────────────────────────
 const stages = [];
-for (let i = 0; i < 4; i++) {
+for (let i = 0; i < 5; i++) {
   stages.push(await p.evaluate(async (idx) => {
     const frame = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
     const g = window.__game;
@@ -134,14 +134,15 @@ console.log('');
 //
 // Client: "make it 400 bags total." That number is only worth stating if the
 // generator cannot miss it, so both halves get checked: every stage lands on
-// its own quota, and the four sum to 400.
+// its own quota, and the five sum to 425 — his 400 across the original four
+// plus buckhead's recipe of 30, re-derived when stage five landed (2026-09).
 console.log('=== THE BAG QUOTA ===');
 for (const s of stages) {
   check(`${s.id} placed exactly its quota of ${s.quota}`,
     s.bags.length === s.quota, `placed ${s.bags.length}`);
 }
-check('400 bags in the game, so every bag is 40,000',
-  totalBags === 400 && totalBags * BAG_VALUE === 40000, `${totalBags} bags = ${totalBags * BAG_VALUE}`);
+check('425 bags in the game, so every bag is 42,500',
+  totalBags === 425 && totalBags * BAG_VALUE === 42500, `${totalBags} bags = ${totalBags * BAG_VALUE}`);
 
 // SPREAD, not just count. Selection sampling hits the number by construction
 // even if it does it badly — an under-tuned CANDIDATE_FRACTION would coast

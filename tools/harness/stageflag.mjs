@@ -20,6 +20,7 @@ const b=await chromium.launch({executablePath:process.env.CHROMIUM});
 const checks=[]; const ck=(w,ok,d='')=>{checks.push([w,ok]);console.log(`  ${ok?'PASS':'FAIL'}  ${w}${d?'   '+d:''}`)};
 for (const [q,want,relay] of [['?relay=1&stage=3&tod=day','underground',true],
                               ['?relay=1&stage=4&tod=night','l5p',true],
+                              ['?relay=1&stage=5&tod=night','buckhead',true],
                               ['?stage=9','eav',false],
                               ['','eav',false]]) {
   const p=await (await b.newContext({viewport:{width:430,height:932},hasTouch:true})).newPage();
