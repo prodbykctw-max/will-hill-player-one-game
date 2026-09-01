@@ -37,29 +37,39 @@ in a commit of its own.** And for any quote this file attributes to a source
 file, grep the quote — one of them had been deleted from the source and was
 still being repeated here as current.
 
-## State at main `3132eda` — ALL THREE BRANCHES ARE FULLY MERGED
+## State at main `8665ecc` — ALL THREE BRANCHES ARE FULLY MERGED, AND THE GAME HAS FIVE STAGES
 
-Re-derived, not remembered (2026-08-26 ~23:50 UTC, BACKDROPS / DEPLOY chat
-after merging the board revert + the Jandé sign-up card).
+Re-derived, not remembered (2026-09-02, BACKDROPS / DEPLOY chat, after
+shipping STAGE 5: BUCKHEAD THEATRE — see docs/STATUS.md's top entry for the
+full build record).
 
 | branch | ahead | behind | tip |
 |---|---|---|---|
-| `claude/contest-reg-image-crop-d4y6c0` | 0 | 0 | `3132eda` |
-| `claude/dashboard-kills-display-sizing-wgufbm` | 0 | 15 | `b0a9d02` |
-| `claude/last-markdown-game-link-lvk1n6` | 0 | 5 | `91f5e72` |
+| `claude/contest-reg-image-crop-d4y6c0` | 0 | 0 | `8665ecc` |
+| `claude/dashboard-kills-display-sizing-wgufbm` | 0 | many | `b0a9d02` |
+| `claude/last-markdown-game-link-lvk1n6` | 0 | 7 | `ac30dd4` |
 
-`gh-pages` was union-deployed from `3132eda` (bundle
-`assets/index-JGsom3NT.js`; 195 current + 260 carried assets, 13 source
-trees). ⚠️ Two things merged TOGETHER in `f088378`+`3132eda` that read as
-opposites unless you know the client's correction: the leaderboard went BACK
-to the MARTA ticket, and the JANDÉ REGISTRY look moved to the CONTEST
-REGISTRATION FORM — his words: "So sorry, not the leaderboard but the
-registration form. Revert the leaderboard. But the registration form should
-be the color scheme of the game." Do not "fix" the board back to Jandé.
-`contest-entry.webp` / `glow-entry.webp` are deliberately no longer imported
-(the painted sign-up cabinet is gone; ~134 KB off boot) — do not re-import
-them. entryfit.mjs is rewritten for the DOM card; btnglow's entry section
-grades a no-bloom contract now.
+`8665ecc` merges the TITLE/HOME chat's pre-contest sweep (`ac30dd4` — outbox
+verdict handling, workerguards.mjs, MIN_RUN_MS 3s) UNDER the stage-5 work;
+outbox 20, workerguards 22, endcue 13 and stageflag 8 all green on the
+merged tree. gh-pages union-deployed from it (215 current + 267 carried).
+
+Things another chat must NOT undo without reading STATUS first:
+- **The game is FIVE stages.** `?stage=1..5`; the ride L5P→Buckhead changes
+  trains at Five Points onto the new NORTH_ARM in martamap.js.
+- **BAGS_IN_GAME 425 / PERFECT_RUN 66900 are MEASURED** (ceiling.mjs, all
+  green). The buckhead quota is 25 ON PURPOSE — the deployed worker's
+  MAX_LEGIT_SCORE 70000 stands and needs NO redeploy; raising the quota
+  re-opens three ceilings at once.
+- **stage_05/map_04_05 are aliases of stage_01/map_01_02's files.** Not a
+  bug, a reprise — a real Buckhead cue drops into the MANIFEST slot.
+- **The dashboard's painted stage funnel still shows 4 rows** — his artwork
+  holds four; a fifth row needs a DASHBOARD-chat art decision. The SQL side
+  (`s5`) is also not wired yet; `stage_clear_5` events are already being
+  recorded by the client.
+- Previous window's standing notes (board = MARTA ticket, Jandé look = the
+  registration form, contest-entry/glow-entry stay unimported) all still
+  hold.
 
 ⚠️ **ONLY `ahead` IS A DEBT.** He caught a report of a branch as "13 behind"
 that read as a stalled chat; it was 0 ahead — owing nothing — and pushed three
