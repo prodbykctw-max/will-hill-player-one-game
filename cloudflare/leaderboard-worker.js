@@ -287,8 +287,23 @@ export default {
         }
         // SELECTS FROM `runs` ONLY. The contact details are in another table
         // entirely, so this query has no phone column available to leak.
+        //
+        // ⚠️ AND THAT SENTENCE WAS THE WHOLE MISTAKE, BECAUSE IT WAS TRUE.
+        // The query selected `id` as well, and `id` IS the phone number:
+        // idFor() is SHA-256 of "whp1:" + the ten digits, truncated. Fixed
+        // prefix, no per-entrant salt, and a US mobile number is one of about
+        // 10^10 strings — a complete rainbow table of every possible input is
+        // an afternoon on a laptop and minutes on a GPU. So a public,
+        // unauthenticated, edge-cached GET was handing out a reversible
+        // encoding of every entrant's phone number, which is the exact
+        // opposite of the public name+score / private phone+email split this
+        // whole backend is shaped around.
+        //
+        // The board needs a name and a number. Nothing on the client ever read
+        // `id` — panel.js renders name and score and withWillHill() sorts on
+        // score — so this drops a column nobody was using.
         const { results } = await env.DB
-          .prepare('SELECT id, name, score FROM runs ORDER BY score DESC, updated ASC LIMIT ?')
+          .prepare('SELECT name, score FROM runs ORDER BY score DESC, updated ASC LIMIT ?')
           .bind(Math.min(n, CAP))
           .all();
         const body = JSON.stringify({ ok: true, runs: results || [] });
