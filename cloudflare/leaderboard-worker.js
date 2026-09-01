@@ -99,10 +99,28 @@ const SCORE_RULES = {
 // windows can actually double. Nothing legitimate can exceed this, so anything
 // that does is a synthesised log however well-formed it looks.
 const MAX_LEGIT_SCORE = 70000;
-// Four stages at a measured 4.80px/tick cannot be crossed in under about two
-// minutes, and a run that claims more points than seconds by a wide margin is
-// not a run. Generous on purpose — this catches fabrication, not skill.
-const MIN_RUN_MS = 60 * 1000;
+// A run that claims more points than seconds by a wide margin is not a run.
+// Generous on purpose — this catches fabrication, not skill.
+//
+// ⚠️ THE FLOOR WAS 60s AND IT WAS THROWING AWAY REAL SCORES. The reasoning
+// was "four stages at a measured 4.80px/tick cannot be crossed in under about
+// two minutes" — true, and irrelevant, because that is the time to CLEAR the
+// game and almost no run ends that way. Runs end in death. Die to the first
+// pothole twenty seconds in and the submit came back `invalid run`, which
+// reads to the player like an accusation.
+//
+// The live abuse log is what proved it: 93 refusals, every single one this
+// check, every one a duration under 40s, and not one of them anywhere near
+// the rate ceiling — the longest was 3350 points over 39.9s, i.e. 84/s
+// against a limit of 400/s. Two accepted runs in the same window.
+//
+// And the floor never had anti-cheat value up here. To claim the 70,000
+// ceiling a fabricator must respect 400/s, so they must claim at least 175
+// seconds no matter what this is set to; the rate check does all of the work.
+// All a high floor can refuse is a SMALL score from a SHORT run — which is
+// precisely an honest early death. 3s still stops a zero-duration submit and
+// the divide-by-almost-nothing that comes with it, and stops nothing else.
+const MIN_RUN_MS = 3 * 1000;
 const MAX_SCORE_PER_SECOND = 400;
 
 const cleanName = (n) => {
@@ -269,8 +287,23 @@ export default {
         }
         // SELECTS FROM `runs` ONLY. The contact details are in another table
         // entirely, so this query has no phone column available to leak.
+        //
+        // ⚠️ AND THAT SENTENCE WAS THE WHOLE MISTAKE, BECAUSE IT WAS TRUE.
+        // The query selected `id` as well, and `id` IS the phone number:
+        // idFor() is SHA-256 of "whp1:" + the ten digits, truncated. Fixed
+        // prefix, no per-entrant salt, and a US mobile number is one of about
+        // 10^10 strings — a complete rainbow table of every possible input is
+        // an afternoon on a laptop and minutes on a GPU. So a public,
+        // unauthenticated, edge-cached GET was handing out a reversible
+        // encoding of every entrant's phone number, which is the exact
+        // opposite of the public name+score / private phone+email split this
+        // whole backend is shaped around.
+        //
+        // The board needs a name and a number. Nothing on the client ever read
+        // `id` — panel.js renders name and score and withWillHill() sorts on
+        // score — so this drops a column nobody was using.
         const { results } = await env.DB
-          .prepare('SELECT id, name, score FROM runs ORDER BY score DESC, updated ASC LIMIT ?')
+          .prepare('SELECT name, score FROM runs ORDER BY score DESC, updated ASC LIMIT ?')
           .bind(Math.min(n, CAP))
           .all();
         const body = JSON.stringify({ ok: true, runs: results || [] });

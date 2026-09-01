@@ -56,17 +56,40 @@ Key entries on **the phone number (or email) the prize will be claimed on**,
 normalised — digits only, country prefix stripped — then hashed:
 
 ```js
-id = sha256('salt:' + digits).slice(0, 10)   // opaque, public-safe
+id = sha256('salt:' + digits).slice(0, 10)   // opaque INTERNALLY — see below
 ```
 
 Two people called Will are two people; one person can type six different names
 between runs. Keying on the name merges strangers AND lets one player hold
 several places by renaming.
 
-**The public board carries only `{id, name, score}`.** Contact details live in a
-**separate table** the public endpoint never selects from — so it cannot leak a
-phone number even if somebody writes a careless query later. That is a
+Contact details live in a **separate table** the public endpoint never selects
+from, so no careless query can put a phone NUMBER on the public path. That is a
 structural guarantee, not a convention, and it is worth a test.
+
+### ⚠️ But do not publish the id. A hash of a phone number IS a phone number
+
+This skill used to call that id "public-safe" and say the public board carries
+`{id, name, score}`. Both were wrong, and shipping them meant a live contest
+endpoint served a reversible encoding of every entrant's number for weeks.
+
+A hash is one-way only when the input is unguessable, and a phone number is one
+of about 10^10 strings. With a fixed prefix and no per-entrant salt, a complete
+table of every possible input is minutes of GPU time. Truncation does not help:
+80 bits is still far more than the 34 bits the input space needs.
+
+**The public board carries `{name, score}`.** The id is an internal key — the
+primary key, the join key, fine anywhere behind auth (the admin view shows the
+real number anyway). It is not a field, and the endpoint must not select it.
+
+Salting per entrant would make the hash genuinely opaque, but the salt has to
+be derivable from the phone number to look a returning player up, so it buys
+much less than it looks — and re-deriving ids orphans every row in every table
+keyed on them. Not publishing the value is the cheap fix and the complete one.
+
+The test to write: fetch the public endpoint and assert the response contains
+**only** the fields the board renders. Fields leak by accretion — someone adds
+a column to a `SELECT` for debugging and it ships.
 
 ### On SMS verification
 
@@ -89,6 +112,28 @@ Then add the checks that catch a log somebody **built** rather than played:
   be scored. Anything above it is synthesised however well-formed it looks.
 - **A floor on run length**, and a **score-per-second** bound.
 - **Monotonic timestamps** inside the claimed duration.
+
+### ⚠️ Derive the floor from the SHORTEST legitimate run, not the longest
+
+The floor is the one of these that refuses honest players, and it did: set at
+60s from "four stages cannot be crossed in under two minutes", which is the
+time to CLEAR the game. Almost no run ends that way — runs end in death. Every
+player who died in the first minute got `invalid run` back, which reads like an
+accusation, and the live abuse log filled with them: 93 refusals against 2
+accepted runs, every one this check, not one anywhere near the rate bound.
+
+The floor also has **no anti-abuse value** above a few seconds, and this is
+worth working out before choosing a number. A fabricator aiming at the ceiling
+must satisfy score-per-second, so they must claim `ceiling / rate` seconds
+whatever the floor says — the rate bound already forces a long duration for a
+big score. All a high floor can refuse is a SMALL score from a SHORT run, which
+is exactly what an early death looks like. Set it low enough to be a
+sanity check on zero (a few seconds, so the rate divide has a denominator) and
+let the rate bound do the actual work.
+
+**Read the rejection log before the contest, grouped by reason and by detail.**
+It is the only place this class of bug surfaces: the players it hits see one
+error and leave, and never file anything.
 
 ⚠️ **Keep the server's rules in sync with the client's event types.** If the
 two disagree about, say, what a doubled pickup is worth, every boosted run is
@@ -215,3 +260,26 @@ and "could not load" is worse than a short local board.
 
 Keep the backend URL empty until it is deployed, and make the client treat that
 as "local only" rather than as a failure.
+
+### ⚠️ A persisted outbox needs to tell a verdict from a hiccup
+
+Holding a failed run and retrying it is right — a phone on bad signal at a
+party is the normal case. But "failed" cannot mean *any* non-2xx, and this
+shipped as `settle(res.ok)`:
+
+- **A 4xx is a verdict.** The server looked at that log and refused it, and it
+  will refuse the identical bytes every time. Retrying is guaranteed waste.
+- **A 409 means it is already on the board.** Done, not failed — record it so
+  the next boot does not ask again.
+- **408 and 429 are the 4xx that ARE transient.** Keep holding those.
+- **5xx and dead connections** are what the outbox exists for.
+
+Get this wrong and one refused run is re-POSTed at every boot, every reconnect
+and after every later run, forever. In the live log that was one payload
+recorded 15 times in 14 minutes — and since the rejection log *is* the abuse
+view, real abuse during the contest would have been buried under one player's
+own retries.
+
+**Grade all four answers.** The harness here stubbed only a dead connection and
+a 200, so the bug had no way to show up: both graded cases behaved identically
+under the broken code and the fixed one.

@@ -31,7 +31,16 @@
 //   10.   An accepted run is not re-sent after a reload (the dashboard was
 //         logging replay rejections against runs that had already scored).
 //   11.   Registration itself survives a reload — nobody signs in twice.
-//   12.   ⚠️ BREAK-TEST: with the outbox key wiped, the survives-a-reload
+//
+//   12-17. ⚠️ AND A REFUSAL IS NOT A BAD MOMENT. Everything above graded the
+//         hold; nothing graded the release, so a run the Worker had REFUSED
+//         sat in the outbox and was re-POSTed on every boot, every reconnect
+//         and after every later run. The live abuse log caught it: one
+//         payload, 15 rows, 14 minutes. A 4xx is a verdict — drop it. A 409
+//         means it is already on the board — remember it. A 5xx or a dead
+//         connection still holds, which is the case this file was built for
+//         and the one that must not regress while fixing the other.
+//   18.   ⚠️ BREAK-TEST: with the outbox key wiped, the survives-a-reload
 //         check must go red — otherwise it is grading nothing.
 //
 //   PLAYWRIGHT=... CHROMIUM=... node tools/harness/outbox.mjs
@@ -53,11 +62,21 @@ p.on('pageerror', (e) => console.log('  THROWN: ' + e.message));
 
 // The Worker is never called for real. `mode` decides what it answers, so the
 // bad-signal case is a genuine failed request rather than a stubbed function.
+// A NUMBER is an HTTP status the Worker really can return: 400 `invalid run`,
+// 409 `already submitted`, 500. Those are the answers the client used to read
+// as "try again later", every one of them.
 let mode = 'fail';
 const seen = [];
 await ctx.route('**/submit', async (route) => {
   try { seen.push(JSON.parse(route.request().postData() || '{}').runId); } catch (_e) {}
   if (mode === 'fail') return route.abort('failed');
+  if (typeof mode === 'number') {
+    return route.fulfill({
+      status: mode,
+      contentType: 'application/json',
+      body: JSON.stringify({ ok: false, err: 'refused' }),
+    });
+  }
   return route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
 });
 
@@ -147,6 +166,52 @@ check('an accepted run is not re-sent after a reload',
   `${seen.length} resends`);
 check('registration survived the reload — nobody signs in again',
   await p.evaluate(() => !!JSON.parse(localStorage.getItem('wh_contest_reg') || 'null')));
+
+// ── ⚠️ a REFUSAL is a verdict, and it must not be retried forever ────────
+mode = 400;
+seen.length = 0;
+await finishRun('run-e', 8);
+await p.waitForTimeout(600);
+check('a run refused on the merits LEAVES the outbox',
+  await p.evaluate(() => window.__lb.pendingRunCount()) === 0,
+  `tried ${seen.length}x`);
+check('and it was asked once, not in a loop', seen.length === 1, `${seen.length} attempts`);
+await p.reload({ waitUntil: 'networkidle' });
+await boot();
+seen.length = 0;
+await p.evaluate(() => window.__lb.flushPendingRun());
+await p.waitForTimeout(600);
+check('a reload does not resurrect it — the abuse log stays clean',
+  seen.length === 0, `${seen.length} resends`);
+
+// ── 409: the Worker already has that run. Done, not failed. ──────────────
+mode = 409;
+seen.length = 0;
+await finishRun('run-f', 9);
+await p.waitForTimeout(600);
+check('a 409 empties the outbox — that score is already banked',
+  await p.evaluate(() => window.__lb.pendingRunCount()) === 0);
+await p.reload({ waitUntil: 'networkidle' });
+await boot();
+seen.length = 0;
+await finishRun('run-f', 9);
+await p.waitForTimeout(600);
+check('and it is remembered, so a reload never asks about it again',
+  seen.length === 0, `${seen.length} resends`);
+
+// ── but a 5xx is still just a bad moment ─────────────────────────────────
+mode = 500;
+seen.length = 0;
+await finishRun('run-g', 11);
+await p.waitForTimeout(600);
+check('a 5xx still HOLDS the run — the outbox has not stopped doing its job',
+  await p.evaluate(() => window.__lb.pendingRunCount()) === 1);
+mode = 'ok';
+await p.evaluate(() => window.__lb.flushPendingRun());
+await p.waitForFunction(() => window.__lb.pendingRunCount() === 0, null, { timeout: 10000 })
+  .catch(() => {});
+check('and the next attempt sends it, exactly as before',
+  await p.evaluate(() => window.__lb.pendingRunCount()) === 0 && seen.includes('run-g'));
 
 // ── ⚠️ it can fail: wipe the stored outbox and the survival check goes red ─
 await p.evaluate(() => {

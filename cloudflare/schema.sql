@@ -5,9 +5,14 @@
 -- ⚠️ FOUR TABLES, AND THE SPLIT IS THE POINT. `runs` is what the public board
 -- reads and carries NO contact details of any kind. `entrants` holds the phone
 -- and the email and is only ever read by the dashboard worker. Nothing joins
--- them on the public path, so the public endpoint cannot leak a phone number
--- even if somebody writes a careless query later — the column is not in the
--- table it selects from.
+-- them on the public path, so no careless query can put a phone NUMBER on the
+-- public endpoint — the column is not in the table it selects from.
+--
+-- ⚠️ THAT IS A NARROWER GUARANTEE THAN IT SOUNDS, AND THE GAP WAS LIVE. It
+-- says nothing about `runs.id`, which is DERIVED from the phone number, and
+-- /top was selecting it. See the warning on `runs` below. The wall stops a
+-- column crossing; it does not stop a reversible encoding of that column
+-- being published from this side of it.
 
 -- ⚠️ AND A FIFTH, `run_stats`, ADDED BEFORE THE DATABASE EVER EXISTED —
 -- which is the only cheap moment to add a table to a contest. Client: "can we
@@ -20,8 +25,17 @@
 -- of the wall as `runs`.
 
 -- The public board. One row per person, holding their BEST score.
--- `id` is a SHA-256 of their phone number, never the number itself, so this
--- whole table can be served to anybody.
+--
+-- ⚠️ `id` IS A SHA-256 OF THEIR PHONE NUMBER, AND THAT DOES NOT MAKE IT SAFE
+-- TO PUBLISH. This comment used to end "never the number itself, so this whole
+-- table can be served to anybody", and /top duly selected it. A hash is only
+-- one-way when the input is unguessable: this one is "whp1:" + ten digits,
+-- fixed prefix, no per-entrant salt, drawn from about 10^10 possibilities. A
+-- complete table of every possible input is minutes on a GPU, so publishing
+-- the hash publishes the number.
+--
+-- Serve `name` and `score`. `id` is an internal key — fine in the dashboard,
+-- which is token-gated and shows the real number anyway; never in /top.
 CREATE TABLE IF NOT EXISTS runs (
   id       TEXT PRIMARY KEY,
   name     TEXT NOT NULL,

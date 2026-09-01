@@ -972,9 +972,30 @@ screen (`docs/LESSONS.md` 21).
 
 ## The database, as it actually stands
 
-**Content: one real entry.** KCTW, 29,750, 4 plays. Everything else in there
-has been load-test data, created and deleted the same day — verified back to
-`runs 1 / entrants 1 / run_stats 2 / seen_runs 4` after each run, not assumed.
+**Measured 2026-09-01, in the pre-contest pass** — read off the live database,
+not carried forward:
+
+`runs 2 · entrants 2 · run_stats 6 · seen_runs 8 · rejects 93`
+
+The board holds **Bri 9,200** (1 play) and **Kk 8,400** (7 plays). The KCTW
+29,750 row described below is gone; the table was cleared at some point after
+it was written. Five tables and all six indexes present and matching
+`schema.sql`.
+
+⚠️ **`run_stats` (6) exceeding `runs` (2) is not a fault** and was checked
+rather than assumed. `runs` is one row per PERSON holding their best; `run_stats`
+is one row per RUN. Kk: 7 seen, 5 stats — two rows removed by the supersede
+guard when a continued run beat them, which is the designed behaviour. Bri: 1
+and 1. Nothing orphaned.
+
+⚠️ **The 93 rejects were all one bug, not abuse.** Every row is
+`implausible-rate`, every one a duration under 40s, none near the rate bound.
+That is the 60s floor refusing honest early deaths, plus the outbox re-posting
+each refused run forever. Both fixed (`b38e639`); the log will be quiet once the
+worker is redeployed, which also makes it useful again as an abuse view.
+
+The paragraph below describes the state as of `0489ce9`, kept because the
+missing-stats consequence still applies to whatever rows survive:
 
 ⚠️ **Two of those four plays have no stats row, permanently.** The old
 supersede path deleted a `run_stats` row unconditionally when a better score

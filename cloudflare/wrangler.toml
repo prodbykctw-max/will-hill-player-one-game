@@ -1,6 +1,20 @@
-# THE PUBLIC GAME WORKER. Serves /top and takes /submit. Nothing here can
-# read a phone number: the contact details live in the `entrants` table and
-# this worker's public path never selects from it.
+# THE PUBLIC GAME WORKER. Serves /top and takes /submit. The contact details
+# live in the `entrants` table and this worker's public path never selects
+# from it, so no phone NUMBER can reach the public response.
+#
+# ⚠️ THAT IS NOT THE SAME AS "nothing here can leak a phone number", which is
+# what this comment used to say. /top was also selecting `runs.id`, which is
+# SHA-256 of "whp1:" + the ten digits — a fixed prefix over a 10^10 input
+# space, so reversing it is a rainbow table, not an attack. Fixed; see the
+# warning over the /top query. Read a "cannot leak" claim as a claim about one
+# column, and check what else the response carries.
+#
+# ⚠️ NO RATE LIMITING IS CONFIGURED, AND ON *.workers.dev THE WAF CANNOT DO IT.
+# Cloudflare's rate-limiting rules are zone-level and this worker has no zone.
+# The fix that works from here is the Workers Rate Limiting binding, declared
+# in this file — a [[ratelimits]] block keyed on the client IP, checked at the
+# top of /submit. Until then the only cost of hammering /submit is the D1 write
+# quota and the bill, so keep the billing alert on.
 name = "will-hill-leaderboard"
 main = "leaderboard-worker.js"
 compatibility_date = "2026-08-10"

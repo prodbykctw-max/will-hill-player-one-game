@@ -103,15 +103,33 @@ async function check({ s, tod, card, d }) {
     // Three shots — own, base, own again — so diff(own,own2) is the animation
     // noise floor and anything at or below it is not the card.
     const shots = {};
+    // ⚠️ THE STAGE CAN CHANGE UNDER THIS, AND IT THREW. walkTo() stops the
+    // instant the player is at the stop, but the game keeps running through
+    // the 1800ms settle and the three captures — long enough, at the far
+    // stops, to cross the finish and load the NEXT stage, whose cards have
+    // different keys. `.find(...).depth = v` then read `.depth` off undefined
+    // and took the whole sweep down mid-table. The presence check at the top
+    // of check() cannot cover this: it is true when it runs and false 2s
+    // later. So every write re-asks, and a stop that moved on is abandoned
+    // rather than measured — which is the same rule as line 90, applied to
+    // the window that line 90 does not cover.
+    let moved = false;
     for (const [tag, depth] of [['own', d], ['base', 0.5], ['own2', d]]) {
-      await p.evaluate(([k, v]) => {
-        window.__game.level.stage.bg.cards.find((c) => c.key === k).depth = v;
+      const ok = await p.evaluate(([k, v]) => {
+        const g = window.__game;
+        if (!g || g.screen !== 'playing' || !g.level) return false;
+        const c = (g.level.stage.bg.cards || []).find((x) => x.key === k);
+        if (!c) return false;
+        c.depth = v;
+        return true;
       }, [card, depth]);
+      if (!ok) { moved = true; break; }
       // Short, so cloud drift and the idle cycle move as little as possible
       // between the three captures.
       await p.waitForTimeout(110);
       shots[tag] = await p.screenshot();
     }
+    if (moved) break;
     // Compare as raw PNG bytes is useless; decode in-page instead.
     const diff = async (a, c) => p.evaluate(async ([x, y]) => {
       const load = (b64) => new Promise((res) => {
