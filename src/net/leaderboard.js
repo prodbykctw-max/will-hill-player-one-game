@@ -529,11 +529,34 @@ function send(run) {
   if (id && (sentRunIds.has(id) || inFlight.has(id))) return;
   if (id) inFlight.add(id);
   const reg = contestRegistration();
-  const settle = (ok) => {
+  // ⚠️ A VERDICT IS NOT A HICCUP, AND TREATING THEM THE SAME RETRIED FOREVER.
+  //
+  // This was `settle(!!res && res.ok)` — anything but a 2xx kept the run in
+  // the outbox for "the next try". Right for a dropped connection, wrong for
+  // a 400: the Worker has looked at that log and refused it, and it will
+  // refuse the identical bytes every time. So the run never left, and the
+  // outbox re-POSTs on every boot, every reconnect and after every later run.
+  //
+  // The live abuse log is the receipt: ONE payload, `350/14073ms`, logged 15
+  // times over 14 minutes from one address. 93 rows total, all from a handful
+  // of stuck runs. That log is the dashboard's abuse view — a real attack
+  // would have been buried under a player's own retries.
+  //
+  // 408 and 429 are the two 4xx that ARE transient (timeout, rate-limited), so
+  // they stay held. 409 means the Worker already has that run id: the score is
+  // banked, so it is done, not failed — remembering it stops the next reload
+  // asking again. 5xx and network failure keep the old behaviour, which is the
+  // one the outbox was built for.
+  const settle = (ok, status = 0) => {
     if (id) inFlight.delete(id);
-    if (!ok) return;                 // stays in the outbox for the next try
-    if (id) { sentRunIds.add(id); saveSent(); }
-    drop(id);
+    if (ok || status === 409) {
+      if (id) { sentRunIds.add(id); saveSent(); }
+      drop(id);
+      return;
+    }
+    const verdict = status >= 400 && status < 500 && status !== 408 && status !== 429;
+    if (verdict) drop(id);           // refused on the merits; asking again cannot help
+    // anything else stays in the outbox for the next try
   };
   try {
     fetch(LB_URL + '/submit', {
@@ -553,9 +576,10 @@ function send(run) {
         // answering as though it succeeded.
         website: '',
       }),
-    }).then((res) => settle(!!res && res.ok)).catch(() => settle(false));
+    }).then((res) => settle(!!res && res.ok, (res && res.status) || 0))
+      .catch(() => settle(false, 0));
   } catch (_e) {
-    settle(false);
+    settle(false, 0);
   }
 }
 
