@@ -119,6 +119,18 @@ localStorage cannot brick boot, and re-encoding the art is off the table
 (WebP q85 visibly damages the dither — measured).
 
 
+### ✅ THE TEST SCORES ARE WIPED — the contest database is clean (2026-09-02)
+
+Client, closing the parked decision: "wipe the test scores from the
+database." Done against the live D1 and verified: `runs` 0 (live /top
+answers an empty board), `run_stats` 0 (dashboard starts from zero).
+KEPT on purpose: the 6 `seen_runs` replay locks — a device still holding a
+saved test log gets `replay`-refused instead of resurrecting a test score —
+and the tester's registration (a sign-up, not a score; he is never re-asked).
+His DEVICE still shows 26,700 locally until its site data clears; that
+surface cannot reach the board. ⚠️ Do not "restore" MikeJone anywhere —
+this wipe was the client's explicit instruction.
+
 ### The MikeJone scoring investigation — three numbers, one run history, one real bug
 
 Client, with two phone screenshots: board said 13,350, the share card said
