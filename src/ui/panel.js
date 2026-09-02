@@ -769,21 +769,18 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
   // (both are #btnFormX), and the tiny ✕ was a smaller unlabelled copy of it.
   // Erased from the plate in tools/crop_entry_plate.py; the handler went with
   // the paint. His two painted ones stay.
-  // ⚠️ CONTEST INFO IS UNWIRED ON PURPOSE, AND NOT REMOVED. Client: "the info
-  // about the contest goes to the how to play for some reason and it
-  // shouldn't be wired there — that may be wired to contest information or a
-  // contest pop-up soon, but in the meantime you can just get rid of that."
-  //
-  // It opened HOW TO PLAY, which is a different room wearing his CONTEST INFO
-  // lettering: rules and prizes are not the controls. So the handler is gone
-  // and the button does nothing.
-  //
-  // The BUTTON and his painted strip both stay. He said it may carry real
-  // contest information soon, so erasing that artwork would be throwing away
-  // the thing he is about to use — and keeping the element means the tap is
-  // SWALLOWED rather than falling through to the layer underneath, which is
-  // the difference between "nothing happens" and "the form shuts under your
-  // thumb". Wire it here when the contest pop-up exists.
+  // ── PRIVACY POLICY, WHERE CONTEST INFO USED TO SIT ──────────────────
+  // Client: "we're no longer doing contest info. We want to replace that
+  // with a privacy policy... link or whatever or pop up." The old note here
+  // said the control "may be wired to contest information or a contest
+  // pop-up soon" — this is that wiring, pointed where he pointed it. Same
+  // #btnFormInfo id, so every harness that reaches it by name still lands;
+  // it opens its own card a layer above the form, and BACK just closes the
+  // layer — the form is still there underneath, untouched, mid-typing and
+  // all.
+  on('btnFormInfo', 'press', () => { const pl = $('privacyLayer'); if (pl) pl.hidden = false; });
+  on('btnPrivacyBack', 'back', () => { const pl = $('privacyLayer'); if (pl) pl.hidden = true; });
+  haptics?.attachAll?.($('privacyLayer'));
   // ⚠️ DO NOT LET A TAP MOVE THE CARD OUT FROM UNDER THE THUMB.
   // The card slides up while a field has focus. Tapping the tick blurs the
   // field, which drops the class, which starts a 180ms slide — and a real

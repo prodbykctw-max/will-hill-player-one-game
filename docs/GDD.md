@@ -31,6 +31,19 @@ Will Hill is on his way to his performance — the run through the game's stages
 - **Camera:** pulled back further than a typical side-scroller, with extra headroom so the player can see upcoming obstacles, platforms, and enemies before reaching them. Same rationale as a Mario-style camera looking ahead of the player, just pulled back further.
 - **Movement/perspective:** side-scroll, in the same style as the Jandé game's Action RPG mode (`once-upon-a-time` repo) — explicitly **not** a Streets-of-Rage-style brawler (an earlier framing that was corrected) and **not** isometric (an isometric animation set exists but is unused — see Character Asset Pipeline below).
 
+## The finish line is the bank (2026-09)
+
+Client: *"banking at each finish line, robbery only risks the current
+stage's pocket."* Money in hand when a finish line is crossed is **banked**
+— locked into the run's score for good. An enemy knockdown scatters only
+what was picked up since the last finish line (the pocket); the score can
+never fall below the banked amount. The contest number, the board, the
+share card and the knocked screen all read this same score. This replaced
+the original everything-scatters rule after a tester's five-stage run ended
+at $950 off one late hit. `tools/harness/bankline.mjs` grades it; the
+Worker needs no change because both sides compute from the same event log
+and a capped knockdown simply emits fewer `bagLost` events.
+
 ## Damage: three touches, and enemies rob you
 
 Three enemy touches kill you, and the consequences differ by touch — but there

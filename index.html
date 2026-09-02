@@ -917,6 +917,77 @@
        NOT NOW; this card has one skip link doing that job, so the X control
        stays in the DOM for panel.js's wiring but never renders. */
     #entryLayer #btnFormX { display: none; }
+    /* ── THE PRIVACY POLICY CARD ───────────────────────────────────────
+       The sign-up card's own language — navy card, gold border, letterpress
+       type, one raised gold BACK — one layer above it (z 32 over 31) so
+       opening it from the form reads as a page on top of a page. */
+    #privacyLayer {
+      position: fixed; inset: 0; z-index: 32;
+      display: flex; align-items: center; justify-content: center;
+      padding: calc(10px + env(safe-area-inset-top, 0px)) 10px
+               calc(10px + env(safe-area-inset-bottom, 0px));
+      background: rgba(6,5,10,0.72);
+    }
+    #privacyLayer[hidden] { display: none; }
+    #privacyCard {
+      position: relative;
+      width: min(92vw, 420px);
+      max-height: calc(100dvh - 24px - env(safe-area-inset-top, 0px)
+                                     - env(safe-area-inset-bottom, 0px));
+      display: flex; flex-direction: column;
+      container-type: inline-size;
+      background: linear-gradient(180deg, #16283f 0%, #0d1b2e 44%, #0a1626 100%);
+      border: 1px solid rgba(240,180,74,0.55);
+      border-radius: 18px;
+      box-shadow: 0 18px 44px rgba(0,0,0,0.72), 0 4px 12px rgba(0,0,0,0.5),
+                  inset 0 1px 0 rgba(255,255,255,0.06);
+      padding: 7cqw 6.4cqw 6cqw;
+      text-align: center;
+    }
+    #privacyCard .kick {
+      font: 700 max(10px, 2.8cqw)/1 system-ui, sans-serif;
+      letter-spacing: 0.42em; text-indent: 0.42em;
+      color: rgba(240,180,74,0.85); text-transform: uppercase;
+      text-shadow: 0 1px 0 rgba(0,0,0,0.55);
+    }
+    #privacyHead {
+      margin: 2.6cqw 0 2.4cqw;
+      font: 800 max(21px, 6.6cqw)/1.05 system-ui, sans-serif;
+      letter-spacing: 0.04em; color: #f0b429;
+      text-shadow: 0 2px 0 rgba(0,0,0,0.45);
+    }
+    #privacyBody {
+      overflow-y: auto; min-height: 0; text-align: left;
+      font: 400 max(12px, 3.2cqw)/1.5 system-ui, sans-serif;
+      color: rgba(242,234,216,0.85);
+      text-shadow: 0 1px 0 rgba(0,0,0,0.45);
+    }
+    #privacyBody p { margin: 0 0 2.8cqw; }
+    #privacyBody b { color: #ffd66e; font-weight: 700; }
+    /* The one-line contest-rules pointer, set apart as a footnote. */
+    #privacyBody .rules {
+      margin-top: 3.4cqw; padding-top: 2.8cqw;
+      border-top: 1px solid rgba(240,180,74,0.25);
+      font-style: italic; color: rgba(242,234,216,0.6);
+    }
+    /* The same raised gold button grammar as SAVE & ENTER, half height. */
+    #privacyLayer #btnPrivacyBack {
+      display: block; width: 100%; margin: 4cqw 0 0; padding: 3.4cqw 0;
+      border: 0; border-radius: 12px; cursor: pointer;
+      background: linear-gradient(180deg, #ffe9a8 0%, #f6c65a 40%,
+                                          #f0a83a 62%, #c77f1f 100%);
+      color: #3a2405;
+      font: 800 max(14px, 4cqw)/1 system-ui, sans-serif;
+      letter-spacing: 0.14em; text-indent: 0.14em;
+      box-shadow: 0 4px 0 rgba(94,58,10,0.9), 0 9px 18px rgba(0,0,0,0.5),
+                  inset 0 1px 0 rgba(255,255,255,0.65);
+      -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+    }
+    #privacyLayer #btnPrivacyBack:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 rgba(94,58,10,0.9), 0 4px 10px rgba(0,0,0,0.5),
+                  inset 0 1px 0 rgba(255,255,255,0.65);
+    }
     /* The old painted-cabinet split: cabOnly controls existed only on the
        artwork. The X above is dead everywhere; INFO is a real link now. The
        #panel half stays so the plain in-panel form (a fallback that no
@@ -1876,8 +1947,45 @@
                link now (it opens what RULES & PRIZES opened — two doors to
                one room). -->
           <button class="btn cabOnly" id="btnFormX" type="button">CANCEL</button>
-          <button class="btn cabOnly" id="btnFormInfo" type="button">CONTEST INFO</button>
+          <!-- ⚠️ PRIVACY POLICY, NOT CONTEST INFO. Client: "we're no longer
+               doing contest info. We want to replace that with a privacy
+               policy." Same id, so every handler and harness that reaches
+               this control by name is untouched; the label and the door it
+               opens are what changed. -->
+          <button class="btn cabOnly" id="btnFormInfo" type="button">PRIVACY POLICY</button>
         </div>
+      </div>
+    </div>
+    <!-- ── THE PRIVACY POLICY, AS ITS OWN CARD ─────────────────────────
+         Client: "generate a privacy policy... link or whatever or pop up."
+         A popup, in the game's own navy and gold, over the same kind of
+         tap-eating scrim the sign-up card uses — no external hosting, works
+         inside the PWA, one lettered way out. The words below are the whole
+         policy on purpose: it says what the game actually does and nothing
+         it doesn't. The one-line contest-rules pointer rides in it, on his
+         word ("add the one line for separate pop-up"). -->
+    <div id="privacyLayer" hidden>
+      <div id="privacyCard">
+        <div class="kick" aria-hidden="true">WILL HILL · PLAYER ONE</div>
+        <h2 id="privacyHead">PRIVACY POLICY</h2>
+        <div id="privacyBody">
+          <p><b>What we collect.</b> Your display name, which is shown
+          publicly on the leaderboard — that is its whole job. Your phone
+          number and email, which stay private: they are used only to reach
+          you if you win, and are never displayed, sold, or shared. And your
+          game results — scores and run stats — used to run the contest and
+          tune the game.</p>
+          <p><b>On your device.</b> Your settings and your local best scores
+          live in your own browser's storage on your phone. Clearing the
+          site's data removes them.</p>
+          <p><b>What we don't do.</b> No ads, no trackers, no selling or
+          sharing your information with anyone.</p>
+          <p><b>Removal.</b> Want your entry and info deleted? Email
+          <b>therareagency@gmail.com</b> and it's gone.</p>
+          <p class="rules">Contest rules and prize details are announced on
+          Will Hill's official channels.</p>
+        </div>
+        <button class="btn" id="btnPrivacyBack" type="button">BACK</button>
       </div>
     </div>
 

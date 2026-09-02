@@ -132,6 +132,12 @@ const runs = await page.evaluate(async () => {
   return n;
 });
 ok(runs === 1, 'a tap fires the handler exactly once, not twice', 'runs=' + runs);
+// ⚠️ THAT CLICK OPENS A REAL DOOR NOW. btnFormInfo was an unwired stub when
+// this check was written; it is the PRIVACY POLICY popup today — a fixed
+// layer above everything — and leaving it up put it under the thumb of every
+// later probe: the settings pills failed as "not what the thumb hits" three
+// at a time, and the leak took an A/B stash test to pin. Close what you open.
+await page.evaluate(() => { const pl = document.getElementById('privacyLayer'); if (pl) pl.hidden = true; });
 
 // The switch toggling must not be mistaken for a form control by anything
 // that walks the panel — the sign-up form posts three fields, not four.

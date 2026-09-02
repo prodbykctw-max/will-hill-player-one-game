@@ -328,6 +328,13 @@ const state = {
   level: null,
   player: null,
   score: 0,
+  // ── MONEY IN THE BANK vs MONEY IN HAND ──────────────────────────────
+  // Client: "banking at each finish line, robbery only risks the current
+  // stage's pocket." Everything held when a finish line is crossed locks
+  // into `banked`; an enemy can only knock loose what was picked up SINCE
+  // the last finish line (score - banked). His tester's five-stage run
+  // ending at $950 off one late hit is the run this rule exists for.
+  banked: 0,
   hearts: 3,
   screen: 'loading', // loading | title | playing | paused | riding | stageClear | gameOver | complete
   resumeTo: 'playing', // what pausing interrupted, so resume goes back to it
@@ -598,6 +605,7 @@ function startRun() {
   }
   state.pendingBootRun = false;
   state.score = 0;
+  state.banked = 0;
   state.hearts = 3;
   state.continues = CONTINUES_PER_RUN;
   // Distance is banked per stage. The HUD's readout is the CURRENT stage's
@@ -1382,10 +1390,15 @@ function update() {
       // for, so touch one costs the cash and a heart, touch two a heart,
       // touch three kills you.
       //
-      // SONIC'S RINGS. ALL of it comes out — not a capped slice — because
-      // that is what makes a full purse worth being scared of. The three-touch
-      // escalation still stands on top of it: touch one empties you and costs
-      // a heart, touch two a heart, touch three kills.
+      // SONIC'S RINGS — BUT ONLY THE POCKET. This was "ALL of it comes out",
+      // and the client overruled it after his tester's five-stage run ended
+      // at $950 off one late hit: "banking at each finish line, robbery only
+      // risks the current stage's pocket." Money that crossed a finish line
+      // is banked (see the stage-clear handler); what scatters here is only
+      // what was picked up since. A full pocket is still worth being scared
+      // of, and the three-touch escalation still stands on top: touch one
+      // empties the pocket and costs a heart, touch two a heart, touch three
+      // kills.
       //
       // Sonic does not spawn one sprite per ring either; it loses every ring
       // and draws a bounded burst of them. Same here. MAX_SCATTER sprites go
@@ -1393,7 +1406,7 @@ function update() {
       // them returns the money in proportion and the frame cost is fixed no
       // matter how rich the run is.
       const MAX_SCATTER = 24;
-      const lost = Math.floor(state.score / BAG_VALUE);
+      const lost = Math.floor(Math.max(0, state.score - (state.banked || 0)) / BAG_VALUE);
       if (lost > 0) {
         const n = Math.min(MAX_SCATTER, lost);
         // WHOLE BAGS PER SPRITE, remainder handed to the first few. A flat
@@ -1646,6 +1659,14 @@ function update() {
     // countable, on the device and in the dashboard both. Score-neutral, same
     // as the death events.
     state.runLog.record(`stage_clear_${state.stageIndex + 1}`);
+    // ── THE FINISH LINE IS THE BANK ────────────────────────────────────
+    // Client: "banking at each finish line." Everything in hand locks in
+    // here; the knockdown below can only scatter what is picked up after
+    // this moment. No event is recorded for it — the Worker's recompute is
+    // pure event arithmetic and the client simply emits fewer bagLost
+    // events after a capped knockdown, so both sides stay in step with no
+    // worker change and no redeploy.
+    state.banked = state.score;
     state.screen = 'stageClear';
     state.screenT = 0;
   }

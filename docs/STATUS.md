@@ -119,6 +119,32 @@ localStorage cannot brick boot, and re-encoding the art is off the table
 (WebP q85 visibly damages the dither — measured).
 
 
+### The finish line banks, and the form's third link is the PRIVACY POLICY
+
+Two client decisions in one round, discussed before building ("let's
+discuss these before we act"), then confirmed:
+
+1. **Banking.** "Banking at each finish line, robbery only risks the
+   current stage's pocket." `state.banked` locks in at every stage clear;
+   the knockdown scatters `score - banked` only. NO worker change — both
+   sides compute from the same event log and a capped knockdown just emits
+   fewer `bagLost` events. New harness `bankline.mjs` (4 ×3 green): banks
+   at the line, floors at the bank, log counts the pocket exactly, control
+   stage still loses everything. GDD has the rule ("The finish line is the
+   bank"). One honest subtlety on the record: a scattered bag can be caught
+   in the same tick as the hit (Sonic-style, deterministic +100) — the
+   harness tolerates one bag, the log stays exact.
+2. **Privacy policy replaces CONTEST INFO.** Same #btnFormInfo id,
+   relabelled PRIVACY POLICY; opens its own card (z 32 over the form's 31)
+   in the house navy/gold: what we collect (name public / phone+email
+   private, winner contact only / run stats), on-device storage, no
+   ads/trackers/sales, removal via therareagency@gmail.com, plus his
+   one-line contest-rules pointer as a footnote. BACK closes the layer with
+   the form intact underneath. entryfit 72 ×3, hapticbtn 26 ×3 — the
+   latter needed its own fix: its btnFormInfo click-count check was written
+   against an unwired stub and left the now-real popup covering every later
+   probe (three pills "failed" at once; pinned by A/B stash test).
+
 ### ✅ THE TEST SCORES ARE WIPED — the contest database is clean (2026-09-02)
 
 Client, closing the parked decision: "wipe the test scores from the

@@ -84,7 +84,7 @@ for (const size of SIZES) {
     inView(geo.save) && geo.save.top > geo.plate.top && geo.save.bottom < geo.plate.bottom);
   check('the skip link sits under the gold button, not beside it',
     !!geo.skip && geo.skip.top >= geo.save.bottom);
-  check('CONTEST INFO is a live link under the skip',
+  check('PRIVACY POLICY is a live link under the skip',
     !!geo.info && geo.info.top >= geo.skip.bottom - 1);
   check('the ✕ stays dead — "exes don\'t need to be back buttons"', !geo.xVisible);
 
