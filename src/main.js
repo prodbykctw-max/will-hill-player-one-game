@@ -929,10 +929,18 @@ function nextStage() {
   state.screenT = 0;
   state.finalLog = state.runLog.finish();
   recordRunStats(state.finalLog, state.score);
-  // Banked on the device FIRST, and unconditionally. A phone at a party is not
-  // always on a network; either way the run happened and the player should be
-  // able to see it.
-  bankLocalRun(state.score);
+  // Banked on the device FIRST — a phone at a party is not always on a
+  // network; either way the run happened and the player should be able to
+  // see it.
+  // ⚠️ BUT ONLY A REAL RUN. This was unconditional, and the dev doors leaked
+  // onto the SHARE CARD through it: a `?relay=1` run doubles every bag with
+  // the permanent aura, so a test walk through Buckhead banks a score no
+  // legitimate run can match, and "your best on this device" then brags a
+  // number the contest never saw and nobody can beat. Found in the MikeJone
+  // scoring investigation. Same predicate as the submit gate below — the
+  // door runs stay fully playable, they just leave no trace on any board,
+  // local or remote.
+  if (!isRelay() && startStageIndex() === 0) bankLocalRun(state.score);
   // ⚠️ DEV DOORS DO NOT REACH THE PRIZE BOARD. `?relay=1` strips the enemies
   // and the pit deaths, and `?stage=N` starts a run partway in — either one
   // makes a "finished run" the contest never saw. Both stay fully playable
@@ -1601,7 +1609,9 @@ function update() {
     // wh_local_runs — so "your best on this device" and the share card lied
     // for the most common way a run actually ends. bankLocalRun ignores
     // score 0, so dying broke on the first stage stays unrecorded.
-    bankLocalRun(state.score);
+    // ⚠️ Same dev-door gate as the submit and the complete path's bank — a
+    // relay/staged death must not leave a doubled ghost on the share card.
+    if (!isRelay() && startStageIndex() === 0) bankLocalRun(state.score);
     return;
   }
 

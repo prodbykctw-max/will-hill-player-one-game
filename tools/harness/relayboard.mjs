@@ -43,7 +43,9 @@ async function completedRun(query) {
   // Across the finish line of the last stage: the run completes and the
   // submit decision fires. A registered identity is stubbed so the submit
   // path has no reason of its own to hold back.
-  await p.evaluate(() => { window.__game.player.x = 10 ** 7; });
+  // A score in hand, or bankLocalRun's own zero-score filter (dying broke
+  // stays unrecorded) makes the banking checks below vacuously pass/fail.
+  await p.evaluate(() => { window.__game.score = 500; window.__game.player.x = 10 ** 7; });
   // Crossing lands on STAGE CLEAR; the run completes off its button. Space
   // presses the primary button on every between-screen (betweenscreens.mjs
   // grades that), after the screen's own arming delay.
@@ -59,8 +61,10 @@ async function completedRun(query) {
   await p.waitForFunction(() => window.__game.screen === 'complete', null, { timeout: 15000 }).catch(() => {});
   await p.waitForTimeout(1200);   // give a queued submit time to fire
   const screen = await p.evaluate(() => window.__game.screen);
+  const banked = await p.evaluate(() =>
+    JSON.parse(localStorage.getItem('wh_local_runs') || '[]').length);
   await ctx.close();
-  return { submits, screen };
+  return { submits, screen, banked };
 }
 
 // The OTHER exit — a run that DIES also submits (death path in main.js),
@@ -85,13 +89,16 @@ async function deadRun(query) {
   await p.evaluate(() => {
     const g = window.__game;
     g.continues = 0;   // no continue screen in the way
+    g.score = 500;   // same reason as the completed helper — banking needs money in hand
     g.player.hearts = 0; g.player.dead = true; g.player.deathCause = 'enemy';
   });
   await p.waitForFunction(() => window.__game.screen !== 'playing', null, { timeout: 10000 }).catch(() => {});
   await p.waitForTimeout(1200);
   const screen = await p.evaluate(() => window.__game.screen);
+  const banked = await p.evaluate(() =>
+    JSON.parse(localStorage.getItem('wh_local_runs') || '[]').length);
   await ctx.close();
-  return { submits, screen };
+  return { submits, screen, banked };
 }
 
 const lb = '&lb=http://localhost:5199/__stub';
@@ -107,6 +114,18 @@ ck('a mid-game run that DIES never reaches the board either', stagedDeath.submit
 const plainDeath = await deadRun('?tod=night' + lb);
 ck('and a plain death still submits its run once', plainDeath.submits === 1,
   `submits=${plainDeath.submits} screen=${plainDeath.screen}`);
+
+// ── AND THE SHARE CARD IS GATED THE SAME WAY ─────────────────────────────
+// The dev doors used to bank locally even though they never submitted, so a
+// relay walk (permanent aura, every bag doubled) left an unbeatable ghost on
+// "your best on this device" and the share card bragged a number the contest
+// never saw — the MikeJone investigation's one real find. Door runs leave NO
+// trace, local or remote; real runs still bank.
+ck('a RELAY run leaves nothing on the device best', relay.banked === 0, `banked=${relay.banked}`);
+ck('a staged run leaves nothing on the device best', staged.banked === 0, `banked=${staged.banked}`);
+ck('a staged DEATH leaves nothing on the device best', stagedDeath.banked === 0, `banked=${stagedDeath.banked}`);
+ck('a plain run still banks its score locally', plain.banked === 1, `banked=${plain.banked}`);
+ck('and a plain death banks too', plainDeath.banked === 1, `banked=${plainDeath.banked}`);
 
 console.log('\n' + (checks.every(([, o]) => o) ? `ALL ${checks.length} PASS` : 'FAILED'));
 await b.close();

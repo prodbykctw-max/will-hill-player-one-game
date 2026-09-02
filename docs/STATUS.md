@@ -119,6 +119,34 @@ localStorage cannot brick boot, and re-encoding the art is off the table
 (WebP q85 visibly damages the dither — measured).
 
 
+### The MikeJone scoring investigation — three numbers, one run history, one real bug
+
+Client, with two phone screenshots: board said 13,350, the share card said
+26,700, and his stage-5 run ended at $950 — "we need to troubleshoot the
+scoring system."
+
+**Resolved against the LIVE database, not theory** (D1 read-only query):
+`runs` holds MikeJone at **26,700**, written 2026-09-01 04:59 UTC, and
+`run_stats` shows FOUR rows all within 330ms — the outbox backlog flushing
+in one burst the moment the TITLE/HOME chat's verdict fix reached his PWA.
+His board screenshot predates the flush (13,350 was his best-then); the
+share screenshot postdates it (26,700, his real best run: 289s, stage 4,
+7 bottles). The $950 stage-5 run was a dev-door run — no best_stage-5 row
+exists in the DB, so the submit gate held exactly as designed, and the
+robbery math (bagLost −100, one event per bag, both sides of the wire) is
+sound. /top now serves 26,700; his board shows it on next open. THE
+SCORING SYSTEM WAS WORKING.
+
+**The one real find:** `bankLocalRun` was UNCONDITIONAL on both exits while
+`lbSubmit` was gated — so a `?relay=1` walk (permanent aura, every bag
+doubled) banked an unbeatable ghost onto "your best on this device" and the
+share card could brag a number the contest never saw. Both bank calls now
+take the submit's own gate (`!isRelay() && startStageIndex() === 0`);
+relayboard.mjs grew five banking checks (10 ×3 green — door runs leave no
+trace local OR remote, real runs still bank). Also caught in the walk:
+`gamesCompleted` still said `bestStage >= 4` from the four-stage era — now
+5.
+
 ### STAGE 5: BUCKHEAD THEATRE — the finale, cut, wired, sealed, and shipped
 
 Client, with a geometry-matched 1536x1024 night/day pair: *"5th and final

@@ -393,8 +393,11 @@ export function recordRunStats(log, score) {
   // A lifetime best, so it is a max and not a sum — the same arithmetic the
   // dashboard's MAX COMBO does across every run in the contest.
   if (t.maxCombo > s.maxCombo) s.maxCombo = t.maxCombo;
-  // Four stages cleared in one run is the whole game — the `complete` screen.
-  if (t.bestStage >= 4) s.gamesCompleted += 1;
+  // FIVE stages cleared in one run is the whole game now — the Buckhead
+  // finale is stage 5 and the `complete` screen sits past ITS finish line.
+  // This said >= 4 for the four-stage game and survived the 4->5 sweep
+  // unnoticed until the MikeJone scoring investigation walked every stat.
+  if (t.bestStage >= 5) s.gamesCompleted += 1;
   const sc = Math.max(0, Math.floor(Number(score) || 0));
   s.totalScore += sc;
   if (sc > s.bestScore) s.bestScore = sc;
