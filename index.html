@@ -1,0 +1,1190 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#0a0810" />
+  
+  <meta name="description" content="Run Atlanta with Will Hill. Dash, jump, and stack bags through EAV, Edgewood, The Underground, and Little 5 Points. Top scores win real prizes." />
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="Will Hill: Player One" />
+  <meta property="og:description" content="Run Atlanta. Stack bags. Top the board — real prizes." />
+  <meta property="og:url" content="https://prodbykctw-max.github.io/will-hill-player-one-game/" />
+  <meta property="og:image" content="https://prodbykctw-max.github.io/will-hill-player-one-game/share-card.jpg" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Will Hill: Player One" />
+  <meta name="twitter:description" content="Run Atlanta. Stack bags. Top the board — real prizes." />
+  <meta name="twitter:image" content="https://prodbykctw-max.github.io/will-hill-player-one-game/share-card.jpg" />
+  
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  
+  <meta name="apple-mobile-web-app-title" content="Will Hill" />
+  
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icons/favicon.ico" sizes="any" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+  
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+  <title>Will Hill: Player One</title>
+  <style>
+    html, body {
+      
+      margin: 0; padding: 0; background: #080a0b; height: 100%;
+      overflow: hidden;
+      
+      overscroll-behavior: none;
+      -webkit-user-select: none; user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      -webkit-touch-callout: none;
+      
+      touch-action: none;
+    }
+    
+    #game {
+      display: block; image-rendering: pixelated;
+      touch-action: none;
+      
+      position: fixed; left: 0; top: 0; width: 100vw;
+      height: 100vh; height: 100dvh;
+      height: calc(100dvh + env(safe-area-inset-bottom, 0px));
+    }
+
+    
+    
+    #touch { display: none; }
+    body.touch.playing #touch { display: block; }
+
+    #touch .pad {
+      position: fixed; z-index: 10;
+      box-sizing: border-box;   
+      display: flex; align-items: center; justify-content: center;
+      font: 700 15px/1 system-ui, sans-serif; letter-spacing: 0.06em;
+      color: rgba(255,255,255,0.82);
+      background: rgba(18,14,28,0.42);
+      border: 2px solid rgba(255,214,110,0.34);
+      border-radius: 16px;
+      touch-action: none;
+      
+      -webkit-touch-callout: none;
+      -webkit-user-select: none; user-select: none;
+      
+      
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.13) 0%,
+                                rgba(255,255,255,0.03) 42%,
+                                rgba(0,0,0,0.16) 100%),
+        rgba(18,14,28,0.52);
+      box-shadow:
+        inset 0 1.5px 0 rgba(255,255,255,0.34),
+        inset 0 -2px 0 rgba(0,0,0,0.42),
+        0 4px 0 rgba(0,0,0,0.34),
+        0 6px 10px rgba(0,0,0,0.34);
+      text-shadow: 0 1px 0 rgba(0,0,0,0.55);
+      transition: background 90ms linear, border-color 90ms linear,
+                  transform 90ms linear, box-shadow 90ms linear;
+    }
+    
+    #touch .pad.on {
+      background:
+        linear-gradient(180deg, rgba(0,0,0,0.20) 0%,
+                                rgba(255,214,110,0.20) 60%,
+                                rgba(255,214,110,0.34) 100%),
+        rgba(255,214,110,0.22);
+      border-color: rgba(255,214,110,0.85);
+      transform: translateY(2px) scale(0.97);
+      box-shadow:
+        inset 0 2px 3px rgba(0,0,0,0.45),
+        inset 0 -1px 0 rgba(255,255,255,0.16),
+        0 1px 0 rgba(0,0,0,0.30);
+      transition: none;
+    }
+
+    
+    
+    
+    
+    #tL, #tR { bottom: calc(48px + env(safe-area-inset-bottom, 0px)); width: 70px; height: 70px; }
+    #tL { left: calc(6px + env(safe-area-inset-left, 0px)); }
+    #tR { left: calc(90px + env(safe-area-inset-left, 0px)); }
+    
+    #touch .pad.move:not(.on) {
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.16) 0%,
+                                rgba(255,255,255,0.04) 42%,
+                                rgba(0,0,0,0.20) 100%),
+        rgba(18,14,28,0.80);
+      border-color: rgba(255,214,110,0.58);
+      color: rgba(255,255,255,0.96);
+    }
+
+    
+    #tDash { right: calc(16px + env(safe-area-inset-right, 0px)); }
+    #tJump { right: calc(32px + env(safe-area-inset-right, 0px)); }
+    
+    #tJump {
+      
+      bottom: calc(34px + env(safe-area-inset-bottom, 0px));
+      width: 82px; height: 82px;
+    }
+    #touch .pad#tJump:not(.on) {
+      border-radius: 50%;
+      border-color: rgba(120,220,255,0.45);
+      background: rgba(30,60,90,0.42);
+    }
+    #tJump.on { background: rgba(120,220,255,0.32); border-color: rgba(120,220,255,0.85); }
+    #tDash {
+      
+      bottom: calc(114px + env(safe-area-inset-bottom, 0px));
+      width: 64px; height: 64px;
+    }
+    #touch .pad#tDash:not(.on) { border-radius: 50%; font-size: 13px; }
+
+    
+    #panel {
+      position: fixed; inset: 0; z-index: 30;
+      
+      display: flex; align-items: flex-start; justify-content: center;
+      background: rgba(6,5,10,0.82);
+      padding: calc(14px + env(safe-area-inset-top, 0px)) 14px
+               calc(14px + env(safe-area-inset-bottom, 0px));
+      
+      overflow-y: auto; -webkit-overflow-scrolling: touch;
+      touch-action: pan-y;
+      
+      scrollbar-width: none;
+    }
+    #panel::-webkit-scrollbar { width: 0; height: 0; display: none; }
+    #panel[hidden] { display: none; }
+    #panelCard {
+      
+      margin: auto;
+      position: relative; width: 100%; max-width: 420px;
+      box-sizing: border-box; padding: 18px 18px 16px;
+      background: #12101c;
+      border: 2px solid rgba(255,214,110,0.40); border-radius: 14px;
+      color: #f2ead8; font: 400 15px/1.45 system-ui, sans-serif;
+      box-shadow: 0 18px 60px rgba(0,0,0,0.6);
+    }
+    
+    
+    #panelCard.bare {
+      background: none; border: 0; box-shadow: none;
+      padding: 0; max-width: none; width: 100%;
+    }
+    #panelTitle {
+      margin: 0 0 12px; font: 800 20px/1 system-ui, sans-serif;
+      letter-spacing: 0.08em; color: #ffd66e;
+    }
+    #panelTitle[hidden] { display: none; }
+
+    
+    #panelScreen { display: contents; }
+    
+    #panelCard.cabinet {
+      background-image: var(--cabinet-plate);
+      background-position: center; background-size: 100% 100%;
+      background-repeat: no-repeat; background-color: transparent;
+      aspect-ratio: 852 / 1846;
+      border: 0; box-shadow: none; padding: 0;
+      container-type: inline-size;
+      margin: 0; max-width: none;
+      
+      width: max(100vw, calc(var(--vp-h, 100lvh) * 852 / 1846));
+      
+      flex: none;
+    }
+    
+    #panel.cabinetView {
+      padding: 0; overflow: hidden; align-items: center;
+    }
+    
+    #panelCard.cabinet #panelScreen {
+      
+      display: block;
+      position: absolute;
+      left: 16.784%; top: 12.784%; width: 58.803%;
+      background-position: top center; background-size: 100% 100%;
+      background-repeat: no-repeat;
+    }
+    #panelCard.cabinet-menu #panelScreen {
+      background-image: var(--panel-options);
+      aspect-ratio: 546 / 1002;
+    }
+    #panelCard.cabinet-settings #panelScreen {
+      background-image: var(--panel-settings);
+      aspect-ratio: 499 / 1148;
+    }
+    
+    #panelCard.cabinet #pvSettings:not([hidden]) { display: contents; }
+    #panelCard.cabinet #pvSettings .note,
+    #panelCard.cabinet #pvSettings label.row > span { display: none; }
+    
+    #panelCard.cabinet #pvSettings label.row {
+      position: absolute; margin: 0; display: block;
+    }
+    #panelCard.cabinet #pvSettings label.row input[type=checkbox] {
+      appearance: none; -webkit-appearance: none;
+      display: block; width: 100%; height: 100%; margin: 0;
+      background: var(--pill-off) center / 100% 100% no-repeat;
+      border: 0; cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    #panelCard.cabinet #pvSettings label.row input[type=checkbox]:checked {
+      background-image: var(--pill-on);
+    }
+    #panelCard.cabinet #pvSettings label.row input[type=checkbox]:disabled {
+      opacity: 0.4; cursor: default;
+    }
+    #panelCard.cabinet #pvSettings label.row:has(#sSound) {
+      left: 70.14%; top: 21.52%; width: 22.85%; height: 4.62%;
+    }
+    #panelCard.cabinet #pvSettings label.row:has(#sSfx) {
+      left: 70.14%; top: 31.01%; width: 22.85%; height: 4.62%;
+    }
+    #panelCard.cabinet #pvSettings label.row:has(#sHaptics) {
+      left: 70.14%; top: 40.51%; width: 22.85%; height: 4.70%;
+    }
+    
+    #panelCard.cabinet #pvSettings label.row:has(#sTod) {
+      left: 49.70%; top: 51.13%; width: 43.89%; height: 3.57%;
+    }
+    #panelCard.cabinet #sTod {
+      width: 100%; height: 100%; margin: 0; padding: 0;
+      background: var(--tod-value) center / 100% 100% no-repeat;
+      border: 0; border-radius: 0; color: transparent; font-size: 0;
+      appearance: none; -webkit-appearance: none;
+    }
+    #panelCard.cabinet #sTod option { color: #f2ead8; font-size: 15px; }
+    #panelCard.cabinet #btnBack {
+      left: 6.61%; top: 62.37%; width: 87.17%; height: 5.84%;
+    }
+    
+    #panelCard.cabinet #panelTitle { display: none; }
+    
+    
+    #panelCard.cabinet .pv .btn {
+      position: absolute; margin: 0; padding: 0;
+      background: none; border: 0; border-radius: 1.6cqw;
+      color: transparent; font-size: 0;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+    #panelCard.cabinet .pv .btn:active { background: rgba(240,168,58,0.16); }
+    #panelCard.cabinet #pvMenu:not([hidden]) { display: contents; }
+    #panelCard.cabinet #btnMenuBoard {
+      left: 6.59%; top: 21.06%; width: 86.81%; height: 14.77%;
+    }
+    #panelCard.cabinet #btnMenuHow {
+      left: 6.59%; top: 40.52%; width: 86.81%; height: 14.57%;
+    }
+    #panelCard.cabinet #btnMenuSettings {
+      left: 6.59%; top: 59.78%; width: 86.81%; height: 14.37%;
+    }
+    #panelCard.cabinet #btnMenuClose {
+      left: 6.59%; top: 78.84%; width: 86.81%; height: 14.17%;
+    }
+    
+    
+    
+    #entryLayer {
+      
+      position: fixed; inset: 0; z-index: 31;
+      display: flex; align-items: center; justify-content: center;
+      padding: calc(10px + env(safe-area-inset-top, 0px)) 10px
+               calc(10px + env(safe-area-inset-bottom, 0px));
+      
+      background: rgba(6,5,10,0.62);
+    }
+    #entryLayer[hidden] { display: none; }
+    #entryPlate {
+      position: relative;
+      
+      width: min(92vw, 420px);
+      max-height: calc(100dvh - 24px - env(safe-area-inset-top, 0px)
+                                     - env(safe-area-inset-bottom, 0px));
+      
+      display: flex; flex-direction: column;
+      
+      container-type: inline-size;
+      
+      background: linear-gradient(180deg, #16283f 0%, #0d1b2e 44%, #0a1626 100%);
+      border: 1px solid rgba(240,180,74,0.55);
+      border-radius: 18px;
+      box-shadow: 0 18px 44px rgba(0,0,0,0.72), 0 4px 12px rgba(0,0,0,0.5),
+                  inset 0 1px 0 rgba(255,255,255,0.06);
+      transition: transform 0.18s ease-out;
+    }
+    
+    #entryLogo {
+      position: absolute;
+      left: 50%; bottom: 100%;
+      transform: translateX(-50%);
+      margin-bottom: 2.4cqw;
+      width: 56cqw;
+      aspect-ratio: 802 / 225;                    
+      pointer-events: none;
+      background-image: var(--title-lockup);
+      background-repeat: no-repeat;
+      background-size: calc(56cqw * 853 / 802) auto;
+      background-position: calc(-27 * 56cqw / 802) calc(-166 * 56cqw / 802);
+      transition: opacity 0.18s ease-out;
+    }
+    
+    @media (min-aspect-ratio: 2/3) {
+      #entryLogo { display: none; }
+    }
+    
+    #entryLayer[data-flow='start'] #entryLogo,
+    #entryLayer[data-flow='title'] #entryLogo { display: none; }
+    
+    @media (max-height: 640px) {
+      #entryLogo { display: none; }
+    }
+    
+    @media (orientation: portrait) and (pointer: coarse) {
+      #entryPlate.typing { transform: translateY(-17vh); }
+      
+      #entryPlate.typing #entryLogo { opacity: 0; }
+    }
+    
+    @media (orientation: portrait) and (pointer: coarse) and (max-height: 640px) {
+      #entryPlate.typing { transform: translateY(-22vh); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      #entryPlate, #entryLogo { transition: none; }
+    }
+    
+    #entryLayer #pvForm:not([hidden]) {
+      display: flex; flex-direction: column;
+      padding: 7cqw 6.4cqw 6cqw;
+      text-align: center;
+      
+      overflow-y: auto; min-height: 0;
+    }
+    #entryLayer .kick {
+      font: 700 max(10px, 2.8cqw)/1 system-ui, sans-serif;
+      letter-spacing: 0.42em; text-indent: 0.42em;   
+      color: rgba(240,180,74,0.85);
+      text-transform: uppercase;
+      
+      text-shadow: 0 1px 0 rgba(0,0,0,0.55);
+    }
+    #entryLayer #entryHead {
+      
+      margin: 2.6cqw 0 2.4cqw;
+      font: 800 max(21px, 6.6cqw)/1.05 system-ui, sans-serif;
+      letter-spacing: 0.04em;
+      color: #f0b429;
+      text-shadow: 0 2px 0 rgba(0,0,0,0.45);
+    }
+    #entryLayer #pvForm label {
+      display: block; margin: 3.4cqw 0 0;
+      font: 700 max(11px, 3.2cqw)/1 system-ui, sans-serif;
+      letter-spacing: 0.07em;
+      color: #f2ead8; text-align: left;
+      
+      text-shadow: 0 1px 0 rgba(0,0,0,0.55);
+    }
+    
+    #entryLayer #pvForm label .req {
+      font-weight: 700; letter-spacing: 0; text-transform: none;
+      color: #ff5c4a;
+    }
+    #entryLayer #pvForm label .sub {
+      font-weight: 400; letter-spacing: 0; text-transform: none;
+      color: rgba(242,234,216,0.45);
+    }
+    #entryLayer #pvForm label input {
+      display: block; width: 100%; box-sizing: border-box;
+      margin-top: 1.8cqw; padding: 3.4cqw 3.4cqw;
+      border: 1px solid rgba(120,170,255,0.28); border-radius: 10px;
+      background: #0a1626; color: #f2ead8;
+      
+      font: 400 max(13px, 3.6cqw)/1.2 system-ui, sans-serif;
+      appearance: none; -webkit-appearance: none; outline: none;
+      
+      box-shadow: inset 0 2px 5px rgba(0,0,0,0.55),
+                  inset 0 1px 1px rgba(0,0,0,0.6),
+                  0 1px 0 rgba(255,255,255,0.05);
+    }
+    
+    #entryLayer #pvForm input::placeholder {
+      color: rgba(242,234,216,0.4); opacity: 1;
+    }
+    #entryLayer #pvForm input:focus {
+      border-color: rgba(240,180,74,0.75);
+      box-shadow: inset 0 2px 5px rgba(0,0,0,0.55),
+                  inset 0 1px 1px rgba(0,0,0,0.6),
+                  0 0 0 2px rgba(240,168,58,0.18),
+                  0 1px 0 rgba(255,255,255,0.05);
+    }
+    #entryLayer #pvForm input.bad {
+      border-color: rgba(255,92,74,0.9); background: #1a0c10;
+      box-shadow: inset 0 2px 5px rgba(0,0,0,0.55),
+                  inset 0 1px 1px rgba(0,0,0,0.6),
+                  0 0 0 2px rgba(255,92,74,0.22),
+                  0 1px 0 rgba(255,255,255,0.05);
+    }
+    
+    #entryLayer #pvForm .agree {
+      display: flex; align-items: flex-start; gap: 2.2cqw;
+      margin: 3.4cqw 0 0;
+    }
+    #entryLayer #pvForm .agree input[type="checkbox"] {
+      appearance: none; -webkit-appearance: none;
+      flex: 0 0 auto; width: max(18px, 4.6cqw); height: max(18px, 4.6cqw);
+      margin: 0.3cqw 0 0; border-radius: 4px;
+      border: 1px solid rgba(120,170,255,0.4);
+      background: #0a1626;
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.55);
+      cursor: pointer;
+    }
+    #entryLayer #pvForm .agree input[type="checkbox"]:checked {
+      border-color: rgba(240,180,74,0.85);
+      
+      background-color: #f0a83a;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3 8.5l3 3 7-7' fill='none' stroke='%233a2405' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: center; background-size: 70%;
+    }
+    #entryLayer #pvForm .agree input[type="checkbox"].bad {
+      border-color: rgba(255,92,74,0.9);
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.55), 0 0 0 2px rgba(255,92,74,0.22);
+    }
+    
+    #entryLayer #pvForm .agree label {
+      margin: 0; font: 400 max(12px, 3.2cqw)/1.4 system-ui, sans-serif;
+      letter-spacing: 0; text-transform: none;
+      color: rgba(242,234,216,0.78);
+    }
+    
+    #entryLayer #pvForm .agree #btnPrivacyInline {
+      display: inline; margin: 0; padding: 0; border: 0; background: none;
+      font: inherit; color: #ffd66e; text-decoration: underline;
+      text-underline-offset: 2px; cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    
+    #entryLayer #btnSave {
+      display: block; width: 100%; margin: 5.4cqw 0 0; padding: 4.2cqw 0;
+      border: 0; border-radius: 12px; cursor: pointer;
+      background: linear-gradient(180deg, #ffe9a8 0%, #f6c65a 40%,
+                                          #f0a83a 62%, #c77f1f 100%);
+      color: #3a2405;
+      font: 800 max(15px, 4.3cqw)/1 system-ui, sans-serif;
+      letter-spacing: 0.14em; text-indent: 0.14em;
+      box-shadow: 0 4px 0 rgba(94,58,10,0.9), 0 9px 18px rgba(0,0,0,0.5),
+                  inset 0 1px 0 rgba(255,255,255,0.65);
+      -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+    }
+    #entryLayer #btnSave:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 rgba(94,58,10,0.9), 0 4px 10px rgba(0,0,0,0.5),
+                  inset 0 1px 0 rgba(255,255,255,0.65);
+    }
+    
+    #entryLayer #btnSkip,
+    #entryLayer #btnFormInfo {
+      display: block; margin: 0 auto; padding: 1.2cqw 2cqw;
+      border: 0; background: none; cursor: pointer;
+      -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+    }
+    #entryLayer #btnSkip {
+      margin-top: 5.6cqw;
+      font: italic 400 max(13px, 3.4cqw)/1 system-ui, sans-serif;
+      color: rgba(242,234,216,0.8);
+      text-decoration: underline; text-underline-offset: 3px;
+      text-shadow: 0 1px 0 rgba(0,0,0,0.55);
+    }
+    #entryLayer #btnFormInfo {
+      margin-top: 1.6cqw;
+      font: 700 max(11px, 2.9cqw)/1 system-ui, sans-serif;
+      letter-spacing: 0.12em; text-indent: 0.12em;
+      color: rgba(240,180,74,0.7);
+      text-shadow: 0 1px 0 rgba(0,0,0,0.55);
+    }
+    #entryLayer #btnSkip:active, #entryLayer #btnFormInfo:active {
+      color: #ffd66e;
+    }
+    
+    #entryLayer #btnFormX { display: none; }
+    
+    #privacyLayer {
+      position: fixed; inset: 0; z-index: 32;
+      display: flex; align-items: center; justify-content: center;
+      padding: calc(10px + env(safe-area-inset-top, 0px)) 10px
+               calc(10px + env(safe-area-inset-bottom, 0px));
+      background: rgba(6,5,10,0.72);
+    }
+    #privacyLayer[hidden] { display: none; }
+    #privacyCard {
+      position: relative;
+      width: min(92vw, 420px);
+      max-height: calc(100dvh - 24px - env(safe-area-inset-top, 0px)
+                                     - env(safe-area-inset-bottom, 0px));
+      display: flex; flex-direction: column;
+      container-type: inline-size;
+      background: linear-gradient(180deg, #16283f 0%, #0d1b2e 44%, #0a1626 100%);
+      border: 1px solid rgba(240,180,74,0.55);
+      border-radius: 18px;
+      box-shadow: 0 18px 44px rgba(0,0,0,0.72), 0 4px 12px rgba(0,0,0,0.5),
+                  inset 0 1px 0 rgba(255,255,255,0.06);
+      padding: 7cqw 6.4cqw 6cqw;
+      text-align: center;
+    }
+    #privacyCard .kick {
+      font: 700 max(10px, 2.8cqw)/1 system-ui, sans-serif;
+      letter-spacing: 0.42em; text-indent: 0.42em;
+      color: rgba(240,180,74,0.85); text-transform: uppercase;
+      text-shadow: 0 1px 0 rgba(0,0,0,0.55);
+    }
+    #privacyHead {
+      margin: 2.6cqw 0 2.4cqw;
+      font: 800 max(21px, 6.6cqw)/1.05 system-ui, sans-serif;
+      letter-spacing: 0.04em; color: #f0b429;
+      text-shadow: 0 2px 0 rgba(0,0,0,0.45);
+    }
+    #privacyBody {
+      overflow-y: auto; min-height: 0; text-align: left;
+      font: 400 max(12px, 3.2cqw)/1.5 system-ui, sans-serif;
+      color: rgba(242,234,216,0.85);
+      text-shadow: 0 1px 0 rgba(0,0,0,0.45);
+    }
+    #privacyBody p { margin: 0 0 2.8cqw; }
+    #privacyBody b { color: #ffd66e; font-weight: 700; }
+    
+    #privacyBody .rules {
+      margin-top: 3.4cqw; padding-top: 2.8cqw;
+      border-top: 1px solid rgba(240,180,74,0.25);
+      font-style: italic; color: rgba(242,234,216,0.6);
+    }
+    
+    #privacyLayer #btnPrivacyBack {
+      display: block; width: 100%; margin: 4cqw 0 0; padding: 3.4cqw 0;
+      border: 0; border-radius: 12px; cursor: pointer;
+      background: linear-gradient(180deg, #ffe9a8 0%, #f6c65a 40%,
+                                          #f0a83a 62%, #c77f1f 100%);
+      color: #3a2405;
+      font: 800 max(14px, 4cqw)/1 system-ui, sans-serif;
+      letter-spacing: 0.14em; text-indent: 0.14em;
+      box-shadow: 0 4px 0 rgba(94,58,10,0.9), 0 9px 18px rgba(0,0,0,0.5),
+                  inset 0 1px 0 rgba(255,255,255,0.65);
+      -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+    }
+    #privacyLayer #btnPrivacyBack:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 rgba(94,58,10,0.9), 0 4px 10px rgba(0,0,0,0.5),
+                  inset 0 1px 0 rgba(255,255,255,0.65);
+    }
+    
+    #panel .btn.cabOnly { display: none; }
+    
+    #panelCard.cabinet-menu #panelScreen,
+    #panelCard.cabinet-settings #panelScreen { isolation: isolate; }
+    #panelCard.cabinet-menu #panelScreen::after,
+    #panelCard.cabinet-settings #panelScreen::after {
+      content: ''; position: absolute; inset: 0;
+      
+      pointer-events: none;
+      background-repeat: no-repeat;
+      
+      background-size: 100% 100%;
+      mix-blend-mode: screen;
+      
+      animation: glyphglow 3.6s ease-in-out infinite;
+    }
+    
+    #panelCard.cabinet-menu #panelScreen::after { background-image: var(--options-glow); }
+    #panelCard.cabinet-settings #panelScreen::after { background-image: var(--settings-glow); }
+    @keyframes glyphglow {
+      0%, 100% { opacity: 0.26; }
+      50%      { opacity: 1; }
+    }
+    
+    #panelCard.cabinet .pv .btn:active {
+      background: radial-gradient(closest-side,
+                  rgba(255,214,110,0.34), rgba(255,214,110,0) 76%);
+    }
+    
+    @media (prefers-reduced-motion: reduce) {
+      #panelCard.cabinet-menu #panelScreen::after,
+      #panelCard.cabinet-settings #panelScreen::after {
+        animation-name: glyphglowcalm;
+        animation-duration: 7s;
+      }
+      @keyframes glyphglowcalm {
+        0%, 100% { opacity: 0.62; }
+        50%      { opacity: 1; }
+      }
+    }
+    
+    #lbActions .btn.card, #panel .btn.ghost {
+      animation: textglow 3.6s ease-in-out infinite;
+    }
+    @keyframes textglow {
+      0%, 100% { text-shadow: 0 0 0.5cqw rgba(255,255,255,0.35); }
+      50%      { text-shadow: 0 0 0.5cqw rgba(255,255,255,0.95),
+                             0 0 1.6cqw rgba(255,255,255,0.75),
+                             0 0 3.4cqw rgba(255,214,110,0.45); }
+    }
+    
+    #panel .btn.ghost { animation-name: textglowpx; }
+    
+    #panelCard.cabinet .pv .btn { animation: none; }
+    @keyframes textglowpx {
+      0%, 100% { text-shadow: 0 0 2px rgba(255,255,255,0.35); }
+      50%      { text-shadow: 0 0 2px rgba(255,255,255,0.95),
+                             0 0 7px rgba(255,255,255,0.75),
+                             0 0 14px rgba(255,214,110,0.45); }
+    }
+    
+    @media (prefers-reduced-motion: reduce) {
+      #lbActions .btn.card { animation-name: textglowcalm; animation-duration: 7s; }
+      #panel .btn.ghost { animation-name: textglowpxcalm; animation-duration: 7s; }
+      @keyframes textglowcalm {
+        0%, 100% { text-shadow: 0 0 0.5cqw rgba(255,255,255,0.75),
+                               0 0 1.6cqw rgba(255,255,255,0.40); }
+        50%      { text-shadow: 0 0 0.5cqw rgba(255,255,255,0.95),
+                               0 0 1.6cqw rgba(255,255,255,0.75); }
+      }
+      @keyframes textglowpxcalm {
+        0%, 100% { text-shadow: 0 0 2px rgba(255,255,255,0.75),
+                               0 0 7px rgba(255,255,255,0.40); }
+        50%      { text-shadow: 0 0 2px rgba(255,255,255,0.95),
+                               0 0 7px rgba(255,255,255,0.75); }
+      }
+    }
+
+    
+    #entryLayer #formErr {
+      margin: 3.4cqw 0 0; padding: 2.4cqw 3cqw; box-sizing: border-box;
+      border: 1px solid rgba(255,92,74,0.5); border-radius: 8px;
+      background: #24080a; color: #ff8f7a; text-align: center;
+      font: 700 max(12px, 3cqw)/1.3 system-ui, sans-serif;
+      
+      box-shadow: inset 0 2px 5px rgba(0,0,0,0.45),
+                  0 1px 0 rgba(255,255,255,0.05);
+      text-shadow: 0 1px 0 rgba(0,0,0,0.55);
+    }
+    #entryLayer #formErr[hidden] { display: none; }
+
+    
+    
+    #lbActions {
+      position: absolute; left: 2.184%; right: 2.184%;
+      top: 90.723%; height: 8.559%;
+      display: flex; align-items: stretch;
+    }
+    #lbActions .btn.card {
+      flex: 1; margin: 0; padding: 0;
+      display: flex; align-items: center; justify-content: center;
+      font: 800 3.8cqw/1 system-ui, sans-serif; letter-spacing: 0.06em;
+      color: #f7f1e2;
+      background: linear-gradient(180deg, #201c2c 0%, #16131f 60%);
+      border: 0.54cqw solid rgba(255,214,110,0.75); border-radius: 2.17cqw;
+      
+      box-shadow: 0 0.65cqw 0 rgba(0,0,0,0.45),
+                  inset 0 0.3cqw 0 rgba(255,255,255,0.09);
+      cursor: pointer;
+    }
+    #lbActions .btn.card:active {
+      transform: translateY(0.4cqw);
+      box-shadow: 0 0.25cqw 0 rgba(0,0,0,0.45),
+                  inset 0 0.3cqw 0 rgba(255,255,255,0.09);
+    }
+    #lbActions .btn.card:active { transform: translateY(0.33cqw); box-shadow: none; }
+    #lbActions .btn.card[hidden] { display: none; }
+
+    
+    .hp {
+      position: absolute; left: -9999px; top: auto;
+      width: 1px; height: 1px; overflow: hidden;
+    }
+
+    
+    #howIntro {
+      margin: 0 0 12px; font-size: 14px; line-height: 1.4;
+      color: rgba(242,234,216,0.8); text-align: center;
+    }
+    #howList {
+      margin: 0 0 14px; padding: 0; list-style: none;
+      display: flex; flex-direction: column; gap: 9px;
+    }
+    
+    #howList li {
+      display: flex; align-items: center; gap: 11px;
+      background: rgba(20,16,30,0.55);
+      border: 2px solid rgba(255,214,110,0.22);
+      border-radius: 11px; padding: 8px 11px;
+    }
+    
+    #howList .howPair { display: flex; gap: 4px; flex: 0 0 168px; }
+    
+    #howList .howKey {
+      flex: 0 0 168px;
+      display: flex; align-items: center; justify-content: center; gap: 7px;
+    }
+    #howList .howPad {
+      display: flex; align-items: center; justify-content: center;
+      font: 700 15px/1 system-ui, sans-serif; letter-spacing: 0.06em;
+      color: rgba(255,255,255,0.82);
+      border: 2px solid rgba(255,214,110,0.34);
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.13) 0%,
+                                rgba(255,255,255,0.03) 42%,
+                                rgba(0,0,0,0.16) 100%),
+        rgba(18,14,28,0.52);
+      box-shadow:
+        inset 0 1.5px 0 rgba(255,255,255,0.34),
+        inset 0 -2px 0 rgba(0,0,0,0.42),
+        0 3px 0 rgba(0,0,0,0.34);
+      text-shadow: 0 1px 0 rgba(0,0,0,0.55);
+    }
+    
+    #howList .howPad.move {
+      flex: 1 1 0; min-height: 40px; border-radius: 14px;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.16) 0%,
+                                rgba(255,255,255,0.04) 42%,
+                                rgba(0,0,0,0.20) 100%),
+        rgba(18,14,28,0.80);
+      border-color: rgba(255,214,110,0.58);
+      color: rgba(255,255,255,0.96);
+    }
+    
+    #howList .howPad.jump {
+      width: 46px; height: 46px; border-radius: 50%;
+      border-color: rgba(120,220,255,0.45);
+      background: rgba(30,60,90,0.42);
+    }
+    
+    #howList .howPad.dash {
+      width: 40px; height: 40px; border-radius: 50%; font-size: 11px;
+    }
+    
+    #howList figure {
+      position: relative; margin: 0; flex: 1 1 0;
+      border-radius: 8px; overflow: hidden;
+      border: 2px solid rgba(255,214,110,0.28);
+      background: #0b0912; line-height: 0;
+    }
+    #howList .howShot { display: block; width: 100%; height: auto; }
+    #howList .mark {
+      position: absolute; left: 4px; bottom: 3px;
+      font: 800 15px/1 system-ui, sans-serif;
+      text-shadow: 0 0 4px #000, 0 2px 3px #000;
+    }
+    #howList .bad { color: #ff5f52; }
+    #howList .good { color: #57e08a; }
+    #howList .howTxt {
+      flex: 1 1 auto; font-size: 13px; line-height: 1.3;
+      color: rgba(242,234,216,0.9);
+    }
+    #howList .howTxt b {
+      display: block; font: 800 12px/1.25 system-ui, sans-serif;
+      letter-spacing: 0.06em; color: #ffd66e;
+    }
+    
+    @media (max-height: 700px) {
+      #howIntro { margin-bottom: 7px; font-size: 12px; }
+      #howList { gap: 4px; margin-bottom: 10px; }
+      #howList li { padding: 4px 8px; gap: 8px; }
+      #howList .howPair, #howList .howKey { flex-basis: 112px; }
+      #howList .howPad { font-size: 13px; }
+      #howList .howPad.move { min-height: 32px; border-radius: 11px; }
+      #howList .howPad.jump { width: 38px; height: 38px; }
+      #howList .howPad.dash { width: 33px; height: 33px; font-size: 10px; }
+      #howList .howTxt { font-size: 12px; }
+      #howList .howTxt b { font-size: 11px; }
+    }
+    #panel .note { margin: 10px 0; font-size: 13px; color: rgba(242,234,216,0.72); }
+    #panel .note b { color: #ffd66e; font-weight: 700; }
+    #panel .err { margin: 8px 0 0; font-size: 13px; color: #ff8f7a; }
+    #panel label {
+      display: block; margin: 12px 0 0;
+      font: 700 12px/1 system-ui, sans-serif; letter-spacing: 0.07em;
+      color: rgba(242,234,216,0.75);
+      
+      text-shadow: 0 1px 0 rgba(0,0,0,0.55);
+    }
+    #panel label .sub {
+      font-weight: 400; letter-spacing: 0; text-transform: none;
+      color: rgba(242,234,216,0.42);
+    }
+    #panel label .req {
+      font-weight: 700; letter-spacing: 0; text-transform: none;
+      color: rgba(255,143,122,0.85);
+    }
+    
+    #panel ::placeholder { color: rgba(242,234,216,0.38); opacity: 1; }
+    #panel input.bad { border-color: rgba(255,143,122,0.85); }
+    #panel input[type=text], #panel input[type=tel], #panel input[type=email],
+    #panel select {
+      display: block; width: 100%; box-sizing: border-box; margin-top: 6px;
+      padding: 11px 12px;
+      
+      font: 400 16px/1.2 system-ui, sans-serif;
+      color: #f2ead8; background: #0b0913;
+      border: 1px solid rgba(255,214,110,0.28); border-radius: 9px;
+      
+      box-shadow: inset 0 2px 5px rgba(0,0,0,0.55),
+                  inset 0 1px 1px rgba(0,0,0,0.6),
+                  0 1px 0 rgba(255,255,255,0.05);
+    }
+    #panel input:focus, #panel select:focus {
+      outline: none; border-color: rgba(255,214,110,0.75);
+      box-shadow: inset 0 2px 5px rgba(0,0,0,0.55),
+                  inset 0 1px 1px rgba(0,0,0,0.6),
+                  0 0 0 2px rgba(255,214,110,0.18),
+                  0 1px 0 rgba(255,255,255,0.05);
+    }
+    #panel label.row {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 12px; margin-top: 16px;
+    }
+    #panel label.row select { width: auto; margin-top: 0; }
+    #panel label.row input[type=checkbox] { width: 22px; height: 22px; accent-color: #ffd66e; }
+    
+    #panel .btn,
+    #panel button,
+    #panel input,
+    #panel select,
+    #panel label {
+      touch-action: manipulation;
+    }
+    
+    #panel .btn {
+      display: block; width: 100%; margin-top: 12px; padding: 13px;
+      font: 800 14px/1 system-ui, sans-serif; letter-spacing: 0.08em;
+      color: #1a1408;
+      background: linear-gradient(180deg, #ffe9a8 0%, #ffd66e 45%, #f0b03f 100%);
+      border: 0; border-radius: 10px; cursor: pointer;
+      box-shadow: 0 3px 0 rgba(94,58,10,0.85), 0 6px 12px rgba(0,0,0,0.4),
+                  inset 0 1px 0 rgba(255,255,255,0.6);
+    }
+    #panel .btn:active {
+      transform: translateY(2px);
+      box-shadow: 0 1px 0 rgba(94,58,10,0.85), 0 3px 7px rgba(0,0,0,0.4),
+                  inset 0 1px 0 rgba(255,255,255,0.6);
+    }
+    #panel .btn.ghost {
+      color: rgba(242,234,216,0.82);
+      
+      background: linear-gradient(180deg, rgba(255,214,110,0.08),
+                                          rgba(255,214,110,0.02));
+      border: 1px solid rgba(255,214,110,0.32);
+      box-shadow: 0 2px 0 rgba(0,0,0,0.5),
+                  inset 0 1px 0 rgba(255,255,255,0.08);
+    }
+    #panel .btn.ghost:active {
+      transform: translateY(1px);
+      box-shadow: 0 1px 0 rgba(0,0,0,0.5),
+                  inset 0 1px 0 rgba(255,255,255,0.08);
+    }
+    
+    #lbCard {
+      
+      position: relative; aspect-ratio: 784 / 1596;
+      
+      
+      height: min(calc(100dvh - 28px - env(safe-area-inset-top, 0px)
+                       - env(safe-area-inset-bottom, 0px)), 1596px);
+      width: auto; max-width: 100%; margin: 0 auto;
+      container-type: inline-size;
+      background: center/100% 100% no-repeat;   
+      
+      overflow: hidden;
+    }
+    
+    
+    #pvBoard .note {
+      position: absolute; left: 2.184%; right: 2.184%; top: 88.526%;
+      margin: 0; text-align: right;
+      font: 700 2.83cqw/1 ui-monospace, Menlo, Consolas, monospace;
+      color: rgba(255,214,110,0.85); text-shadow: 0 1px 2px rgba(0,0,0,0.85);
+    }
+    #pvBoard .note:empty { display: none; }
+    #board { margin: 0; padding: 0; list-style: none; }
+    #board li {
+      position: absolute; left: 0; right: 0; height: 4.78cqw;
+      display: flex; align-items: center;
+      
+      font: 700 4.35cqw/1 ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+      letter-spacing: 0.06em; font-variant-numeric: tabular-nums;
+      color: #cfcabf; text-shadow: 0 0.27cqw 0 rgba(0,0,0,0.55);
+    }
+    #board li .r { position: absolute; left: 9.465%; }
+    #board li .n {
+      position: absolute; left: 26.744%; right: 9.791%;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    #board li .s { position: absolute; right: 8.704%; }
+    
+    #board li:first-child, #board li.me { color: #f0b429; }
+    #lbYou {
+      position: absolute; left: 0; right: 0; top: 82.742%; height: 5.65cqw;
+      display: flex; align-items: center;
+      font: 700 4.78cqw/1 ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+      letter-spacing: 0.06em; font-variant-numeric: tabular-nums;
+      color: #f0b429; text-shadow: 0 0.27cqw 0 rgba(0,0,0,0.55);
+    }
+    #lbYou .r { position: absolute; left: 9.465%; }
+    #lbYou .n { position: absolute; left: 26.744%; right: 9.791%;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #lbYou .s { position: absolute; right: 8.704%; }
+    #lbEmpty {
+      position: absolute; left: 4.357%; right: 4.357%; top: 56.718%; margin: 0;
+      text-align: center; color: rgba(242,234,216,0.62);
+      font: 600 3.69cqw/1.5 ui-monospace, Menlo, monospace; letter-spacing: 0.04em;
+    }
+
+    
+    @media (orientation: landscape) and (max-height: 560px) {
+      
+      
+      #tL, #tR { width: 64px; height: 64px; bottom: calc(28px + env(safe-area-inset-bottom, 0px)); }
+      #tL { left: calc(6px + env(safe-area-inset-left, 0px)); }
+      #tR { left: calc(84px + env(safe-area-inset-left, 0px)); }
+      #tJump { width: 78px; height: 78px; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); }
+      #tDash { width: 62px; height: 62px; bottom: calc(96px + env(safe-area-inset-bottom, 0px)); }
+    }
+  </style>
+  <script type="module" crossorigin src="./assets/index-CIQb6ex3.js"></script>
+</head>
+<body>
+  <canvas id="game"></canvas>
+
+  
+  <div id="safe" aria-hidden="true" style="
+    position: fixed; top: 0; left: 0; width: 1px; height: 1px;
+    pointer-events: none; visibility: hidden;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    padding-left: env(safe-area-inset-left, 0px);"></div>
+
+  <div id="touch" aria-hidden="true">
+    <div class="pad move" id="tL" data-act="left">◀</div>
+    <div class="pad move" id="tR" data-act="right">▶</div>
+    <div class="pad" id="tDash" data-act="dash">DASH</div>
+    <div class="pad" id="tJump" data-act="jump">JUMP</div>
+  </div>
+
+  
+  <div id="panel" hidden>
+    <div id="panelCard" role="dialog" aria-modal="true" aria-labelledby="panelTitle">
+      
+      <div id="panelScreen">
+      <h2 id="panelTitle">LEADERBOARD</h2>
+
+      
+      <div id="pvMenu" class="pv" hidden>
+        <button class="btn" id="btnMenuBoard" type="button">LEADERBOARD</button>
+        <button class="btn" id="btnMenuHow" type="button">HOW TO PLAY</button>
+        <button class="btn ghost" id="btnMenuSettings" type="button">SETTINGS</button>
+        <button class="btn ghost" id="btnMenuClose" type="button">BACK TO GAME</button>
+      </div>
+
+      <div id="pvHow" class="pv" hidden>
+        
+        <p id="howIntro">Get to the show with the money.</p>
+        <ul id="howList">
+          
+          <li>
+            <span class="howKey"><span class="howPad move">◀</span><span class="howPad move">▶</span></span>
+            <span class="howTxt">Move</span>
+          </li>
+          <li>
+            <span class="howKey"><span class="howPad jump">JUMP</span></span>
+            <span class="howTxt">Jump &mdash; twice for a double jump</span>
+          </li>
+          
+          <li>
+            <span class="howKey"><span class="howPad dash">DASH</span></span>
+            <span class="howTxt">Roll past trouble. Can&rsquo;t be hit.</span>
+          </li>
+          <li>
+            <span class="howPair">
+              <figure><img class="howShot" data-shot="pothole-bad" alt="Stepping into a pothole" /><span class="mark bad">✕</span></figure>
+              <figure><img class="howShot" data-shot="pothole-good" alt="Jumping the pothole" /><span class="mark good">✓</span></figure>
+            </span>
+            <span class="howTxt"><b>POTHOLE</b>Jump it.</span>
+          </li>
+          <li>
+            <span class="howPair">
+              <figure><img class="howShot" data-shot="manhole-bad" alt="Falling into an open manhole" /><span class="mark bad">✕</span></figure>
+              <figure><img class="howShot" data-shot="manhole-good" alt="Jumping the manhole" /><span class="mark good">✓</span></figure>
+            </span>
+            <span class="howTxt"><b>MANHOLE</b>Jump it.</span>
+          </li>
+          <li>
+            <span class="howPair">
+              <figure><img class="howShot" data-shot="ninja-bad" alt="Walking into a street ninja" /><span class="mark bad">✕</span></figure>
+              <figure><img class="howShot" data-shot="ninja-good" alt="Landing on the ninja's head" /><span class="mark good">✓</span></figure>
+            </span>
+            <span class="howTxt"><b>NINJA</b>Jump on him. +$50</span>
+          </li>
+          <li>
+            <span class="howPair">
+              <figure><img class="howShot" data-shot="champagne-bad" alt="Running past the champagne" /><span class="mark bad">✕</span></figure>
+              <figure><img class="howShot" data-shot="champagne-good" alt="Grabbing the champagne" /><span class="mark good">✓</span></figure>
+            </span>
+            <span class="howTxt"><b>CHAMPAGNE</b>Double money, 9 seconds.</span>
+          </li>
+        </ul>
+        <button class="btn ghost" id="btnHowBack" type="button">BACK</button>
+      </div>
+
+      <div id="pvBoard" class="pv">
+        <div id="lbCard">
+          <ol id="board"></ol>
+          <div id="lbYou" hidden><span class="r"></span><span class="n"></span><span class="s"></span></div>
+          <p id="lbEmpty" hidden></p>
+          
+          <p id="boardNote" class="note"></p>
+          
+          <div id="lbActions">
+            <button class="btn card" id="btnRegister" type="button">ENTER THE CONTEST</button>
+            <button class="btn card" id="btnShare" type="button">SHARE MY SCORE</button>
+            <button class="btn card" id="btnBoardBack" type="button">BACK</button>
+          </div>
+        </div>
+        
+        
+        
+      </div>
+
+      <div id="pvSettings" class="pv" hidden>
+        
+        <label class="row"><span>MUSIC</span>
+          <input id="sSound" type="checkbox" checked /></label>
+        <label class="row"><span>SOUND EFFECTS</span>
+          <input id="sSfx" type="checkbox" checked /></label>
+        <label class="row"><span>VIBRATION</span>
+          <input id="sHaptics" type="checkbox" checked /></label>
+        <p class="note" id="hapticsNote" hidden></p>
+        <label class="row"><span>TIME OF DAY</span>
+          
+          <select id="sTod">
+            <option value="atl">Atlanta time</option>
+            <option value="day">Always day</option>
+            <option value="night">Always night</option>
+            <option value="local">My local time</option>
+          </select></label>
+        <p class="note" id="todNote"></p>
+        <button class="btn ghost" id="btnBack" type="button">BACK</button>
+      </div>
+      </div>
+    </div>
+
+  </div>
+
+  
+    
+    <div id="entryLayer" hidden>
+      <div id="entryPlate">
+        
+        <div id="entryLogo" aria-hidden="true"></div>
+        <div id="pvForm" class="pv" hidden>
+          
+          <div class="kick" aria-hidden="true">WILL HILL · PLAYER ONE</div>
+          <h2 id="entryHead">ENTER THE CONTEST</h2>
+          
+
+          
+          <label>NAME <span class="req">required</span> <span class="sub">shown publicly</span>
+            <input id="fName" type="text" maxlength="16" autocomplete="nickname" required
+                   enterkeyhint="next" placeholder="The name on the leaderboard" />
+          </label>
+          <label>PHONE <span class="req">required</span> <span class="sub">private</span>
+            <input id="fPhone" type="tel" inputmode="tel" maxlength="20" required
+                   autocomplete="tel" enterkeyhint="next"
+                   placeholder="10 digits — how we reach a winner" />
+          </label>
+          <label>EMAIL <span class="req">required</span> <span class="sub">private</span>
+            <input id="fEmail" type="email" inputmode="email" maxlength="128" required
+                   autocomplete="email" enterkeyhint="done"
+                   placeholder="Backup contact, never shown" />
+          </label>
+          
+          <div class="hp" aria-hidden="true">
+            <label>Website
+              <input id="fWebsite" type="text" tabindex="-1" autocomplete="off" />
+            </label>
+          </div>
+          
+          <div class="agree">
+            <input id="fAgree" type="checkbox" />
+            <label for="fAgree">I agree to the
+              <button type="button" id="btnPrivacyInline">Privacy Policy</button>
+            </label>
+          </div>
+          <p id="formErr" class="err" hidden></p>
+          <button class="btn" id="btnSave" type="button">SAVE &amp; ENTER</button>
+          
+          <button class="btn ghost" id="btnSkip" type="button">play without entering</button>
+          
+          <button class="btn cabOnly" id="btnFormX" type="button">CANCEL</button>
+          
+          <button class="btn cabOnly" id="btnFormInfo" type="button">PRIVACY POLICY</button>
+        </div>
+      </div>
+    </div>
+    
+    <div id="privacyLayer" hidden>
+      <div id="privacyCard">
+        <div class="kick" aria-hidden="true">WILL HILL · PLAYER ONE</div>
+        <h2 id="privacyHead">PRIVACY POLICY</h2>
+        <div id="privacyBody">
+          <p><b>What we collect.</b> Your display name, which is shown
+          publicly on the leaderboard — that is its whole job. Your phone
+          number and email, which stay private: they are used only to reach
+          you if you win, and are never displayed, sold, or shared. And your
+          game results — scores and run stats — used to run the contest and
+          tune the game.</p>
+          <p><b>On your device.</b> Your settings and your local best scores
+          live in your own browser's storage on your phone. Clearing the
+          site's data removes them.</p>
+          <p><b>What we don't do.</b> No ads, no trackers, no selling or
+          sharing your information with anyone.</p>
+          <p><b>Removal.</b> Want your entry and info deleted? Email
+          <b>therareagency@gmail.com</b> and it's gone.</p>
+          <p class="rules">Contest rules and prize details are announced on
+          Will Hill's official channels.</p>
+        </div>
+        <button class="btn" id="btnPrivacyBack" type="button">BACK</button>
+      </div>
+    </div>
+
+  
+  <script>
+    for (const t of ['gesturestart', 'gesturechange', 'gestureend']) {
+      document.addEventListener(t, (e) => e.preventDefault(), { passive: false });
+    }
+    document.addEventListener('touchmove', (e) => {
+      if (e.touches.length > 1) e.preventDefault();
+    }, { passive: false });
+    // And the OTHER magnifier: iOS zooms the whole page when a field smaller
+    // than 16px takes focus, then leaves it zoomed. The sign-up inputs size
+    // themselves off the cabinet so they sit in his painted boxes, which puts
+    // them under 16px on a small phone. Rather than break his layout with a
+    // 16px floor, the viewport is pinned at the moment of focus and released
+    // on blur — Safari only re-zooms on a fresh focus, so a locked scale
+    // during that window is enough.
+    const vp = document.querySelector('meta[name=viewport]');
+    const BASE = vp && vp.content;
+    document.addEventListener('focusin', (e) => {
+      if (vp && e.target && e.target.matches('input, select, textarea')) {
+        vp.content = BASE + ', maximum-scale=1.0';
+      }
+    });
+    document.addEventListener('focusout', () => { if (vp) vp.content = BASE; });
+  </script>
+</body>
+</html>
