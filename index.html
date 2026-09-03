@@ -862,6 +862,65 @@
                   0 0 0 2px rgba(255,92,74,0.22),
                   0 1px 0 rgba(255,255,255,0.05);
     }
+    /* ── THE AGREEMENT ROW ─────────────────────────────────────────────
+       A real HTML checkbox, not a painted control — this is a legal
+       acknowledgement, not a game button, and needs the accessibility a
+       native input already provides for free (space to toggle, a screen
+       reader announcing checked state). Sized like a thumb target even
+       though the box itself is small, because the LABEL is the target too. */
+    #entryLayer #pvForm .agree {
+      display: flex; align-items: flex-start; gap: 2.2cqw;
+      margin: 3.4cqw 0 0;
+    }
+    #entryLayer #pvForm .agree input[type="checkbox"] {
+      appearance: none; -webkit-appearance: none;
+      flex: 0 0 auto; width: max(18px, 4.6cqw); height: max(18px, 4.6cqw);
+      margin: 0.3cqw 0 0; border-radius: 4px;
+      border: 1px solid rgba(120,170,255,0.4);
+      background: #0a1626;
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.55);
+      cursor: pointer;
+    }
+    #entryLayer #pvForm .agree input[type="checkbox"]:checked {
+      border-color: rgba(240,180,74,0.85);
+      /* ⚠️ background-color/-image AS LONGHANDS, NOT THE SHORTHAND. A first
+         version set `background: linear-gradient(...)` and then
+         `background-image: url(svg)` right after it — the second longhand
+         doesn't LAYER onto the shorthand, it replaces the image the
+         shorthand had just set, and the shorthand's own reset drops
+         background-color to transparent in the same breath. Net result: a
+         checkmark with no gold fill behind it, found by zooming into a
+         screenshot the eye alone would have called "checked" and moved on
+         from. Flat gold color is legible at 18px anyway — no gradient
+         needed at this size.
+         A gold check mark drawn in a tiny inline SVG rather than a font
+         glyph — nothing here loads an icon font, and this is one shape. */
+      background-color: #f0a83a;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3 8.5l3 3 7-7' fill='none' stroke='%233a2405' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: center; background-size: 70%;
+    }
+    #entryLayer #pvForm .agree input[type="checkbox"].bad {
+      border-color: rgba(255,92,74,0.9);
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.55), 0 0 0 2px rgba(255,92,74,0.22);
+    }
+    /* ⚠️ #pvForm IN THE SELECTOR IS NOT DECORATION — it is what wins the
+       specificity fight against `#entryLayer #pvForm label` (two IDs), the
+       rule NAME/PHONE/EMAIL use. Without it this label inherits their bold,
+       letter-spaced, uppercase-reading treatment; consent text needs to
+       read as a sentence, not a field caption. */
+    #entryLayer #pvForm .agree label {
+      margin: 0; font: 400 max(12px, 3.2cqw)/1.4 system-ui, sans-serif;
+      letter-spacing: 0; text-transform: none;
+      color: rgba(242,234,216,0.78);
+    }
+    /* The link lives IN the label but reads as a link, not as label text —
+       gold and underlined, same voice as the Jandé skip line below SAVE. */
+    #entryLayer #pvForm .agree #btnPrivacyInline {
+      display: inline; margin: 0; padding: 0; border: 0; background: none;
+      font: inherit; color: #ffd66e; text-decoration: underline;
+      text-underline-offset: 2px; cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
     /* ── ONE GLOSSY GOLD BUTTON, LIKE HIS ─────────────────────────────
        The Jandé card's single call to action, in this game's amber. The
        bevel is the shadow stack: a hard 4px ledge under it, a soft drop
@@ -1932,6 +1991,22 @@
           <div class="hp" aria-hidden="true">
             <label>Website
               <input id="fWebsite" type="text" tabindex="-1" autocomplete="off" />
+            </label>
+          </div>
+          <!-- ── THE AGREEMENT, AND SAVE REFUSES WITHOUT IT ────────────────
+               Client: "add a checkbox next to privacy policy. Can't submit
+               without agreeing to privacy policy." A real checkbox, not the
+               bottom link doing double duty — the link OPENS the policy,
+               this SAYS you read it. The word "Privacy Policy" inside the
+               label is its own button so a tap on the words opens the popup
+               without toggling the box underneath (a label's default click-
+               forwarding skips any interactive child — button, link, input —
+               so this nesting is the standard-safe way to do it, not a
+               fragile one). -->
+          <div class="agree">
+            <input id="fAgree" type="checkbox" />
+            <label for="fAgree">I agree to the
+              <button type="button" id="btnPrivacyInline">Privacy Policy</button>
             </label>
           </div>
           <p id="formErr" class="err" hidden></p>

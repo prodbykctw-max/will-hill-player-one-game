@@ -139,6 +139,16 @@ function emailProblem(v) {
   return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(s) ? null : 'That is not an email address.';
 }
 
+// ⚠️ NOT SAVED, CHECKED FRESH EVERY TIME. Client: "can't submit without
+// agreeing to privacy policy." The box could persist across visits like the
+// name/phone/email do — it deliberately does not: an explicit box ticked at
+// THIS submission is what "agreeing" means, and a checkbox that arrives
+// pre-checked from a stored flag is not that. fillForm() clears it every
+// time the card opens.
+function agreeProblem(checked) {
+  return checked ? null : 'Check the box to agree to the Privacy Policy first.';
+}
+
 export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
   onSfxChange, onHapticsChange, haptics, audio, isPendingRun }) {
   const el = $('panel');
@@ -287,7 +297,15 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
     // ⚠️ THE PANEL IS CLOSED UNDER THE FORM, NOT SHOWING A BASE VIEW. `open`
     // stays true so Escape and the api still behave; only the element hides.
     if (el) el.hidden = overlay || !open;
-    if (overlay) return;
+    // ⚠️ FOUND BUILDING THE AGREEMENT CHECKBOX, AND IT PREDATES IT.
+    // `fillForm()` used to be called at the BOTTOM of this function, past
+    // this same early return — dead code, because `overlay` is always true
+    // when this branch is taken and always false past it. Nothing has ever
+    // reset the .bad flags from a failed attempt, repopulated a returning
+    // registrant's name/phone/email, or (now) unchecked the agreement box
+    // on a fresh open. Silent because nothing regressed to notice: a first
+    // open of a blank form looks identical whether or not fillForm() ran.
+    if (overlay) { fillForm(); return; }
     for (const [k, v] of Object.entries(views)) if (v) v.hidden = k !== view;
     // ── THE BOARD IS THE TICKET, NOT A TICKET INSIDE A BOX ───────────────
     //
@@ -367,7 +385,6 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
     if (view === 'how' && overlay === false && flow === 'start') markHowToSeen();
     if (view === 'how') fillHow();
     if (view === 'board') fillBoard();
-    if (overlay) fillForm();
     if (view === 'settings') fillSettings();
   }
 
@@ -522,10 +539,13 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
     // NOW, then re-opening left a field still flagged with no message beside
     // it saying why. In the plain panel that was a one-pixel tint; in the
     // cabinet it is a red field sitting on his artwork.
-    for (const id of ['fName', 'fPhone', 'fEmail']) $(id).classList.remove('bad');
+    for (const id of ['fName', 'fPhone', 'fEmail', 'fAgree']) $(id).classList.remove('bad');
     n.value = lbName() === 'PLAYER ONE' ? '' : lbName();
     $('fPhone').value = reg.phone || '';
     $('fEmail').value = reg.email || '';
+    // Unchecked every time the card opens — see the note on agreeProblem().
+    const agree = $('fAgree');
+    if (agree) agree.checked = false;
     $('formErr').hidden = true;
   }
 
@@ -537,6 +557,10 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
       ['fName', nameProblem($('fName').value)],
       ['fPhone', phoneProblem($('fPhone').value)],
       ['fEmail', emailProblem($('fEmail').value)],
+      // Last on purpose: fix what you typed before being told to agree to
+      // something, so a first-time visitor sees name/phone/email problems
+      // (if any) before the consent gate.
+      ['fAgree', agreeProblem($('fAgree')?.checked)],
     ];
     for (const [id] of checks) $(id).classList.remove('bad');
     const bad = checks.find(([, problem]) => problem);
@@ -778,7 +802,21 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
   // it opens its own card a layer above the form, and BACK just closes the
   // layer — the form is still there underneath, untouched, mid-typing and
   // all.
-  on('btnFormInfo', 'press', () => { const pl = $('privacyLayer'); if (pl) pl.hidden = false; });
+  const openPrivacy = () => { const pl = $('privacyLayer'); if (pl) pl.hidden = false; };
+  on('btnFormInfo', 'press', openPrivacy);
+  // ⚠️ THE INLINE LINK OPENS THE SAME CARD, IT DOES NOT TOGGLE THE CHECKBOX.
+  // It lives inside <label for="fAgree">, and a nested interactive element
+  // (button/link/input) is exactly what a label's default click-forwarding
+  // skips — only a click on plain label TEXT reaches the checkbox. `on()`
+  // never hands its callback the event object (every other button here is
+  // fire-and-forget), so this one is wired directly to get a real event to
+  // stop — belt and suspenders over relying on the browser's default alone.
+  // entryfit's agreement checks assert both directions.
+  $('btnPrivacyInline')?.addEventListener('click', (e) => {
+    e.preventDefault(); e.stopPropagation();
+    feedback.press();
+    openPrivacy();
+  });
   on('btnPrivacyBack', 'back', () => { const pl = $('privacyLayer'); if (pl) pl.hidden = true; });
   haptics?.attachAll?.($('privacyLayer'));
   // ⚠️ DO NOT LET A TAP MOVE THE CARD OUT FROM UNDER THE THUMB.

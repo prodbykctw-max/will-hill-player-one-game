@@ -140,13 +140,16 @@ ok(runs === 1, 'a tap fires the handler exactly once, not twice', 'runs=' + runs
 await page.evaluate(() => { const pl = document.getElementById('privacyLayer'); if (pl) pl.hidden = true; });
 
 // The switch toggling must not be mistaken for a form control by anything
-// that walks the panel — the sign-up form posts three fields, not four.
+// that walks the panel — the sign-up form posts three fields plus the
+// honeypot plus, now, the agreement checkbox — five, not four.
+// tools/harness/agreegate.mjs owns fAgree's own behaviour; this only
+// guards against the count silently growing again unnoticed.
 await page.evaluate(() => window.__panel && window.__panel.open('form'));
 await page.waitForTimeout(250);
 ok(await page.evaluate(() =>
   [...document.querySelectorAll('#pvForm input')]
-    .filter((i) => !i.dataset.haptic && i.type !== 'hidden').length === 4),
-'the form still has its own four inputs and no more',
+    .filter((i) => !i.dataset.haptic && i.type !== 'hidden').length === 5),
+'the form still has its own five inputs and no more',
   await page.evaluate(() => [...document.querySelectorAll('#pvForm input')]
     .filter((i) => !i.dataset.haptic).length) + ' non-haptic inputs');
 

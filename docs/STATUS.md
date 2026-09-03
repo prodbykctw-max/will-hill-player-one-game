@@ -119,6 +119,63 @@ localStorage cannot brick boot, and re-encoding the art is off the table
 (WebP q85 visibly damages the dither — measured).
 
 
+### Can't submit without agreeing to the Privacy Policy — and a real latent bug found on the way
+
+Client: "add a checkbox next to privacy policy. Can't submit without
+agreeing to privacy policy." Built as a real `<input type="checkbox">`
+(`#fAgree`), last check in `save()`'s validation order — content errors
+(name/phone/email) still surface first, the consent gate last — so SAVE
+refuses and focuses the box with "Check the box to agree to the Privacy
+Policy first." if it's unticked. The words "Privacy Policy" inside the
+label are their own `<button>` (`#btnPrivacyInline`) that opens the same
+`#privacyLayer` popup the bottom link does — nested INTERACTIVE elements
+inside a `<label>` don't forward their click to the labelled control (only
+plain label text does), so tapping the words opens the policy without
+also silently checking the box; wired with a real, non-`on()`-helper click
+listener (`preventDefault`+`stopPropagation`) since `on()` never hands its
+callback the event object anyway. New harness `agreegate.mjs` (11 ×3
+green) proves this with a REAL `p.click()` at real coordinates, not a
+synthetic dispatch — the only thing that can catch a label routing a click
+to the wrong control.
+
+**Two real bugs fell out of building this, both fixed:**
+1. `fillForm()` — which clears `.bad` field flags, repopulates a returning
+   registrant's name/phone/email, and now unchecks the agreement box —
+   had been **dead code since some earlier round**: its call sat past an
+   early `return` in `show()` that fires whenever the form overlay opens,
+   so it could never run. Silent because a first-ever open of a blank form
+   looks identical whether or not it ran; found because THIS feature
+   needed the box to reset on every open and it wasn't. Moved the call
+   above the return; the second, now-doubly-dead call site removed.
+2. The `:checked` checkmark's gold fill — `background: linear-gradient(...)`
+   followed by `background-image: url(svg)` in the same rule doesn't
+   layer the two; the longhand replaces the shorthand's image and the
+   shorthand's own reset drops `background-color` to transparent in the
+   same breath. `.checked` read `true` in the DOM the whole time; only a
+   zoomed screenshot showed the box painting no gold behind the check
+   mark. Split into explicit `background-color` + `background-image`
+   longhands; `agreegate.mjs` now reads the COMPUTED background back
+   rather than trusting `.checked` alone, so this class of bug can't
+   regress silently again.
+
+Regression: entryfit 72 ×3, hapticbtn 26 (its own four-inputs count moved
+to five — fAgree is a real fifth field now), entrypaths 9 (checks the box
+before SAVE), outbox 20, relayboard 10, share 12, statsync 7, finishrun 15,
+betweenscreens 22, optionsmenu 31, panelnav 16, startflow 23 — all green.
+
+**Parked, per the client's own words ("let's discuss these before we
+act"):** whether the current Privacy Policy popup is legally sufficient as
+a combined privacy + contest terms-and-conditions acknowledgement for a
+real-prize contest — it is privacy-only today (what's collected, on-device
+storage, no selling, removal contact); a binding contest T&C typically
+also needs eligibility (age/geography), no-purchase-necessary language,
+prize description, winner selection/notification method, a liability/
+publicity release, and governing law — none of which this session should
+invent unconfirmed. Also parked: the stage-5 difficulty rebalance ("Buckhead
+no harder than L5P, reduced ~50%, even progressive ramp across all five") —
+measured and proposed, not yet touched in `stages.js`, awaiting the
+client's confirmation on the exact target.
+
 ### The finish line banks, and the form's third link is the PRIVACY POLICY
 
 Two client decisions in one round, discussed before building ("let's

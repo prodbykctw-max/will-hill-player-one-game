@@ -108,6 +108,7 @@ async function play(p) {
   await p.fill('#fName', 'AFTERGUY');
   await p.fill('#fPhone', '4045550102');
   await p.fill('#fEmail', 'after@example.com');
+  await p.click('#fAgree');   // SAVE refuses without it — see agreegate.mjs
   await p.click('#btnSave');
   await p.waitForTimeout(500);
   const posts = await p.evaluate(() => window.__posts);
