@@ -119,6 +119,46 @@ localStorage cannot brick boot, and re-encoding the art is off the table
 (WebP q85 visibly damages the dither — measured).
 
 
+### Buckhead's difficulty — corrected to a half-step, not a level swap
+
+Client, discussing before acting: first said "Buckhead reduced by 50%, not
+L5P" (confirming stage 4 stays untouched), then corrected the SHAPE of the
+50% once he saw the first proposal: *"Buckhead should still be harder than
+the previous stage... evenly, balanced, progressive... reducing that by
+50%, no other stage should be adjusted."*
+
+**What shipped first and got reverted:** Buckhead's recipe set to
+Underground's (stage 3) numbers exactly — a literal reading of "cut the
+climb above baseline in half" that happened to land precisely on an
+existing stage. Mathematically clean, but wrong shape: it made stage 5
+*easier* than stage 4, a step BACKWARD in the run rather than a gentler
+step forward.
+
+**What actually shipped:** Buckhead = L5P + HALF of the fixed per-stage
+step every earlier stage took (+0.018/+0.02/+0.036/+0.05/+0.054 was the
+full step; Buckhead gets half of each). Still strictly harder than L5P —
+the climb keeps going — just at half the rate, so it reads as an eased
+finale rather than a fifth full escalation. `gapMax` holds at L5P's own 4
+rather than halving to a meaningless fraction. Stages 1-4 untouched, per
+his word. Measured result: 35 enemies placed vs. L5P's 33 (was 37 under
+the old full-step recipe) — a small, deliberate bump, not a spike.
+
+`bags: 25` is untouched (separate, already-derived score-ceiling decision)
+but `enemy` density DOES feed that ceiling through the real generated
+levels, so `ceiling.mjs` was re-run rather than assumed safe: perfect run
+holds at **66,900** (coincidence of the arithmetic — stomps -100, doubled
+bags +100), flawless-no-bottle **49,500** (was 49,600), both invariants
+intact with room to spare. The derivation comment and table in
+`leaderboard.js` were stale from an even older 4-stage/61,650 era and are
+now corrected to match (140 enemies, 174 doubled bags, 66,900 total).
+
+Full sweep re-run and green: ceiling 17 ×3, finishrun 15, relay, stageflag
+8, cloudseal 15, endcue 13, relayboard 10, skyleak 5, pitsky 10, deferboot
+12 ×3 (needed the preview server up), stagesweep (strip generator, no
+assertions). `relaytod`'s "PRESS START is" flake was investigated by A/B
+against the pre-change tree — it fails at a similar rate either side (a
+fixed 1700ms wait in the harness, not a regression) and was left alone.
+
 ### Can't submit without agreeing to the Privacy Policy — and a real latent bug found on the way
 
 Client: "add a checkbox next to privacy policy. Can't submit without

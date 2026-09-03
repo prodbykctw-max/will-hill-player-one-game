@@ -226,10 +226,10 @@ const LOCAL_KEY = 'wh_local_runs';
 // measured 4.80 px/tick) rather than assuming an average density.
 //
 //   425 bags at 100                                       42,500
-//   142 masked enemies stomped at 50                      +7,100
-//   ── flawless with no bottle at all                      49,600
-//   173 of those bags doubled, bottles where they sit     +17,300
-//   ── PERFECT RUN, as the map is built                    61,650
+//   140 masked enemies stomped at 50                      +7,000
+//   ── flawless with no bottle at all                      49,500
+//   174 of those bags doubled, bottles where they sit     +17,400
+//   ── PERFECT RUN, as the map is built                    66,900
 //
 // (The ENEMIES are the masked hoodie figures — docs/GDD.md "Enemy design",
 // three palette variants, the only thing in the game worth 50. They are not
@@ -239,9 +239,9 @@ const LOCAL_KEY = 'wh_local_runs';
 //
 // So the watermark sits at 74.7% of a perfect run. Note the middle line: even
 // with 425 bags, a flawless run that never touches a bottle tops out at
-// 49,600 — SO 50,000 STILL CANNOT BE REACHED WITHOUT THE DOUBLER. That was
+// 49,500 — SO 50,000 STILL CANNOT BE REACHED WITHOUT THE DOUBLER. That was
 // true at 379 bags, survived the raise to 400, and survives the Buckhead
-// finale BY 400 POINTS — which is why the finale's quota is 25 and not the
+// finale BY 500 POINTS — which is why the finale's quota is 25 and not the
 // ramp's natural 117: the property worth protecting is that the champagne
 // matters at the top of the board, and ceiling.mjs grades it directly now
 // ("the doubler is what closes the gap").

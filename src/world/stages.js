@@ -1455,20 +1455,40 @@ const STAGE_DEFS = [
       kinds: ['conduit', 'water', 'sewer', 'rats', 'footings'],
     },
     enemyVariants: ['a', 'b', 'c'],
-    // The ramp continues its +30 columns; the recipe keeps every step's
-    // direction (position carries difficulty, identity does not).
+    // The COURSE keeps growing (+30 columns, same as every earlier step —
+    // length is not what this section is about); the RECIPE below does not.
     stageEnd: 480,
-    // ⚠️ bags: 25, DELIBERATELY OFF THE +7 PATTERN — and measured DOWN from a
-    // first guess of 30. Three ceilings bind, and ceiling.mjs graded all of
-    // them: the DEPLOYED worker's MAX_LEGIT_SCORE 70000 (perfect run measures
-    // 67,600 — no live worker change needed), bags alone must not clear the
-    // 50,000 champagne watermark (425 bags = 42,500), and — the one that
-    // caught the 30 — a FLAWLESS NO-BOTTLE run must not clear it either:
-    // at 30 bags it hit 50,100, one hundred over, and the doubler stopped
-    // being what closes the gap. 25 puts it at 49,600. The finale is the
-    // show, not the payday. Re-derive with tools/harness/ceiling.mjs before
-    // changing this.
-    recipe: { gap: 0.144, plat: 0.28, haz: 0.45, gapMax: 4, vert: 0.45, enemy: 0.486, bags: 25 },
+    // ── DIFFICULTY: A HALF-STEP, NOT A FULL ONE — client, discussed first ──
+    // First pass here set Buckhead to Underground's (stage 3) numbers —
+    // "reduced by 50%" read literally as cutting the naive continuation's
+    // climb above baseline in half. Client corrected the shape, not the
+    // number: "Buckhead should still be harder than the previous stage...
+    // evenly, balanced, progressive... reducing that by 50%, no other stage
+    // should be adjusted." Landing ON Underground made stage 5 a step BACK
+    // from stage 4 — the wrong direction, whatever the percentage.
+    //
+    // Stages 1-4 are a measured, exactly even ramp — gap/plat/haz/vert/enemy
+    // each step by one fixed amount per stage (+0.018 / +0.02 / +0.036 /
+    // +0.05 / +0.054). This recipe USED TO take that same full step past
+    // L5P, which made the finale the hardest stage in the game. The
+    // corrected read of "50%" is the STEP SIZE, not the destination:
+    // Buckhead = L5P + HALF of the normal step, on every continuous field.
+    // Still strictly harder than L5P (the progression keeps climbing,
+    // satisfying "still be harder than the previous stage"), just at half
+    // the rate every earlier step took (satisfying "reduced by 50%" without
+    // reading as an obvious spike or an obvious dip). Stages 1-4 are
+    // untouched, exactly as asked.
+    //
+    // gapMax holds at L5P's own 4 rather than being halved to a fractional,
+    // meaningless value — the continuous fields carry the half-step signal;
+    // this coarse integer cap simply doesn't climb again this time.
+    //
+    // ⚠️ bags STAYS AT 25, a separate decision protecting the contest's
+    // score ceiling — but `enemy` (spawn density) DOES feed that ceiling
+    // through the actual generated levels, so any recipe change here must
+    // be re-verified with tools/harness/ceiling.mjs, not assumed safe.
+    // Re-run before changing any of the six values below.
+    recipe: { gap: 0.135, plat: 0.27, haz: 0.432, gapMax: 4, vert: 0.425, enemy: 0.459, bags: 25 },
   },
 ];
 
