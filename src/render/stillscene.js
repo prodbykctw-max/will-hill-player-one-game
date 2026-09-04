@@ -290,10 +290,37 @@ export function createStillScene(ctx, canvas) {
       // available — the plate has to touch y=0 — so it is expressed directly:
       // move the painting DOWN until row `safe.top` clears the inset.
       if (safe && dy + safe.top * s < reserve) dy = reserve - safe.top * s;
+      // ── AND THE SAME QUESTION AT THE FOOT, FOR A PAINTED CONTROL ──────
+      //
+      // Client, ending-screen screenshot: his RESTART button — baked into
+      // the plate at a fixed row, same as PRESS START used to be — sliced
+      // off at the bottom of an installed PWA. reservedTop() has always had
+      // a bottom-side twin (reservedBottom(), used by title.js to place its
+      // OWN drawn controls above the home indicator) but nothing here ever
+      // asked it about a control that is IN the artwork rather than drawn
+      // over it. Same fix, same direction: move the painting UP until
+      // `safe.bottom` clears the reserved strip.
+      //
+      // ⚠️ BOUNDED BY THE TOP CHECK ABOVE, NOT APPLIED ON TOP OF IT. A plate
+      // whose protected band runs close to both edges (the ending's does —
+      // RESTART sits only ~60 rows of spare above the plate's own bottom
+      // edge) can ask for more upward shift than the top inset has room to
+      // give without cropping into `safe.top` itself. `topFloor` is exactly
+      // how far the line above already agreed dy may go; never push past it
+      // — better to leave the foot control under partial reserve than trade
+      // it for cropping the header, and the clamp below still has the final
+      // word regardless.
+      const footReserve = safe ? reservedBottom(canvas.height) : 0;
+      if (safe && footReserve > 0
+          && dy + safe.bottom * s > canvas.height - footReserve) {
+        const wantDy = canvas.height - footReserve - safe.bottom * s;
+        const topFloor = reserve - safe.top * s;
+        dy = Math.max(wantDy, topFloor);
+      }
       // ⚠️ AND THIS CLAMP IS THE WHOLE POINT: never a row of background above
-      // the painting, never one below it. It runs last so it outranks the
-      // inset preference — the client's instruction was "no black space", and
-      // an inset that cannot be honoured without opening a gap loses.
+      // the painting, never one below it. It runs last so it outranks BOTH
+      // inset preferences — the client's instruction was "no black space",
+      // and an inset that cannot be honoured without opening a gap loses.
       dy = Math.min(0, Math.max(canvas.height - dh, dy));
       return { s, dw, dh, dx: (canvas.width - dw) / 2, dy };
     }

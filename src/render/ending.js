@@ -100,6 +100,43 @@ export const SRC_H = 1843;
 // screen, and the only one.
 export const RESTART = { x: 169, y: 1620, w: 504, h: 141 };
 
+// ⚠️ THE PLATE WAS NEVER GIVEN A SAFE BAND, AND RESTART SITS RIGHT WHERE IT
+// WOULD HAVE NEEDED ONE. Client, iPhone 15 PWA screenshot: RESTART sliced
+// off at the bottom. title.js's plate has carried a TITLE_SAFE since the
+// PRESS START era (see its own comment) so its content survives both a
+// status-bar/island crop at the top and a home-indicator reserve at the
+// bottom; main.js's still.draw(images.ending_base, ...) call never passed
+// one, so this plate got neither.
+//
+// ⚠️ TOP IS DELIBERATELY LOOSE (250, past the SHOWTIME wordmark's own ink —
+// the tagline below it is what gets to crop first). RESTART sits only ~60
+// rows of spare above the plate's OWN bottom edge (1843), the thinnest
+// margin any control on either still scene has ever had — protecting the
+// wordmark too tightly leaves stillscene.js's dy nothing to spend on the
+// button that actually needs tapping. A cropped tagline is a detail; a
+// button a thumb cannot see is the bug he reported.
+export const ENDING_SAFE = { top: 250, bottom: 1780 };
+
+// ⚠️ NO ENDING_ZOOM. A zoom bump was tried here to buy stillscene.js's
+// foot-reserve nudge some real vertical crop slack — this plate's own ratio
+// (853x1843) was generated to all but exactly match an iPhone's, so at zoom
+// 1 there is NONE, and the nudge alone cannot do anything a plain browser
+// (footReserve 0) wouldn't have done anyway. The zoom made it worse, not
+// better: `cropRows` — the budget the top/bottom split is measured against
+// — is derived from the PRE-zoom `cover`, not the scale zoom actually
+// produces, so the extra height a zoom buys is not accounted for by that
+// split at all; it landed entirely below the canvas, and RESTART sat off
+// the bottom edge in a PLAIN BROWSER, not just a reserve-carrying PWA —
+// worse than doing nothing. `betweenscreens.mjs` caught it immediately
+// ("off the edge of the painting"). Fixing that properly means teaching
+// `fit()`'s crop-budget math about post-zoom scale, which is a change to
+// code every still scene shares (title included) and needs its own pass,
+// not a one-line add here. Until then this plate ships with the same
+// nudge every safe-banded plate gets and no zoom — real protection on
+// phone shapes that already have slack (SE, Android), no protection beyond
+// that on the ~2.16 ratio this plate was sized to match, same as before
+// this file existed. See stillscene.js's note on the nudge for the rest.
+
 // The eight value baselines and their right edge, printed by
 // tools/cut_ending_plate.py off the plate itself — it locates his rows by ink
 // and empties his placeholder values, so these two lists and that erase are

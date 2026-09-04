@@ -23,7 +23,7 @@ import { createUndercroft } from './render/undercroft.js';
 import { createHud } from './render/hud.js';
 import { createMartaMap, routeDistance } from './render/martamap.js';
 import { createEnding, statsFrom, ENDING_IMAGES, ENDING_CARDS, RESTART as ENDING_RESTART,
-  SRC_W as ENDING_W, SRC_H as ENDING_H } from './render/ending.js';
+  SRC_W as ENDING_W, SRC_H as ENDING_H, ENDING_SAFE } from './render/ending.js';
 import { createStillScene } from './render/stillscene.js';
 import { createTitle, TITLE_IMAGES,
   INTRO_TICKS as TITLE_INTRO_TICKS } from './render/title.js';
@@ -2021,7 +2021,7 @@ function draw() {
     // in the base: the band starts to the right of him.
     const box = still.draw(images.ending_base, ENDING_CARDS.map((c) => ({
       ...c, img: images[`ending_${c.key}`],
-    })), state.tick);
+    })), state.tick, 1, 0, null, ENDING_SAFE);
     // His plate carries its own SHOWTIME, its own eight stat LABELS and its
     // own RESTART button. The only thing drawn onto it is eight numbers.
     ending.draw(statsFrom(state.finalLog, state.score, state.distanceM || 0),
