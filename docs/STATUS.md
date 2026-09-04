@@ -65,6 +65,95 @@ scratchpad, never the repo root.
 
 ---
 
+## DONE — pushed to `claude/contest-reg-image-crop-d4y6c0`, NOT merged to main, NOT deployed
+
+Four fixes from the client's phone report (backgrounded PWA audio, the
+Buckhead train's speed, RESTART clipped on the ending screen, and the
+ending stats reading like a static list instead of a readout). Committed
+(`f1d8bf3`, `620ba1e`, `09563dc`) and pushed to this branch; main is still
+at `a0d1804` and `gh-pages` has none of this. Merging/deploying is a
+separate, confirmed step per `CLAUDE.md` — not run here.
+
+**1. Backgrounding the PWA left the music playing.** The existing
+`visibilitychange` handler only called `pause()`, which swaps the SCREEN to
+`'paused'` — and THAT screen has its own music cue, so it kept singing right
+through the backgrounding. `audio.js` gets `suspend()`/`resume()`: a
+suspended `AudioContext` renders nothing to the destination, silencing
+everything on the graph at once. Verified: `ctx.state` flips
+running→suspended→running exactly on the visibility toggle.
+
+**2. The L5P → Buckhead train "moves really fast... looks like a glitch."**
+Real cause: every MARTA ride swept its whole animation over the same fixed
+`RIDE_TICKS` (150, ~2.5s) regardless of route length, and the Buckhead
+finale leg (through the Five Points transfer) measures ~495px against
+~87-143px for every other leg — 3.5x-5.6x farther in the same window.
+`martamap.js` exports `routeDistance()`; `main.js`'s `rideTicksFor()` scales
+the ride to it, floored at 1x (no other ride gets shorter — same "don't
+touch the other stages" rule as the difficulty rebalance) and capped at 3x
+(~7.5s) rather than a literal ~12.5s. Verified live: Buckhead now runs
+~450 ticks, every other leg unchanged at 150.
+
+**3. RESTART cut off at the bottom on his iPhone 15 PWA.** Real, previously
+unnoticed gap: `title.js`'s plate has carried a `TITLE_SAFE` band since the
+PRESS START era, protecting its content from both the status-bar/island
+inset and the home-indicator reserve; the ending plate's `still.draw()` call
+never passed a `safe` argument at all, so RESTART (baked into the art, same
+as PRESS START used to be) got neither. `stillscene.js`'s `fit()` gets the
+bottom half of the protection the top already had; `ending.js` exports
+`ENDING_SAFE`. ⚠️ **Honest limit, so it is not re-chased as fully solved**:
+this plate's ratio was generated to all but exactly match an iPhone's,
+which leaves close to zero vertical crop slack at zoom 1 — the fix is
+correct and non-regressing (confirmed against the full title suite, 48+15+
+176 checks) but is close to a no-op on that exact shape. Measured against
+Apple's real 34px home-indicator value (not the harness's 48px stress cap,
+which the suite itself calls "a preposterous reading"), RESTART now clears
+on iPhone 15 Pro Max, iPhone 15 Pro, and Android/Pixel shapes. A zoom bump
+was tried to buy real slack and made it WORSE in a plain browser
+(`fit()`'s crop-budget math is derived from the pre-zoom scale, not zoom's
+actual output) — reverted; documented in `ending.js` for whoever next
+touches `fit()`'s shared crop math, across every still scene, not as an
+ending-only patch. **No screenshot from him confirming this specific fix
+yet** — the diagnosis is solid (a real, verified gap existed) but has not
+been checked against his own device.
+
+**4. The ending stats now read like a digital readout.** Client: "I want
+the ending stats to read digitally... accumulating... with a little sound
+effects." Every row counts up from zero over 22 ticks on an ease-out curve
+— money, distance and time animate their underlying number and format at
+every step (SCORE reads "$100", "$4,900", ... "$42,200" on the way up), not
+bare digits with the `$`/commas pasted on at the end. `audio.js` gets
+`tally(row)`, a short blip climbing a semitone-ish step per row (same trick
+`combo()` uses), fired once per row on the exact tick `ending.js`'s
+`rowsShown()` says that row started — one clock for the sound and the
+paint, so they cannot drift apart. Verified with synthetic stats:
+MONEY BAGS genuinely climbs 78→85 mid-screenshot, not a jump cut.
+
+**NOT DONE, from the same message — his "wider, more centered across the
+screen" ask for the stat block.** The eight LABELS are baked into
+`ending-base.webp`; this file only draws the eight numeric values beside
+them. Genuinely centering/widening the block as he described means moving
+his painted label text, which this project's own rule is not to do without
+his sign-off (`CLAUDE.md`: "do not edit his artwork to solve a UI
+problem"). Not started — needs either his input on a repaint, or an
+explicit go-ahead to move only the VALUE column's positions in code (which
+would still leave the labels themselves in their current, narrower
+corner-ish placement).
+
+**Also NOT done: "where is combo?"** Answered in-conversation, not
+code — MAX COMBO exists in the game (HUD `xN COMBO`, the admin dashboard's
+own column) but was deliberately left off this specific ending-screen stat
+list. When the plate first came back with the standard beat-em-up set
+(`ENEMIES DEFEATED / BOSSES DEFEATED / TIME / MAX COMBO / SCORE`), the
+client relettered it himself and picked the eight that ship — combo was
+one of the ones he dropped. `ending.js`'s own top-of-file comment already
+recorded this. It is derivable with no new state if he wants it added as a
+ninth row later (every log event carries a timestamp); that would need
+either a client repaint (labels are baked in, same constraint as above) or
+a code-only ninth line under the existing eight, which is fine but was not
+built here — this was a status question, not a request.
+
+---
+
 ## DONE — shipped and live
 
 ### "Loading issues" — the deploys themselves were breaking live players
