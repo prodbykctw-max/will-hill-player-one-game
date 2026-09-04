@@ -21,7 +21,7 @@ import { createRenderer } from './render/renderer.js';
 import { createBackdrop } from './render/backdrop.js';
 import { createUndercroft } from './render/undercroft.js';
 import { createHud } from './render/hud.js';
-import { createMartaMap } from './render/martamap.js';
+import { createMartaMap, routeDistance } from './render/martamap.js';
 import { createEnding, statsFrom, ENDING_IMAGES, ENDING_CARDS, RESTART as ENDING_RESTART,
   SRC_W as ENDING_W, SRC_H as ENDING_H } from './render/ending.js';
 import { createStillScene } from './render/stillscene.js';
@@ -320,7 +320,26 @@ if (/[?&]probe=1\b/.test(location.search)) {
   }, 500);
 }
 
-const RIDE_TICKS = 150; // ~2.5s on the train between neighbourhoods
+const RIDE_TICKS = 150; // ~2.5s on the train between neighbourhoods — the
+// baseline for a normal one-arm hop, not a fixed length for every ride.
+// RIDE_BASE_DIST is that hop's own route distance (measured off eastlake ->
+// edgewood, the shortest leg), so rideTicksFor() below can tell "a normal
+// stop" from "the whole red line".
+const RIDE_BASE_DIST = 110;
+// ⚠️ Client: "that northside train moves really fast... it looks like a
+// glitch." It was arithmetic, not a drawing bug: every ride used to sweep
+// t=0..1 over this SAME fixed duration no matter how far the route actually
+// runs (see routeDistance() in render/martamap.js), and the L5P -> Buckhead
+// finale leg is ~495px against ~87-143px for every other leg — 3.5x to 5.6x
+// farther in the same 2.5s. This scales the ride's length to match, clamped
+// so a short hop is NEVER shortened (min 1x — no other stage's ride changes,
+// same rule as the difficulty rebalance) and the finale never drags past
+// 3x (~7.5s) — "a little longer, slower, but not that fast", not a full
+// proportional ~12.5s.
+function rideTicksFor(fromId, toId) {
+  const ratio = routeDistance(fromId, toId) / RIDE_BASE_DIST;
+  return Math.round(RIDE_TICKS * Math.min(3, Math.max(1, ratio)));
+}
 const GEN_LOOKAHEAD_COLS = 24; // stream this many columns beyond the camera's right edge
 
 const state = {
@@ -879,9 +898,20 @@ window.addEventListener('keydown', (e) => {
 });
 
 // Losing focus mid-run should pause rather than let the player walk into a
-// pothole they can't see.
+// pothole they can't see. That handles GAMEPLAY; it does nothing about
+// SOUND — pause() only fires while state.screen === 'playing', and even
+// then it just swaps to the 'paused' screen, which has its own music cue
+// and keeps singing. audio.suspend()/resume() is the actual mute: it kills
+// the whole graph regardless of which screen is up, so a minimized PWA or a
+// backgrounded tab goes properly silent instead of leaking whatever was
+// playing. See the note on suspend() in audio/audio.js.
 document.addEventListener('visibilitychange', () => {
-  if (document.hidden) pause();
+  if (document.hidden) {
+    pause();
+    audio.suspend();
+  } else {
+    audio.resume();
+  }
 });
 
 // THE ATTRACT SCREEN. The game boots here rather than straight into stage
@@ -1249,7 +1279,8 @@ function update() {
   // actually make. See render/martamap.js.
   if (state.screen === 'riding') {
     state.screenT++;
-    if (state.screenT >= RIDE_TICKS) {
+    const rideTicks = rideTicksFor(state.rideFrom, STAGES[state.rideTo].id);
+    if (state.screenT >= rideTicks) {
       // THE PLATFORM HOLD. The destination's art loads in the background
       // from the title onward (FIRST-LOAD DEFERRAL); a player who outruns
       // it — or whose load failed and is mid-retry — waits on the map screen
@@ -1258,7 +1289,7 @@ function update() {
       if (stageArtReady(state.rideTo) && images.martamap) {
         startStage(state.rideTo);
       } else {
-        state.screenT = RIDE_TICKS;
+        state.screenT = rideTicks;
         pumpLoads();
       }
     }
@@ -2028,8 +2059,8 @@ function draw() {
     // The Underground plate IS Five Points, so the interstitial stands in the
     // game's own art rather than in a pattern invented for this screen.
     martaMap.draw(state.rideFrom, STAGES[state.rideTo].id,
-      Math.min(1, state.screenT / RIDE_TICKS), STAGES[state.rideTo].name,
-      images.martamap);
+      Math.min(1, state.screenT / rideTicksFor(state.rideFrom, STAGES[state.rideTo].id)),
+      STAGES[state.rideTo].name, images.martamap);
     return;
   }
 

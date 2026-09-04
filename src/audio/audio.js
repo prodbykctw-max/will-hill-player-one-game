@@ -763,5 +763,40 @@ export function createAudio() {
         sfxMuted,
       };
     },
+
+    // ── BACKGROUNDED: SILENCE, NOT THE PAUSE-MENU CUE ──────────────────
+    //
+    // main.js's own pause() only fires while state.screen === 'playing', and
+    // even then it just swaps the SCREEN to 'paused' — which has its own
+    // music slot (ui_pause) and keeps singing. A PWA minimized on a phone,
+    // or a browser tab someone switched away from, with the pause jingle (or
+    // the title loop, or a stage track — whatever screen it was on) still
+    // coming out of the speaker reads as a glitch, not a game that noticed
+    // it lost focus. Client: "whenever the game is minimized or in the
+    // background, the music shouldn't keep playing."
+    //
+    // suspend()/resume() are a single switch under all of it: a suspended
+    // AudioContext renders NOTHING to the destination, so the buffer-backed
+    // music, the ambience bed, the lap crossfade, an in-flight punch — every
+    // node on the graph — all go silent at once, and every scheduled ramp
+    // and loop-seam timer is simply frozen rather than cancelled, so nothing
+    // needs to be re-armed on the way back. Cheap to call every visibility
+    // flip: `suspend()` on an already-suspended (or nonexistent) context and
+    // `resume()` on an already-running one are both no-ops.
+    //
+    // ⚠️ THIS DOES NOT PAUSE THE UNDERLYING <audio> ELEMENTS. Once
+    // createMediaElementSource has adopted one (see graph() in music.js) its
+    // output is permanently redirected into the graph, so a suspended
+    // context is silent regardless of whether the element itself keeps
+    // advancing — the element just keeps buffering in the background, which
+    // is a small bandwidth cost and not an audible one. Good enough for a
+    // tab switch; not worth the extra bookkeeping of pausing and re-playing
+    // every element on every flip.
+    suspend() {
+      if (ctx && ctx.state === 'running') ctx.suspend().catch(() => {});
+    },
+    resume() {
+      if (ctx && ctx.state === 'suspended') ctx.resume().catch(() => {});
+    },
   };
 }

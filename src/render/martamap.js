@@ -78,6 +78,62 @@ const NORTH_ARM = ['fivepoints', 'civic', 'northave', 'artscenter',
 const HOT = '#ffc46b';
 const PALE = '#fff6e2';
 
+// ── ROUTE HELPERS, AT MODULE SCOPE ──────────────────────────────────────
+// None of these touch ctx/canvas, so they live outside createMartaMap and
+// are shared with routeDistance() below — main.js uses that to scale how
+// LONG a ride takes to how FAR the train actually travels (see RIDE_TICKS
+// in main.js). Kept as the one copy rather than one inside the closure and
+// a second beside it.
+
+function stationFor(stageId) {
+  for (const k of ARM) if (STATIONS[k].stage === stageId) return k;
+  for (const k of NORTH_ARM) if (STATIONS[k].stage === stageId) return k;
+  return 'fivepoints';
+}
+
+// Walk one arm from `a` to `b` and return the ordered list of points, so a
+// ride in either direction follows the same rails.
+function walkArm(arm, aKey, bKey) {
+  const i = arm.indexOf(aKey);
+  const j = arm.indexOf(bKey);
+  const step = j >= i ? 1 : -1;
+  const out = [];
+  for (let k = i; k !== j + step; k += step) out.push(STATIONS[arm[k]]);
+  return out;
+}
+
+// A trip whose ends sit on different arms changes trains at Five Points,
+// like the real system: ride in to the transfer, then out the other line.
+// The L5P -> Buckhead finale leg is Inman Park west to Five Points, then
+// the red line north — concatenated, minus the duplicated transfer point,
+// so along() sees one continuous polyline and the train never teleports.
+function route(aKey, bKey) {
+  const aArm = ARM.includes(aKey) ? ARM : NORTH_ARM;
+  const bArm = ARM.includes(bKey) ? ARM : NORTH_ARM;
+  if (aArm === bArm) return walkArm(aArm, aKey, bKey);
+  const inbound = walkArm(aArm, aKey, 'fivepoints');
+  const outbound = walkArm(bArm, 'fivepoints', bKey);
+  return inbound.concat(outbound.slice(1));
+}
+
+// Total arc length of a stage-to-stage ride, in the map's own pixels.
+//
+// Client: "that northside train moves really fast... it looks like a
+// glitch." It was arithmetic, not a bug in the drawing: every ride swept
+// t=0..1 over the SAME fixed duration (main.js's RIDE_TICKS) regardless of
+// how far the route actually runs, and the L5P -> Buckhead finale leg
+// (Inman Park -> Five Points -> the whole red line north to Buckhead) is
+// ~495px against ~87-143px for every other leg — 3.5x to 5.6x farther in
+// the same 2.5s. main.js reads this to lengthen the ride, not this file.
+export function routeDistance(fromStage, toStage) {
+  const pts = route(stationFor(fromStage), stationFor(toStage));
+  let total = 0;
+  for (let i = 1; i < pts.length; i++) {
+    total += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y);
+  }
+  return total;
+}
+
 export function createMartaMap(ctx, canvas) {
 
   // Largest size at or below `max` that fits `str` into `width`, stopping at
@@ -99,37 +155,6 @@ export function createMartaMap(ctx, canvas) {
       head += ` ${words[i]}`;
     }
     return [{ text: str, size: min }];
-  }
-
-  function stationFor(stageId) {
-    for (const k of ARM) if (STATIONS[k].stage === stageId) return k;
-    for (const k of NORTH_ARM) if (STATIONS[k].stage === stageId) return k;
-    return 'fivepoints';
-  }
-
-  // Walk one arm from `a` to `b` and return the ordered list of points, so a
-  // ride in either direction follows the same rails.
-  function walkArm(arm, aKey, bKey) {
-    const i = arm.indexOf(aKey);
-    const j = arm.indexOf(bKey);
-    const step = j >= i ? 1 : -1;
-    const out = [];
-    for (let k = i; k !== j + step; k += step) out.push(STATIONS[arm[k]]);
-    return out;
-  }
-
-  // A trip whose ends sit on different arms changes trains at Five Points,
-  // like the real system: ride in to the transfer, then out the other line.
-  // The L5P -> Buckhead finale leg is Inman Park west to Five Points, then
-  // the red line north — concatenated, minus the duplicated transfer point,
-  // so along() sees one continuous polyline and the train never teleports.
-  function route(aKey, bKey) {
-    const aArm = ARM.includes(aKey) ? ARM : NORTH_ARM;
-    const bArm = ARM.includes(bKey) ? ARM : NORTH_ARM;
-    if (aArm === bArm) return walkArm(aArm, aKey, bKey);
-    const inbound = walkArm(aArm, aKey, 'fivepoints');
-    const outbound = walkArm(bArm, 'fivepoints', bKey);
-    return inbound.concat(outbound.slice(1));
   }
 
   // Position at 0..1 along a polyline, by arc length — so the train keeps a
