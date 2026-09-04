@@ -23,7 +23,8 @@ import { createUndercroft } from './render/undercroft.js';
 import { createHud } from './render/hud.js';
 import { createMartaMap, routeDistance } from './render/martamap.js';
 import { createEnding, statsFrom, ENDING_IMAGES, ENDING_CARDS, RESTART as ENDING_RESTART,
-  SRC_W as ENDING_W, SRC_H as ENDING_H, ENDING_SAFE } from './render/ending.js';
+  SRC_W as ENDING_W, SRC_H as ENDING_H, ENDING_SAFE, rowsShown as endingRowsShown }
+  from './render/ending.js';
 import { createStillScene } from './render/stillscene.js';
 import { createTitle, TITLE_IMAGES,
   INTRO_TICKS as TITLE_INTRO_TICKS } from './render/title.js';
@@ -965,6 +966,9 @@ function nextStage() {
   }
   state.screen = 'complete';
   state.screenT = 0;
+  // How many of his eight stat rows have already gotten their reveal chime
+  // — see the tally() call in update() and the note on it in audio.js.
+  state.endingRowsSounded = 0;
   state.finalLog = state.runLog.finish();
   recordRunStats(state.finalLog, state.score);
   // Banked on the device FIRST — a phone at a party is not always on a
@@ -1299,6 +1303,18 @@ function update() {
   if (state.screen === 'stageClear' || state.screen === 'gameOver'
       || state.screen === 'complete') {
     state.screenT++;
+    // ONE CHIME PER ROW, ON THE EXACT TICK render/ending.js's rowsShown()
+    // says that row starts counting up — never on a timer of its own, so
+    // the sound and the paint can never drift apart. A `while` rather than
+    // an `if` in case a slow frame ever lets screenT cross two rows' reveal
+    // ticks in one update (drops no chimes; plays them back to back).
+    if (state.screen === 'complete') {
+      const shown = endingRowsShown(state.screenT);
+      while (state.endingRowsSounded < shown) {
+        audio.tally(state.endingRowsSounded);
+        state.endingRowsSounded++;
+      }
+    }
     // The ending plays, and then the board arrives on top of it — his order,
     // not a tap. Once per run; see state.resultsShown in startRun().
     if (state.screen === 'complete' && !state.resultsShown

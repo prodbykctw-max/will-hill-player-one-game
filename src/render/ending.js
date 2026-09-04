@@ -152,6 +152,45 @@ const VALUE_INK = '#e1bb88';
 // Cap height measures 18px on the plate, which is a 25px face.
 const VALUE_PX = 25;
 
+// ── THE READOUT — accumulating, not appearing ────────────────────────────
+//
+// Client, with a screenshot of this board: "I want the ending stats to read
+// digitally... accumulating like they're adding up... with a little sound
+// effects." The board used to just FLASH each number in, whole, on its row's
+// turn — his labels arrived one at a time but the numbers behind them did
+// not, and a whole number appearing in one frame is a slide, not a readout.
+//
+// Now every row counts up from zero to its real value over COUNT_TICKS, on
+// an ease-out curve (fast start, settling into place rather than snapping) —
+// the odometer look he described. STAT_ROWS and REVEAL_TICKS are exported
+// so main.js can fire a chime on the exact tick each row STARTS counting,
+// off the same arithmetic this file uses to decide it, rather than a second
+// timer that could drift from what is actually on screen.
+export const STAT_ROWS = ROW_Y.length;
+export const REVEAL_TICKS = 7;     // ticks between one row starting and the next
+const COUNT_TICKS = 22;            // ticks a single row takes to settle
+
+// How many rows have started counting by tick `t` — the one place this
+// arithmetic lives, so the sound (main.js) and the paint (draw() below)
+// can never disagree about which row is on.
+export function rowsShown(t) {
+  return Math.min(STAT_ROWS, Math.floor(t / REVEAL_TICKS));
+}
+
+function easeOutCubic(x) {
+  const f = 1 - x;
+  return 1 - f * f * f;
+}
+
+// Counts a whole number up to `end`, formatting the IN-FLIGHT value with
+// `fmt` at every step — so a row like SCORE reads "$100", "$4,900",
+// "$18,300"... on the way to "$42,200" rather than animating bare digits
+// and pasting the $ and commas on only at the end.
+function countTo(end, frac, fmt) {
+  return fmt(Math.round(end * easeOutCubic(frac)));
+}
+const comma = (n) => n.toLocaleString();
+
 export function statsFrom(log, score, distanceM) {
   const events = (log && log.events) || [];
   const n = (type) => events.filter((e) => e.type === type).length;
@@ -183,16 +222,18 @@ export function createEnding(ctx, canvas) {
 
     // ⚠️ THE ORDER IS HIS PLATE'S ORDER. These are values only — the labels
     // beside them are painted, so a row that lines up with the wrong label is
-    // silent and total. Read them off the artwork, not off statsFrom.
-    const values = [
-      String(stats.bags),                     // MONEY BAGS
-      String(stats.stomps),                   // ENEMIES STOMPED
-      String(stats.champagne),                // CHAMPAGNE
-      String(stats.potholes),                 // POTHOLES HIT
-      String(stats.robbed),                   // BAGS ROBBED
-      `${stats.distanceM}m`,                  // DISTANCE
-      clock(stats.ms),                        // TIME
-      `$${stats.score.toLocaleString()}`,     // SCORE
+    // silent and total. Read them off the artwork, not off statsFrom. Each
+    // entry is the row's REAL total plus how to print an in-flight count
+    // toward it — see the readout note above.
+    const rows = [
+      { end: stats.bags,      fmt: (n) => String(n) },        // MONEY BAGS
+      { end: stats.stomps,    fmt: (n) => String(n) },        // ENEMIES STOMPED
+      { end: stats.champagne, fmt: (n) => String(n) },        // CHAMPAGNE
+      { end: stats.potholes,  fmt: (n) => String(n) },        // POTHOLES HIT
+      { end: stats.robbed,    fmt: (n) => String(n) },        // BAGS ROBBED
+      { end: stats.distanceM, fmt: (n) => `${n}m` },          // DISTANCE
+      { end: stats.ms,        fmt: (n) => clock(n) },         // TIME
+      { end: stats.score,     fmt: (n) => `$${comma(n)}` },   // SCORE
     ];
 
     ctx.save();
@@ -200,12 +241,17 @@ export function createEnding(ctx, canvas) {
     // arriving finished. His labels are already there from the first frame,
     // which reads better than the old version did — the shape of the board
     // stands still and only the numbers arrive.
-    const shown = Math.min(values.length, Math.floor(t / 7));
+    const shown = rowsShown(t);
     ctx.font = `700 ${Math.max(7, Math.round(VALUE_PX * S))}px system-ui, sans-serif`;
     ctx.textAlign = 'right';
     ctx.fillStyle = VALUE_INK;
     for (let i = 0; i < shown; i++) {
-      ctx.fillText(values[i], box.dx + VALUE_X * S, box.dy + ROW_Y[i] * S);
+      // Each row counts up on its OWN clock, started the tick it appeared —
+      // not the screen's clock — so row 8 counts up exactly like row 1 did,
+      // just later.
+      const frac = Math.min(1, (t - i * REVEAL_TICKS) / COUNT_TICKS);
+      const text = countTo(rows[i].end, frac, rows[i].fmt);
+      ctx.fillText(text, box.dx + VALUE_X * S, box.dy + ROW_Y[i] * S);
     }
     ctx.restore();
   }

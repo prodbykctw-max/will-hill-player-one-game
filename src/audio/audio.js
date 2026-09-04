@@ -683,6 +683,38 @@ export function createAudio() {
       chime(c, c.currentTime, 660 * Math.pow(1.122, step), 0.16, 0.16);
     },
 
+    // ── THE RESULTS BOARD COUNTING ITSELF UP ────────────────────────────
+    //
+    // Client, with a screenshot of the ending: "I want the ending stats to
+    // read digitally... accumulating... with a little sound effects." One
+    // blip per row, the instant it starts counting up (main.js fires this on
+    // the same tick render/ending.js's rowsShown() says a row appeared, not
+    // on a timer of its own — one clock, so the sound can never drift from
+    // what the eye sees). Square wave, like the UI clicks, so the board
+    // reads as the same machine rather than borrowing the punch's timbre;
+    // climbing a semitone-ish step per row is the same trick combo() uses,
+    // so row 8 (SCORE, the one he cares about most) lands the highest note.
+    tally(row) {
+      if (sfxMuted) return;
+      const c = ensure();
+      if (!c) return;
+      if (c.state === 'suspended') c.resume().catch(() => {});
+      const t = c.currentTime;
+      const step = Math.max(0, Math.min(7, row || 0));
+      const f = 920 * Math.pow(1.09, step);
+      const o = c.createOscillator();
+      const g = c.createGain();
+      o.type = 'square';
+      o.frequency.setValueAtTime(f, t);
+      o.frequency.exponentialRampToValueAtTime(f * 1.35, t + 0.05);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.linearRampToValueAtTime(0.075, t + 0.006);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.07);
+      o.connect(g).connect(master);
+      o.start(t);
+      o.stop(t + 0.09);
+    },
+
     // Called when a champagne bottle is picked up, and when the power runs
     // out. See the arpeggio note above for why these are each other's mirror.
     powerUp() {
