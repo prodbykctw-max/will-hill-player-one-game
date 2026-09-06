@@ -2,7 +2,7 @@
   "name": "Will Hill: Player One",
   "short_name": "Will Hill",
   "description": "Side-scroll through five Atlanta stops to make the show.",
-  "start_url": ".",
+  "start_url": "./?probe=1",
   "scope": ".",
   "display": "fullscreen",
   "orientation": "portrait",
