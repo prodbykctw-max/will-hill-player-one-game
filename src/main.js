@@ -288,7 +288,25 @@ setTimeout(resize, 3000);
 // flag (never a button, like ?stage) overlays every number the sizing chain
 // reads, so his next screenshot IS the diagnosis. DOM, not canvas, so it
 // works even when the canvas itself is sized wrong.
-if (/[?&]probe=1\b/.test(location.search)) {
+//
+// ⚠️ THE ONE PLACE IT HAS TO SURVIVE THE URL BAR. Every other case where
+// this class of bug bit — the black band under the home indicator, "OPTIONS
+// sliced off" — was reported from the INSTALLED app, and an installed app's
+// icon launches its manifest's fixed start_url, which cannot carry a query
+// string typed into Safari beforehand. So an installed launch could never
+// self-diagnose: the flag would only ever have shown the reading from
+// Safari's OWN chrome, which reserves the exact space the bug is about,
+// making a Safari-tab probe read clean regardless of whether the installed
+// shell is broken. `?probe=1` in Safari now ALSO arms a stored flag so the
+// SAME device's home-screen icon picks it up on its next open — one visit
+// to a plain URL, then the reading comes from the actual standalone shell.
+// `?probe=0` disarms it again.
+try {
+  if (/[?&]probe=1\b/.test(location.search)) localStorage.setItem('wh_probe', '1');
+  else if (/[?&]probe=0\b/.test(location.search)) localStorage.removeItem('wh_probe');
+} catch (_e) { /* private browsing or a blocked store; the URL flag still works this load */ }
+if (/[?&]probe=1\b/.test(location.search)
+    || (() => { try { return localStorage.getItem('wh_probe') === '1'; } catch (_e) { return false; } })()) {
   const el = document.createElement('div');
   el.style.cssText = 'position:fixed;left:8px;top:35%;z-index:9999;'
     + 'background:rgba(0,0,0,0.75);color:#9f9;font:12px/1.5 monospace;'
