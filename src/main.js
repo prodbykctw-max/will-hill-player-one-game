@@ -26,6 +26,7 @@ import { createEnding, statsFrom, ENDING_IMAGES, ENDING_CARDS, RESTART as ENDING
   SRC_W as ENDING_W, SRC_H as ENDING_H, ENDING_SAFE, rowsShown as endingRowsShown }
   from './render/ending.js';
 import { createStillScene } from './render/stillscene.js';
+import { createCredits } from './render/credits.js';
 import { createTitle, TITLE_IMAGES,
   INTRO_TICKS as TITLE_INTRO_TICKS } from './render/title.js';
 import martaMapArt from './assets/backgrounds/marta-map.webp';
@@ -52,6 +53,7 @@ const undercroft = createUndercroft(ctx, canvas);
 const hud = createHud(ctx, canvas);
 const martaMap = createMartaMap(ctx, canvas);
 const ending = createEnding(ctx, canvas);
+const credits = createCredits(ctx, canvas);
 const still = createStillScene(ctx, canvas);
 const title = createTitle(ctx, canvas, still);
 const haptics = createHaptics();
@@ -87,6 +89,9 @@ const panel = createPanel({
   onSoundChange: (on) => audio.setMuted(!on),
   onSfxChange: (on) => audio.setSfxMuted(!on),
   onHapticsChange: (on) => haptics.setEnabled(on),
+  // On demand from SETTINGS — see showCredits(). Closes the panel first so
+  // the roll isn't racing a cabinet screen still drawn underneath it.
+  onShowCredits: () => { panel.close(); showCredits('title'); },
   // ── TIME OF DAY APPLIES NOW, LIVE, WITHOUT RESTARTING ANYTHING ───────
   //
   // ⚠️ THIS USED TO CALL location.reload() AND THAT WAS WRONG. The comment
@@ -1050,6 +1055,21 @@ function showResults() {
   panel.open(isRegistered() ? 'board' : 'form', { flow: 'post' });
 }
 
+// ── THE CREDITS ROLL ──────────────────────────────────────────────────────
+//
+// Two doors in: automatically after beating the game (see the 'complete'
+// branch below — never on gameOver, client: "not just a result screen...
+// when the game is over and you've beat the game then you get ending
+// credits"), and on demand from OPTIONS (panel.js's onShowCredits). `next`
+// is where the screen goes when the roll ends — 'results' for the auto path
+// (the leaderboard/sign-up still has to open, just after the roll now
+// rather than instead of it) and 'title' for the on-demand one.
+function showCredits(next) {
+  state.screen = 'creditsRoll';
+  state.screenT = 0;
+  state.creditsNext = next;
+}
+
 function endRun() {
   showTitle();
   showResults();
@@ -1205,6 +1225,13 @@ function cueForScreen() {
     case 'complete':
       // ARRIVING AT THE SHOW. The one cue that plays start to finish.
       return 'credits';
+    case 'creditsRoll':
+      // The ROLL, not the results screen's own `credits` cue — client:
+      // "the title intro Music should play" under the movie-style rolling
+      // names. Two different things share the word "credits" here on
+      // purpose: the music slot was named for the results screen years
+      // before this screen existed. See render/credits.js.
+      return 'title';
     case 'stageClear':
       // ── THE RIDE STARTS AT THE FINISH LINE, NOT AT THE NEXT TAP ─────────
       //
@@ -1333,15 +1360,40 @@ function update() {
         state.endingRowsSounded++;
       }
     }
-    // The ending plays, and then the board arrives on top of it — his order,
-    // not a tap. Once per run; see state.resultsShown in startRun().
+    // The ending plays, then the credits roll, then the board arrives on
+    // top of it — his order, not a tap. Once per run; see
+    // state.resultsShown in startRun(). Client: "not just a result
+    // screen... when the game is over and you've beat the game then you get
+    // ending credits" — win only, never gameOver, which is why this stays
+    // inside the `state.screen === 'complete'` check rather than the shared
+    // stageClear/gameOver/complete branch above it.
     if (state.screen === 'complete' && !state.resultsShown
         && state.screenT > RESULTS_AFTER) {
       state.resultsShown = true;
-      showResults();
+      showCredits('results');
       return;
     }
     if (state.screenT > 20 && confirmPressed()) { press(); advanceFromScreen(); }
+    return;
+  }
+
+  // ── screen === 'creditsRoll' — see showCredits() and render/credits.js ──
+  if (state.screen === 'creditsRoll') {
+    state.screenT++;
+    const scale = Math.max(0.6, Math.min(1.6, canvas.width / 430));
+    const done = state.screenT > credits.ticksFor(scale);
+    // A held tap during the roll is easy to land by accident right after
+    // the ending's own confirmPressed() gate opens at screenT > 20 above —
+    // a 30-tick guard here keeps that same press from skipping straight
+    // through the names it just took a beat to reach.
+    const skipped = state.screenT > 30 && confirmPressed();
+    if (done || skipped) {
+      if (skipped) press();
+      const next = state.creditsNext;
+      state.creditsNext = null;
+      if (next === 'results') { state.resultsShown = true; showResults(); }
+      else { showTitle(); }
+    }
     return;
   }
 
@@ -2039,6 +2091,15 @@ function draw() {
       mousePos,
       // The banner says ENTER THE CONTEST or SEE THE BOARD depending on this.
       isRegistered());
+    return;
+  }
+
+  // The credits roll is its own whole screen too, same reason the results
+  // board (right below) is checked up here rather than after a wasted world
+  // render underneath it.
+  if (state.screen === 'creditsRoll') {
+    credits.draw(state.screenT);
+    screenButtons.length = 0;
     return;
   }
 

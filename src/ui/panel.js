@@ -150,7 +150,7 @@ function agreeProblem(checked) {
 }
 
 export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
-  onSfxChange, onHapticsChange, haptics, audio, isPendingRun }) {
+  onSfxChange, onHapticsChange, onShowCredits, haptics, audio, isPendingRun }) {
   const el = $('panel');
   if (!el) return { open() {}, close() {}, get isOpen() { return false; } };
 
@@ -761,6 +761,12 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
     }
   });
   on('btnBack', 'back', () => show('menu'));
+  // On demand — the other way in besides beating the game. Client:
+  // "talked to the options menu as well as a new screen." SETTINGS, not
+  // OPTIONS: OPTIONS is his painted plate with four fixed sockets and no
+  // room for a fifth without new art from him; SETTINGS is still the plain
+  // panel these rows already live in.
+  on('btnCredits', 'commit', () => onShowCredits?.());
   // NOT NOW, CANCEL and the red ✕ all land wherever the opener said to land.
   // 'how'   — the pre-run chain: skipping the contest still gets the lesson.
   // 'close' — off the back of a run: one tap out, straight to the title.

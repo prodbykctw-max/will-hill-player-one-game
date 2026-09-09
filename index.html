@@ -556,6 +556,30 @@
     #panelCard.cabinet #btnBack {
       left: 6.61%; top: 62.37%; width: 87.17%; height: 5.84%;
     }
+    /* CREDITS has no painted button in his art — the SETTINGS plate was
+       drawn before this control existed — so unlike the switches and BACK
+       above, this one can't just be a transparent box over his paint. It
+       sits in the blank rail between the TOD box (ends ~54.7%) and BACK
+       (starts 62.37%), styled as its own small visible pill rather than
+       inheriting `.pv .btn`'s color:transparent/font-size:0 (that rule is
+       what collapsed it to 0-height before this block existed — an
+       absolutely-positioned box with no explicit size and invisible text
+       has nothing to size itself to). Higher specificity (#panelCard.cabinet
+       #btnCredits beats #panelCard.cabinet .pv .btn) wins the override. */
+    #panelCard.cabinet #btnCredits {
+      left: 6.61%; top: 55.6%; width: 87.17%; height: 5.0%;
+      display: flex; align-items: center; justify-content: center;
+      color: rgba(242,234,216,0.82);
+      font: 700 max(10px, 2.8cqw)/1 system-ui, sans-serif;
+      letter-spacing: 0.08em;
+      background: linear-gradient(180deg, rgba(255,214,110,0.08),
+                                          rgba(255,214,110,0.02));
+      border: 1px solid rgba(255,214,110,0.32);
+      border-radius: 1.6cqw;
+    }
+    #panelCard.cabinet #btnCredits:active {
+      background: rgba(240,168,58,0.16);
+    }
     /* The heading is PAINTED into the plate, so the DOM one would be a second
        copy of the same word sitting on top of his. */
     #panelCard.cabinet #panelTitle { display: none; }
@@ -1887,6 +1911,10 @@
             <option value="local">My local time</option>
           </select></label>
         <p class="note" id="todNote"></p>
+        <!-- The other way into the credits roll besides beating the game.
+             See src/ui/panel.js's btnCredits wiring and showCredits() in
+             main.js. -->
+        <button class="btn ghost" id="btnCredits" type="button">CREDITS</button>
         <button class="btn ghost" id="btnBack" type="button">BACK</button>
       </div>
       </div>
