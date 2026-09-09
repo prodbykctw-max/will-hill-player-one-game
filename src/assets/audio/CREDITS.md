@@ -51,7 +51,7 @@ placed as artwork, flip that glyph horizontally; do not type a normal E.
 | role | credit |
 |---|---|
 | Game development — front and back end, app and web | **RARƎ AGENCY** — prodbyKCTW as Lead Developer |
-| Design — background art conversion | **Kema** |
+| Design — background art conversion | **_kematry** |
 | Music | **prodbyKCTW** |
 | Sound effects | **prodbyKCTW** |
 

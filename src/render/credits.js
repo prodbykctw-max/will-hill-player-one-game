@@ -56,7 +56,7 @@ const LINES = [
   { name: 'RARƎ AGENCY' },
   { gap: 0.6 },
   { role: 'DESIGN' },
-  { name: 'Kema' },
+  { name: '_kematry' },
   { gap: 0.6 },
   { role: 'MUSIC' },
   { name: 'prodbyKCTW' },
