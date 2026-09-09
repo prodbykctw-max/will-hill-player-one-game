@@ -19,9 +19,16 @@ name. Nobody was wrong. Nobody checked.
 
 **Never address a named person in a generated document, in either direction.** No "For Scoon," no "prepared for [name]," no third-person narration about who it's for ("what Scoon is inheriting"), no second-person voice performing a letter to them ("here's what you're inheriting"). Write it as plain factual reference material — what's true, what's live, what a reader needs to know — and let whoever it's handed to be whoever it's handed to. This applies to internal-facing docs (ops handoffs, status reports) same as anything client-facing.
 
-This is not about tone elsewhere — a document can still be direct, confident, even a little boastful about what's being delivered. It's specifically the addressee framing (naming who it's for, narrating about them, writing AT them) that reads as generated and is never wanted here, in this repo, in any chat, going forward, without needing to be raised again.
+It's specifically the addressee framing (naming who it's for, narrating about them, writing AT them) that reads as generated and is never wanted here, in this repo, in any chat, going forward, without needing to be raised again.
 
-**A business-facing document (a handoff, a client-facing status page — anything read by someone outside this project's own working process) never discloses how the work gets built, and never lists open bugs, unfinished design questions, or other unresolved internal business.** No "this was built with an AI coding assistant," no "open items" section, no punch list of what's still broken or mid-decision. That belongs in the repo's own internal docs (`docs/STATUS.md` and friends), not in something handed to a client or their team — volunteering it there serves no one reading it and only costs confidence in work that's actually solid. If a reader explicitly asks what's outstanding, that's a different, direct question — answer it directly; don't pre-empt it by including it unasked.
+**A document does the one job it was asked to do, and nothing else.** Client, after a handoff document kept drifting toward selling the work instead of just describing how to operate it: *"This is an instructions guide, not a sales ad or a reaffirming document."* If something is asked for as instructions for running a system, it is instructions for running that system — not a pitch for how solid the work is, not reassurance that it's "real" or "tested," not scene-setting narrative. Cut anything that isn't in service of the stated job, even if it's true and even if it reads well.
+
+That includes never volunteering, in a business-facing document (a handoff, a client-facing status page — anything read by someone outside this project's own working process):
+- **How the work gets built** — no "built with an AI coding assistant," no engineering-process explanation of any kind.
+- **Open bugs, unfinished design questions, or other unresolved internal business** — no "open items" section, no punch list. That belongs in the repo's own internal docs (`docs/STATUS.md` and friends).
+- **What it costs to run, or that it's cheap/free.** Telling a paying client their product runs on infrastructure that "costs nothing at this scale" undercuts the value of what they're paying for — leave infrastructure economics out entirely.
+
+If a reader explicitly asks about any of these, that's a different, direct question — answer it directly. The rule is against including it unasked, not against ever discussing it.
 
 ## Guardrail — read this first
 
