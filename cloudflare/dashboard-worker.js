@@ -13,11 +13,22 @@
  * shares nothing with it but the database.
  *
  * ⚠️ NOT read-only ANY MORE — POST /toggle writes the one row the contest
- * on/off switch lives in, and POST /push-toggle the one row the ALERT
- * switch (push notifications, master on/off) lives in (contest_state and
- * push_state, both schema.sql). Everything else here is still SELECT only;
- * those two writes are the exceptions, gated behind the same token as the
- * rest of this worker.
+ * on/off switch lives in, and POST /push-toggle the one row the push-
+ * notifications master switch lives in (contest_state and push_state, both
+ * schema.sql). Everything else here is still SELECT only; those two writes
+ * are the exceptions, gated behind the same token as the rest of this
+ * worker.
+ *
+ * ⚠️ WHICH SWITCH IS WHICH, ON SCREEN, IS NOT WHICH TABLE THEY WRITE. Client:
+ * "important buttons need to be bigger and in face... that alert switch
+ * [should be] the contest on and off switch... more larger in view than
+ * that top button." His painted ALERT switch (#contestAlert, big, lower
+ * right rail) drives /toggle — the contest — because it is the important
+ * one and his art is the biggest control on the page. The small floating
+ * pill (#pushPill, top corner) drives /push-toggle — it started as the
+ * contest switch, when it was the only one; a second small control was
+ * cheaper to add than a second painted one, and push is the one that can
+ * afford to be small. Same two endpoints, same two tables, swapped fronts.
  *
  * ── ACCESS ───────────────────────────────────────────────────────────────
  *
@@ -463,11 +474,11 @@ html,body{background:#07060c;color:#f2ead8;font-family:ui-monospace,SFMono-Regul
    and real buttons with accessible names. Rects measured off the plate:
    filter x391-603 y188-219, CSV x624-730 y189-218, and the chips at
    x174-227 / x232-301 / x341-405 across y782-812. */
-#q,#csv,#mWorld,#mUS,#mATL,#pushSwitch{background:none;border:0;padding:0;color:#f2ead8;
+#q,#csv,#mWorld,#mUS,#mATL,#contestAlert{background:none;border:0;padding:0;color:#f2ead8;
   font:inherit;font-size:1.9cqw;cursor:pointer;-webkit-tap-highlight-color:transparent}
 #q{color:#ffd66e;text-align:center;outline:none}
-#csv,#mWorld,#mUS,#mATL,#pushSwitch{font-size:0;color:transparent}
-#pushSwitch:disabled{opacity:.7;cursor:default}
+#csv,#mWorld,#mUS,#mATL,#contestAlert{font-size:0;color:transparent}
+#contestAlert:disabled{opacity:.7;cursor:default}
 /* ⚠️ HIS PAINTED WORDS HAVE TO GET OUT OF THE WAY WHEN HE TYPES.
    "When I select filter and search it should go blank, it shouldn't still be
    that image of my picture, the words from the photo there." They were: the
@@ -515,20 +526,36 @@ html,body{background:#07060c;color:#f2ead8;font-family:ui-monospace,SFMono-Regul
 #plate.vWorld #mWorld{--chip:var(--world-on)}
 #plate.vUS #mUS{--chip:var(--us-on)}
 #plate.vATL #mATL{--chip:var(--atl-on)}
-/* ── THE ALERT SWITCH ────────────────────────────────────────────────────
-   Client: "their ability to turn on notification should be the alert switch
-   inside of the cab... switch on and off with a click sound for push
-   notifications." His painting is already lit red here — ON, in the art —
-   so the ON state draws NOTHING and lets his own pixels show through
-   underneath; only OFF is a real overlay, tools/cut_dash_alert.py's derived
-   dim lamp, laid exactly over his rocker (784,1428)-(838,1518) on the
-   853x1844 plate. Box measured off his artwork, same as the map chips
-   above. */
-#pushSwitch{left:91.911%;top:77.44%;width:6.33%;height:4.88%;
+/* ── THE ALERT SWITCH IS THE CONTEST SWITCH ───────────────────────────────
+   Client, first: "their ability to turn on notification should be the
+   alert switch inside of the cab." Client, next breath: "important buttons
+   need to be bigger and in face... that alert switch [should be] the
+   contest on and off switch... more larger in view than that top button."
+   His painted ALERT switch is the biggest control on the page and the
+   contest is the more important thing to flip, so this is it now — the
+   small pill (#pushPill, below) took over push notifications instead.
+   His painting is already lit red here — ON, in the art — so OPEN draws
+   NOTHING and lets his own pixels show through underneath; only CLOSED is a
+   real overlay, tools/cut_dash_alert.py's derived dim lamp, laid exactly
+   over his rocker (784,1428)-(838,1518) on the 853x1844 plate. Box measured
+   off his artwork, same as the map chips above. */
+#contestAlert{left:91.911%;top:77.44%;width:6.33%;height:4.88%;
   background:var(--alert-chip) center/100% 100% no-repeat;overflow:visible;
   --alert-chip:var(--alert-off)}
-#pushSwitch::after{content:'';position:absolute;left:-30%;right:-30%;top:-20%;bottom:-20%}
-#plate.pushOn #pushSwitch{--alert-chip:none}
+#contestAlert::after{content:'';position:absolute;left:-30%;right:-30%;top:-20%;bottom:-20%}
+#plate.contestOpenBig #contestAlert{--alert-chip:none}
+/* His lettering still says ALERT / ON — that word is painted, and relabelling
+   it for real means him repainting it, same rule as everywhere else on this
+   page (the map chips, the settings switch). This is not that: a plain live
+   caption dropped into the blank metal above his rocker, admin-only text on
+   an admin-only page, so nobody reading this control mistakes it for the
+   thing it used to be. */
+#contestAlert::before{content:'CONTEST';position:absolute;
+  left:-40%;right:2%;top:-165%;height:34%;
+  display:flex;align-items:center;justify-content:center;
+  font:700 0.95cqw/1 "Karla",sans-serif;letter-spacing:.04em;
+  color:#e7ddc8;background:rgba(8,8,12,.8);
+  border:1px solid rgba(240,168,58,.4);border-radius:3px;pointer-events:none}
  #clockA{left:15.006%;top:7.05%;width:20.281%;height:1.681%}
  #clockB{left:40.563%;top:7.05%;width:20.516%;height:1.681%}
  #clockC{left:66.354%;top:8.677%;width:20.516%;height:0.922%}
@@ -666,23 +693,26 @@ html,body{background:#07060c;color:#f2ead8;font-family:ui-monospace,SFMono-Regul
 #expClose{position:fixed;right:0;top:0;z-index:3;background:none;border:0;
   color:#ffd66e;font:inherit;font-size:12px;font-weight:700;letter-spacing:.1em;
   padding:10px 14px;cursor:pointer;-webkit-tap-highlight-color:transparent}
-/* ── THE SWITCH ────────────────────────────────────────────────────────
-   Fixed, not painted-over — see the note on the element itself. Sits above
-   the plate in its own small chip so it reads as a real control rather than
-   part of his illustration. */
-#contestSwitch{position:fixed;top:12px;right:12px;z-index:4;
+/* ── THE PUSH PILL ────────────────────────────────────────────────────────
+   Fixed, not painted-over — his plate has no spot for a second switch. This
+   used to be the contest switch, back when it was the only one; the bigger,
+   painted ALERT switch below took contest over, so this became the push-
+   notifications master instead — smaller is right for the one that matters
+   less. Sits above the plate in its own small chip so it reads as a real
+   control rather than part of his illustration. */
+#pushPill{position:fixed;top:12px;right:12px;z-index:4;
   display:flex;align-items:center;gap:8px;
   background:#12131a;border:1px solid #33394a;border-radius:999px;
   padding:8px 14px 8px 10px;font:700 11px/1 inherit;letter-spacing:.06em;
   color:#e7ddc8;cursor:pointer;-webkit-tap-highlight-color:transparent;
   box-shadow:0 2px 10px rgba(0,0,0,0.4)}
-#contestSwitch:active{filter:brightness(1.3)}
-#contestSwitch:disabled{opacity:.6;cursor:default}
-#contestSwitch .csDot{width:9px;height:9px;border-radius:50%;flex:none;background:#555}
-#contestSwitch.open .csDot{background:#5fd47a;box-shadow:0 0 0 4px rgba(95,212,122,.2)}
-#contestSwitch.closed .csDot{background:#ff5c5c;box-shadow:0 0 0 4px rgba(255,92,92,.2)}
+#pushPill:active{filter:brightness(1.3)}
+#pushPill:disabled{opacity:.6;cursor:default}
+#pushPill .csDot{width:9px;height:9px;border-radius:50%;flex:none;background:#555}
+#pushPill.open .csDot{background:#5fd47a;box-shadow:0 0 0 4px rgba(95,212,122,.2)}
+#pushPill.closed .csDot{background:#ff5c5c;box-shadow:0 0 0 4px rgba(255,92,92,.2)}
 @media (max-width:520px){
-  #contestSwitch{top:auto;bottom:12px;left:12px;right:12px;justify-content:center}
+  #pushPill{top:auto;bottom:12px;left:12px;right:12px;justify-content:center}
 }
 </style></head><body>
 <div id="plate">
@@ -697,7 +727,7 @@ html,body{background:#07060c;color:#f2ead8;font-family:ui-monospace,SFMono-Regul
  <button id="mWorld" aria-label="World view"></button>
  <button id="mUS" aria-label="North America view"></button>
  <button id="mATL" aria-label="Atlanta view"></button>
- <button id="pushSwitch" aria-label="Toggle push notifications for players"></button>
+ <button id="contestAlert" aria-label="Toggle the contest open or closed"></button>
  <div class="rows" id="top10"></div><div class="rows" id="cities"></div>
  <div id="f1"><i class="bar" style="display:block;width:0"></i></div>
  <div id="f2"><i class="bar" style="display:block;width:0"></i></div>
@@ -720,17 +750,21 @@ html,body{background:#07060c;color:#f2ead8;font-family:ui-monospace,SFMono-Regul
  <div id="expIn"><div id="expHead"></div><div class="tbl" id="expRows"></div></div>
  <button id="expClose">CLOSE</button>
 </div>
-<!-- ── THE SWITCH ────────────────────────────────────────────────────────
-     Client: "there should be a switch on the dashboard that allows them to
-     turn the contest on or off." His plate has no painted spot for this —
-     it wasn't drawn for it — so rather than borrow one of his cabinet chips
-     (the ON/ALERT toggle lower right, the DOOR/BELL/LIGHTS row) and hang a
-     new meaning on art that was never about this, it's its own small fixed
-     control, styled to sit alongside the panel rather than pretend to be
-     part of it. Green dot lit + OPEN = live, accepting scores; red +
-     CLOSED = every /submit is refused, whatever the date window says. -->
-<button id="contestSwitch" aria-label="Toggle the contest open or closed">
- <span class="csDot"></span><span id="csLabel">—</span>
+<!-- ── THE PUSH PILL ────────────────────────────────────────────────────────
+     Client, first ask: "there should be a switch on the dashboard that
+     allows them to turn the contest on or off." His plate had no painted
+     spot for that, so this started as its own small fixed control, styled
+     to sit alongside the panel rather than pretend to be part of it — and
+     it was the contest switch, then.
+     Client, second ask: "important buttons need to be bigger and in
+     face... that alert switch [should be] the contest on and off switch."
+     So the contest moved to his painted ALERT chip (below), which reused
+     nothing this control still needs — the shape, the dot, the label — so
+     this element stayed and just changed what it drives: push
+     notifications' master on/off. Green dot lit + ON = players can be
+     paged; red + OFF = nothing goes out, whatever any one player chose. -->
+<button id="pushPill" aria-label="Toggle push notifications for players">
+ <span class="csDot"></span><span id="pushLabel">—</span>
 </button>
 <script>
 const K = new URLSearchParams(location.search).get('k');
@@ -751,20 +785,25 @@ function draw(){
   const ct = data.contest || {};
   $('clockB').textContent = (!ct.start || !ct.end) ? 'NOT SET'
     : (ct.now < ct.start ? 'OPENS SOON' : ct.now > ct.end ? 'CLOSED' : 'OPEN');
-  // The switch is the thing that actually decides /submit — see the note on
-  // #contestSwitch. ct.open undefined (an old cached response, or a request
-  // mid-flight) reads as closed rather than flashing green early.
-  const sw = $('contestSwitch');
-  sw.className = ct.open ? 'open' : 'closed';
-  $('csLabel').textContent = ct.open ? 'CONTEST OPEN — TAP TO CLOSE' : 'CONTEST CLOSED — TAP TO OPEN';
-  // The ALERT switch — push.enabled undefined (old cache, request mid-flight)
-  // reads as off, same fail-closed reasoning as pushEnabled() in the Worker.
+  // His painted ALERT switch is the contest switch — see the note at the top
+  // of this file on which control drives which endpoint. It is lit red
+  // already, in the art, and that lit state reads naturally as OPEN: open
+  // draws NOTHING (his pixels show through untouched), closed overlays the
+  // derived dim lamp. ct.open undefined (an old cached response, or a
+  // request mid-flight) reads as closed rather than flashing lit early.
+  contestOpenBig = !!ct.open;
+  $('plate').classList.toggle('contestOpenBig', contestOpenBig);
+  $('contestAlert').setAttribute('aria-pressed', String(contestOpenBig));
+  $('contestAlert').title = contestOpenBig
+    ? 'Contest: OPEN — tap to close'
+    : 'Contest: CLOSED — tap to open';
+  // The small pill — push notifications' master switch now, not the
+  // contest. push.enabled undefined (old cache, request mid-flight) reads
+  // as off, same fail-closed reasoning as pushEnabled() in the Worker.
   pushOn = !!(data.push && data.push.enabled);
-  $('plate').classList.toggle('pushOn', pushOn);
-  $('pushSwitch').setAttribute('aria-pressed', String(pushOn));
-  $('pushSwitch').title = pushOn
-    ? 'Push notifications: ON — tap to turn off'
-    : 'Push notifications: OFF — tap to turn on';
+  const pill = $('pushPill');
+  pill.className = pushOn ? 'open' : 'closed';
+  $('pushLabel').textContent = pushOn ? 'PUSH ON — TAP TO TURN OFF' : 'PUSH OFF — TAP TO TURN ON';
   $('clockC').textContent = new Date().toLocaleTimeString('en-US',{hour12:true});
   $('tEntrants').textContent = n(c.entrants);
   // RUNS is the board's own play counter, not COUNT(run_stats). Same reason
@@ -934,16 +973,21 @@ async function pull(){
 }
 // His painted chips, made live. The map opens on world, so world starts lit.
 let picked = null;
-// Mirrors #contestSwitch's ct.open, for the ALERT switch. Tracked here
-// rather than read off the DOM because view() below replaces #plate's
-// whole className to swap map chips, which would otherwise silently drop
-// pushOn the next time a map view is picked.
+// The contest's state, for #contestAlert — his painted switch, nested
+// inside #plate. Tracked here rather than read off the DOM because view()
+// below replaces #plate's whole className to swap map chips, which would
+// otherwise silently drop it the next time a map view is picked.
+let contestOpenBig = false;
+// The push pill's state. #pushPill sits outside #plate (position:fixed, not
+// painted-over), so nothing resets its className out from under it — this
+// is just draw()'s and the click handler's shared copy of what the Worker
+// last said.
 let pushOn = false;
 function view(which){
   picked = which;
   const p = $('plate');
   p.className = which === 'us' ? 'vUS' : which === 'atl' ? 'vATL' : 'vWorld';
-  p.classList.toggle('pushOn', pushOn);
+  p.classList.toggle('contestOpenBig', contestOpenBig);
   drawMap();
 }
 $('mWorld').onclick = () => view(null);
@@ -1067,34 +1111,19 @@ $('xRej').onclick = () => openExp('rej');
 $('entrants').onclick = () => openExp('ent');
 $('rejects').onclick = () => openExp('rej');
 $('expClose').onclick = closeExp;
-// ── FLIPPING THE SWITCH ─────────────────────────────────────────────────
-// Disabled for the round trip so a second tap mid-flight can't race the
-// first one — the Worker itself reads-then-writes so two admins tapping at
-// once would still land on a real state either way, but there is no reason
-// to invite it. Reconciles from the response rather than assuming the tap
-// landed; the 5s poll catches it either way if the request is lost.
-$('contestSwitch').onclick = async () => {
-  const sw = $('contestSwitch');
-  sw.disabled = true;
-  try {
-    const res = await fetch('/toggle?k=' + encodeURIComponent(K), { method: 'POST' });
-    const j = await res.json();
-    if (j && j.ok) data.contest = { ...(data.contest || {}), open: j.open };
-  } catch (e) { /* the next poll reconciles it */ }
-  sw.disabled = false;
-  draw();
-};
-
-// ── A CLICK FOR THE ALERT SWITCH ─────────────────────────────────────────
+// ── A CLICK FOR THE CONTEST SWITCH ───────────────────────────────────────
 //
-// Client: "it should be able to switch on and off with a click sound." No
-// audio exists anywhere else on this page — it is an admin tool, not the
-// game — so this is not borrowed from anywhere: two short square-wave
-// bursts, pitched a fourth apart (the second above the first flipping on,
-// below flipping off), long enough to read as a mechanical toggle and short
-// enough to never feel like a jingle. Built lazily on the first tap, which
-// is also the gesture that unlocks it — same reason the game's own audio
-// never constructs its AudioContext before a gesture.
+// Client, on the ALERT switch when this was still push's control: "it
+// should be able to switch on and off with a click sound." Moved over with
+// the switch, because a click matters more on the important one — the
+// contest — than it ever did on push. No audio exists anywhere else on this
+// page — it is an admin tool, not the game — so this is not borrowed from
+// anywhere: two short square-wave bursts, pitched a fourth apart (the
+// second above the first flipping on, below flipping off), long enough to
+// read as a mechanical toggle and short enough to never feel like a jingle.
+// Built lazily on the first tap, which is also the gesture that unlocks it
+// — same reason the game's own audio never constructs its AudioContext
+// before a gesture.
 let ac = null;
 function clickSound(up){
   try {
@@ -1113,11 +1142,31 @@ function clickSound(up){
   } catch (_e) { /* no audio, no harm — the switch still flips */ }
 }
 
-// Same read-current-write-opposite reconciliation as #contestSwitch above.
-$('pushSwitch').onclick = async () => {
-  const sw = $('pushSwitch');
-  const goingOn = !pushOn;
-  clickSound(goingOn);
+// ── FLIPPING THE SWITCH ─────────────────────────────────────────────────
+// Disabled for the round trip so a second tap mid-flight can't race the
+// first one — the Worker itself reads-then-writes so two admins tapping at
+// once would still land on a real state either way, but there is no reason
+// to invite it. Reconciles from the response rather than assuming the tap
+// landed; the 5s poll catches it either way if the request is lost.
+$('contestAlert').onclick = async () => {
+  const sw = $('contestAlert');
+  const goingOpen = !contestOpenBig;
+  clickSound(goingOpen);
+  sw.disabled = true;
+  try {
+    const res = await fetch('/toggle?k=' + encodeURIComponent(K), { method: 'POST' });
+    const j = await res.json();
+    if (j && j.ok) data.contest = { ...(data.contest || {}), open: j.open };
+  } catch (e) { /* the next poll reconciles it */ }
+  sw.disabled = false;
+  draw();
+};
+
+// Same read-current-write-opposite reconciliation as #contestAlert above —
+// no click sound here, the same way the pill never had one before it drove
+// the contest either.
+$('pushPill').onclick = async () => {
+  const sw = $('pushPill');
   sw.disabled = true;
   try {
     const res = await fetch('/push-toggle?k=' + encodeURIComponent(K), { method: 'POST' });
