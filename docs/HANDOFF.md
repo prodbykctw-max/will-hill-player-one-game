@@ -6,6 +6,53 @@ Repo: https://github.com/prodbykctw-max/will-hill-player-one-game
 Read `docs/GDD.md` for design and `CLAUDE.md` for architecture first. This
 file covers what a fresh session needs that isn't obvious from the code.
 
+## 2026-09-09 — dashboard: no pinch-zoom, real charts, Top 3 on Home
+
+Follow-up round on the Lightning rebuild above, same day. Client: *"I don't
+wanna be able to accidentally zoom in on anything... pinch zoom, I shouldn't
+be able to do that"*, then *"could you give me... some type of digital
+visualization of numbers... percentages"*, then, separately: *"the top
+three... should be like one of the main things that they see"* with Runs —
+last 72 hours demoted — *"that's not a primary thing that they would need to
+look at."*
+
+- **Pinch-to-zoom is blocked** — the exact technique `index.html` already
+  uses for the game (gesturestart/change/end + a multi-touch touchmove
+  guard, `passive:false`), copied over rather than reinvented, because
+  `user-scalable=no` in the viewport meta does nothing on iOS Safari (it's
+  ignored on purpose since iOS 10). Also fixed the search box's OWN zoom
+  trigger — a focused input under 16px makes iOS zoom the whole page in;
+  `#q` was inheriting the body's 13px.
+- **Home reordered**: KPIs → **Top 3** (new — current standing, live off
+  `last.rows`, sorted by score) → Quick Actions → Runs sparkline, moved to
+  the bottom per the client's own priority order above.
+- **KPI tiles are real navigation now** — Entrants/Plays/Best Score jump to
+  Entrants, Kills/Bags/Deaths jump to Analytics, same `goTo()` the hamburger
+  rail uses. Hover/focus shows a tooltip explaining the number before you
+  click.
+- **Funnel bars show percentage of Started**, not just the count — the
+  value column changed from a fixed 56px to auto-width first, since a fixed
+  box next to a longer string is exactly the shape of the old dashfit.mjs
+  bug (a real number sheared into `.237.89`). Verified at 390px width with
+  9.8M-scale numbers before calling it done.
+- **Cause of Death is a part-to-whole stacked bar + legend now, not three
+  separate bars** — dataviz-skill call: a stacked bar is read accurately,
+  a donut's wedge angle is guessed at. Ran the skill's own palette
+  validator on the old blue/orange/red first: it genuinely FAILS colorblind
+  separation (orange vs red ΔE 2.5 deutan). Replaced with the palette's own
+  validated first-three categorical slots (`--dv-1/2/3`) instead.
+- **The sparkline is a real line+area chart with a crosshair** — nearest-
+  point hover (interaction.md's pattern for dense data; a per-dot hit
+  target across 72 points would be a few px wide), not the old plain bars.
+- One shared tooltip module (`.dv-tip`) serves all of the above, mouse and
+  keyboard focus alike.
+- **Credits screen: no separate DESIGN line** — client: game development
+  already covers design, so `_kematry`'s DESIGN row is gone; MUSIC and
+  SOUND EFFECTS folded into one MUSIC/SFX line (`src/render/credits.js`) —
+  same person, same credit, no reason to say it twice.
+
+Still needs a `wrangler deploy` from the client's machine, same as always.
+
 ## 2026-09-09 — the dashboard is now a Salesforce Lightning console
 
 Client: *"Kima [Kema], who is the project manager and technically the person

@@ -23,10 +23,14 @@
 // Developer. Client, settling which shows up on THIS screen: "it makes
 // sense for us to just leave game development as the rare agency." One name
 // per role, same as every other line here — the Lead Developer detail lives
-// in the docs above, not repeated on screen. DESIGN is new: "Kema... did get
-// the images of the backgrounds and convert them into pixel art... you
-// could put art and credit her, or design" — he used both words once each
-// across two messages; DESIGN is what he settled on the second time.
+// in the docs above, not repeated on screen.
+//
+// ⚠️ NO SEPARATE DESIGN LINE. This screen briefly had one — "DESIGN →
+// _kematry", credited for converting the backgrounds into pixel art — before
+// the client reversed it: game development already covers design, so it
+// doesn't get its own row. MUSIC and SOUND EFFECTS are likewise folded into
+// one MUSIC/SFX line rather than two identical `prodbyKCTW` rows back to
+// back — same person, same credit, no reason to say it twice.
 //
 // NOTHING IS PAINTED HERE. There is no plate for this screen — it was never
 // commissioned — so unlike ending.js this file draws real text on a real
@@ -55,13 +59,7 @@ const LINES = [
   { role: 'GAME DEVELOPMENT' },
   { name: 'RARƎ AGENCY' },
   { gap: 0.6 },
-  { role: 'DESIGN' },
-  { name: '_kematry' },
-  { gap: 0.6 },
-  { role: 'MUSIC' },
-  { name: 'prodbyKCTW' },
-  { gap: 0.6 },
-  { role: 'SOUND EFFECTS' },
+  { role: 'MUSIC/SFX' },
   { name: 'prodbyKCTW' },
   { gap: 1.4 },
   { small: 'THANK YOU FOR PLAYING' },

@@ -342,7 +342,7 @@ export default {
     // (MAPV/MAP, tuned to the painted plate's exact pixel dimensions)
     // dropped entirely since nothing here draws on a canvas anymore.
     const html = `<!doctype html><html lang="en"><head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="robots" content="noindex,nofollow"><title>WH:P1 — Contest Console</title>
 <style>
 /* ── SALESFORCE LIGHTNING DESIGN SYSTEM TOKENS ───────────────────────────
@@ -358,14 +358,26 @@ export default {
   --sf-orange:#a35200; --sf-orange-bg:#fff3e0;
   --sf-shadow:0 2px 2px 0 rgba(0,0,0,.10);
   --sf-radius:4px;
+  /* Cause-of-death categorical triple — NOT the same blue/orange/red used
+     for status badges above. Picked and validated with the dataviz skill's
+     palette validator (node validate_palette.js) rather than eyeballed: the
+     old bars used --sf-blue/--sf-orange/--sf-red together, which fails CVD
+     separation outright (red vs orange ΔE 2.5 deutan, both well under the
+     safety floor — a colorblind reader can't tell Pothole from Fall apart
+     by color at all). This triple is the palette's own first three
+     categorical slots, which validate CVD-safe across every pair. */
+  --dv-1:#2a78d6; --dv-1-ink:#fff;
+  --dv-2:#eb6834; --dv-2-ink:#fff;
+  --dv-3:#1baf7a; --dv-3-ink:#0b0b0b;
 }
 *{box-sizing:border-box}
+html{touch-action:manipulation}
 body{margin:0;background:var(--sf-bg);color:var(--sf-text);
   font:13px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
   -webkit-font-smoothing:antialiased}
 a{color:var(--sf-blue);text-decoration:none}
 a:hover{text-decoration:underline}
-button{font:inherit;cursor:pointer}
+button{font:inherit;cursor:pointer;touch-action:manipulation}
 
 /* ── GLOBAL HEADER — Lightning's dark utility bar ─────────────────────── */
 #hdr{background:var(--sf-blue-dark);color:#fff;display:flex;align-items:center;
@@ -409,12 +421,54 @@ h1.pt{font-size:22px;font-weight:700;margin:0 0 16px;color:var(--sf-text)}
 /* ── KPI TILES ─────────────────────────────────────────────────────────── */
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;
   margin-bottom:16px}
-.kpi{background:var(--sf-card);border:1px solid var(--sf-border);
+.kpi{position:relative;background:var(--sf-card);border:1px solid var(--sf-border);
   border-left:3px solid var(--sf-blue);border-radius:var(--sf-radius);
   box-shadow:var(--sf-shadow);padding:12px 14px}
 .kpi .lbl{font-size:11px;color:var(--sf-text-3);text-transform:uppercase;
   letter-spacing:.04em;margin-bottom:4px}
 .kpi .val{font-size:24px;font-weight:700;color:var(--sf-text)}
+/* Client: "entrants on that first screen, you should still be able to click
+   that and get to that same entrants page from the hamburger button" — the
+   tiles that map to a section become real navigation, not just readouts. */
+.kpi.clickable{cursor:pointer;padding-right:26px;transition:border-color .1s,box-shadow .1s}
+.kpi.clickable:hover{border-color:var(--sf-blue);box-shadow:0 2px 10px rgba(1,118,211,.18)}
+.kpi.clickable:focus-visible{outline:2px solid var(--sf-blue);outline-offset:2px}
+.kpi .chev{position:absolute;right:10px;top:50%;margin-top:-9px;font-size:17px;
+  line-height:1;color:var(--sf-text-3)}
+.kpi.clickable:hover .chev,.kpi.clickable:focus-visible .chev{color:var(--sf-blue)}
+
+/* ── HOVER/FOCUS TOOLTIP — shared by KPI tiles, report bars, the death-cause
+   bar's segments, and the sparkline's crosshair. Every number it shows also
+   sits in the mark itself or the legend (interaction.md: tooltips enhance,
+   they never gate) — this is the "highlight something, get information"
+   layer the client asked for. */
+.dv-tip{position:fixed;left:0;top:0;z-index:60;pointer-events:none;opacity:0;
+  transform:translateY(2px);transition:opacity .08s,transform .08s;
+  background:#181818;color:#fff;font-size:12px;font-weight:600;padding:6px 10px;
+  border-radius:4px;box-shadow:0 4px 14px rgba(0,0,0,.28);max-width:240px;line-height:1.4}
+.dv-tip.on{opacity:1;transform:translateY(0)}
+
+/* ── TOP 3 — "one of the main things they see" on Home, above Quick
+   Actions. Rank 1 gets a little more weight than 2/3, not a trophy case. */
+.top3{display:flex;flex-direction:column}
+.t3-row{display:flex;align-items:center;gap:14px;padding:10px 2px;
+  border-bottom:1px solid #f0efee}
+.t3-row:last-of-type{border-bottom:none}
+.t3-rank{width:28px;height:28px;border-radius:50%;flex:none;display:flex;
+  align-items:center;justify-content:center;font-weight:700;font-size:13px;
+  color:#fff;background:var(--sf-text-3)}
+.t3-1{padding:14px 2px}
+.t3-1 .t3-rank{width:34px;height:34px;font-size:15px;background:#a8790a}
+.t3-2 .t3-rank{background:#767a80}
+.t3-3 .t3-rank{background:#8c5a30}
+.t3-name{flex:1;min-width:0;font-weight:700;font-size:14px;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap;color:var(--sf-text)}
+.t3-1 .t3-name{font-size:15.5px}
+.t3-score{font-weight:700;font-variant-numeric:tabular-nums;color:var(--sf-text);font-size:17px}
+.t3-1 .t3-score{font-size:21px;color:var(--sf-blue-dark)}
+.t3-more{display:inline-block;margin-top:12px;font-size:12.5px;font-weight:700;
+  color:var(--sf-blue);cursor:pointer}
+.t3-more:hover{text-decoration:underline}
 
 /* ── QUICK ACTIONS: the switch, as a real toggle ──────────────────────── */
 .qa{display:flex;flex-wrap:wrap;gap:20px}
@@ -438,7 +492,12 @@ h1.pt{font-size:22px;font-weight:700;margin:0 0 16px;color:var(--sf-text)}
   border-bottom:1px solid var(--sf-border)}
 .lv-search{flex:1;max-width:320px;position:relative}
 .lv-search input{width:100%;padding:7px 10px 7px 30px;border:1px solid var(--sf-border);
-  border-radius:var(--sf-radius);font:inherit;color:var(--sf-text)}
+  border-radius:var(--sf-radius);font:inherit;color:var(--sf-text);
+  /* iOS Safari zooms the whole page in on focus for any input under 16px —
+     a SEPARATE mechanism from pinch-zoom (below), triggered by focus not
+     touch. 16px is the floor that turns it off; body's 13px base wasn't
+     enough by itself. */
+  font-size:16px}
 .lv-search::before{content:'';position:absolute;left:10px;top:50%;margin-top:-6px;
   width:12px;height:12px;border:2px solid var(--sf-text-3);border-radius:50%}
 .lv-count{font-size:12px;color:var(--sf-text-3)}
@@ -460,19 +519,54 @@ tbody tr:nth-child(even):hover{background:var(--sf-blue-light)}
 .tbl-wrap{overflow-x:auto;max-height:70vh;overflow-y:auto}
 .empty{padding:30px;text-align:center;color:var(--sf-text-3)}
 
-/* ── REPORT BARS (funnel / death causes) ──────────────────────────────── */
-.rbar-row{display:grid;grid-template-columns:120px 1fr 56px;align-items:center;
-  gap:10px;padding:6px 0;font-size:12.5px}
+/* ── REPORT BARS (funnel) ─────────────────────────────────────────────── */
+/* Value column is auto-width, NOT a fixed px width — dashfit.mjs's whole reason
+   for existing was a fixed-width value box that SHEARED a number instead of
+   growing ("1,234,567" chewed through a 56px column). Adding "(NN%)" here
+   made that worse, not better, so the column now sizes to its content; the
+   track is the only thing that gives up room on a narrow phone. */
+.rbar-row{display:grid;grid-template-columns:120px 1fr auto;align-items:center;
+  gap:10px;padding:7px 4px;font-size:12.5px;cursor:default;border-radius:3px}
+.rbar-row:hover,.rbar-row:focus-visible{background:var(--sf-blue-light);outline:none}
+.rbar-row:focus-visible{box-shadow:0 0 0 2px var(--sf-blue)}
 .rbar-track{background:#f0efee;border-radius:3px;height:14px;overflow:hidden}
 .rbar-fill{height:100%;background:var(--sf-blue);border-radius:3px}
-.rbar-fill.warn{background:var(--sf-orange)}
-.rbar-fill.bad{background:var(--sf-red)}
-.rbar-val{text-align:right;color:var(--sf-text-3);font-variant-numeric:tabular-nums}
+.rbar-val{text-align:right;color:var(--sf-text-3);font-variant-numeric:tabular-nums;
+  white-space:nowrap}
 .stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:14px}
 .stat-grid .s{border-left:2px solid var(--sf-border);padding-left:10px}
 .stat-grid .s .v{font-size:18px;font-weight:700}
 .stat-grid .s .l{font-size:11px;color:var(--sf-text-3);text-transform:uppercase;
   letter-spacing:.03em}
+
+/* ── CAUSE OF DEATH — a part-to-whole stacked bar, not three separate ones.
+   dataviz skill's own form table: "Part-to-whole → stacked bar", not a
+   donut — a bar is read accurately, a wedge angle is guessed at. One flex
+   row, --dv-1/2/3 fills, a 2px surface gap between segments (the card's own
+   white showing through — the mark-spec "surface gap", not a drawn border),
+   rounded only at the bar's own two outer ends. */
+.sbar{display:flex;gap:2px;height:24px;border-radius:var(--sf-radius);overflow:hidden;
+  background:var(--sf-card)}
+.sbar-seg{display:flex;align-items:center;justify-content:center;min-width:0;
+  cursor:default;transition:filter .1s}
+.sbar-seg:hover,.sbar-seg:focus-visible{filter:brightness(.92);outline:none}
+.sbar-label{font-size:11px;font-weight:700;padding:0 4px;white-space:nowrap;
+  overflow:hidden}
+.sbar-legend{display:flex;flex-wrap:wrap;gap:8px 20px;margin-top:14px;font-size:12.5px}
+.sbar-legend .li{display:flex;align-items:center;gap:7px;color:var(--sf-text-2);
+  cursor:default;padding:2px;border-radius:3px}
+.sbar-legend .li:hover,.sbar-legend .li:focus-visible{background:var(--sf-blue-light);outline:none}
+.sbar-legend .sw{width:10px;height:10px;border-radius:2px;flex:none}
+.sbar-legend b{color:var(--sf-text);font-variant-numeric:tabular-nums;margin-left:2px}
+
+/* ── SPARKLINE — a real line+area chart with a crosshair, not plain bars.
+   The hit target is one full-width transparent rect (interaction.md's
+   nearest-point pattern), not one per point — with up to 72 points a
+   per-dot hit target would be a few px wide and nobody could aim at it. */
+.spk-svg{display:block;width:100%}
+.spk-hit{fill:transparent;cursor:crosshair}
+.spk-hair{stroke:var(--sf-text-3);stroke-width:1;stroke-dasharray:2,2;pointer-events:none}
+.spk-emph{fill:var(--sf-blue);stroke:#fff;stroke-width:2;pointer-events:none}
 
 .view{display:none}
 .view.on{display:block}
@@ -536,6 +630,14 @@ tbody tr:nth-child(even):hover{background:var(--sf-blue-light)}
 
       <div class="kpis" id="kpis"></div>
 
+      <!-- Client: "the top three... should be like one of the main things
+           that they see" — right under the KPI row, above Quick Actions,
+           because that's the number a contest actually turns on. -->
+      <div class="card">
+        <div class="hd">Top 3<span class="sub">Current standing — top 3 scores win</span></div>
+        <div class="bd top3" id="top3Wrap"></div>
+      </div>
+
       <div class="card">
         <div class="hd">Quick Actions</div>
         <div class="bd qa">
@@ -558,6 +660,9 @@ tbody tr:nth-child(even):hover{background:var(--sf-blue-light)}
         </div>
       </div>
 
+      <!-- Client: "runs in the last 72 hours... that's not a primary thing
+           that they would need to look at" — moved to the bottom of Home,
+           under Top 3 and Quick Actions rather than between them. -->
       <div class="card">
         <div class="hd">Runs — last 72 hours<span class="sub" id="sparkSub"></span></div>
         <div class="bd" id="sparkWrap"></div>
@@ -680,6 +785,24 @@ function stamp(t){
   });
 }
 
+// ── PINCH DOES NOT ZOOM THIS PAGE ────────────────────────────────────────
+// Client: "I don't wanna be able to accidentally zoom in on anything... I
+// shouldn't be able to do that." Same complaint the game got, same fix —
+// see index.html's own copy of this block for the full explanation. Short
+// version: the viewport meta's maximum-scale/user-scalable has been IGNORED
+// by iOS Safari since iOS 10 on purpose, so these three listeners are the
+// part that actually works there. gesturestart/change/end are the real
+// pinch on Safari; the touchmove guard is the cross-browser backstop for a
+// second finger, deliberately only blocking when touches.length > 1 so one
+// finger keeps scrolling the entrant/locations tables normally.
+// passive:false on every one, or preventDefault is a no-op.
+for (const t of ['gesturestart', 'gesturechange', 'gestureend']) {
+  document.addEventListener(t, (e) => e.preventDefault(), { passive: false });
+}
+document.addEventListener('touchmove', (e) => {
+  if (e.touches.length > 1) e.preventDefault();
+}, { passive: false });
+
 // ── NAV ──────────────────────────────────────────────────────────────────
 function closeNav(){
   $('nav').classList.remove('open');
@@ -690,14 +813,70 @@ $('navBtn').addEventListener('click', () => {
   $('navBackdrop').classList.toggle('on');
 });
 $('navBackdrop').addEventListener('click', closeNav);
+// goTo() is the one place a view actually switches — the nav rail calls it
+// on click, and so does anything elsewhere on the page that promises to
+// "take you there" (a clickable KPI tile, the Top 3 card's View All link).
+// Two callers, one behavior: whichever route got you to Entrants, the rail
+// itself always shows Entrants as current.
+function goTo(view){
+  document.querySelectorAll('#nav .item').forEach((x) => x.classList.toggle('on', x.dataset.v === view));
+  document.querySelectorAll('.view').forEach((x) => x.classList.toggle('on', x.id === 'v-' + view));
+  closeNav();
+}
 document.querySelectorAll('#nav .item').forEach((el) => {
-  el.addEventListener('click', () => {
-    document.querySelectorAll('#nav .item').forEach((x) => x.classList.remove('on'));
-    document.querySelectorAll('.view').forEach((x) => x.classList.remove('on'));
-    el.classList.add('on');
-    $('v-' + el.dataset.v).classList.add('on');
-    closeNav();
-  });
+  el.addEventListener('click', () => goTo(el.dataset.v));
+});
+// Anything elsewhere on the page that promises "click here to go there" —
+// a clickable KPI tile, the Top 3 card's View All link — carries
+// data-goto="<view>" instead of its own one-off listener, mouse and
+// keyboard both (Enter/Space), same as a real link.
+document.addEventListener('click', (e) => {
+  const el = e.target.closest('[data-goto]');
+  if (el) goTo(el.dataset.goto);
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  const el = e.target.closest('[data-goto]');
+  if (el) { e.preventDefault(); goTo(el.dataset.goto); }
+});
+
+// ── TOOLTIPS ──────────────────────────────────────────────────────────────
+// One floating tooltip shared by every hoverable data mark — KPI tiles,
+// report-bar rows, the death-cause bar's segments and legend, and (via
+// tipShowAt) the sparkline's crosshair. Mouse AND keyboard focus both show
+// it (interaction.md: "same details on keyboard focus as on hover") — a
+// tab-through reader gets the same numbers a mouse does.
+const tipEl = document.createElement('div');
+tipEl.className = 'dv-tip';
+document.body.appendChild(tipEl);
+function tipHide(){ tipEl.classList.remove('on'); }
+function tipShowAt(x, y, text){
+  tipEl.textContent = text;
+  tipEl.classList.add('on');
+  const pad = 14;
+  const r = tipEl.getBoundingClientRect();
+  let left = x + pad, top = y - r.height - pad;
+  if (left + r.width > innerWidth - 8) left = innerWidth - 8 - r.width;
+  if (top < 8) top = y + pad;
+  tipEl.style.left = Math.max(8, left) + 'px';
+  tipEl.style.top = top + 'px';
+}
+document.addEventListener('pointermove', (e) => {
+  const el = e.target.closest('[data-tip]');
+  // .spk-hit runs its own pointermove (it needs the NEAREST point, not the
+  // static text a plain data-tip attribute would give it) — this listener
+  // has to step aside rather than fight it for the same tooltip element.
+  if (el) tipShowAt(e.clientX, e.clientY, el.getAttribute('data-tip'));
+  else if (!e.target.closest('.spk-hit')) tipHide();
+});
+document.addEventListener('focusin', (e) => {
+  const el = e.target.closest('[data-tip]');
+  if (!el) return;
+  const r = el.getBoundingClientRect();
+  tipShowAt(r.left + r.width / 2, r.top, el.getAttribute('data-tip'));
+});
+document.addEventListener('focusout', (e) => {
+  if (e.target.closest('[data-tip]')) tipHide();
 });
 
 // ── STATE + POLL ─────────────────────────────────────────────────────────
@@ -729,6 +908,7 @@ function draw(){
   if (sig === lastSig) return;
   lastSig = sig;
   drawKpis();
+  drawTop3();
   drawSwitches();
   drawSpark();
   drawEntrants();
@@ -738,16 +918,37 @@ function draw(){
 }
 
 // ── HOME ─────────────────────────────────────────────────────────────────
+// Each tile that maps to a section becomes a real nav link — same click
+// target as the hamburger rail (data-goto -> goTo(), see NAV above) — with
+// a tooltip explaining what the number means and where the click goes.
+const KPI_TILES = [
+  ['Entrants', (c, t) => n(c.entrants), 'entrants', 'Unique players who have submitted a score.'],
+  ['Plays', (c, t) => n(c.plays), 'entrants', 'Total runs submitted, including repeats.'],
+  ['Best Score', (c, t) => n(t.best), 'entrants', 'The single highest score on the board right now.'],
+  ['Kills', (c, t) => n(t.kills), 'analytics', 'Enemies defeated across every run.'],
+  ['Bags Collected', (c, t) => n(t.bags), 'analytics', 'Money bags collected across every run.'],
+  ['Deaths', (c, t) => n(t.deaths), 'analytics', 'Runs that ended in death — see Cause of Death for the breakdown.'],
+];
 function drawKpis(){
   const c = last.counts || {}, t = last.totals || {};
-  const tiles = [
-    ['Entrants', n(c.entrants)], ['Plays', n(c.plays)],
-    ['Best Score', n(t.best)], ['Kills', n(t.kills)],
-    ['Bags Collected', n(t.bags)], ['Deaths', n(t.deaths)],
-  ];
-  $('kpis').innerHTML = tiles.map(([l, v]) =>
-    '<div class="kpi"><div class="lbl">' + esc(l) + '</div><div class="val">' + v + '</div></div>'
-  ).join('');
+  $('kpis').innerHTML = KPI_TILES.map(([l, val, view, desc]) => {
+    const tip = desc + (view ? ' Click to view ' + (view === 'entrants' ? 'Entrants' : 'Analytics') + '.' : '');
+    return '<div class="kpi clickable" role="button" tabindex="0" data-goto="' + view + '" data-tip="' +
+      esc(tip) + '"><div class="lbl">' + esc(l) + '</div><div class="val">' + val(c, t) +
+      '</div><div class="chev">›</div></div>';
+  }).join('');
+}
+
+function drawTop3(){
+  const rows = (last.rows || []).slice().sort((a, b) => (b.score || 0) - (a.score || 0)).slice(0, 3);
+  if (!rows.length) { $('top3Wrap').innerHTML = '<div class="empty">No entrants yet</div>'; return; }
+  $('top3Wrap').innerHTML = rows.map((r, i) =>
+    '<div class="t3-row t3-' + (i + 1) + '">' +
+      '<div class="t3-rank">' + (i + 1) + '</div>' +
+      '<div class="t3-name">' + esc(r.name) + '</div>' +
+      '<div class="t3-score">' + n(r.score) + '</div>' +
+    '</div>'
+  ).join('') + '<span class="t3-more" data-goto="entrants" tabindex="0" role="button">View all entrants →</span>';
 }
 
 function drawSwitches(){
@@ -777,15 +978,60 @@ $('tgPush').addEventListener('click', async () => {
 
 function drawSpark(){
   const rows = last.spark || [];
-  if (!rows.length) { $('sparkWrap').innerHTML = '<div class="empty">No runs yet</div>'; return; }
+  const wrap = $('sparkWrap');
+  if (!rows.length) { wrap.innerHTML = '<div class="empty">No runs yet</div>'; $('sparkSub').textContent = ''; return; }
+
+  // Real coordinates, not a stretched viewBox — measuring the actual
+  // rendered width keeps the 2px line an honest 2px instead of getting
+  // smeared thin or thick by a non-uniform SVG scale.
+  const W = Math.max(280, Math.round(wrap.clientWidth) || 560), H = 84, padTop = 10, padBottom = 4;
   const max = Math.max(1, ...rows.map((r) => r.n));
-  const w = 6, gap = 2;
-  const bars = rows.map((r) =>
-    '<div style="width:' + w + 'px;height:' + Math.round((r.n / max) * 60 + 2) +
-    'px;background:var(--sf-blue);border-radius:1px" title="hour ' + r.hour + ': ' + r.n + ' runs"></div>'
-  ).join('');
-  $('sparkWrap').innerHTML =
-    '<div style="display:flex;align-items:flex-end;gap:' + gap + 'px;height:64px">' + bars + '</div>';
+  const stepX = rows.length > 1 ? W / (rows.length - 1) : 0;
+  const pts = rows.map((r, i) => ({
+    x: rows.length > 1 ? i * stepX : W / 2,
+    y: H - padBottom - (r.n / max) * (H - padTop - padBottom),
+    hour: r.hour, val: r.n,
+  }));
+  const line = pts.map((p, i) => (i === 0 ? 'M' : 'L') + p.x.toFixed(1) + ',' + p.y.toFixed(1)).join(' ');
+  const area = line + ' L' + pts[pts.length - 1].x.toFixed(1) + ',' + H + ' L0,' + H + ' Z';
+
+  wrap.innerHTML =
+    '<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" height="' + H + '" class="spk-svg" id="spkSvg">' +
+      '<defs><linearGradient id="spkGrad" x1="0" y1="0" x2="0" y2="1">' +
+        '<stop offset="0%" stop-color="#0176d3" stop-opacity="0.22"/>' +
+        '<stop offset="100%" stop-color="#0176d3" stop-opacity="0"/>' +
+      '</linearGradient></defs>' +
+      '<path d="' + area + '" fill="url(#spkGrad)" stroke="none"></path>' +
+      '<path d="' + line + '" fill="none" stroke="var(--sf-blue)" stroke-width="2" ' +
+        'stroke-linejoin="round" stroke-linecap="round"></path>' +
+      '<line id="spkHair" x1="0" y1="0" x2="0" y2="' + H + '" class="spk-hair" style="display:none"></line>' +
+      '<circle id="spkDot" r="4" class="spk-emph" style="display:none"></circle>' +
+      '<rect x="0" y="0" width="' + W + '" height="' + H + '" class="spk-hit" id="spkHit"></rect>' +
+    '</svg>';
+
+  // Nearest-point crosshair (interaction.md), not a hit target per dot —
+  // up to 72 points across one card would put dots a few px apart, too
+  // close to aim at individually.
+  const svg = $('spkSvg'), hit = $('spkHit'), hair = $('spkHair'), dot = $('spkDot');
+  const nearest = (clientX) => {
+    const rect = svg.getBoundingClientRect();
+    const px = (clientX - rect.left) * (W / rect.width);
+    let best = 0, bestD = Infinity;
+    pts.forEach((p, i) => { const d = Math.abs(p.x - px); if (d < bestD) { bestD = d; best = i; } });
+    return best;
+  };
+  hit.addEventListener('pointermove', (e) => {
+    const p = pts[nearest(e.clientX)];
+    hair.setAttribute('x1', p.x); hair.setAttribute('x2', p.x); hair.style.display = '';
+    dot.setAttribute('cx', p.x); dot.setAttribute('cy', p.y); dot.style.display = '';
+    const rect = svg.getBoundingClientRect();
+    tipShowAt(rect.left + (p.x / W) * rect.width, rect.top + (p.y / H) * rect.height,
+      'Hour ' + p.hour + ': ' + n(p.val) + ' run' + (p.val === 1 ? '' : 's'));
+  });
+  hit.addEventListener('pointerleave', () => {
+    hair.style.display = 'none'; dot.style.display = 'none'; tipHide();
+  });
+
   $('sparkSub').textContent = rows.reduce((a, r) => a + r.n, 0) + ' runs';
 }
 
@@ -851,22 +1097,28 @@ function drawLocations(){
 }
 
 // ── ANALYTICS ────────────────────────────────────────────────────────────
-function bar(label, val, max, cls){
+function bar(label, val, max, opts){
+  opts = opts || {};
   // val missing/null (an empty funnel, a stage nobody's reached yet) must
   // not become width:NaN% — the browser ignores an invalid width and the
   // fill falls back to full, showing a 100% bar next to a 0 label.
   val = val || 0;
   const pct = max > 0 ? Math.round((val / max) * 100) : 0;
-  return '<div class="rbar-row"><div>' + esc(label) + '</div>' +
-    '<div class="rbar-track"><div class="rbar-fill' + (cls ? ' ' + cls : '') +
-    '" style="width:' + pct + '%"></div></div>' +
-    '<div class="rbar-val">' + n(val) + '</div></div>';
+  // "Started" is always 100% of itself — showing "(100%)" on every one of
+  // its own rows is noise, not information, so opts.pct=false skips it
+  // there while every OTHER funnel row still gets it.
+  const showPct = opts.pct !== false && max > 0;
+  const valText = showPct ? n(val) + ' (' + pct + '%)' : n(val);
+  const tip = esc(label) + ': ' + n(val) + (showPct ? ' — ' + pct + '% of ' + n(max) : '');
+  return '<div class="rbar-row" tabindex="0" data-tip="' + tip + '"><div>' + esc(label) + '</div>' +
+    '<div class="rbar-track"><div class="rbar-fill" style="width:' + pct + '%"></div></div>' +
+    '<div class="rbar-val">' + valText + '</div></div>';
 }
 function drawAnalytics(){
   const f = last.funnel || {};
   const runs = f.runs || 0;
   $('funnelWrap').innerHTML = [
-    bar('Started', runs, runs),
+    bar('Started', runs, runs, { pct: false }),
     bar('Reached Stage 2', f.s2, runs),
     bar('Reached Stage 3', f.s3, runs),
     bar('Reached Stage 4', f.s4, runs),
@@ -880,13 +1132,41 @@ function drawAnalytics(){
     ['Bags Lost', n(f.bags_lost)],
   ].map(([l, v]) => '<div class="s"><div class="v">' + v + '</div><div class="l">' + esc(l) + '</div></div>').join('');
 
-  const deaths = [
-    ['Enemy', f.d_enemy || 0, ''],
-    ['Pothole', f.d_pothole || 0, 'warn'],
-    ['Fall', f.d_fall || 0, 'bad'],
-  ];
-  const dmax = Math.max(1, ...deaths.map((d) => d[1]));
-  $('deathWrap').innerHTML = deaths.map(([l, v, cls]) => bar(l, v, dmax, cls)).join('');
+  drawDeathBar(f);
+}
+
+// Part-to-whole, so a stacked bar (dataviz skill: "Part-to-whole -> stacked
+// bar" — never a donut; a wedge angle is guessed at, a bar length is read).
+// --dv-1/2/3 is a fixed, CVD-validated triple — see the :root comment where
+// they're declared for why this replaced --sf-blue/orange/red here.
+const DEATH_CAUSES = [
+  { key: 'd_enemy', label: 'Enemy', fill: 'var(--dv-1)', ink: 'var(--dv-1-ink)' },
+  { key: 'd_pothole', label: 'Pothole', fill: 'var(--dv-2)', ink: 'var(--dv-2-ink)' },
+  { key: 'd_fall', label: 'Fall', fill: 'var(--dv-3)', ink: 'var(--dv-3-ink)' },
+];
+function drawDeathBar(f){
+  const causes = DEATH_CAUSES.map((c) => ({ ...c, val: f[c.key] || 0 }));
+  const total = causes.reduce((a, c) => a + c.val, 0);
+  if (!total) { $('deathWrap').innerHTML = '<div class="empty">No deaths yet</div>'; return; }
+  const present = causes.filter((c) => c.val > 0);
+  $('deathWrap').innerHTML =
+    '<div class="sbar">' + present.map((c) => {
+      const pct = Math.round((c.val / total) * 100);
+      // "measure first" (marks-and-anatomy.md) — a sliver segment gets no
+      // inline label; its count and share still live in the legend and the
+      // tooltip, so nothing is only reachable by a pixel nobody can read.
+      const showInline = pct >= 15;
+      const tip = c.label + ': ' + n(c.val) + ' — ' + pct + '% of ' + n(total) + ' deaths';
+      return '<div class="sbar-seg" style="flex:' + c.val + ' 0 0;background:' + c.fill + ';color:' + c.ink + '" ' +
+        'tabindex="0" data-tip="' + esc(tip) + '">' +
+        (showInline ? '<span class="sbar-label">' + pct + '%</span>' : '') + '</div>';
+    }).join('') + '</div>' +
+    '<div class="sbar-legend">' + causes.map((c) => {
+      const pct = total > 0 ? Math.round((c.val / total) * 100) : 0;
+      return '<div class="li" tabindex="0" data-tip="' + esc(c.label) + ': ' + n(c.val) + ' — ' + pct + '% of ' + n(total) + ' deaths">' +
+        '<span class="sw" style="background:' + c.fill + '"></span>' + esc(c.label) +
+        '<b>' + n(c.val) + ' (' + pct + '%)</b></div>';
+    }).join('') + '</div>';
 }
 
 // ── ACTIVITY LOG ─────────────────────────────────────────────────────────
