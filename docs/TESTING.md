@@ -124,6 +124,21 @@ skyleak 4, dashload · relay · graphwire clean on their own wordings.
 is the three-beat intro ordering, which is NOT BUILT (see Known open below and
 CAT 4 in STATUS). Expected red, not a regression.
 
+⚠️ **`dashfit` and `dashglow` counts above are from the old dashboard and no
+longer apply.** The Sept 2026 Kema/Salesforce-Lightning rebuild
+(`cloudflare/dashboard-worker.js`) replaced the painted-plate front end both
+harnesses were built to grade — the fixed `overflow:hidden` rects `dashfit`
+measured and the CSS glow layer `dashglow` measured are gone, not just moved,
+so both retired themselves (they now print why and exit 0 rather than fail
+against selectors that no longer exist — see each file's header). `dashload`
+was updated in the same change (new selectors: `#entBody`/`#geoBody`/`#nav
+.item`, the tap-to-expand step became a nav-tab switch) and stays a live
+check — it caught two real regressions in the rebuild before this note was
+written: the mobile nav rail had no way to open it at all (no hamburger
+button existed), and `draw()` rebuilt every table from scratch on every
+5-second poll with no memoization, both fixed in the same commit. Re-run it
+post-rebuild rather than trusting the counts above.
+
 Two things that were red in earlier passes and are now clean, both re-measured
 rather than assumed:
 
@@ -250,6 +265,10 @@ nothing because `updatePlayer` recomputes it from the map every frame — the
 test now lands him on real ground and asserts he got there.
 
 ### Does the number fit the box he painted?
+
+⚠️ **Retired Sept 2026** — the painted-plate rects this section describes are
+gone (see the note in "Last sweep" above); kept below as historical record of
+the failure mode and the measurement technique, not as a live check.
 
 `tools/harness/dashfit.mjs`. Every value on the dashboard is a transparent box
 positioned at a measured percentage of his artwork, and `#plate>*` is

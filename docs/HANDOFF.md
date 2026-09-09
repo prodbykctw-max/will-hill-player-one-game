@@ -6,6 +6,56 @@ Repo: https://github.com/prodbykctw-max/will-hill-player-one-game
 Read `docs/GDD.md` for design and `CLAUDE.md` for architecture first. This
 file covers what a fresh session needs that isn't obvious from the code.
 
+## 2026-09-09 — the dashboard is now a Salesforce Lightning console
+
+Client: *"Kima [Kema], who is the project manager and technically the person
+responsible for design of this project... she wants the dashboard to be more
+like Salesforce. Since she works for Salesforce, she's a Salesforce admin...
+What would a Salesforce dashboard look like in regard to this game? Plan for
+that, and then build it out."*
+
+`cloudflare/dashboard-worker.js`'s front end is a full rebuild — dark navy
+global header, left app-nav rail (Home / Entrants / Locations / Analytics /
+Activity Log), white bordered cards, blue-accent KPI tiles, real toggle
+switches with semantic badges (green=open, gray=closed), sortable list-view
+tables, horizontal-bar report rows. **Only the front end changed** — every
+route (`/data`, `/toggle`, `/push-toggle`, `/csv`) and every D1 query is
+byte-identical to before, verified by diff.
+
+- **The hand-painted world map is gone**, replaced by a plain sortable
+  Locations list view over the same `geo` rows `/data` already groups in
+  SQL — a real Lightning report is a table, not a canvas. `worldmap.js` /
+  `mapdata.js` are unused now but not deleted (kept in case a map view comes
+  back; nothing in `/data`'s SQL depended on removing them).
+- **`dashfit.mjs` and `dashglow.mjs` retired** — both graded failure modes
+  specific to the old painted plate (`overflow:hidden` rects that could
+  shear a number, a CSS glow layer over painted art) that structurally can't
+  happen in the new design (no fixed-height boxes, real button elements).
+  Verified directly instead: KPI tiles hold 7-digit numbers at 390px with no
+  clipping. Both files print why and exit 0 rather than fail on selectors
+  that no longer exist. `dashload.mjs` was updated (new selectors, tap-to-
+  expand → nav-tab switch) and caught two real bugs in the rebuild before
+  this note existed:
+  - **The mobile nav rail had no way to open it.** It's `translateX(-100%)`
+    off-canvas below 760px by design, but nothing in the first draft added a
+    way to bring it back — Entrants/Locations/Analytics/Activity Log were
+    completely unreachable on the phone width this thing is actually read
+    on. Fixed with a hamburger button + backdrop.
+  - **No redraw memoization.** `draw()` rebuilt every table's `innerHTML`
+    from scratch on every 5-second poll, forever, regardless of whether
+    anything changed — 140-470ms per poll at 1,500 entrants. Now skips the
+    rebuild when the fetched JSON is byte-identical to the last poll; poll
+    cost dropped to ~1ms.
+  - A header-bar overflow (upd/clock/brand none shrinking) ran the page
+    28px past 390px width; `#hdr .upd` hides below 760px to fix it.
+  - See docs/TESTING.md for the full retirement note and re-run instructions.
+
+Not yet deployed — needs `git pull && npx wrangler deploy -c
+cloudflare/wrangler.dashboard.toml` from the client's own machine, same as
+every prior dashboard-worker.js change. Kema's other ask this same
+message — making the handoff document itself more formal — is separate,
+unstarted work.
+
 ## 2026-09-09 — the credits screen, and a real backgrounded-music check
 
 **The ending credits exist now** (`src/render/credits.js`) — a black screen,

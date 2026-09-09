@@ -1,3 +1,25 @@
+// ⚠️ RETIRED — Sept 2026, Kema/Salesforce-Lightning dashboard rebuild.
+//
+// This harness existed to catch one specific failure: a KPI value SHEARING
+// silently wrong because `#plate>*` was `overflow:hidden` on a rect measured
+// off the client's painted MARTA-console art. That plate, and the
+// overflow:hidden rects it required, are gone — the Lightning `.kpi` tiles
+// below have no fixed height and no overflow:hidden (auto-fit CSS grid,
+// padding-only box), so a value can't be clipped, only wrap. Verified
+// directly against the new design at contest scale (deaths/kills/entrants
+// all rendered as 7-digit numbers, 390px phone width): no clipping, full
+// digit strings render clean. See CLAUDE.md and dashload.mjs's own header
+// for the rest of what changed in this rebuild. Left in the repo rather
+// than deleted, per this project's own convention — the client's original
+// complaint (quoted below) and the measurement technique (Range over a text
+// node, not computed style) stay useful reference if a future design ever
+// reintroduces a fixed-size box.
+console.log('RETIRED — see header comment. The design that made this failure');
+console.log('possible (a fixed-height painted-plate rect with overflow:hidden)');
+console.log('no longer exists; see cloudflare/dashboard-worker.js and CLAUDE.md.');
+process.exit(0);
+
+// ───────────────────────────────────────────────────────────────────────
 // DOES THE NUMBER FIT THE BOX HE PAINTED? — every value on the dashboard,
 // at the scale the contest will actually reach.
 //

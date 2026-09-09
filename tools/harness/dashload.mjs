@@ -11,11 +11,22 @@
 // It stubs /data rather than using the live one, because the interesting
 // variable is row count and the token is not in this container.
 //
+// ⚠️ UPDATED for the Kema/Salesforce-Lightning rebuild (Sept 2026). The old
+// page was one long scrolling plate with a tap-to-expand ALL ENTRANTS row
+// list and a painted `#map` of circles; the new page is a Lightning-style
+// console with five always-rendered tab views (`draw()` fills every view on
+// every poll, not just the visible one) and the map replaced by a sortable
+// LOCATIONS list view (`#geoBody`, see CLAUDE.md on why). Selectors below
+// were repointed at the real new IDs (`#entBody`, `#geoBody`, `#nav .item`)
+// — the five numbers this measures (first paint, poll redraw, tab-open cost,
+// DOM node count, sideways scroll) still matter exactly as much on the new
+// design as the old one, so this stays a live check, not a retired one.
+//
 // WHAT IT MEASURES, and why each one is the thing that would actually hurt:
 //   first paint   how long he stares at an empty cabinet
 //   redraw        the 5-second poll — this one runs forever, so a slow redraw
 //                 is a permanent stutter, not a one-off wait
-//   open          tapping ALL ENTRANTS with the whole contest behind it
+//   tab open      switching to Entrants with the whole contest behind it
 //   DOM nodes     the number that decides whether a phone can hold it at all
 //   scroll        must be zero sideways at any size: "portrait lock this shit"
 //
@@ -73,41 +84,50 @@ for (const [W, H] of [[430, 932], [390, 844]]) {
 
   const t0 = Date.now();
   await p.goto('file://' + page_path + '?k=x', { waitUntil: 'networkidle' });
-  await p.waitForFunction(() => document.querySelectorAll('#entrants .row').length > 0, { timeout: 40000 });
+  await p.waitForFunction(() => document.querySelectorAll('#entBody tr').length > 0, { timeout: 40000 });
   const first = Date.now() - t0;
 
   const m = await p.evaluate(() => ({
-    inlineRows: document.querySelectorAll('#entrants .row').length,
+    entRows: document.querySelectorAll('#entBody tr').length,
     dom: document.getElementsByTagName('*').length,
-    dots: document.querySelectorAll('#map circle').length,
+    geoRows: document.querySelectorAll('#geoBody tr').length,
     hscroll: document.documentElement.scrollWidth - innerWidth,
   }));
   // The poll, twice — the second is the one that matters, because by then the
-  // signature check should be short-circuiting an unchanged repaint.
+  // signature check should be short-circuiting an unchanged repaint. Every
+  // view is drawn on every poll now (not just the visible tab), so this is
+  // the real steady-state cost, not a best case.
   const redraw1 = await p.evaluate(() => {
     const t = performance.now(); window.draw(); return Math.round(performance.now() - t);
   });
   const t1 = Date.now();
-  await p.click('#xEnt');
-  await p.waitForFunction(() => document.querySelectorAll('#expRows .row').length > 0, { timeout: 40000 });
+  await p.click('#navBtn');   // the rail is off-canvas at phone width — this is how he actually reaches it
+  await p.click('#nav .item[data-v="entrants"]');
+  await p.waitForFunction(() => document.getElementById('v-entrants').classList.contains('on'));
   const open = Date.now() - t1;
-  const openRows = await p.evaluate(() => document.querySelectorAll('#expRows .row').length);
+  const openRows = await p.evaluate(() => document.querySelectorAll('#entBody tr').length);
   const redrawOpen = await p.evaluate(() => {
     const t = performance.now(); window.draw(); return Math.round(performance.now() - t);
   });
-  const expScroll = await p.evaluate(() => {
-    const e = document.getElementById('exp');
+  const hscrollAfter = await p.evaluate(() => document.documentElement.scrollWidth - innerWidth);
+  const tblScroll = await p.evaluate(() => {
+    const e = document.querySelector('#v-entrants .tbl-wrap');
     return { x: e.scrollWidth - e.clientWidth, y: e.scrollHeight - e.clientHeight };
   });
 
   console.log(`\n${W}x${H}`);
   console.log(`  first paint      ${first}ms`);
-  console.log(`  poll redraw      ${redraw1}ms   (runs every 5s, forever)`);
-  console.log(`  open full table  ${open}ms with ${openRows} rows`);
+  console.log(`  poll redraw      ${redraw1}ms   (runs every 5s, forever, all 5 views)`);
+  console.log(`  open Entrants    ${open}ms with ${openRows} rows`);
   console.log(`  poll while open  ${redrawOpen}ms   (must not rebuild an unchanged table)`);
-  console.log(`  DOM nodes        ${m.dom}   inline rows ${m.inlineRows}   map dots ${m.dots}`);
-  console.log(`  sideways scroll  page ${m.hscroll}px, table ${expScroll.x}px   (both must be 0)`);
-  if (m.hscroll !== 0 || expScroll.x !== 0) { fail += 1; console.log('  FAIL sideways scroll'); }
+  console.log(`  DOM nodes        ${m.dom}   entrant rows ${m.entRows}   location rows ${m.geoRows}`);
+  // The Entrants table is 8 columns wide on a 390px phone — CLAUDE.md's own
+  // rule is that a table may scroll sideways INSIDE its own overflow-x:auto
+  // container, only the page body itself never may. So only page-level
+  // scroll fails here; the table's own scrollbar (tblScroll.x) is expected
+  // and printed for visibility, not graded.
+  console.log(`  sideways scroll  page ${m.hscroll}px→${hscrollAfter}px   table (contained, OK) ${tblScroll.x}px`);
+  if (m.hscroll !== 0 || hscrollAfter !== 0) { fail += 1; console.log('  FAIL page scrolls sideways'); }
   if (redrawOpen > 60) { fail += 1; console.log('  FAIL the open table repaints when nothing changed'); }
   await ctx.close();
 }

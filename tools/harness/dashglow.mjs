@@ -1,3 +1,22 @@
+// ⚠️ RETIRED — Sept 2026, Kema/Salesforce-Lightning dashboard rebuild.
+//
+// This harness measured a CSS glow-pulse animation layered over painted
+// controls on the old plate, checking it lit exactly the tappable ones and
+// nothing else. That plate, the glow layer, and the painted-frame ambiguity
+// it existed to resolve are all gone. The client's underlying request —
+// "buttons that are actual working buttons more noticeably apparent" — is
+// now handled structurally instead of by a measured glow: real button/
+// toggle elements (`.btn`, `.slds-toggle`) with hover states, blue fills,
+// and semantic status badges, the same way Lightning itself makes controls
+// legible. Left in the repo rather than deleted, per this project's own
+// convention — the failure-mode list (rect drift, a frame lighting instead
+// of its label, a tap-eating layer) stays useful reference if a future
+// design ever adds a custom-animated control layer again.
+console.log('RETIRED — see header comment. The painted-plate glow layer this');
+console.log('measured no longer exists; see cloudflare/dashboard-worker.js and CLAUDE.md.');
+process.exit(0);
+
+// ───────────────────────────────────────────────────────────────────────
 // ON THE DASHBOARD: WHICH BOXES DO SOMETHING, AND CAN YOU TELL?
 //
 // Client: "The dashboard also needs to have the buttons that are actual
