@@ -21,6 +21,8 @@ name. Nobody was wrong. Nobody checked.
 
 This is not about tone elsewhere — a document can still be direct, confident, even a little boastful about what's being delivered. It's specifically the addressee framing (naming who it's for, narrating about them, writing AT them) that reads as generated and is never wanted here, in this repo, in any chat, going forward, without needing to be raised again.
 
+**A business-facing document (a handoff, a client-facing status page — anything read by someone outside this project's own working process) never discloses how the work gets built, and never lists open bugs, unfinished design questions, or other unresolved internal business.** No "this was built with an AI coding assistant," no "open items" section, no punch list of what's still broken or mid-decision. That belongs in the repo's own internal docs (`docs/STATUS.md` and friends), not in something handed to a client or their team — volunteering it there serves no one reading it and only costs confidence in work that's actually solid. If a reader explicitly asks what's outstanding, that's a different, direct question — answer it directly; don't pre-empt it by including it unasked.
+
 ## Guardrail — read this first
 
 **NEVER `git add -A` on the `gh-pages` deploy branch.** A past project in this workspace (`once-upon-a-time` / Jandé) leaked real reference photos and an account cache onto a public branch this exact way; its history had to be purged via an orphan force-push. `tools/deploy.sh` stages explicit paths only and rebuilds `gh-pages` as a fresh orphan every run — don't bypass it with a manual `git add -A` + push.
