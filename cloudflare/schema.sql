@@ -172,6 +172,28 @@ CREATE TABLE IF NOT EXISTS contest_state (
 );
 INSERT OR IGNORE INTO contest_state (id, open) VALUES (1, 0);
 
+-- ── THE ALERT SWITCH ─────────────────────────────────────────────────────
+--
+-- Client: "their ability to turn on notification should be the alert switch
+-- inside of the cab... it should be able to switch on and off with a click
+-- sound for push notifications." His painting already carries this exact
+-- switch — ON / ALERT, lower right rail of assets/ui-concept/dashboard-
+-- empty.png — it was simply never cut into the live page (only the top
+-- bezel, the two rail tiles, and the bottom DOOR/BELL/LIGHTS console were).
+-- tools/cut_dash_alert.py cuts it now, in both states: the lit red he
+-- painted, and an unlit one derived from it the same way the map-view chips
+-- were (cut_dash_chips.py) — his pixels, not new art.
+--
+-- One row, same shape as contest_state, same reason: a master kill switch
+-- for the whole push-notification system, separate from whether any one
+-- player has actually opted in (that list is per-subscription, not here).
+-- Starts OFF.
+CREATE TABLE IF NOT EXISTS push_state (
+  id      INTEGER PRIMARY KEY CHECK (id = 1),
+  enabled INTEGER NOT NULL DEFAULT 0
+);
+INSERT OR IGNORE INTO push_state (id, enabled) VALUES (1, 0);
+
 
 -- ── MIGRATIONS ───────────────────────────────────────────────────────────
 --

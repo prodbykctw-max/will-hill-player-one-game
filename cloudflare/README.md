@@ -39,7 +39,7 @@ config files, replacing `TODO_CREATE_D1_DATABASE`:
 - `cloudflare/wrangler.toml` — the public game Worker
 - `cloudflare/wrangler.dashboard.toml` — the admin dashboard
 
-Six tables (`cloudflare/schema.sql`), and the split is the point:
+Seven tables (`cloudflare/schema.sql`), and the split is the point:
 
 | table | holds | who reads it |
 |---|---|---|
@@ -49,6 +49,7 @@ Six tables (`cloudflare/schema.sql`), and the split is the point:
 | `rejects` | every refusal with its reason | the dashboard |
 | `run_stats` | per-run tallies (kills, deaths, stage reached, ...) | the dashboard |
 | `contest_state` | one row: is the contest switch on or off | both — `/submit` gates on it, the dashboard's switch writes it |
+| `push_state` | one row: is the ALERT (push notification) switch on or off | the dashboard — its own switch reads and writes it |
 
 `runs` has no phone column, so the public endpoint cannot leak one even if
 somebody writes a careless query later. That is structural, not a convention.
