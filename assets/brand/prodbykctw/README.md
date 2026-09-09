@@ -22,5 +22,5 @@ For the end credits the game needs frames, not video — extract from the GIF
 (it carries the transparency the MP4s do not) rather than shipping either
 file to the browser.
 
-STILL MISSING: a static/vector version of this mark, and the RARE AGENCY logo.
-Both have only been seen in chat.
+STILL MISSING: a static/vector version of this mark. The RARE AGENCY logo
+arrived 2026-09-09 — see `assets/brand/rare-agency/README.md`.
