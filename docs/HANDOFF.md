@@ -6,7 +6,75 @@ Repo: https://github.com/prodbykctw-max/will-hill-player-one-game
 Read `docs/GDD.md` for design and `CLAUDE.md` for architecture first. This
 file covers what a fresh session needs that isn't obvious from the code.
 
-**Every number in this file was verified against the code on 2026-08-12**, and
+## 2026-09-09 — the credits screen, and a real backgrounded-music check
+
+**The ending credits exist now** (`src/render/credits.js`) — a black screen,
+his names rolling up it. Live at
+https://prodbykctw-max.github.io/will-hill-player-one-game/ as of this
+session's deploy.
+
+- **ONE DOOR IN: SETTINGS' CREDITS button, not the win path.** It briefly
+  auto-played after every win, ahead of the leaderboard/sign-up board, while
+  the roll's speed and a SKIP button were still being tuned. Client, once
+  that was already shipped: *"don't even worry about adding the credits to
+  the end of the game... leave it where it is... you don't have to interrupt
+  the flow."* Beating the game goes straight to the results board again,
+  same as before the credits existed — nothing changed there. The button
+  lives in the SETTINGS panel (not OPTIONS — that's his fully painted
+  4-button cabinet plate with no room for a 5th without new art) and needed
+  its own visible-button CSS rule in `index.html`; the cabinet skin's
+  generic `.pv .btn` rule draws every button as a transparent overlay for
+  paint that doesn't exist for this one, which first shipped it at zero
+  height.
+- **A real logo, not drawn text.** The client sent the actual RARƎ AGENCY
+  lockup — `assets/brand/rare-agency/` (raw, kept per the brand-mark rule),
+  derived into a dark-background WebP by `tools/matte_rare_agency.py`
+  (alpha-matted off its white backing; the near-black wordmark recolored to
+  cream since black-on-black vanished, the blue half left alone). Text
+  fallback (Ǝ, U+018E, a real reversed-E codepoint) only covers the one
+  hypothetical frame the 69KB image hasn't finished loading by.
+- **Credited: GAME DEVELOPMENT → RARƎ AGENCY, DESIGN → _kematry, MUSIC /
+  SOUND EFFECTS → prodbyKCTW.** `docs/HANDOFF.md`'s own earlier note below
+  (RARƎ AGENCY co-founded with Kema, prodbyKCTW as Lead Developer) already
+  had the shape of it; the screen names the agency rather than the person
+  for game development specifically, per *"it makes sense for us to just
+  leave game development as the rare agency."* `_kematry` is her on-screen
+  handle — everywhere else in this doc she's still named Kema, given.
+- **Speed and a SKIP button**, both client asks after the first ship:
+  scroll went from 0.85 to 1.25px/tick ("the credits move a tad slow and
+  should move quicker"), and a real bottom-right SKIP plate — same
+  `drawButtonPlate`/`screenButtons` pattern STAGE CLEAR and GAME KNOCKED
+  already use — replaces the undiscoverable tap-anywhere-after-30-ticks that
+  was the only way out before ("skip/back button should be available").
+
+**Backgrounded music already does exactly what he wants — checked live, not
+assumed.** He asked to confirm it doesn't "stop and uncheck the music
+button," just pause and pick back up. It's been built that way since
+`f1d8bf3` (2026-09-04): `audio.suspend()`/`resume()` operate on the
+AudioContext alone and never touch the persisted `wh_sound` preference.
+Verified this session with a live Playwright run — MUSIC on, backgrounded
+(`ctx: "suspended"`, `wh_sound` still `"on"`), returned with **zero
+gesture** (`ctx: "running"` again, clock had kept advancing, `wh_sound`
+still `"on"`). If a fresh session hears otherwise, it's the deploy-caching
+issue this file's own author (BACKDROPS / DEPLOY chat) has already
+root-caused elsewhere in this repo, not the audio code.
+
+## Dashboard: the CONTEST label moved twice, settled as plain text
+
+`cloudflare/dashboard-worker.js`'s painted ALERT switch now drives the
+contest open/closed state (`f2d6fb6`, this session); labeling it "CONTEST"
+took two rounds. First cut: a bordered chip, positioned too far above the
+switch — read as labeling a separate painted lamp instead. Client: *"the
+contest pill denoting the button is too far above the 'on' atop the switch
+itself... should be placed better."* Moved down; then, on a second look:
+*"that pill concept isn't gonna work, you may just wanna start with a
+text... the same word that the [ALERT] is there."* Settled: no
+background, no border — plain text, centered directly over the rocker,
+styled like his own painted ALERT/ON lettering. This needs its own
+`wrangler deploy -c cloudflare/wrangler.dashboard.toml` on the client's
+machine to go live — no deploy credentials exist in this session.
+
+**Every number in this file below was verified against the code on 2026-08-12**, and
 the soundtrack, touch and viewport sections again on **2026-08-16** (loop
 points re-cut on the producer's own BPMs, the map cue prefetched, the pads
 releasable by sliding off, the installed app's foot closed).
