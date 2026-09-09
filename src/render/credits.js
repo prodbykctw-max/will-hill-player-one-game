@@ -45,10 +45,10 @@ const LINES = [
   { name: 'prodbyKCTW' },
   { gap: 0.6 },
   { role: 'MUSIC' },
-  { name: 'prod by KCTW' },
+  { name: 'prodbyKCTW' },
   { gap: 0.6 },
   { role: 'SOUND EFFECTS' },
-  { name: 'prod by KCTW' },
+  { name: 'prodbyKCTW' },
   { gap: 1.4 },
   { small: 'THANK YOU FOR PLAYING' },
 ];
