@@ -13,9 +13,20 @@
 // ⚠️ WHO'S PRESENTING, SETTLED LATE: "The rare agency is who Scoon is
 // paying. So it would be the rare agency presents and then sound effects
 // and music. It will be by prod by KCTW, music prod by kctw SFX prod by
-// kctw." Development itself stays credited to prodbyKCTW too — that line
-// was already settled in src/assets/audio/CREDITS.md and nothing here
-// contradicts it.
+// kctw."
+//
+// ⚠️ GAME DEVELOPMENT CREDITS THE AGENCY, NOT THE PERSON — a later, separate
+// call. src/assets/audio/CREDITS.md's own table (written before this file
+// existed) had it as `prodbyKCTW`, agency listed as its own row underneath;
+// docs/HANDOFF.md already had the real shape of it though — RARƎ AGENCY is
+// prodbyKCTW's, co-founded with Kema, prodbyKCTW credited within it as Lead
+// Developer. Client, settling which shows up on THIS screen: "it makes
+// sense for us to just leave game development as the rare agency." One name
+// per role, same as every other line here — the Lead Developer detail lives
+// in the docs above, not repeated on screen. DESIGN is new: "Kema... did get
+// the images of the backgrounds and convert them into pixel art... you
+// could put art and credit her, or design" — he used both words once each
+// across two messages; DESIGN is what he settled on the second time.
 //
 // NOTHING IS PAINTED HERE. There is no plate for this screen — it was never
 // commissioned — so unlike ending.js this file draws real text on a real
@@ -42,7 +53,10 @@ const LINES = [
   { title: 'WILL HILL: PLAYER ONE' },
   { gap: 1 },
   { role: 'GAME DEVELOPMENT' },
-  { name: 'prodbyKCTW' },
+  { name: 'RARƎ AGENCY' },
+  { gap: 0.6 },
+  { role: 'DESIGN' },
+  { name: 'Kema' },
   { gap: 0.6 },
   { role: 'MUSIC' },
   { name: 'prodbyKCTW' },

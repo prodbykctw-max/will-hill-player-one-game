@@ -50,9 +50,17 @@ placed as artwork, flip that glyph horizontally; do not type a normal E.
 
 | role | credit |
 |---|---|
-| Game development — front and back end, app and web | **prodbyKCTW** |
+| Game development — front and back end, app and web | **RARƎ AGENCY** — prodbyKCTW as Lead Developer |
+| Design — background art conversion | **Kema** |
+| Music | **prodbyKCTW** |
 | Sound effects | **prodbyKCTW** |
-| Agency | **RARƎ AGENCY** — prodbyKCTW as Lead Developer |
+
+⚠️ **THIS TABLE NOW MATCHES `src/render/credits.js`, THE SCREEN THAT ACTUALLY
+SHIPS.** It didn't always — this file first listed game development straight
+to prodbyKCTW with the agency as a separate row; the client later settled it
+the other way for the in-game screen ("leave game development as the rare
+agency"). If this table and that file ever disagree again, the file is the
+one a player sees — fix this table to match it, not the reverse.
 
 ### How the name is written — do not restyle it
 
