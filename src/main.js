@@ -91,7 +91,7 @@ const panel = createPanel({
   onHapticsChange: (on) => haptics.setEnabled(on),
   // On demand from SETTINGS — see showCredits(). Closes the panel first so
   // the roll isn't racing a cabinet screen still drawn underneath it.
-  onShowCredits: () => { panel.close(); showCredits('title'); },
+  onShowCredits: () => { panel.close(); showCredits(); },
   // ── TIME OF DAY APPLIES NOW, LIVE, WITHOUT RESTARTING ANYTHING ───────
   //
   // ⚠️ THIS USED TO CALL location.reload() AND THAT WAS WRONG. The comment
@@ -895,7 +895,7 @@ canvas.addEventListener('pointerdown', (e) => {
     return;
   }
   if (state.screen === 'stageClear' || state.screen === 'gameOver'
-      || state.screen === 'complete') {
+      || state.screen === 'complete' || state.screen === 'creditsRoll') {
     if (state.screenT > 20) {
       for (const b of screenButtons) {
         if (hit(b, x, y)) { press(); b.action(); e.preventDefault(); return; }
@@ -1057,17 +1057,20 @@ function showResults() {
 
 // ── THE CREDITS ROLL ──────────────────────────────────────────────────────
 //
-// Two doors in: automatically after beating the game (see the 'complete'
-// branch below — never on gameOver, client: "not just a result screen...
-// when the game is over and you've beat the game then you get ending
-// credits"), and on demand from OPTIONS (panel.js's onShowCredits). `next`
-// is where the screen goes when the roll ends — 'results' for the auto path
-// (the leaderboard/sign-up still has to open, just after the roll now
-// rather than instead of it) and 'title' for the on-demand one.
-function showCredits(next) {
+// One door in: on demand from SETTINGS (panel.js's onShowCredits). It briefly
+// also auto-played after every win, ahead of the results board — client,
+// once that was already shipped and being tuned: "don't even worry about
+// adding the credits to the end of the game... leave it where it is... you
+// don't have to interrupt the flow." Ends back on the title either way,
+// whether the roll finished on its own or was skipped (the confirmPressed()
+// path in update() and the on-screen SKIP button below both call this same
+// function, so they can't drift apart).
+function showCredits() {
   state.screen = 'creditsRoll';
   state.screenT = 0;
-  state.creditsNext = next;
+}
+function finishCredits() {
+  showTitle();
 }
 
 function endRun() {
@@ -1360,17 +1363,20 @@ function update() {
         state.endingRowsSounded++;
       }
     }
-    // The ending plays, then the credits roll, then the board arrives on
-    // top of it — his order, not a tap. Once per run; see
-    // state.resultsShown in startRun(). Client: "not just a result
-    // screen... when the game is over and you've beat the game then you get
-    // ending credits" — win only, never gameOver, which is why this stays
-    // inside the `state.screen === 'complete'` check rather than the shared
-    // stageClear/gameOver/complete branch above it.
+    // The board arrives on top of the ending on its own. Once per run; see
+    // state.resultsShown in startRun().
+    //
+    // ⚠️ THE CREDITS ROLL IS NOT IN THIS CHAIN. It was, briefly — every win
+    // routed through it before the board could open. Client, once the SKIP
+    // button and the speed-up were already in flight: "don't even worry
+    // about adding the credits to the end of the game. There's already a
+    // menu option button to show the credits... leave it where it is...
+    // you don't have to interrupt the flow." SETTINGS' CREDITS button
+    // (panel.js's onShowCredits, showCredits() below) is the only door now.
     if (state.screen === 'complete' && !state.resultsShown
         && state.screenT > RESULTS_AFTER) {
       state.resultsShown = true;
-      showCredits('results');
+      showResults();
       return;
     }
     if (state.screenT > 20 && confirmPressed()) { press(); advanceFromScreen(); }
@@ -1382,17 +1388,15 @@ function update() {
     state.screenT++;
     const scale = Math.max(0.6, Math.min(1.6, canvas.width / 430));
     const done = state.screenT > credits.ticksFor(scale);
-    // A held tap during the roll is easy to land by accident right after
-    // the ending's own confirmPressed() gate opens at screenT > 20 above —
-    // a 30-tick guard here keeps that same press from skipping straight
-    // through the names it just took a beat to reach.
+    // A 30-tick guard, same idea as the screenButtons' own 20-tick arming
+    // delay below — a key already held down when SETTINGS' CREDITS button
+    // is pressed (confirmPressed() is the jump key, not the click itself)
+    // shouldn't skip straight through the names before the roll has even
+    // been on screen a beat.
     const skipped = state.screenT > 30 && confirmPressed();
     if (done || skipped) {
       if (skipped) press();
-      const next = state.creditsNext;
-      state.creditsNext = null;
-      if (next === 'results') { state.resultsShown = true; showResults(); }
-      else { showTitle(); }
+      finishCredits();
     }
     return;
   }
@@ -2100,6 +2104,21 @@ function draw() {
   if (state.screen === 'creditsRoll') {
     credits.draw(state.screenT);
     screenButtons.length = 0;
+    // A visible way out, not just the undiscoverable tap-anywhere-after-30-
+    // ticks the roll already has for confirmPressed(). Client: "skip/back
+    // button should be available." Same arming delay as the other overlay
+    // screens' buttons (stageClear/gameOver/complete) rather than the jump
+    // button's own 30-tick guard — this is its own hit target, not the same
+    // input the previous screen's confirm press could carry through on.
+    if (state.screenT > 20) {
+      const bw = Math.min(110, canvas.width * 0.3);
+      const bh = 38;
+      const bx = canvas.width - bw - 16;
+      const by = canvas.height - bh - 20;
+      drawButtonPlate(bx, by, bw, bh, 'SKIP', 15);
+      screenButtons.push({ x: bx, y: by, w: bw, h: bh,
+        action: finishCredits, label: 'SKIP' });
+    }
     return;
   }
 

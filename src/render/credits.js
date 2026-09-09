@@ -74,7 +74,9 @@ const WHITE = 'rgba(255,255,255,0.86)';
 // Scroll speed in CSS px per tick, at a 1x reference scale — scaled by S
 // below so it crosses the same fraction of the screen regardless of phone
 // size, the same convention ending.js's box.dw / ENDING_W follows.
-const SPEED = 0.85;
+// Client: "the credits move a tad slow and should move quicker." Was 0.85;
+// 1.25 crosses the same distance in about two-thirds the time.
+const SPEED = 1.25;
 
 // Kicked off the moment this module loads, not when the credits screen is
 // first reached — it's 69KB (see tools/matte_rare_agency.py), nowhere near

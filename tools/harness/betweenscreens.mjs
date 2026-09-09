@@ -317,6 +317,16 @@ check("the run's own numbers are drawn, inside his stat block",
   signal > floor * 3 + 20, `changed ${signal}px against a ${floor}px noise floor`);
 
 // ── the board arrives on its own, once ──────────────────────────────────
+//
+// ⚠️ NOT THROUGH THE CREDITS ROLL. src/render/credits.js briefly sat between
+// the ending and the board here — showCredits('results') instead of
+// showResults() — while the roll's speed and its SKIP button were being
+// tuned. Client, once that was already shipped: "don't even worry about
+// adding the credits to the end of the game... leave it where it is... you
+// don't have to interrupt the flow." The board arrives right off
+// RESULTS_AFTER again, same as before that detour; SETTINGS' CREDITS button
+// is the only way into the roll now (check_credits_ondemand.mjs in the
+// scratchpad covers that path, not this file).
 await toEnding(false);
 // Just past RESULTS_AFTER — 320 now, up from 140 at the client's "on screen
 // longer" ask — so the arrival being graded is the latch, not a long wait.
