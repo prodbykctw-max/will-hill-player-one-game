@@ -15,6 +15,12 @@ complaint, and one of them had already built a whole service worker before
 noticing the other had shipped a fix an hour earlier and left it findings by
 name. Nobody was wrong. Nobody checked.
 
+## ⛔ HARD RULE — any document generated for this project
+
+**Never address a named person in a generated document, in either direction.** No "For Scoon," no "prepared for [name]," no third-person narration about who it's for ("what Scoon is inheriting"), no second-person voice performing a letter to them ("here's what you're inheriting"). Write it as plain factual reference material — what's true, what's live, what a reader needs to know — and let whoever it's handed to be whoever it's handed to. This applies to internal-facing docs (ops handoffs, status reports) same as anything client-facing.
+
+This is not about tone elsewhere — a document can still be direct, confident, even a little boastful about what's being delivered. It's specifically the addressee framing (naming who it's for, narrating about them, writing AT them) that reads as generated and is never wanted here, in this repo, in any chat, going forward, without needing to be raised again.
+
 ## Guardrail — read this first
 
 **NEVER `git add -A` on the `gh-pages` deploy branch.** A past project in this workspace (`once-upon-a-time` / Jandé) leaked real reference photos and an account cache onto a public branch this exact way; its history had to be purged via an orphan force-push. `tools/deploy.sh` stages explicit paths only and rebuilds `gh-pages` as a fresh orphan every run — don't bypass it with a manual `git add -A` + push.
