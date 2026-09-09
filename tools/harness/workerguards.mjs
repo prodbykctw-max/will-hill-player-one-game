@@ -54,6 +54,13 @@ const check = (w, ok, d = '') => {
 // rather than simulated.
 const db = new DatabaseSync(':memory:');
 db.exec(fs.readFileSync('cloudflare/schema.sql', 'utf8'));
+// schema.sql's own contest_state row starts CLOSED (see its comment: nothing
+// is live until someone flips the dashboard's switch) — correct for a real
+// database, wrong for this file, whose whole job is testing every OTHER
+// guard. Opened here so the rest of this suite exercises what it always did;
+// the switch itself gets its own section below, using the same table
+// POST /toggle writes.
+db.exec('UPDATE contest_state SET open = 1;');
 const DB = {
   prepare(sql) {
     const st = db.prepare(sql);
@@ -196,6 +203,30 @@ check('`runs` has no phone or email column to leak in the first place',
   !('phone' in runCols) && !('email' in runCols), Object.keys(runCols).join(','));
 check('the phone is in `entrants`, which no public route selects from',
   !!db.prepare('SELECT phone FROM entrants LIMIT 1').get().phone);
+
+// ── ⚠️ THE FIX: a switch on the dashboard, not a date in the source ──────
+// Client: "there should be a switch on the dashboard that allows them to
+// turn the contest on or off." contest_state is the one row both Workers
+// read; this drives the same table POST /toggle writes, not a re-
+// implementation of it.
+db.exec('UPDATE contest_state SET open = 0;');
+const closedRun = await submit({ durationMs: 30000, events: bags(20, 30000) });
+check('closing the switch refuses a real, otherwise-valid run',
+  closedRun.status === 403 && closedRun.body.ok === false, JSON.stringify(closedRun.body));
+check('and the refusal reads as the contest being closed, not a broken run',
+  closedRun.body.err === 'contest closed', closedRun.body.err);
+db.exec('UPDATE contest_state SET open = 1;');
+const reopened = await submit({ durationMs: 30000, events: bags(20, 30000) });
+check('opening it again lets the exact same shape of run through',
+  reopened.status === 200 && reopened.body.ok === true, JSON.stringify(reopened.body));
+// The switch is the primary gate; CONTEST_START/CONTEST_END stay a second,
+// optional one. Both unconfigured (0) is the shipped default, which
+// inContestWindow() already treats as "not configured — dev/testing", i.e.
+// permissive — so the switch is the only thing a closed contest depends on
+// today. This just asserts that reading holds rather than re-deriving it.
+check('with no scheduled window configured, the switch alone decides it',
+  reopened.status === 200,
+  'CONTEST_START/END are 0 in the shipped worker — inContestWindow() is permissive by design');
 
 const bad = checks.filter(([, ok]) => !ok);
 console.log(bad.length ? `\nFAILED: ${bad.length} of ${checks.length}` : `\nALL ${checks.length} PASS`);

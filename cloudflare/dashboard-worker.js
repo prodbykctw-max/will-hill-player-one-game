@@ -10,7 +10,12 @@
  * code to bolt an /admin route onto the game worker, and that is exactly what
  * makes it worse: the game worker is the thing every phone at the party is
  * hammering, and it is the thing an attacker already has a URL for. This one
- * shares nothing with it but the database, and it is READ-ONLY on that.
+ * shares nothing with it but the database.
+ *
+ * ⚠️ NOT read-only ANY MORE — POST /toggle below writes the one row the
+ * contest on/off switch lives in (contest_state, schema.sql). Everything
+ * else here is still SELECT only; that write is the single, narrow
+ * exception, gated behind the same token as the rest of this worker.
  *
  * ── ACCESS ───────────────────────────────────────────────────────────────
  *
@@ -73,6 +78,23 @@ import { MAPS } from './mapdata.js';
 // duplicated on purpose. Change one, change both.
 const CONTEST_START = 0;  // ms epoch, 0 = not configured
 const CONTEST_END = 0;
+
+// ── THE SWITCH ────────────────────────────────────────────────────────────
+//
+// Client: "there should be a switch on the dashboard that allows them to turn
+// the contest on or off. That's the simplest way to do it." One row in D1
+// (schema.sql's contest_state, migrations/002); this worker reads it for the
+// page and writes it from POST /toggle below. ⚠️ MIRRORS the same function in
+// leaderboard-worker.js — a Worker has no access to the other Worker's module
+// scope, so this is the second of the two on-purpose duplicates in this file,
+// same reasoning as CONTEST_START/END above. Fails open on a read error for
+// the same reason: a transient D1 hiccup must not read as "closed".
+async function contestOpen(env) {
+  try {
+    const row = await env.DB.prepare('SELECT open FROM contest_state WHERE id = 1').first();
+    return row ? !!row.open : true;
+  } catch (_e) { return true; }
+}
 
 const esc = (s) => String(s == null ? '' : s)
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -197,9 +219,28 @@ export default {
         ok: true, rows: results || [], rejects: rejects.results || [], counts,
         geo: geo.results || [], totals, funnel,
         spark: spark.results || [], sparkFrom: since,
-        // The page cannot know the contest window; the Worker does.
-        contest: { start: CONTEST_START, end: CONTEST_END, now: Date.now() },
+        // The page cannot know the contest window, or the switch; the Worker
+        // does — `open` is the one that actually gates /submit day to day.
+        contest: { start: CONTEST_START, end: CONTEST_END, now: Date.now(),
+          open: await contestOpen(env) },
       }), { headers: { ...HEADERS, 'Content-Type': 'application/json' } });
+    }
+
+    // ── THE SWITCH, FLIPPED ─────────────────────────────────────────────
+    //
+    // Reads current state and writes its opposite in one round trip rather
+    // than accepting a client-supplied desired value, so two people clicking
+    // it at once can't fight over whose click "wins" — each click acts on
+    // what's actually in the database, not on what the page last rendered.
+    if (url.pathname === '/toggle' && req.method === 'POST') {
+      const next = (await contestOpen(env)) ? 0 : 1;
+      await env.DB.prepare(
+        `INSERT INTO contest_state (id, open) VALUES (1, ?)
+           ON CONFLICT(id) DO UPDATE SET open = excluded.open`,
+      ).bind(next).run();
+      return new Response(JSON.stringify({ ok: true, open: !!next }), {
+        headers: { ...HEADERS, 'Content-Type': 'application/json' },
+      });
     }
 
     if (url.pathname === '/csv') {
@@ -577,6 +618,24 @@ html,body{background:#07060c;color:#f2ead8;font-family:ui-monospace,SFMono-Regul
 #expClose{position:fixed;right:0;top:0;z-index:3;background:none;border:0;
   color:#ffd66e;font:inherit;font-size:12px;font-weight:700;letter-spacing:.1em;
   padding:10px 14px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+/* ── THE SWITCH ────────────────────────────────────────────────────────
+   Fixed, not painted-over — see the note on the element itself. Sits above
+   the plate in its own small chip so it reads as a real control rather than
+   part of his illustration. */
+#contestSwitch{position:fixed;top:12px;right:12px;z-index:4;
+  display:flex;align-items:center;gap:8px;
+  background:#12131a;border:1px solid #33394a;border-radius:999px;
+  padding:8px 14px 8px 10px;font:700 11px/1 inherit;letter-spacing:.06em;
+  color:#e7ddc8;cursor:pointer;-webkit-tap-highlight-color:transparent;
+  box-shadow:0 2px 10px rgba(0,0,0,0.4)}
+#contestSwitch:active{filter:brightness(1.3)}
+#contestSwitch:disabled{opacity:.6;cursor:default}
+#contestSwitch .csDot{width:9px;height:9px;border-radius:50%;flex:none;background:#555}
+#contestSwitch.open .csDot{background:#5fd47a;box-shadow:0 0 0 4px rgba(95,212,122,.2)}
+#contestSwitch.closed .csDot{background:#ff5c5c;box-shadow:0 0 0 4px rgba(255,92,92,.2)}
+@media (max-width:520px){
+  #contestSwitch{top:auto;bottom:12px;left:12px;right:12px;justify-content:center}
+}
 </style></head><body>
 <div id="plate">
  <div class="v vs" id="clockA"></div><div class="v vs" id="clockB"></div><div class="v vs" id="clockC"></div>
@@ -612,6 +671,18 @@ html,body{background:#07060c;color:#f2ead8;font-family:ui-monospace,SFMono-Regul
  <div id="expIn"><div id="expHead"></div><div class="tbl" id="expRows"></div></div>
  <button id="expClose">CLOSE</button>
 </div>
+<!-- ── THE SWITCH ────────────────────────────────────────────────────────
+     Client: "there should be a switch on the dashboard that allows them to
+     turn the contest on or off." His plate has no painted spot for this —
+     it wasn't drawn for it — so rather than borrow one of his cabinet chips
+     (the ON/ALERT toggle lower right, the DOOR/BELL/LIGHTS row) and hang a
+     new meaning on art that was never about this, it's its own small fixed
+     control, styled to sit alongside the panel rather than pretend to be
+     part of it. Green dot lit + OPEN = live, accepting scores; red +
+     CLOSED = every /submit is refused, whatever the date window says. -->
+<button id="contestSwitch" aria-label="Toggle the contest open or closed">
+ <span class="csDot"></span><span id="csLabel">—</span>
+</button>
 <script>
 const K = new URLSearchParams(location.search).get('k');
 let data = { rows: [], rejects: [], counts: {}, geo: [], totals: {}, funnel: {}, spark: [] };
@@ -631,6 +702,12 @@ function draw(){
   const ct = data.contest || {};
   $('clockB').textContent = (!ct.start || !ct.end) ? 'NOT SET'
     : (ct.now < ct.start ? 'OPENS SOON' : ct.now > ct.end ? 'CLOSED' : 'OPEN');
+  // The switch is the thing that actually decides /submit — see the note on
+  // #contestSwitch. ct.open undefined (an old cached response, or a request
+  // mid-flight) reads as closed rather than flashing green early.
+  const sw = $('contestSwitch');
+  sw.className = ct.open ? 'open' : 'closed';
+  $('csLabel').textContent = ct.open ? 'CONTEST OPEN — TAP TO CLOSE' : 'CONTEST CLOSED — TAP TO OPEN';
   $('clockC').textContent = new Date().toLocaleTimeString('en-US',{hour12:true});
   $('tEntrants').textContent = n(c.entrants);
   // RUNS is the board's own play counter, not COUNT(run_stats). Same reason
@@ -927,6 +1004,23 @@ $('xRej').onclick = () => openExp('rej');
 $('entrants').onclick = () => openExp('ent');
 $('rejects').onclick = () => openExp('rej');
 $('expClose').onclick = closeExp;
+// ── FLIPPING THE SWITCH ─────────────────────────────────────────────────
+// Disabled for the round trip so a second tap mid-flight can't race the
+// first one — the Worker itself reads-then-writes so two admins tapping at
+// once would still land on a real state either way, but there is no reason
+// to invite it. Reconciles from the response rather than assuming the tap
+// landed; the 5s poll catches it either way if the request is lost.
+$('contestSwitch').onclick = async () => {
+  const sw = $('contestSwitch');
+  sw.disabled = true;
+  try {
+    const res = await fetch('/toggle?k=' + encodeURIComponent(K), { method: 'POST' });
+    const j = await res.json();
+    if (j && j.ok) data.contest = { ...(data.contest || {}), open: j.open };
+  } catch (e) { /* the next poll reconciles it */ }
+  sw.disabled = false;
+  draw();
+};
 addEventListener('keydown', (e) => { if (e.key === 'Escape') closeExp(); });
 view(null); draw(); pull(); setInterval(pull, 5000);
 setInterval(() => { $('clockA').textContent = atlanta(); }, 1000);

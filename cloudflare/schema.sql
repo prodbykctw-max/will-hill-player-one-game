@@ -152,6 +152,26 @@ CREATE INDEX IF NOT EXISTS run_stats_city ON run_stats (country, region, city);
 CREATE INDEX IF NOT EXISTS run_stats_t ON run_stats (t DESC);
 CREATE INDEX IF NOT EXISTS run_stats_id ON run_stats (id);
 
+-- ── THE SWITCH ───────────────────────────────────────────────────────────
+--
+-- Client: "there should be a switch on the dashboard that allows them to turn
+-- the contest on or off. That's the simplest way to do it." Replaces asking
+-- whoever runs the contest to know a start/end timestamp exists at all — one
+-- row, one column, flipped from a button on the dashboard itself (dashboard-
+-- worker.js's POST /toggle) and read by the game worker on every submit
+-- (leaderboard-worker.js's contestOpen()). CONTEST_START/CONTEST_END stay in
+-- both workers as a second, optional gate for whoever wants a scheduled
+-- window later; this table is the one actually meant to be used day to day.
+--
+-- Always exactly one row. `CHECK (id = 1)` is what makes a second INSERT fail
+-- instead of silently giving the switch two states to disagree with itself.
+-- Starts CLOSED — nothing is live until someone deliberately turns it on.
+CREATE TABLE IF NOT EXISTS contest_state (
+  id   INTEGER PRIMARY KEY CHECK (id = 1),
+  open INTEGER NOT NULL DEFAULT 0
+);
+INSERT OR IGNORE INTO contest_state (id, open) VALUES (1, 0);
+
 
 -- ── MIGRATIONS ───────────────────────────────────────────────────────────
 --

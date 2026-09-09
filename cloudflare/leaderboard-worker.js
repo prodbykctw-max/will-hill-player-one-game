@@ -158,6 +158,27 @@ function inContestWindow(now) {
   return now >= CONTEST_START && now <= CONTEST_END;
 }
 
+// ── THE SWITCH ────────────────────────────────────────────────────────────
+//
+// Client: "there should be a switch on the dashboard that allows them to turn
+// the contest on or off. That's the simplest way to do it." One row in D1
+// (schema.sql's contest_state, migrations/002), flipped by the dashboard's
+// POST /toggle, read here on every submit. This is the switch that actually
+// gets used day to day; CONTEST_START/CONTEST_END above stay as a second,
+// optional gate for whoever wants a scheduled window on top of it later —
+// both have to allow a submit for one to go through.
+//
+// ⚠️ FAILS OPEN ON A READ ERROR, DELIBERATELY. A transient D1 hiccup must not
+// silently reject every real player mid-contest — the same reasoning as
+// inContestWindow() defaulting to true when unconfigured. The table not
+// existing yet (migration not run) reads the same way: open.
+async function contestOpen(env) {
+  try {
+    const row = await env.DB.prepare('SELECT open FROM contest_state WHERE id = 1').first();
+    return row ? !!row.open : true;
+  } catch (_e) { return true; }
+}
+
 function scoreFromEvents(events, durationMs) {
   if (!Array.isArray(events)) return 0;
   let score = 0;
@@ -329,6 +350,9 @@ export default {
         }
         if (!inContestWindow(now)) {
           return json({ ok: false, err: 'contest window closed' }, 403);
+        }
+        if (!(await contestOpen(env))) {
+          return json({ ok: false, err: 'contest closed' }, 403);
         }
 
         const raw = await req.text();

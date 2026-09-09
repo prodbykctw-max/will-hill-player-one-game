@@ -14,8 +14,10 @@ name = "will-hill-dashboard"
 main = "dashboard-worker.js"
 compatibility_date = "2026-08-10"
 
-# The SAME database the game worker writes to, read-only by convention here —
-# this worker only ever SELECTs. Paste the same id.
+# The SAME database the game worker writes to. Was read-only by convention
+# here; the one exception now is the contest on/off switch (contest_state) —
+# POST /toggle writes that single row. Everything else stays SELECT only.
+# Paste the same id.
 [[d1_databases]]
 binding = "DB"
 database_name = "will-hill-contest"
