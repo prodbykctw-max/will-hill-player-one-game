@@ -1125,10 +1125,13 @@ function drawAnalytics(){
     bar('Finished (Stage 5)', f.s5, runs),
   ].join('');
 
+  // Client: "nobody's throwing bottles" — the champagne bottle is a pickup
+  // (9s invulnerability + 2x money, docs/GDD.md), not a thrown projectile.
+  // "leave it at just bottles" rather than reaching for a new verb.
   $('statsWrap').innerHTML = [
     ['Max Combo', n(f.max_combo)],
     ['Avg Run Time', mmss(f.avg_ms)],
-    ['Bottles Thrown', n(f.bottles)],
+    ['Bottles', n(f.bottles)],
     ['Bags Lost', n(f.bags_lost)],
   ].map(([l, v]) => '<div class="s"><div class="v">' + v + '</div><div class="l">' + esc(l) + '</div></div>').join('');
 
