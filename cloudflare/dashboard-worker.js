@@ -550,19 +550,18 @@ html,body{background:#07060c;color:#f2ead8;font-family:ui-monospace,SFMono-Regul
    caption dropped into the blank metal above his rocker, admin-only text on
    an admin-only page, so nobody reading this control mistakes it for the
    thing it used to be.
-   ⚠️ IT SITS RIGHT ON THE ROCKER IT LABELS, NOT UP BY THE LAMP ABOVE IT.
-   `top` first floated it up near a separate painted light higher on the
-   rail — visually reading as that lamp's label instead of the switch's.
-   Client: "the contest pill denoting the button is too far above the 'on'
-   atop the switch itself... should be placed better to actually notify of
-   its purpose." -52% (was -165%) puts the caption's bottom edge a hair
-   above the rocker's own top edge — snug against the control it names. */
+   ⚠️ PLAIN TEXT, NO BOX — same treatment as his own ALERT/ON lettering,
+   not a floating chip. First cut put it in a bordered pill (same idea as
+   #pushLabel's text-in-a-pill), then moved that pill closer to the rocker
+   when it read as labelling the lamp above instead. Client, on THAT attempt:
+   "that pill concept isn't gonna work, you may just wanna start with a text
+   ...the same word that the [ALERT] is there." No background, no border —
+   just the word, sized and placed like it was always part of the rail. */
 #contestAlert::before{content:'CONTEST';position:absolute;
-  left:-40%;right:2%;top:-52%;height:34%;
+  left:-45%;right:-45%;top:-46%;height:30%;
   display:flex;align-items:center;justify-content:center;
-  font:700 0.95cqw/1 "Karla",sans-serif;letter-spacing:.04em;
-  color:#e7ddc8;background:rgba(8,8,12,.8);
-  border:1px solid rgba(240,168,58,.4);border-radius:3px;pointer-events:none}
+  font:700 1.05cqw/1 "Karla",sans-serif;letter-spacing:.08em;
+  color:#c9c2b0;text-shadow:0 1px 2px rgba(0,0,0,.9);pointer-events:none}
  #clockA{left:15.006%;top:7.05%;width:20.281%;height:1.681%}
  #clockB{left:40.563%;top:7.05%;width:20.516%;height:1.681%}
  #clockC{left:66.354%;top:8.677%;width:20.516%;height:0.922%}
