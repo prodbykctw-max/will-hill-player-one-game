@@ -549,9 +549,16 @@ html,body{background:#07060c;color:#f2ead8;font-family:ui-monospace,SFMono-Regul
    page (the map chips, the settings switch). This is not that: a plain live
    caption dropped into the blank metal above his rocker, admin-only text on
    an admin-only page, so nobody reading this control mistakes it for the
-   thing it used to be. */
+   thing it used to be.
+   ⚠️ IT SITS RIGHT ON THE ROCKER IT LABELS, NOT UP BY THE LAMP ABOVE IT.
+   `top` first floated it up near a separate painted light higher on the
+   rail — visually reading as that lamp's label instead of the switch's.
+   Client: "the contest pill denoting the button is too far above the 'on'
+   atop the switch itself... should be placed better to actually notify of
+   its purpose." -52% (was -165%) puts the caption's bottom edge a hair
+   above the rocker's own top edge — snug against the control it names. */
 #contestAlert::before{content:'CONTEST';position:absolute;
-  left:-40%;right:2%;top:-165%;height:34%;
+  left:-40%;right:2%;top:-52%;height:34%;
   display:flex;align-items:center;justify-content:center;
   font:700 0.95cqw/1 "Karla",sans-serif;letter-spacing:.04em;
   color:#e7ddc8;background:rgba(8,8,12,.8);
