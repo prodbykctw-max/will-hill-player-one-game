@@ -4,11 +4,19 @@
 proposed, everything not done, everything undone, everything on hold.
 
 - Repo: `prodbykctw-max/will-hill-player-one-game`
-- `main` and `claude/last-markdown-game-link-lvk1n6` are both at **`b1a9dec`**
+- `main` is at **`e1711ca`** (2026-09-10) — the Salesforce-Lightning
+  dashboard, no-pinch-zoom, the credits fix, and the full load/security test
+  round, all merged in and deployed. See the new entry at the top of "DONE —
+  shipped and live" below for the detail.
 - Live: <https://prodbykctw-max.github.io/will-hill-player-one-game/>
+- Dashboard: <https://will-hill-dashboard.prodbykctw.workers.dev/> (token
+  required — see `docs/HANDOFF.md`)
 - Loop bench: <https://prodbykctw-max.github.io/will-hill-player-one-game/bench/>
-- `gh-pages` was rebuilt from `b1a9dec`. Live matches main — verified on the
-  CDN by bundle hash and by `createBufferSource` being present in it.
+  (only live if someone has run `tools/build_loopbench.py` since the last
+  deploy — see CLAUDE.md, this has been wrong before)
+- `gh-pages` was rebuilt from `e1711ca`. Live matches main — verified
+  directly: fetched the live bundle after deploy and grepped it for the
+  credits fix (`MUSIC/SFX` present, `role:"DESIGN"` absent), not assumed.
 
 ---
 
@@ -65,14 +73,20 @@ scratchpad, never the repo root.
 
 ---
 
-## DONE — pushed to `claude/contest-reg-image-crop-d4y6c0`, NOT merged to main, NOT deployed
+## DONE — the four fixes below, now merged to main and live (was stale)
+
+⚠️ This section used to say NOT merged, NOT deployed — that stopped being
+true once `claude/contest-reg-image-crop-d4y6c0` was merged to main and
+`main` deployed as `e1711ca` (2026-09-10). Verified directly against the
+live bundle, not assumed: `routeDistance`/`rideTicksFor`, `ENDING_SAFE`,
+`resume()`, and `rowsShown`/`tally` are all present in what's actually
+being served right now. Left the rest of this section's own detail as
+written below — it is still accurate, just no longer "not merged."
 
 Four fixes from the client's phone report (backgrounded PWA audio, the
 Buckhead train's speed, RESTART clipped on the ending screen, and the
 ending stats reading like a static list instead of a readout). Committed
-(`f1d8bf3`, `620ba1e`, `09563dc`) and pushed to this branch; main is still
-at `a0d1804` and `gh-pages` has none of this. Merging/deploying is a
-separate, confirmed step per `CLAUDE.md` — not run here.
+(`f1d8bf3`, `620ba1e`, `09563dc`).
 
 **1. Backgrounding the PWA left the music playing.** The existing
 `visibilitychange` handler only called `pause()`, which swaps the SCREEN to
@@ -155,6 +169,68 @@ built here — this was a status question, not a request.
 ---
 
 ## DONE — shipped and live
+
+### 2026-09-10 — dashboard rebuilt, credits fixed, full load/security test, merged and deployed
+
+The closing round for this build. Client: *"I turned in everything I needed
+on this game... wrap up all the documentation and update everything, push
+everything, deploy everything."* All of it is merged to `main` (`e1711ca`)
+and live — verified directly, not assumed, on both the game and the
+dashboard.
+
+**Dashboard rebuilt as a Salesforce Lightning console** (`cloudflare/dashboard-worker.js`)
+per Kema's ask — she's a Salesforce admin and wanted the admin tool to read
+like one. Dark navy global header, left app-nav rail, white cards, blue KPI
+tiles that are now real navigation (click Entrants/Kills/etc. and it jumps
+to that section), sortable list-view tables, a **Top 3** leaderboard card
+promoted above the fold on Home (the client's own priority: *"the top
+three... should be like one of the main things that they see"*), the old
+Runs-last-72-hours sparkline demoted below it. Only the front end changed —
+every route and D1 query is byte-identical to before. The hand-painted
+world map is gone, replaced by a plain sortable Locations table (a real
+Lightning report is a table, not a canvas); `worldmap.js`/`mapdata.js` are
+unused but not deleted. Real charts now: a part-to-whole stacked bar for
+Cause of Death using a colorblind-validated palette (the old blue/orange/red
+combo genuinely failed a CVD check — orange vs. red measured ΔE 2.5, well
+under the safety floor), and a line+area sparkline with a nearest-point
+crosshair tooltip. Funnel bars show percentage of Started. Pinch-to-zoom is
+blocked on the whole dashboard (the same gesture-blocking technique the
+game's `index.html` already used, since `user-scalable=no` alone does
+nothing on iOS Safari). "Bottles Thrown" renamed to "Bottles" — the
+champagne bottle is a pickup, not a thrown projectile. Two of the old
+dashboard's harnesses (`dashfit.mjs`, `dashglow.mjs`) tested failure modes
+specific to the painted-plate design that can't happen anymore and were
+retired with a note explaining why; `dashload.mjs` was updated and caught
+two real bugs in the rebuild (an unreachable mobile nav rail, and a full
+table rebuild on every 5-second poll with no memoization) before either
+shipped. Full detail: `docs/HANDOFF.md`'s two entries from today.
+
+**Credits screen: no separate DESIGN line.** Client: game development
+already covers design, so the `_kematry` DESIGN row is gone; MUSIC and
+SOUND EFFECTS merged into one MUSIC/SFX line (`src/render/credits.js`) —
+same person, same credit, no reason to say it twice.
+
+**A full load and security test against the live account**, client:
+*"pressure test... 10,000 people try to download, play, visit this
+site... let's see if bots try."* Every one of the leaderboard worker's
+abuse defenses (origin lock, both honeypots, the score ceiling, the rate
+bound, oversized-body/malformed-JSON/bad-phone/bad-run-id/bad-events
+rejection) tried directly and confirmed working; a 100-way simultaneous
+race from one identity confirmed the D1 "keep the highest" upsert drops
+nothing; a 30-way simultaneous replay of one run id confirmed exactly one
+accepted and the rest refused; 10,000 distinct submissions at concurrency
+200 — all 10,000 accepted, zero errors, the public `/top` endpoint held a
+98% edge-cache hit rate across 37,088 reads during the flood. The contest
+switch had to be opened to run any of this (the worker gates `/submit` on
+it before anything else) and was closed again the instant testing
+finished; push notifications were toggled and returned to their starting
+state the same way. Every row the test created was deleted afterward and
+independently verified against the database (not the test script's own
+report) — zero entrants, zero rejects, the D1 file back to its exact
+pre-test byte size. Full numbers and methodology: the client has the
+"Load & Security Test Results" document (same two formats as the ops
+reference). Not repeated here in full — see that document instead of
+re-deriving these numbers from a different source.
 
 ### "Loading issues" — the deploys themselves were breaking live players
 
