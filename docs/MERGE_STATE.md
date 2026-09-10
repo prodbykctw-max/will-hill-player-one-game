@@ -37,24 +37,41 @@ in a commit of its own.** And for any quote this file attributes to a source
 file, grep the quote — one of them had been deleted from the source and was
 still being repeated here as current.
 
-## State at main `8665ecc` — ALL THREE BRANCHES ARE FULLY MERGED, AND THE GAME HAS FIVE STAGES
+## State at main `e1711ca` — ALL THREE BRANCHES ARE FULLY MERGED, DASHBOARD IS A NEW DESIGN
 
-Re-derived, not remembered (2026-09-02, BACKDROPS / DEPLOY chat, after
-shipping STAGE 5: BUCKHEAD THEATRE — see docs/STATUS.md's top entry for the
-full build record).
+Re-derived, not remembered (2026-09-10, BACKDROPS / DEPLOY chat, after the
+Salesforce-Lightning dashboard rebuild, the credits fix, and a full
+load/security test round — see docs/STATUS.md's top entry for the full
+build record). The previous snapshot below (main `8665ecc`, five stages)
+is superseded by this one, not wrong about what it said at the time — the
+five-stages facts it recorded still hold, they just aren't the newest news.
 
 | branch | ahead | behind | tip |
 |---|---|---|---|
-| `claude/contest-reg-image-crop-d4y6c0` | 0 | 0 | `8665ecc` |
+| `claude/contest-reg-image-crop-d4y6c0` | 0 | 0 | `e1711ca` |
 | `claude/dashboard-kills-display-sizing-wgufbm` | 0 | many | `b0a9d02` |
-| `claude/last-markdown-game-link-lvk1n6` | 0 | 7 | `ac30dd4` |
+| `claude/last-markdown-game-link-lvk1n6` | 0 | many | `ac30dd4` |
 
-`8665ecc` merges the TITLE/HOME chat's pre-contest sweep (`ac30dd4` — outbox
-verdict handling, workerguards.mjs, MIN_RUN_MS 3s) UNDER the stage-5 work;
-outbox 20, workerguards 22, endcue 13 and stageflag 8 all green on the
-merged tree. gh-pages union-deployed from it (215 current + 267 carried).
+`e1711ca` merged clean (fast-forward, no conflicts) — the other two
+branches' work was already folded into main long before this window and
+neither has moved since. gh-pages redeployed from `e1711ca`'s build;
+verified directly against the live bundle (not assumed) that it carries the
+credits fix (`MUSIC/SFX` present, the old `role:"DESIGN"` string absent).
 
 Things another chat must NOT undo without reading STATUS first:
+- **The dashboard (`cloudflare/dashboard-worker.js`) is a different design
+  now.** The old painted-MARTA-plate front end is GONE — replaced with a
+  Salesforce Lightning-style console (Kema's ask: she's a Salesforce admin).
+  If you're mid-work against the old plate's selectors (`#plate`,
+  `#contestAlert`, `#pushPill`, the glow-layer CSS), those are gone; the new
+  IDs are `#kpis`, `#top3Wrap`, `#entBody`, `#geoBody`, `#funnelWrap`,
+  `#deathWrap`, `#sparkWrap`, `#nav .item[data-v=...]`. The backend routes
+  and every D1 query are byte-identical to before — only the front end
+  changed. Full detail: docs/HANDOFF.md's two entries dated 2026-09-09.
+- **The hand-painted world map is gone from the dashboard.** Replaced by a
+  plain sortable Locations table. `worldmap.js`/`mapdata.js` still exist,
+  unused — don't delete them on sight, and don't assume the map is coming
+  back either; ask before building on either assumption.
 - **The game is FIVE stages.** `?stage=1..5`; the ride L5P→Buckhead changes
   trains at Five Points onto the new NORTH_ARM in martamap.js.
 - **BAGS_IN_GAME 425 / PERFECT_RUN 66900 are MEASURED** (ceiling.mjs, all
@@ -63,10 +80,11 @@ Things another chat must NOT undo without reading STATUS first:
   re-opens three ceilings at once.
 - **stage_05/map_04_05 are aliases of stage_01/map_01_02's files.** Not a
   bug, a reprise — a real Buckhead cue drops into the MANIFEST slot.
-- **The dashboard's painted stage funnel still shows 4 rows** — his artwork
-  holds four; a fifth row needs a DASHBOARD-chat art decision. The SQL side
-  (`s5`) is also not wired yet; `stage_clear_5` events are already being
-  recorded by the client.
+- **The dashboard's stage funnel is 5 rows now, code-driven, no painted
+  art involved** — the old "still shows 4 rows, needs a DASHBOARD-chat art
+  decision" blocker from the previous snapshot no longer applies; the new
+  Lightning design draws its own funnel bars from `s1..s5`, nothing baked
+  into artwork to run out of rows.
 - Previous window's standing notes (board = MARTA ticket, Jandé look = the
   registration form, contest-entry/glow-entry stay unimported) all still
   hold.
