@@ -82,6 +82,41 @@ const DEPTH_SPREAD = 0.010;
 const MAX_SEPARATION = 16; // px of screen — the most any card may sit off the base
 const BASE_DEPTH = 0.5;
 
+// ── ATMOSPHERIC PERSPECTIVE — depth you can see without anything moving ───
+// Client: "I can't even tell that things are moving at all... I can't tell
+// that things are cut at all." Real, and not a regression to chase out of
+// THIS file — MAX_SEPARATION 16 above is the correct fix for a real,
+// photographed double-vision bug (4bf6d10), and going back toward 90 would
+// very likely bring that back. The actual problem is narrower: on EAV alone,
+// 6 of 11 cards sit at exactly BASE_DEPTH (mcdonalds/swifty/citgo/fence/
+// verge/shrub_right — co-planar ON PURPOSE, a separate fix for a separate
+// bug) and so have ZERO relative motion against the base or each other; the
+// other 5 are capped to a 16px spread nobody's eye is going to catch mid-run.
+//
+// So: a depth cue that costs no pixels of position. Every card gets a
+// per-depth tint — far cards read cooler, flatter, slightly hazy; near
+// cards read clean and a touch warmer — using a canvas `filter`, never an
+// offset, so it CANNOT reintroduce the doubling MAX_SEPARATION exists to
+// prevent (nothing here moves a single pixel). This is also why it reaches
+// the six BASE_DEPTH cards the motion cue never could: haze is keyed to
+// `depth` directly (0 far -> 1 near, the same convention every stage
+// already authors depth in), not to depth's distance from BASE_DEPTH, so a
+// card sitting still can still read as nearer or farther than its neighbour.
+//
+// Tuned restrained on purpose — this sells depth, it does not repaint his
+// art. saturate/brightness move at most ±12%, hue-rotate at most 6deg blue,
+// and depth 1.0 (the nearest legitimate card) resolves to 'none' exactly:
+// no filter string, no compositing cost, pixel-identical to before this.
+function atmosphericFilter(depth) {
+  const d = typeof depth === 'number' ? Math.max(0, Math.min(1, depth)) : BASE_DEPTH;
+  const haze = 1 - d; // 0 at the nearest card, 1 at the farthest
+  if (haze <= 0) return 'none';
+  const saturate = Math.round((1 - haze * 0.22) * 100);   // far things wash out, not grey out
+  const brightness = Math.round((1 - haze * 0.10) * 100); // far things dim slightly, not fog
+  const hue = Math.round(haze * 6);                       // a faint cool drift, not a blue card
+  return `saturate(${saturate}%) brightness(${brightness}%) hue-rotate(${hue}deg)`;
+}
+
 // GROUND STRIPS USED TO BE AN EXCEPTION. They are not any more, and the reason
 // they stopped being one is the most expensive lesson in this file.
 //
@@ -451,6 +486,9 @@ export function createBackdrop(ctx, canvas) {
       const par = cardParallax(camera.x * camera.zoom, card.depth, card, tick, maxSep(stage));
       const off = pmod(par, period);
       const [sx0, sx1] = card.span || [0, 1];
+      // One filter per card, not per repeat tile — depth doesn't change
+      // between tiles, and `filter` is one of the pricier context ops.
+      g.filter = atmosphericFilter(card.depth);
       for (let rep = -1; rep <= reps; rep++) {
         const x0 = rep * period - off;
         // Cull on the card's own extent, not the plate's — most cards are a
@@ -458,6 +496,7 @@ export function createBackdrop(ctx, canvas) {
         if (x0 + sx1 * period < 0 || x0 + sx0 * period > canvas.width) continue;
         drawCardAt(g, img, plate, srcH, x0, card, tick, rep * 211);
       }
+      g.filter = 'none';
     }
   }
 
