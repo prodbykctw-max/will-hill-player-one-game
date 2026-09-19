@@ -125,38 +125,17 @@ const panel = createPanel({
 // Browsers keep an AudioContext suspended until a real gesture, so a key or
 // touch is what actually starts the audio thread.
 //
-// EVERY GESTURE UNTIL IT TAKES, not just the first. These were `once`, which
-// gives the context exactly one chance — and a resume() can be refused, or
-// land on a page that has not been interacted with the way the browser wanted.
-// One refused attempt and the game is silent for the rest of the session.
-// They detach themselves as soon as audio.ready() reports a running context,
-// so the steady state is still no listeners.
-// Ask first, before anyone touches anything. Refused on iOS and in an ordinary
-// tab, which is fine and free; allowed for a PWA installed to the home screen
-// on Chrome, which is the case the client is actually describing. See
-// audio.tryAutostart.
+// Try autoplay where allowed; otherwise retry both WebAudio and the media
+// element within real gestures. A running context alone does not mean Safari
+// has allowed the music element to play. Repeated play of the same cue is safe.
 audio.tryAutostart();
 {
-  // EVERY EVENT THAT COUNTS AS ACTIVATION, not just the three that ought to.
-  //
-  // The client, on the shipped build: "the home screen music doesn't play
-  // unless I hit OPTIONS first." That is the tell. OPTIONS is not special —
-  // it is just SEVERAL more gestures (a tap to open the panel, a tap on a
-  // button inside it, a tap to close), and if it takes several then a single
-  // one is not landing. Safari is the known offender: it does not reliably
-  // honour resume() from `pointerdown`, and a handler that calls
-  // preventDefault() first — which the title's does, to stop the tap
-  // scrolling — can cost the activation outright. `touchend` and `click` are
-  // the two it does honour.
-  //
-  // Cheap to be exhaustive: unlock() is idempotent, the listeners are passive,
-  // and they all detach the moment the context reports running.
   const EVENTS = ['keydown', 'keyup', 'pointerdown', 'pointerup',
                   'touchstart', 'touchend', 'click'];
   const unlock = () => {
-    audio.unlock();
-    if (!audio.ready()) return;
-    for (const ev of EVENTS) window.removeEventListener(ev, unlock);
+    if (state.screen === 'loading' || document.hidden) return;
+    if (soundEnabled() || sfxEnabled()) audio.unlock();
+    if (soundEnabled()) audio.music.play(cueForScreen());
   };
   for (const ev of EVENTS) {
     window.addEventListener(ev, unlock, { passive: true });
@@ -605,7 +584,19 @@ const CONTINUES_PER_RUN = 1;
 // means "skip this animation", and a skip must stay a skip — landing a
 // first-time player on a contact form because they were impatient is how this
 // was broken the first time.
+// START is an independent audio-on trigger, including returning players
+// whose saved switches were off. Later settings changes still work normally.
+function enableStartAudio() {
+  setSoundEnabled(true);
+  setSfxEnabled(true);
+  audio.setMuted(false);
+  audio.setSfxMuted(false);
+  audio.unlock();
+  audio.music.play(cueForScreen());
+}
+
 function beginFromTitle() {
+  enableStartAudio();
   const introDone = (state.screenT - state.introAt) > INTRO_TICKS;
   if (!introDone) { startRun(); return; }
   state.pendingRun = true;        // whatever they choose, the run follows
@@ -916,6 +907,10 @@ canvas.addEventListener('pointerdown', (e) => {
 
 // Keyboard parity, and the convention players expect.
 window.addEventListener('keydown', (e) => {
+  // Do this inside the key gesture, before update() consumes the Start input.
+  if (!e.repeat && !panel.isOpen && state.screen === 'title' &&
+      state.screenT > TITLE_ARM_TICKS &&
+      ['Space', 'ArrowUp', 'KeyW'].includes(e.code)) enableStartAudio();
   if (e.code === 'KeyP' || e.code === 'Escape') {
     state.screen === 'paused' ? resume() : pause();
   }
