@@ -607,26 +607,7 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
       const stored = localStorage.getItem('wh_tod');
       tod = stored === 'auto' ? 'local' : (stored || 'atl');
     } catch (_e) {}
-    // ⚠️ READ THROUGH THE ACCESSORS. NOT localStorage AGAIN.
-    //
-    // Client: "if I don't turn on the music from home and go to settings, it
-    // shows music as on."
-    //
-    // This read the key itself, as `!== 'off'`, while soundEnabled() eighty
-    // lines below reads it as `=== 'on'` — and that difference is the entire
-    // bug. They agree once somebody has answered; on a device that never has,
-    // the stored value is null, so the game correctly plays no music and this
-    // panel drew a ticked box next to the silence.
-    //
-    // Worse than a wrong tick: MUSIC starts unticked precisely so the press
-    // that ticks it is the gesture the browser needs to release audio. Showing
-    // it already on made his next press an UNtick — spending the one gesture
-    // that was supposed to start the theme on writing 'off'.
-    //
-    // soundEnabled()'s `=== 'on'` is deliberate and documented at its own
-    // definition; this line was simply never brought along. So it no longer
-    // has an opinion about the default. There is exactly one read of each key
-    // in this file now, and a checkbox cannot disagree with the audio again.
+    // Share the audio defaults with the game and home-screen control.
     const snd = soundEnabled();
     const sfx = sfxEnabled();
     $('sTod').value = tod;
@@ -1058,26 +1039,13 @@ export function setSoundEnabled(on) {
   try { localStorage.setItem('wh_sound', on ? 'on' : 'off'); } catch (_e) {}
 }
 
-// ⚠️ MUSIC DEFAULTS **OFF**, AND THAT IS THE POINT — `=== 'on'`, not
-// `!== 'off'`. Client: "I want the music button off, and for it to
-// acknowledge you clicking it, and once it is clicked the user gesture
-// should activate the theme song."
-//
-// It is not a preference so much as a mechanism. No browser releases sound
-// before a real gesture inside the page, and tapping a home-screen icon is a
-// gesture on the OS, not on us — so SOMETHING on this screen has to be
-// touched before the theme can ever start. A box that is already ticked
-// invites nobody to touch it, and then the silence reads as broken. Starting
-// it unticked makes the one press that turns music on the same press the
-// browser accepts, so the theme comes up under the finger.
-//
-// Anyone who has already chosen 'on' keeps it — this only changes the
-// default for a device that has never answered.
+// Music is enabled by default. Playback starts at boot when permitted, or
+// on the first accepted gesture. Keep an explicit mute until Start is pressed.
 export function soundEnabled() {
   try {
-    return localStorage.getItem('wh_sound') === 'on';
+    return localStorage.getItem('wh_sound') !== 'off';
   } catch (_e) {
-    return false;
+    return true;
   }
 }
 

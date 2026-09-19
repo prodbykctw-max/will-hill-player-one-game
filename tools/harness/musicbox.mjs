@@ -116,14 +116,7 @@ await grab('3  after a reload, box remembered');
 check('the choice survives a reload',
   await p.evaluate(()=>localStorage.getItem('wh_sound'))==='on');
 // ── AND THE SETTINGS PANEL MUST AGREE WITH IT ────────────────────────────
-// Client: "if I don't turn on the music from home and go to settings, it
-// shows music as on."
-//
-// It did. fillSettings read wh_sound as `!== 'off'` while soundEnabled reads
-// it as `=== 'on'`, so on a device that had never answered - null - the game
-// correctly played nothing and the panel drew a ticked box beside the
-// silence. Checked on a FRESH profile, because the bug only exists in the
-// never-answered case and any earlier tap in this file would hide it.
+// Fresh settings must agree with the new enabled-by-default audio policy.
 const fresh = await b.newContext({ viewport: { width: 430, height: 932 }, hasTouch: true });
 const fp = await fresh.newPage();
 await fp.goto('http://localhost:5199/?tod=night', { waitUntil: 'networkidle' });
@@ -140,10 +133,10 @@ const box = await fp.evaluate(() => ({
   sfx: document.getElementById('sSfx') ? document.getElementById('sSfx').checked : null,
 }));
 check('a fresh device has answered nothing', virgin.stored === null, JSON.stringify(virgin));
-check('and its music is genuinely muted', virgin.muted === true);
-// ⚠️ THE REGRESSION. The box has to agree with the SPEAKER, not with itself.
-check('SETTINGS SHOWS MUSIC OFF when it has never been turned on',
-  box.checked === false, `sSound.checked=${box.checked}`);
+check('and music defaults enabled', virgin.muted === false);
+// Settings reflects the preference; playback may still need a gesture.
+check('SETTINGS SHOWS MUSIC ON by default',
+  box.checked === true, `sSound.checked=${box.checked}`);
 check('SFX still defaults ON in the same panel', box.sfx === true);
 // Ticking it there must be the gesture that starts the theme, exactly as the
 // title box is - otherwise the fix has only moved the lie.
