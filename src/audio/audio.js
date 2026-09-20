@@ -597,10 +597,22 @@ export function createAudio() {
       const c = ensure();
       if (!c) return;
       silentPing(c);
-      if (c.state === 'suspended') {
-        c.resume().then(startPending).catch(() => {});
-      } else {
+      const started = () => {
+        if (c.state !== 'running') return;
         startPending();
+        // A media-element play attempted before resume may have been refused.
+        // Retry/promote the requested cue as soon as the graph is genuinely
+        // live instead of waiting for another gameplay event to wake it.
+        music.tick();
+      };
+      // WebKit has an additional non-standard `interrupted` state. It can
+      // appear after an audio-route change, phone interruption, or PWA
+      // background/foreground cycle. Treat every resumable non-running state
+      // the same; checking only `suspended` strands those devices forever.
+      if (c.state !== 'running' && c.state !== 'closed') {
+        c.resume().then(started).catch(() => {});
+      } else {
+        started();
       }
       loadSamples(c);
     },
@@ -655,7 +667,7 @@ export function createAudio() {
       if (sfxMuted) return;
       const c = ensure();
       if (!c) return;
-      if (c.state === 'suspended') c.resume().catch(() => {});
+      if (c.state !== 'running' && c.state !== 'closed') c.resume().catch(() => {});
       const fn = SOUNDS[name];
       if (fn) fn(c, c.currentTime);
       // A stomp disappearing into a chorus is a stomp that did not land.
@@ -678,7 +690,7 @@ export function createAudio() {
       if (sfxMuted) return;
       const c = ensure();
       if (!c) return;
-      if (c.state === 'suspended') c.resume().catch(() => {});
+      if (c.state !== 'running' && c.state !== 'closed') c.resume().catch(() => {});
       const step = Math.max(0, Math.min(10, (n || 2) - 2));
       chime(c, c.currentTime, 660 * Math.pow(1.122, step), 0.16, 0.16);
     },
@@ -698,7 +710,7 @@ export function createAudio() {
       if (sfxMuted) return;
       const c = ensure();
       if (!c) return;
-      if (c.state === 'suspended') c.resume().catch(() => {});
+      if (c.state !== 'running' && c.state !== 'closed') c.resume().catch(() => {});
       const t = c.currentTime;
       const step = Math.max(0, Math.min(7, row || 0));
       const f = 920 * Math.pow(1.09, step);
@@ -721,14 +733,14 @@ export function createAudio() {
       if (sfxMuted) return;
       const c = ensure();
       if (!c) return;
-      if (c.state === 'suspended') c.resume().catch(() => {});
+      if (c.state !== 'running' && c.state !== 'closed') c.resume().catch(() => {});
       arpeggio(c, c.currentTime, UP_NOTES, 0.055, 0.16);
     },
     powerDown() {
       if (sfxMuted) return;
       const c = ensure();
       if (!c) return;
-      if (c.state === 'suspended') c.resume().catch(() => {});
+      if (c.state !== 'running' && c.state !== 'closed') c.resume().catch(() => {});
       arpeggio(c, c.currentTime, DOWN_NOTES, 0.075, 0.13);
     },
 
@@ -828,7 +840,9 @@ export function createAudio() {
       if (ctx && ctx.state === 'running') ctx.suspend().catch(() => {});
     },
     resume() {
-      if (ctx && ctx.state === 'suspended') ctx.resume().catch(() => {});
+      if (ctx && ctx.state !== 'running' && ctx.state !== 'closed') {
+        ctx.resume().then(() => { startPending(); music.tick(); }).catch(() => {});
+      }
     },
   };
 }
