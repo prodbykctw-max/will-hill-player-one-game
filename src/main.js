@@ -129,11 +129,16 @@ const panel = createPanel({
 // element within real gestures. A running context alone does not mean Safari
 // has allowed the music element to play. Repeated play of the same cue is safe.
 audio.tryAutostart();
+// A Start press is allowed to finish unlocking audio even if that same press
+// moves a slower phone back onto the loading screen. Older Safari commonly
+// accepts media on touchend/click rather than pointerdown; without this latch,
+// the release half of Start was discarded by the loading guard below.
+let startAudioRequested = false;
 {
   const EVENTS = ['keydown', 'keyup', 'pointerdown', 'pointerup',
                   'touchstart', 'touchend', 'click'];
   const unlock = () => {
-    if (state.screen === 'loading' || document.hidden) return;
+    if ((state.screen === 'loading' && !startAudioRequested) || document.hidden) return;
     if (soundEnabled() || sfxEnabled()) audio.unlock();
     if (soundEnabled()) audio.music.play(cueForScreen());
   };
@@ -587,6 +592,7 @@ const CONTINUES_PER_RUN = 1;
 // START is an independent audio-on trigger, including returning players
 // whose saved switches were off. Later settings changes still work normally.
 function enableStartAudio() {
+  startAudioRequested = true;
   setSoundEnabled(true);
   setSfxEnabled(true);
   audio.setMuted(false);
@@ -2585,11 +2591,12 @@ if (import.meta.env.PROD && 'serviceWorker' in navigator) {
 // PAINTED on the canvas — there is no element under the thumb, and on iOS
 // the only haptic that exists is WebKit reacting to a real switch control.
 // So each canvas button gets an invisible overlay host carrying a switch
-// (haptics.attach), and the overlay forwards the real press directly into the
+// (haptics.attach), and the overlay forwards the real CLICK directly into the
 // canvas action — synchronously, while WebKit still considers it a trusted
-// media gesture. Re-dispatching a synthetic PointerEvent worked on current
-// iPhones but left Start unable to unlock music on older WebKit. Off iOS (and
-// off ?haptest=1) none of this exists: the guard
+// media gesture. Click is intentional here: older Safari can reject media on
+// pointerdown and only release it on touchend/click. Re-dispatching a synthetic
+// PointerEvent worked on current iPhones but left Start unable to unlock music
+// on older WebKit. Off iOS (and off ?haptest=1) none of this exists: the guard
 // is isSwitchRoute(), which is why no desktop harness ever sees an overlay.
 //
 // Rects re-sync 5x/sec and on resize — cheap for a handful of divs, and it
@@ -2614,7 +2621,7 @@ if (haptics.wantsSwitches && haptics.wantsSwitches()) {
       d = document.createElement('div');
       d.style.cssText = 'position:absolute;pointer-events:auto;overflow:hidden';
       d.dataset.hapticHost = key;
-      d.addEventListener(CANVAS_PRESS_EVENT, forward, { passive: true });
+      d.addEventListener('click', forward, { passive: true });
       layer.appendChild(d);
       hosts.set(key, d);
       haptics.attach(d);
