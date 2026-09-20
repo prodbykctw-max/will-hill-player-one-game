@@ -737,13 +737,29 @@ function hit(rect, x, y) {
   return x >= rect.x && x <= rect.x + rect.w && y >= rect.y && y <= rect.y + rect.h;
 }
 
-// One pointer path for the pause control and the menu. Canvas coordinates
-// must be scaled from CSS pixels or every hit-test is wrong on a HiDPI
-// screen, where the backing store is larger than the element.
-canvas.addEventListener('pointerdown', (e) => {
+// One press path for the pause control and the menu. Canvas coordinates must
+// be scaled from CSS pixels or every hit-test is wrong on a HiDPI screen,
+// where the backing store is larger than the element.
+//
+// Older WebKit either has no PointerEvent constructor or refuses to treat a
+// script-created PointerEvent as a media-unlocking gesture. Keep the actual
+// game action in a coordinate-based function so the iOS haptic overlay below
+// can call it directly from the player's real touch instead of manufacturing
+// a second event. The touchstart fallback covers older Safari without making
+// current browsers handle both touchstart and pointerdown for one press.
+const CANVAS_PRESS_EVENT = typeof window.PointerEvent === 'function'
+  ? 'pointerdown' : 'touchstart';
+
+function pressPoint(e) {
+  return (e.touches && e.touches[0])
+    || (e.changedTouches && e.changedTouches[0])
+    || e;
+}
+
+function handleCanvasPress(clientX, clientY, preventDefault = () => {}) {
   const r = canvas.getBoundingClientRect();
-  const x = (e.clientX - r.left) * (canvas.width / r.width);
-  const y = (e.clientY - r.top) * (canvas.height / r.height);
+  const x = (clientX - r.left) * (canvas.width / r.width);
+  const y = (clientY - r.top) * (canvas.height / r.height);
 
   // PRESS START means press anywhere. The jump pad still works, but nobody
   // hunts for a button on a title card or a results board — they tap the
@@ -752,7 +768,7 @@ canvas.addEventListener('pointerdown', (e) => {
   // also why the pads are hidden on them.
   if (state.screen === 'title') {
     if (state.screenT <= TITLE_ARM_TICKS) return;
-    e.preventDefault();
+    preventDefault();
     // ── UNLOCK ON ANY INPUT, BUT SWALLOW NOTHING ─────────────────────────
     //
     // A browser will not release sound before a gesture inside the page, and
@@ -881,7 +897,7 @@ canvas.addEventListener('pointerdown', (e) => {
   // 'loading', so without this the RETRY button draws and does nothing.
   if (bootError) {
     for (const b of screenButtons) {
-      if (hit(b, x, y)) { press(); b.action(); e.preventDefault(); return; }
+      if (hit(b, x, y)) { press(); b.action(); preventDefault(); return; }
     }
     return;
   }
@@ -889,21 +905,26 @@ canvas.addEventListener('pointerdown', (e) => {
       || state.screen === 'complete' || state.screen === 'creditsRoll') {
     if (state.screenT > 20) {
       for (const b of screenButtons) {
-        if (hit(b, x, y)) { press(); b.action(); e.preventDefault(); return; }
+        if (hit(b, x, y)) { press(); b.action(); preventDefault(); return; }
       }
     }
     return;
   }
   if (state.screen === 'playing') {
-    if (hit(hud.pauseRect, x, y)) { press(); pause(); e.preventDefault(); }
+    if (hit(hud.pauseRect, x, y)) { press(); pause(); preventDefault(); }
     return;
   }
   if (state.screen === 'paused') {
     for (const b of menuButtons) {
-      if (hit(b, x, y)) { press(); b.action(); e.preventDefault(); return; }
+      if (hit(b, x, y)) { press(); b.action(); preventDefault(); return; }
     }
   }
-});
+}
+
+canvas.addEventListener(CANVAS_PRESS_EVENT, (e) => {
+  const p = pressPoint(e);
+  handleCanvasPress(p.clientX, p.clientY, () => e.preventDefault());
+}, { passive: false });
 
 // Keyboard parity, and the convention players expect.
 window.addEventListener('keydown', (e) => {
@@ -2564,10 +2585,11 @@ if (import.meta.env.PROD && 'serviceWorker' in navigator) {
 // PAINTED on the canvas — there is no element under the thumb, and on iOS
 // the only haptic that exists is WebKit reacting to a real switch control.
 // So each canvas button gets an invisible overlay host carrying a switch
-// (haptics.attach), and the overlay FORWARDS the tap by re-dispatching a
-// synthetic pointerdown into the canvas's own handler — synchronously, so
-// it still counts as the user's gesture and the MUSIC box can still be the
-// audio unlock. Off iOS (and off ?haptest=1) none of this exists: the guard
+// (haptics.attach), and the overlay forwards the real press directly into the
+// canvas action — synchronously, while WebKit still considers it a trusted
+// media gesture. Re-dispatching a synthetic PointerEvent worked on current
+// iPhones but left Start unable to unlock music on older WebKit. Off iOS (and
+// off ?haptest=1) none of this exists: the guard
 // is isSwitchRoute(), which is why no desktop harness ever sees an overlay.
 //
 // Rects re-sync 5x/sec and on resize — cheap for a handful of divs, and it
@@ -2580,10 +2602,11 @@ if (haptics.wantsSwitches && haptics.wantsSwitches()) {
   document.body.appendChild(layer);
   const hosts = new Map();
   const forward = (e) => {
-    canvas.dispatchEvent(new PointerEvent('pointerdown', {
-      clientX: e.clientX, clientY: e.clientY,
-      pointerType: 'touch', bubbles: true, cancelable: true,
-    }));
+    const p = pressPoint(e);
+    // Deliberately do not prevent the real switch event: its native activation
+    // is what produces the iOS haptic. The game action and audio unlock still
+    // run before this trusted event returns.
+    handleCanvasPress(p.clientX, p.clientY);
   };
   const place = (key, r, s) => {
     let d = hosts.get(key);
@@ -2591,7 +2614,7 @@ if (haptics.wantsSwitches && haptics.wantsSwitches()) {
       d = document.createElement('div');
       d.style.cssText = 'position:absolute;pointer-events:auto;overflow:hidden';
       d.dataset.hapticHost = key;
-      d.addEventListener('pointerdown', forward);
+      d.addEventListener(CANVAS_PRESS_EVENT, forward, { passive: true });
       layer.appendChild(d);
       hosts.set(key, d);
       haptics.attach(d);
