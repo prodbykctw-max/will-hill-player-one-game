@@ -76,6 +76,16 @@ const check = (w, ok, d = '') => {
   check('with every lesson fired, nothing triggers again',
     nextTutorialTrigger(mixed, { x: 0 }, allFired) === null);
 
+  // Client: "I had to grab it, go back... and then come back for the bubble
+  // to appear. It should appear right before you approach it."
+  const firedAllButBottle = new Set(['intro', 'pothole', 'gap', 'ninja']);
+  const bottle = (extra) => ({ obstacles: [], pits: [], enemies: [],
+    champagnes: [{ x: 1000, w: 24, approachX: 900, ...extra }] });
+  check('the champagne lesson is timed from the LEDGE, not the bottle on top of it',
+    nextTutorialTrigger(bottle({}), { x: 900 - 250 }, firedAllButBottle) === 'champagne');
+  check('a bottle already drunk never re-arms the lesson',
+    nextTutorialTrigger(bottle({ got: true }), { x: 900 - 250 }, firedAllButBottle) === null);
+
   check('TUTORIAL_LESSONS has a non-empty page array for every id in TUTORIAL_ORDER',
     TUTORIAL_ORDER.every((id) => Array.isArray(TUTORIAL_LESSONS[id]) && TUTORIAL_LESSONS[id].length > 0),
     JSON.stringify(TUTORIAL_ORDER.map((id) => [id, TUTORIAL_LESSONS[id]?.length])));

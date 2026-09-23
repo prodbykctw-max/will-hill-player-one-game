@@ -87,22 +87,44 @@ const HAZARD_LEAD = 260;
 // and the tutorial could never finish. See generator.js for the arrays:
 // obstacles (potholes), pits (gaps/"manholes"), enemies (ninjas),
 // champagnes (bottles).
+//
+// ⚠️ A BOTTLE IS TIMED FROM ITS LEDGE, NOT ITSELF. The bottle sits on top of
+// a five- or six-row slab (generator.js, "A BOTTLE IS SOMETHING YOU JUMP
+// FOR"), so by the time he is within reach of the bottle he is already in the
+// air climbing to it — and a lesson never opens in the air. He landed beside
+// it and grabbed it in one move, and the lesson never got a grounded frame.
+// Client: "I had to grab it, go back... and then come back for the bubble to
+// appear. It should appear right before you approach it like everything
+// else." `approachX` is where the slab starts, so the lesson opens while he
+// is still on the street running at it.
+//
+// ⚠️ AND A GRABBED BOTTLE IS NOT AHEAD OF ANYONE. Pickups are marked `got`,
+// not removed — keyed on the array alone, walking back past a bottle he had
+// already drunk re-armed the lesson for it.
 function nextAhead(list, px) {
   let best;
+  let bestX;
   for (const h of list) {
-    if (h.alive === false) continue;              // a stomped ninja
-    if (h.x + (h.w || 0) <= px) continue;          // already behind him
-    if (best === undefined || h.x < best) best = h.x;
+    if (h.alive === false || h.got) continue;     // a stomped ninja, a drunk bottle
+    const x = h.approachX ?? h.x;
+    if (x + (h.w || 0) <= px && h.x + (h.w || 0) <= px) continue;   // behind him
+    if (best === undefined || x < bestX) { best = h; bestX = x; }
   }
   return best;
 }
 
+const HAZARD_LISTS = { pothole: 'obstacles', gap: 'pits', ninja: 'enemies', champagne: 'champagnes' };
+
+// The actual thing a lesson is about — the pothole, the ninja, the bottle —
+// so the bubble can stay off it (main.js). Null for the intro.
+export function tutorialTarget(level, id, px) {
+  const list = HAZARD_LISTS[id];
+  return list ? nextAhead(level[list], px) || null : null;
+}
+
 function hazardX(level, id, px) {
-  if (id === 'pothole') return nextAhead(level.obstacles, px);
-  if (id === 'gap') return nextAhead(level.pits, px);
-  if (id === 'ninja') return nextAhead(level.enemies, px);
-  if (id === 'champagne') return nextAhead(level.champagnes, px);
-  return undefined;
+  const h = tutorialTarget(level, id, px);
+  return h ? (h.approachX ?? h.x) : undefined;
 }
 
 // Returns the lesson id to fire THIS tick, or null. `fired` is the set of

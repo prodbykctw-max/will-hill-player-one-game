@@ -42,7 +42,8 @@ import { createRunLog, lbSubmit, bankLocalRun, isRegistered, hasPendingRun,
   recordRunStats, pendingRunCount, flushPendingRun } from './net/leaderboard.js';
 import { createPanel, soundEnabled, setSoundEnabled,
   sfxEnabled, setSfxEnabled, howToSeen, markHowToSeen } from './ui/panel.js';
-import { TUTORIAL_LESSONS, TUTORIAL_ORDER, TUTORIAL_DRILLS, nextTutorialTrigger } from './world/tutorial.js';
+import { TUTORIAL_LESSONS, TUTORIAL_ORDER, TUTORIAL_DRILLS, nextTutorialTrigger,
+  tutorialTarget } from './world/tutorial.js';
 import { createHaptics } from './core/haptics.js';
 import { STAGE_SLOTS, MAP_SLOTS, MANIFEST } from './audio/music.js';
 import { isRelay, setRelay } from './core/relay.js';
@@ -750,6 +751,9 @@ function openTutorialDialogue(id) {
     id,
     pages: TUTORIAL_LESSONS[id],
     drills: TUTORIAL_DRILLS[id] || [],
+    // What the lesson is pointing at, so the bubble can keep off it.
+    target: state.level && state.player
+      ? tutorialTarget(state.level, id, state.player.x) : null,
     page: 0,
     pageT: 0,
     drill: {},
@@ -2361,8 +2365,26 @@ function drawTutorialBubble(d) {
   const top = hud.pauseRect.y + hud.pauseRect.h + 20;
   const gap = style === 'speech' ? 8 : 34;             // room for tail / trail
   const snap = (v) => Math.round(v / P) * P;
-  const bx = snap(Math.min(Math.max(headX - 22, margin), canvas.width - margin - w));
-  const by = snap(Math.max(headY - gap - h, top));
+  let bx = snap(Math.min(Math.max(headX - 22, margin), canvas.width - margin - w));
+  let by = snap(Math.max(headY - gap - h, top));
+  // ⚠️ NEVER OVER THE THING IT IS TEACHING. The first champagne lesson drew
+  // its bubble straight across the bottle on its ledge — the bottle sits up
+  // at head height, exactly where the bubble goes. If the lesson's target is
+  // under the bubble, slide the bubble left clear of it while the tail can
+  // still reach his head; failing that, lift it clear.
+  const t = d.target;
+  if (t) {
+    const tx0 = (t.x - camera.x) * z;
+    const tw = (t.w || T) * z;
+    const ty0 = t.y != null ? (t.y - camera.y) * z : (FLOOR_R * T - camera.y) * z;
+    const th = (t.h || T) * z;
+    const hits = (x, y) => x < tx0 + tw + 8 && x + w > tx0 - 8 && y < ty0 + th + 8 && y + h > ty0 - 8;
+    if (hits(bx, by)) {
+      const left = snap(tx0 - 8 - w);
+      if (left >= margin && headX - left <= w - 12 * P) bx = left;
+      else by = snap(Math.max(top, ty0 - 8 - h));
+    }
+  }
   // Tail foot sits over his head, kept clear of the rounded corners.
   const tailX = Math.min(Math.max(Math.round((headX - bx) / P) - 1, 4), wA - 10);
 

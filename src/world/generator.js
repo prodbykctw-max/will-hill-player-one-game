@@ -339,6 +339,8 @@ export function genAhead(level, untilCol) {
         level.champagneMarks.shift();
         level.champagnes.push(createChampagneBottle(
           c * T + w * T * 0.5 - 12, champagneTopFor((FLOOR_R - heightRows) * T)));
+        // Where the climb to it starts — see world/tutorial.js hazardX().
+        level.champagnes[level.champagnes.length - 1].approachX = c * T;
       } else if (wantsBag(level, c, 5.3)) {
         placeBag(level, createMoneyBag(
           c * T + w * T * 0.5 - 12, (FLOOR_R - heightRows) * T - 26));
@@ -443,6 +445,7 @@ export function genAhead(level, untilCol) {
       plat(level.map, c, FLOOR_R - heightRows, w);
       level.champagnes.push(createChampagneBottle(
         c * T + w * T * 0.5 - 12, champagneTopFor((FLOOR_R - heightRows) * T)));
+      level.champagnes[level.champagnes.length - 1].approachX = c * T;
       level.lastFeatureCol = c + w;
       level.genC = c + w;
       continue;
