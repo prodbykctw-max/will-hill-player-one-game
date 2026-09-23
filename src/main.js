@@ -493,6 +493,8 @@ if (import.meta.env.DEV) {
   // tools/harness/tutorial.mjs.
   window.__tutorialOpen = openTutorialDialogue;
   window.__tutorialAdvance = advanceTutorialDialogue;
+  // Which of the two bubble treatments draws — for putting them side by side.
+  window.__bubbleStyle = (v) => { bubbleStyle = v; };
   // A getter, not a value — same reason `__images` a few lines down is one.
   // `TUTORIAL_TICKS_PER_CHAR` is a `const` declared further down this file;
   // reading it eagerly HERE, before that line has run, is the temporal dead
@@ -2146,44 +2148,103 @@ function wrapText(text, maxWidth) {
   return lines;
 }
 
-// WILL HILL'S TEXT BUBBLE — Scoon's drawing, from Will Hill's management: a
-// cloud up and to the right of his head, with a trail of smaller bubbles
-// leading down to his face. Drawn in screen space off his world position over
-// the frozen run — update() holds the world still while one is open, so he
-// cannot walk out from under it. The words are world/tutorial.js; the paging
-// is the open/advance pair above confirmPressed().
+// WILL HILL'S TEXT BUBBLE — a pixel-art bubble off his head.
 //
-// ⚠️ NOT A BOX ALONG THE BOTTOM. The first cut was a Game Boy dialogue box
-// across the foot of the screen with a portrait in it. Client: "He wants the
-// text bubbles to be coming from Will Hill's face. Why are you putting text
-// boxes at the bottom?" The reference drawing had been in hand the whole time.
-const BUBBLE_INK = '#1a1420';
-const BUBBLE_FILL = '#fbf7ee';
+// Scoon's drawing (Will Hill's management) put a bubble up and to the right of
+// his head. The client then pointed at Dan the Man's cutscene bubbles as the
+// standard, after a smooth vector cloud was rejected outright: "that bubble
+// shit is tacky... Don't even look like a bubble... It's no border to it."
+// Dan the Man's sheet has two kinds, and both are built here, in this game's
+// own pixels (not Halfbrick's sprites):
+//   'speech'   white fill, a crisp dark pixel outline, rounded pixel corners,
+//              a stepped pixel tail pointing down at the speaker
+//   'thought'  the same body with a scalloped pixel edge, and a trail of small
+//              pixel circles down to his head instead of a tail
+//
+// Drawn at ART resolution into a small offscreen canvas and scaled up by
+// BUBBLE_PX with smoothing off, so every edge lands on the same hard pixel
+// grid as the sprites rather than being an anti-aliased curve. Cached per
+// shape — a page is the same size from its first letter to its last.
+const BUBBLE_PX = 2;
+const BUBBLE_INK = '#1b1a2a';
+const BUBBLE_FILL = '#ffffff';
+const BUBBLE_SHADE = '#cdd6e4';
+let bubbleStyle = 'speech';
+const bubbleCache = new Map();
 
-// Hand-rolled rather than ctx.roundRect, which older iOS Safari does not have.
-function roundRectPath(x, y, w, h, r) {
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.arcTo(x + w, y, x + w, y + h, r);
-  ctx.arcTo(x + w, y + h, x, y + h, r);
-  ctx.arcTo(x, y + h, x, y, r);
-  ctx.arcTo(x, y, x + w, y, r);
-  ctx.closePath();
+function bubbleSprite(wA, hA, style, tailX) {
+  const key = `${style}|${wA}|${hA}|${tailX}`;
+  const hit = bubbleCache.get(key);
+  if (hit) return hit;
+  const bump = style === 'thought' ? 2 : 0;           // scallops stand this far proud
+  const tailH = style === 'speech' ? 5 : 0;
+  const cv = document.createElement('canvas');
+  cv.width = wA + bump * 2;
+  cv.height = hA + bump * 2 + tailH;
+  const g = cv.getContext('2d');
+  const px = (x, y, c) => { g.fillStyle = c; g.fillRect(x + bump, y + bump, 1, 1); };
+  const run = (x0, x1, y, c) => { g.fillStyle = c; g.fillRect(x0 + bump, y + bump, x1 - x0 + 1, 1); };
+
+  // Body: a rounded pixel rectangle — two-pixel corners, one-pixel outline.
+  run(2, wA - 3, 0, BUBBLE_INK);
+  px(1, 1, BUBBLE_INK); px(wA - 2, 1, BUBBLE_INK); run(2, wA - 3, 1, BUBBLE_FILL);
+  for (let y = 2; y <= hA - 3; y++) {
+    px(0, y, BUBBLE_INK); px(wA - 1, y, BUBBLE_INK); run(1, wA - 2, y, BUBBLE_FILL);
+  }
+  px(1, hA - 2, BUBBLE_INK); px(wA - 2, hA - 2, BUBBLE_INK); run(2, wA - 3, hA - 2, BUBBLE_SHADE);
+  run(2, wA - 3, hA - 1, BUBBLE_INK);
+  // The inner shade row under the fill, as on the reference bubbles.
+  run(1, wA - 2, hA - 3, BUBBLE_SHADE);
+
+  if (style === 'thought') {
+    // Scallops: a 5-pixel bump every 6 pixels on all four edges, each with
+    // its own outline, so the edge reads as a cloud and not a box.
+    const bumpH = (x) => {                 // top & bottom
+      run(x + 1, x + 3, -2, BUBBLE_INK);
+      px(x, -1, BUBBLE_INK); run(x + 1, x + 3, -1, BUBBLE_FILL); px(x + 4, -1, BUBBLE_INK);
+      run(x + 1, x + 3, 0, BUBBLE_FILL);
+      run(x + 1, x + 3, hA + 1, BUBBLE_INK);
+      px(x, hA, BUBBLE_INK); run(x + 1, x + 3, hA, BUBBLE_SHADE); px(x + 4, hA, BUBBLE_INK);
+      run(x + 1, x + 3, hA - 1, BUBBLE_SHADE);
+    };
+    for (let x = 3; x + 4 <= wA - 4; x += 6) bumpH(x);
+    const bumpV = (y) => {                 // left & right
+      g.fillStyle = BUBBLE_INK;
+      g.fillRect(bump - 2, y + 1 + bump, 1, 3); g.fillRect(wA + 1 + bump, y + 1 + bump, 1, 3);
+      px(-1, y, BUBBLE_INK); px(wA, y, BUBBLE_INK);
+      px(-1, y + 4, BUBBLE_INK); px(wA, y + 4, BUBBLE_INK);
+      g.fillStyle = BUBBLE_FILL;
+      g.fillRect(bump - 1, y + 1 + bump, 2, 3); g.fillRect(wA - 1 + bump, y + 1 + bump, 2, 3);
+    };
+    for (let y = 3; y + 4 <= hA - 5; y += 6) bumpV(y);
+  } else {
+    // The tail: a stepped right-angle wedge dropping from the bottom edge,
+    // vertical on its left like the reference, pointing down at his head.
+    const tx = tailX;
+    run(tx + 1, tx + 5, hA - 1, BUBBLE_SHADE);
+    run(tx + 1, tx + 5, hA - 2, BUBBLE_SHADE);
+    px(tx, hA, BUBBLE_INK); run(tx + 1, tx + 4, hA, BUBBLE_FILL); px(tx + 5, hA, BUBBLE_INK);
+    px(tx, hA + 1, BUBBLE_INK); run(tx + 1, tx + 3, hA + 1, BUBBLE_FILL); px(tx + 4, hA + 1, BUBBLE_INK);
+    px(tx, hA + 2, BUBBLE_INK); run(tx + 1, tx + 2, hA + 2, BUBBLE_FILL); px(tx + 3, hA + 2, BUBBLE_INK);
+    px(tx, hA + 3, BUBBLE_INK); px(tx + 1, hA + 3, BUBBLE_FILL); px(tx + 2, hA + 3, BUBBLE_INK);
+    run(tx, tx + 1, hA + 4, BUBBLE_INK);
+  }
+  const out = { cv, bump, tailH };
+  bubbleCache.set(key, out);
+  return out;
 }
 
-// Painted twice by the caller — fattened in ink, then at size in the fill —
-// so the outline runs round the UNION of body, scallops and trail instead of
-// every circle drawing its own ring across the middle of the bubble.
-function paintBubbleShapes(shapes, grow, color) {
-  ctx.fillStyle = color;
-  for (const s of shapes) {
-    if (s.r != null) {
-      ctx.beginPath();
-      ctx.arc(s.x, s.y, s.r + grow, 0, Math.PI * 2);
-    } else {
-      roundRectPath(s.x - grow, s.y - grow, s.w + grow * 2, s.h + grow * 2, s.rad + grow);
+// A small outlined pixel disk for the thought trail. r in art pixels.
+function drawPixelDisk(cx, cy, r) {
+  const P = BUBBLE_PX;
+  for (let y = -r; y <= r; y++) {
+    for (let x = -r; x <= r; x++) {
+      const d = x * x + y * y;
+      if (d > r * r + r * 0.8) continue;
+      const edge = d > (r - 1) * (r - 1) + (r - 1) * 0.8;
+      ctx.fillStyle = edge ? BUBBLE_INK : (y >= r - 1 ? BUBBLE_SHADE : BUBBLE_FILL);
+      ctx.fillRect(Math.round(cx / P + x) * P, Math.round(cy / P + y) * P, P, P);
     }
-    ctx.fill();
   }
 }
 
@@ -2193,7 +2254,9 @@ function drawTutorialBubble(d) {
   const full = shown >= text.length;
   const p = state.player;
   const z = camera.zoom;
-  // His face in screen px: the sprite stands CHAR_DRAW_H tall on the bottom
+  const P = BUBBLE_PX;
+  const style = bubbleStyle;
+  // His head in screen px: the sprite stands CHAR_DRAW_H tall on the bottom
   // of his hitbox.
   const headX = (p.x + p.w / 2 - camera.x) * z;
   const headY = (p.y + p.h - CHAR_DRAW_H - camera.y) * z;
@@ -2201,49 +2264,42 @@ function drawTutorialBubble(d) {
   ctx.save();
   ctx.font = '700 15px sans-serif';
   const margin = 12;
-  const padX = 16;
-  const padY = 13;
+  const padX = 14;
+  const padY = 11;
   const lineH = 20;
-  const maxW = Math.min(canvas.width - margin * 2, 260);
-  // Wrapped from the WHOLE page, not the revealed part, so the bubble is its
-  // final size from the first letter and the words type into place rather
-  // than reflowing as they arrive.
+  const maxW = Math.min(canvas.width - margin * 2, 270);
+  // Wrapped from the WHOLE page so the bubble is its final size from the
+  // first letter and the words type into place rather than reflowing.
   const lines = wrapText(text, maxW - padX * 2);
   const textW = Math.max(...lines.map((l) => ctx.measureText(l).width));
-  const w = Math.max(textW + padX * 2, 96);
-  const h = lines.length * lineH + padY * 2;
+  const wA = Math.max(24, Math.ceil((textW + padX * 2) / P));
+  const hA = Math.ceil((lines.length * lineH + padY * 2) / P);
+  const w = wA * P;
+  const h = hA * P;
 
-  // Up and to the right of his head, as drawn. Kept on screen and under the
-  // HUD; if that pushes it down level with his head it steps right so it
-  // never covers his face.
-  const top = hud.pauseRect.y + hud.pauseRect.h + 22;
-  const right = canvas.width - margin - w;
-  let bx = Math.min(Math.max(headX - 24, margin), right);
-  const by = Math.max(headY - 44 - h, top);
-  if (by + h > headY - 10) bx = Math.min(Math.max(bx, headX + 34), right);
+  // Up and to the right of his head, per the drawing; on the pixel grid, on
+  // screen, and under the HUD.
+  const top = hud.pauseRect.y + hud.pauseRect.h + 20;
+  const gap = style === 'speech' ? 8 : 34;             // room for tail / trail
+  const snap = (v) => Math.round(v / P) * P;
+  const bx = snap(Math.min(Math.max(headX - 22, margin), canvas.width - margin - w));
+  const by = snap(Math.max(headY - gap - h, top));
+  // Tail foot sits over his head, kept clear of the rounded corners.
+  const tailX = Math.min(Math.max(Math.round((headX - bx) / P) - 1, 4), wA - 10);
 
-  const shapes = [{ x: bx, y: by, w, h, rad: 14 }];
-  const bump = 10;
-  const n = Math.max(2, Math.round((w - 24) / 17));
-  for (let i = 0; i <= n; i++) {
-    const x = bx + 12 + (w - 24) * (i / n);
-    shapes.push({ x, y: by + 3, r: bump });
-    shapes.push({ x, y: by + h - 3, r: bump });
+  const spr = bubbleSprite(wA, hA, style, tailX);
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(spr.cv, bx - spr.bump * P, by - spr.bump * P,
+    spr.cv.width * P, spr.cv.height * P);
+
+  if (style === 'thought') {
+    const ax = Math.min(Math.max(headX + 8, bx + 18), bx + w - 18);
+    const ay = by + h + 4;
+    const sx = headX + 4;
+    const sy = headY - 2;
+    drawPixelDisk(sx + (ax - sx) * 0.62, sy + (ay - sy) * 0.62, 4);
+    drawPixelDisk(sx + (ax - sx) * 0.28, sy + (ay - sy) * 0.28, 2);
   }
-  const side = Math.min(bump + 2, h / 2);
-  shapes.push({ x: bx + 3, y: by + h / 2, r: side });
-  shapes.push({ x: bx + w - 3, y: by + h / 2, r: side });
-
-  // The trail: small near his head, larger toward the cloud.
-  const ax = Math.min(Math.max(headX + 10, bx + 22), bx + w - 22);
-  const ay = by + h;
-  const sx = headX + 6;
-  const sy = headY - 4;
-  shapes.push({ x: sx + (ax - sx) * 0.3, y: sy + (ay - sy) * 0.3, r: 4 });
-  shapes.push({ x: sx + (ax - sx) * 0.62, y: sy + (ay - sy) * 0.62, r: 7 });
-
-  paintBubbleShapes(shapes, 2.5, BUBBLE_INK);
-  paintBubbleShapes(shapes, 0, BUBBLE_FILL);
 
   ctx.fillStyle = BUBBLE_INK;
   ctx.textAlign = 'left';
@@ -2256,12 +2312,16 @@ function drawTutorialBubble(d) {
     left -= line.length + 1;   // +1: the space wrapText split on
   });
 
-  // The bouncing ▼ once the page has finished typing — until then a press
+  // A small pixel ▼ once the page has finished typing — until then a press
   // finishes the line rather than turning the page, so it would lie.
   if (full) {
-    ctx.textAlign = 'right';
-    ctx.font = '700 10px sans-serif';
-    ctx.fillText('▼', bx + w - 10, by + h - 8 + Math.sin(state.tick / 8) * 2);
+    const bob = Math.floor(state.tick / 16) % 2 ? P : 0;
+    const ax = bx + w - 7 * P;
+    const ay = by + h - 5 * P + bob;
+    ctx.fillStyle = BUBBLE_INK;
+    ctx.fillRect(ax, ay, 5 * P, P);
+    ctx.fillRect(ax + P, ay + P, 3 * P, P);
+    ctx.fillRect(ax + 2 * P, ay + 2 * P, P, P);
   }
   ctx.restore();
 }
