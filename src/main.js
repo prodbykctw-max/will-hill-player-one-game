@@ -2119,6 +2119,20 @@ function retryBoot() {
   }
 }
 
+// Top edge of the highest visible touch pad, in canvas px, or null when none
+// are showing. Read from the live DOM, not from the stylesheet's numbers, so
+// it follows whatever the pad layout does on a given phone.
+function padsTopY() {
+  const cr = canvas.getBoundingClientRect();
+  if (!cr.height) return null;
+  let top = Infinity;
+  for (const el of document.querySelectorAll('.pad')) {
+    const r = el.getBoundingClientRect();
+    if (r.height > 0) top = Math.min(top, r.top);
+  }
+  return top === Infinity ? null : (top - cr.top) * (canvas.height / cr.height);
+}
+
 // Greedy word-wrap against the CURRENTLY SET font — caller sets ctx.font
 // before calling, same contract martamap.js's own wrapper uses.
 function wrapText(text, maxWidth) {
@@ -2168,9 +2182,15 @@ function drawTutorialBox(d) {
   const nameRowH = 26;
   const boxH = pad * 2 + nameRowH + bodyH;
   const boxX = margin;
-  // hud.safeInsets() is CSS read fresh, same as the HUD's own top inset —
-  // the box sits above a phone's home-indicator strip instead of under it.
-  const boxY = canvas.height - hud.safeInsets().bottom - margin - boxH;
+  // ⚠️ ABOVE THE PADS, NOT AT THE FOOT OF THE SCREEN. The touch pads are DOM
+  // over the canvas, so a box drawn along the bottom edge — where a Game Boy
+  // puts it — sat UNDER ◀ ▶ DASH JUMP on a phone and could not be read.
+  // Found on the first phone-sized screenshot. Sitting just above them also
+  // teaches: "◀ ▶ to move" is read with the pads right there, and JUMP is
+  // the button that turns the page. No pads (desktop) falls back to the
+  // bottom edge, clear of the home-indicator inset.
+  const floor = padsTopY() ?? canvas.height - hud.safeInsets().bottom;
+  const boxY = floor - margin - boxH;
 
   ctx.fillStyle = 'rgba(10,8,16,0.92)';
   ctx.fillRect(boxX, boxY, boxW, boxH);
