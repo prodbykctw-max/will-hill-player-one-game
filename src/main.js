@@ -17,6 +17,7 @@ import { overlapsPlayer, PROP_SPRITES, createDroppedBag, BAG_VALUE, CHAMPAGNE_MU
 import { createLevel, buildRunway, genAhead, finishLineX } from './world/generator.js';
 import { STAGES, resolveStages, timeOfDay } from './world/stages.js';
 import { T, FLOOR_R, SLAB_R, FALL_DEATH_Y, isSolid } from './world/tilemap.js';
+import { CHAR_DRAW_H } from './world/scale.js';
 import { createRenderer } from './render/renderer.js';
 import { createBackdrop } from './render/backdrop.js';
 import { createUndercroft } from './render/undercroft.js';
@@ -731,7 +732,7 @@ function confirmPressed() {
 
 // ── THE LIVE TUTORIAL: OPEN / ADVANCE ───────────────────────────────────
 //
-// Rendered in draw() (drawTutorialBox), triggered and frozen from update()
+// Rendered in draw() (drawTutorialBubble), triggered and frozen from update()
 // (see the 'playing' branch above) — this pair is the state machine for the
 // box in between: which page is showing, how much of it has typed out, and
 // what a JUMP press or a tap does about it. See world/tutorial.js for the
@@ -1557,6 +1558,13 @@ function update() {
       // advanceTutorialDialogue() can close the box (set it null) on the
       // same press that reached this line — guard the write, not the read.
       if (state.dialogue) state.dialogue.wasDown = down;
+      // ⚠️ THE CAMERA KEEPS SETTLING WHILE HE TALKS. The intro opens on the
+      // stage's first tick, when the camera is still at startStage()'s 0,0
+      // and has not come down to the gameplay framing yet. Freezing it there
+      // held the whole intro on a frame no player otherwise sees — street
+      // high, undercroft filling the screen, bubble jammed under the HUD.
+      // He is not moving, so this only finishes the settle he already had.
+      camera.follow(player);
       return;
     }
   }
@@ -2119,20 +2127,6 @@ function retryBoot() {
   }
 }
 
-// Top edge of the highest visible touch pad, in canvas px, or null when none
-// are showing. Read from the live DOM, not from the stylesheet's numbers, so
-// it follows whatever the pad layout does on a given phone.
-function padsTopY() {
-  const cr = canvas.getBoundingClientRect();
-  if (!cr.height) return null;
-  let top = Infinity;
-  for (const el of document.querySelectorAll('.pad')) {
-    const r = el.getBoundingClientRect();
-    if (r.height > 0) top = Math.min(top, r.top);
-  }
-  return top === Infinity ? null : (top - cr.top) * (canvas.height / cr.height);
-}
-
 // Greedy word-wrap against the CURRENTLY SET font — caller sets ctx.font
 // before calling, same contract martamap.js's own wrapper uses.
 function wrapText(text, maxWidth) {
@@ -2152,78 +2146,122 @@ function wrapText(text, maxWidth) {
   return lines;
 }
 
-// WILL HILL'S TUTORIAL BOX — the Pokémon-Game-Boy-NPC-style text box the
-// live lessons open in (see world/tutorial.js and the advance/open pair
-// above `confirmPressed()`). Drawn over the frozen run, same "world keeps
-// breathing under the dialog" idea as the panel and pause menu — this one
-// is a fixed screen-space plate rather than a full scrim, because Will
-// Hill is still standing right there in the frame it is teaching about.
-function drawTutorialBox(d) {
+// WILL HILL'S TEXT BUBBLE — Scoon's drawing, from Will Hill's management: a
+// cloud up and to the right of his head, with a trail of smaller bubbles
+// leading down to his face. Drawn in screen space off his world position over
+// the frozen run — update() holds the world still while one is open, so he
+// cannot walk out from under it. The words are world/tutorial.js; the paging
+// is the open/advance pair above confirmPressed().
+//
+// ⚠️ NOT A BOX ALONG THE BOTTOM. The first cut was a Game Boy dialogue box
+// across the foot of the screen with a portrait in it. Client: "He wants the
+// text bubbles to be coming from Will Hill's face. Why are you putting text
+// boxes at the bottom?" The reference drawing had been in hand the whole time.
+const BUBBLE_INK = '#1a1420';
+const BUBBLE_FILL = '#fbf7ee';
+
+// Hand-rolled rather than ctx.roundRect, which older iOS Safari does not have.
+function roundRectPath(x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+// Painted twice by the caller — fattened in ink, then at size in the fill —
+// so the outline runs round the UNION of body, scallops and trail instead of
+// every circle drawing its own ring across the middle of the bubble.
+function paintBubbleShapes(shapes, grow, color) {
+  ctx.fillStyle = color;
+  for (const s of shapes) {
+    if (s.r != null) {
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.r + grow, 0, Math.PI * 2);
+    } else {
+      roundRectPath(s.x - grow, s.y - grow, s.w + grow * 2, s.h + grow * 2, s.rad + grow);
+    }
+    ctx.fill();
+  }
+}
+
+function drawTutorialBubble(d) {
   const text = d.pages[d.page];
   const shown = Math.min(text.length, Math.floor(d.pageT / TUTORIAL_TICKS_PER_CHAR));
-  const revealed = text.slice(0, shown);
   const full = shown >= text.length;
-
-  const margin = 14;
-  const pad = 14;
-  const portrait = 52;
-  const lineH = 20;
-  const boxW = canvas.width - margin * 2;
-  const textX = margin + pad + portrait + 12;
-  const textMaxW = boxW - (portrait + 12) - pad * 2;
+  const p = state.player;
+  const z = camera.zoom;
+  // His face in screen px: the sprite stands CHAR_DRAW_H tall on the bottom
+  // of his hitbox.
+  const headX = (p.x + p.w / 2 - camera.x) * z;
+  const headY = (p.y + p.h - CHAR_DRAW_H - camera.y) * z;
 
   ctx.save();
-  ctx.font = '600 15px sans-serif';
-  const lines = wrapText(revealed, textMaxW);
-  // Three text rows' worth of height always reserved, even on a one-line
-  // page — a box that grows and shrinks page to page reads as flicker, not
-  // as pacing.
-  const bodyH = Math.max(3, lines.length) * lineH;
-  const nameRowH = 26;
-  const boxH = pad * 2 + nameRowH + bodyH;
-  const boxX = margin;
-  // ⚠️ ABOVE THE PADS, NOT AT THE FOOT OF THE SCREEN. The touch pads are DOM
-  // over the canvas, so a box drawn along the bottom edge — where a Game Boy
-  // puts it — sat UNDER ◀ ▶ DASH JUMP on a phone and could not be read.
-  // Found on the first phone-sized screenshot. Sitting just above them also
-  // teaches: "◀ ▶ to move" is read with the pads right there, and JUMP is
-  // the button that turns the page. No pads (desktop) falls back to the
-  // bottom edge, clear of the home-indicator inset.
-  const floor = padsTopY() ?? canvas.height - hud.safeInsets().bottom;
-  const boxY = floor - margin - boxH;
+  ctx.font = '700 15px sans-serif';
+  const margin = 12;
+  const padX = 16;
+  const padY = 13;
+  const lineH = 20;
+  const maxW = Math.min(canvas.width - margin * 2, 260);
+  // Wrapped from the WHOLE page, not the revealed part, so the bubble is its
+  // final size from the first letter and the words type into place rather
+  // than reflowing as they arrive.
+  const lines = wrapText(text, maxW - padX * 2);
+  const textW = Math.max(...lines.map((l) => ctx.measureText(l).width));
+  const w = Math.max(textW + padX * 2, 96);
+  const h = lines.length * lineH + padY * 2;
 
-  ctx.fillStyle = 'rgba(10,8,16,0.92)';
-  ctx.fillRect(boxX, boxY, boxW, boxH);
-  ctx.strokeStyle = 'rgba(255,214,110,0.75)';
-  ctx.lineWidth = 2;
-  ctx.strokeRect(boxX + 1, boxY + 1, boxW - 2, boxH - 2);
+  // Up and to the right of his head, as drawn. Kept on screen and under the
+  // HUD; if that pushes it down level with his head it steps right so it
+  // never covers his face.
+  const top = hud.pauseRect.y + hud.pauseRect.h + 22;
+  const right = canvas.width - margin - w;
+  let bx = Math.min(Math.max(headX - 24, margin), right);
+  const by = Math.max(headY - 44 - h, top);
+  if (by + h > headY - 10) bx = Math.min(Math.max(bx, headX + 34), right);
 
-  // The HUD's own head-crop, not a second portrait asset — see the note on
-  // hud.js's return statement.
-  hud.drawPortrait(images.player, PLAYER_SPRITE.atlas, boxX + pad, boxY + pad, portrait);
-
-  ctx.textAlign = 'left';
-  ctx.fillStyle = '#ffd66e';
-  ctx.font = '800 12px sans-serif';
-  ctx.fillText('WILL HILL', textX, boxY + pad + 10);
-
-  ctx.fillStyle = 'rgba(232,217,160,0.92)';
-  ctx.font = '600 15px sans-serif';
-  let ly = boxY + pad + nameRowH;
-  for (const line of lines) {
-    ctx.fillText(line, textX, ly);
-    ly += lineH;
+  const shapes = [{ x: bx, y: by, w, h, rad: 14 }];
+  const bump = 10;
+  const n = Math.max(2, Math.round((w - 24) / 17));
+  for (let i = 0; i <= n; i++) {
+    const x = bx + 12 + (w - 24) * (i / n);
+    shapes.push({ x, y: by + 3, r: bump });
+    shapes.push({ x, y: by + h - 3, r: bump });
   }
+  const side = Math.min(bump + 2, h / 2);
+  shapes.push({ x: bx + 3, y: by + h / 2, r: side });
+  shapes.push({ x: bx + w - 3, y: by + h / 2, r: side });
 
-  // The classic bouncing ▼ — only once the page has fully typed out, so it
-  // never reads as "press to skip" when what a press actually does right
-  // now is finish the reveal.
+  // The trail: small near his head, larger toward the cloud.
+  const ax = Math.min(Math.max(headX + 10, bx + 22), bx + w - 22);
+  const ay = by + h;
+  const sx = headX + 6;
+  const sy = headY - 4;
+  shapes.push({ x: sx + (ax - sx) * 0.3, y: sy + (ay - sy) * 0.3, r: 4 });
+  shapes.push({ x: sx + (ax - sx) * 0.62, y: sy + (ay - sy) * 0.62, r: 7 });
+
+  paintBubbleShapes(shapes, 2.5, BUBBLE_INK);
+  paintBubbleShapes(shapes, 0, BUBBLE_FILL);
+
+  ctx.fillStyle = BUBBLE_INK;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  const tx = bx + (w - textW) / 2;
+  let left = shown;
+  lines.forEach((line, i) => {
+    if (left <= 0) return;
+    ctx.fillText(line.slice(0, left), tx, by + padY + lineH * (i + 0.5));
+    left -= line.length + 1;   // +1: the space wrapText split on
+  });
+
+  // The bouncing ▼ once the page has finished typing — until then a press
+  // finishes the line rather than turning the page, so it would lie.
   if (full) {
-    const bob = Math.sin(state.tick / 8) * 3;
     ctx.textAlign = 'right';
-    ctx.fillStyle = 'rgba(255,214,110,0.85)';
-    ctx.font = '700 14px sans-serif';
-    ctx.fillText('▼', boxX + boxW - 10, boxY + boxH - 10 + bob);
+    ctx.font = '700 10px sans-serif';
+    ctx.fillText('▼', bx + w - 10, by + h - 8 + Math.sin(state.tick / 8) * 2);
   }
   ctx.restore();
 }
@@ -2528,7 +2566,7 @@ function draw() {
   // 'playing'`, and update() froze the world for it via the early return in
   // the 'playing' branch above), but the box has to paint LAST so it sits on
   // top of the HUD it is standing over.
-  if (state.dialogue) drawTutorialBox(state.dialogue);
+  if (state.dialogue) drawTutorialBubble(state.dialogue);
 
   if (state.screen === 'paused') {
     drawPauseMenu(stage);

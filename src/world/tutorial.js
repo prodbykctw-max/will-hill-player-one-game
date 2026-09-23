@@ -1,19 +1,32 @@
 // WILL HILL TEACHES THE GAME, LIVE — replaces the old static HOW TO PLAY
 // screen as the thing that actually teaches a first-time player.
 //
-// Client: "what we'll be doing is replacing the gameplay how to play
-// instruction section completely with the portion of the first stage where
-// Will Hill describes how to play with talk bubbles" — Pokémon-Game-Boy-NPC
-// style: the world freezes, a box opens, and Will Hill (the player himself,
-// there is no separate NPC) says what the ✕/✓ screenshots used to show.
+// Will Hill's management (Scoon), with a drawing: "Instead of that screen can
+// we get rid of that and make a text bubble come from Will describing the
+// same instructions. Kinda like Pokémon on gameboy used to be." The drawing
+// is a cloud bubble up and to the right of his head with a trail of smaller
+// bubbles leading down to his face — main.js draws exactly that, while the
+// world waits for the player to tap through it.
+//
+// ⚠️ THE SAME INSTRUCTIONS, NOT A SCRIPT. Client, on the first cut, which had
+// him introducing himself: "obviously everybody knows he's Will Hill so why
+// [would] he introduce himself in his own game, it would just be a goal and
+// instruction after the goal." Then, on the order: "he tells you how to play
+// instructions and then the goal is something simple like make it to the end
+// of the stage." So: the controls, then the goal, then each hazard as it comes
+// up, in the old HOW TO PLAY screen's own words (index.html #howList). No
+// persona lines — his commentary is a later pass, once this framing is right.
+// The numbers are the code's — stomp +50 (main.js), CHAMPAGNE_MULT 2,
+// CHAMPAGNE_SECONDS 9; if they change, these change with them.
+//
 // OPTIONS → HOW TO PLAY keeps the old panel as a static recap (ui/panel.js);
 // this module is what fires the first time, in stage one, live.
 //
 // This file owns the WORDS and the trigger MATH — whether a lesson should
 // fire right now, given the level and the player's position. It owns no
 // rendering and no input: main.js drives the freeze/advance state machine
-// and draws the box, the same split every other screen in this game follows
-// (world/stages describes, main.js orchestrates, render/ paints).
+// and draws the bubble, the same split every other screen in this game
+// follows (world/stages describes, main.js orchestrates, render/ paints).
 //
 // ⚠️ ONE LESSON AT A TIME, NEAREST FIRST, NOT A FIXED SCRIPT ORDER. Stage
 // one's layout is procedural (world/generator.js) — which hazard the player
@@ -24,31 +37,20 @@
 // to happen rather than a guess at stage order.
 export const TUTORIAL_LESSONS = {
   intro: [
-    "Yo — I'm Will Hill. Money's flying everywhere between here and the "
-      + 'show. Let’s get it.',
-    '◀ ▶ to move. Tap JUMP to jump — tap it again in the air '
-      + 'for a double jump.',
-    "Hold DASH to roll past trouble. Can't be touched while I'm rolling.",
+    '◀ ▶ to move.',
+    'JUMP to jump. Tap it twice for a double jump.',
+    'DASH to roll past trouble. You can’t be hit while rolling.',
+    'Make it to the end of the stage.',
   ],
-  pothole: [
-    "Pothole. Jump it, don't step in it — twists my ankle every time.",
-  ],
+  pothole: ['Pothole. Jump it.'],
   // ⚠️ CALLED `gap` IN CODE, "MANHOLE" ON SCREEN. The old HOW TO PLAY panel's
   // ✕/✓ pair was labelled MANHOLE (index.html) even though nothing in the
   // engine has a "manhole" entity — it's the same jump-only pit generator.js
   // calls a gap. Kept the player-facing word here; see generator.js's own
   // note on `level.pits` for the code-side name.
-  gap: [
-    "Open manhole up ahead. Jump it, or I'm going down.",
-  ],
-  ninja: [
-    "Street ninja. Don't walk into him — jump on his head. That's plus "
-      + 'fifty for the stomp.',
-  ],
-  champagne: [
-    'Champagne bottle. Grab it — doubles every bag I pick up, and '
-      + "nothing can touch me for a few seconds.",
-  ],
+  gap: ['Manhole. Jump it.'],
+  ninja: ['Ninja. Jump on him. +$50'],
+  champagne: ['Champagne. Grab it for double money, 9 seconds.'],
 };
 
 // `intro` first, always — everything else is picked by proximity, not by

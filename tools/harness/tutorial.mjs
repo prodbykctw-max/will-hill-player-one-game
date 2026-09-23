@@ -107,7 +107,7 @@ const opened = await p.evaluate(() => ({
   id: window.__game.dialogue && window.__game.dialogue.id,
   page: window.__game.dialogue && window.__game.dialogue.page,
 }));
-check('a never-taught player lands stage one already frozen on the intro lesson',
+check('a never-taught player lands stage one frozen on the intro — controls first',
   opened.screen === 'playing' && opened.id === 'intro' && opened.page === 0,
   JSON.stringify(opened));
 
@@ -123,9 +123,15 @@ check('a never-taught player lands stage one already frozen on the intro lesson'
 }
 
 // ── THE TYPEWRITER — partial reveal, then a press instantly completes it ──
+// Graded on the LONGEST intro page, rewound to its first tick: the short
+// pages ("◀ ▶ to move.") finish typing before a harness can look at them.
 {
   const ticksPerChar = await p.evaluate(() => window.__tutorialTicksPerChar);
-  const full = TUTORIAL_LESSONS.intro[0];
+  const longest = TUTORIAL_LESSONS.intro.reduce((a, t, i, all) =>
+    (t.length > all[a].length ? i : a), 0);
+  const full = TUTORIAL_LESSONS.intro[longest];
+  await p.evaluate((i) => { const d = window.__game.dialogue; d.page = i; d.pageT = 0; }, longest);
+  await frame(8);
   const mid = await p.evaluate(() => window.__game.dialogue.pageT);
   const shownAtMid = Math.min(full.length, Math.floor(mid / ticksPerChar));
   check('the page is still mid-reveal a few frames after opening, not dumped instantly',
@@ -141,33 +147,25 @@ check('a never-taught player lands stage one already frozen on the intro lesson'
     pageT: window.__game.dialogue.pageT,
   }));
   check('a press while typing finishes the reveal and stays on the same page',
-    afterSkip.page === 0 && afterSkip.pageT >= full.length * ticksPerChar,
+    afterSkip.page === longest && afterSkip.pageT >= full.length * ticksPerChar,
     JSON.stringify(afterSkip));
 }
 
-// ── ADVANCE THROUGH EVERY PAGE, THEN CLOSE ────────────────────────────────
+// ── PAGE THROUGH TO THE END, THEN CLOSE ──────────────────────────────────
 {
-  const pageCount = TUTORIAL_LESSONS.intro.length;
-  // One more press turns page 1 (already fully revealed above); each
-  // subsequent page needs two — finish its reveal, then turn it — except the
-  // harness cannot know in advance how many ticks a page needs, so press
-  // twice unconditionally per remaining page: the first press is a no-op
-  // once a page is already fully shown (advanceTutorialDialogue's own
-  // contract — see main.js), so this is safe either way.
-  for (let i = 1; i < pageCount; i++) {
-    await p.evaluate(() => window.__tutorialAdvance());
-    await p.evaluate(() => window.__tutorialAdvance());
-  }
-  // The lesson has `pageCount` pages; we've turned pages 0→1→…→last, then
-  // one more press closes it.
-  await p.evaluate(() => window.__tutorialAdvance());
+  const presses = await p.evaluate(() => {
+    let n = 0;
+    while (window.__game.dialogue && n < 40) { window.__tutorialAdvance(); n++; }
+    return n;
+  });
   const closed = await p.evaluate(() => ({
     dialogue: window.__game.dialogue,
     firedIntro: window.__game.tutorialFired.has('intro'),
     howToSeen: localStorage.getItem('wh_howto_seen'),
   }));
-  check('after the last page, the box closes and `intro` is marked fired',
-    closed.dialogue === null && closed.firedIntro === true, JSON.stringify(closed));
+  check('after the last page, the bubble closes and `intro` is marked fired',
+    closed.dialogue === null && closed.firedIntro === true && presses < 40,
+    JSON.stringify({ ...closed, presses }));
   check('but howToSeen() stays false — four lessons still untaught',
     closed.howToSeen !== '1', `wh_howto_seen=${closed.howToSeen}`);
 }
