@@ -98,61 +98,107 @@ const frame = (n = 1) => p.evaluate(async (count) => {
 
 // Straight to stage one, no title/panel dance — same door endcue.mjs and the
 // others already use. A fresh context has no `wh_howto_seen`, so this is a
-// never-taught player.
+// never-taught player. Polled, not slept: the intro waits for him to land.
 await p.evaluate(() => window.__startStage(0));
-await frame(3);
+await p.waitForFunction(() => window.__game.dialogue, null, { timeout: 10000 });
 
 const opened = await p.evaluate(() => ({
   screen: window.__game.screen,
   id: window.__game.dialogue && window.__game.dialogue.id,
   page: window.__game.dialogue && window.__game.dialogue.page,
+  onGround: window.__game.player.onGround,
+  vy: window.__game.player.vy,
 }));
-check('a never-taught player lands stage one frozen on the intro — controls first',
+check('a never-taught player lands stage one on the intro — controls first',
   opened.screen === 'playing' && opened.id === 'intro' && opened.page === 0,
   JSON.stringify(opened));
+// Client, from his phone: "Firstly, he's floating in the air." The intro
+// used to open on tick one, frozen mid-drop from the spawn point.
+check('and he is STANDING when it opens, not hanging in the air',
+  opened.onGround === true, JSON.stringify(opened));
 
-// ── THE FREEZE — hold RIGHT, the world must not move ─────────────────────
+// ── THE DRILLS: each control is DONE, not read ─────────────────────────
+// Client: "when it says move, you should have to move left and right for
+// like one or two seconds and then you should be able to actually press
+// those buttons to demonstrate that you actually understand."
+const page = () => p.evaluate(() => (window.__game.dialogue ? window.__game.dialogue.page : null));
 {
+  // A tap cannot skip a drill.
+  await p.evaluate(() => { for (let i = 0; i < 6; i++) window.__tutorialAdvance(); });
+  check('tapping cannot skip the MOVE drill', (await page()) === 0, `page=${await page()}`);
+
+  // Right alone is not enough.
+  const x0 = await p.evaluate(() => window.__game.player.x);
+  await p.keyboard.down('ArrowRight');
+  await p.waitForFunction(() => (window.__game.dialogue.drill.r || 0) >= 45, null, { timeout: 10000 });
+  await p.keyboard.up('ArrowRight');
+  const x1 = await p.evaluate(() => window.__game.player.x);
+  check('during the MOVE drill he actually moves', x1 > x0, `x ${x0} -> ${x1}`);
+  check('moving only right does not pass it', (await page()) === 0, `page=${await page()}`);
+
+  await p.keyboard.down('ArrowLeft');
+  await p.waitForFunction(() => window.__game.dialogue && window.__game.dialogue.page >= 1, null, { timeout: 10000 })
+    .catch(() => {});
+  await p.keyboard.up('ArrowLeft');
+  check('moving left AND right passes the MOVE drill', (await page()) === 1, `page=${await page()}`);
+
+  // One jump is not a double jump.
+  await p.keyboard.down('Space'); await frame(4); await p.keyboard.up('Space');
+  await frame(4);
+  check('a single jump does not pass the JUMP drill', (await page()) === 1, `page=${await page()}`);
+  await p.keyboard.down('Space'); await frame(4); await p.keyboard.up('Space');
+  await p.waitForFunction(() => window.__game.dialogue && window.__game.dialogue.page >= 2, null, { timeout: 5000 })
+    .catch(() => {});
+  check('a double jump passes the JUMP drill', (await page()) === 2, `page=${await page()}`);
+
+  // Let him land before dashing — a dash is a ground move here too.
+  await p.waitForFunction(() => window.__game.player.onGround, null, { timeout: 5000 });
+  await p.keyboard.down('ShiftLeft'); await frame(3); await p.keyboard.up('ShiftLeft');
+  await p.waitForFunction(() => window.__game.dialogue && window.__game.dialogue.page >= 3, null, { timeout: 5000 })
+    .catch(() => {});
+  check('a dash passes the DASH drill', (await page()) === 3, `page=${await page()}`);
+
+  const xs = await p.evaluate(() => window.__game.player.x);
+  check('all that practice kept him on the runway', xs <= 18 * 32 && xs >= 32, `x=${xs}`);
+}
+
+// ── THE READ PAGES FREEZE THE WORLD ──────────────────────────────────────
+{
+  await p.waitForFunction(() => window.__game.player.onGround, null, { timeout: 5000 });
+  await frame(3);
   const before = await p.evaluate(() => window.__game.player.x);
   await p.keyboard.down('ArrowRight');
   await frame(30);
   await p.keyboard.up('ArrowRight');
   const after = await p.evaluate(() => window.__game.player.x);
-  check('holding RIGHT does nothing while the tutorial box is open — the world is frozen',
+  check('on "Get the bag." holding RIGHT does nothing — the world is frozen',
     after === before, `x ${before} -> ${after}`);
 }
 
 // ── THE TYPEWRITER — partial reveal, then a press instantly completes it ──
-// Graded on the LONGEST intro page, rewound to its first tick: the short
-// pages ("◀ ▶ to move.") finish typing before a harness can look at them.
 {
   const ticksPerChar = await p.evaluate(() => window.__tutorialTicksPerChar);
-  const longest = TUTORIAL_LESSONS.intro.reduce((a, t, i, all) =>
-    (t.length > all[a].length ? i : a), 0);
-  const full = TUTORIAL_LESSONS.intro[longest];
-  await p.evaluate((i) => { const d = window.__game.dialogue; d.page = i; d.pageT = 0; }, longest);
-  await frame(8);
+  const d0 = await p.evaluate(() => { const d = window.__game.dialogue; d.pageT = 0; return d.page; });
+  const full = TUTORIAL_LESSONS.intro[d0];
+  await frame(3);
   const mid = await p.evaluate(() => window.__game.dialogue.pageT);
   const shownAtMid = Math.min(full.length, Math.floor(mid / ticksPerChar));
   check('the page is still mid-reveal a few frames after opening, not dumped instantly',
     shownAtMid > 0 && shownAtMid < full.length,
     `pageT=${mid} shown=${shownAtMid}/${full.length}`);
-
-  // A press while still typing must complete the reveal WITHOUT moving to
-  // the next page — the two are different presses, on purpose (Game Boy
-  // convention: first press finishes the line, second turns the page).
+  // First press finishes the line, second turns the page — Game Boy rules.
   await p.evaluate(() => window.__tutorialAdvance());
   const afterSkip = await p.evaluate(() => ({
-    page: window.__game.dialogue.page,
-    pageT: window.__game.dialogue.pageT,
+    page: window.__game.dialogue.page, pageT: window.__game.dialogue.pageT,
   }));
   check('a press while typing finishes the reveal and stays on the same page',
-    afterSkip.page === longest && afterSkip.pageT >= full.length * ticksPerChar,
+    afterSkip.page === d0 && afterSkip.pageT >= full.length * ticksPerChar,
     JSON.stringify(afterSkip));
 }
 
-// ── PAGE THROUGH TO THE END, THEN CLOSE ──────────────────────────────────
+// ── THROUGH THE LAST LINES, THEN CLOSE ───────────────────────────────────
 {
+  const last = TUTORIAL_LESSONS.intro[TUTORIAL_LESSONS.intro.length - 1];
   const presses = await p.evaluate(() => {
     let n = 0;
     while (window.__game.dialogue && n < 40) { window.__tutorialAdvance(); n++; }
@@ -163,21 +209,21 @@ check('a never-taught player lands stage one frozen on the intro — controls fi
     firedIntro: window.__game.tutorialFired.has('intro'),
     howToSeen: localStorage.getItem('wh_howto_seen'),
   }));
-  check('after the last page, the bubble closes and `intro` is marked fired',
+  check(`after "${last}" the bubble closes and \`intro\` is marked fired`,
     closed.dialogue === null && closed.firedIntro === true && presses < 40,
     JSON.stringify({ ...closed, presses }));
-  check('but howToSeen() stays false — four lessons still untaught',
+  check('but howToSeen() stays false — the hazard lessons are still untaught',
     closed.howToSeen !== '1', `wh_howto_seen=${closed.howToSeen}`);
 }
 
-// ── THE FREEZE LIFTS ───────────────────────────────────────────────────
+// ── THE GAME IS ON ─────────────────────────────────────────────────────
 {
   const before = await p.evaluate(() => window.__game.player.x);
   await p.keyboard.down('ArrowRight');
   await frame(20);
   await p.keyboard.up('ArrowRight');
   const after = await p.evaluate(() => window.__game.player.x);
-  check('with the box closed, holding RIGHT actually moves Will Hill again',
+  check('with the intro done, holding RIGHT moves Will Hill again',
     after > before, `x ${before} -> ${after}`);
 }
 

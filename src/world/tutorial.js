@@ -4,19 +4,20 @@
 // Will Hill's management (Scoon), with a drawing: "Instead of that screen can
 // we get rid of that and make a text bubble come from Will describing the
 // same instructions. Kinda like Pokémon on gameboy used to be." The drawing
-// is a cloud bubble up and to the right of his head with a trail of smaller
-// bubbles leading down to his face — main.js draws exactly that, while the
-// world waits for the player to tap through it.
+// puts the bubble up and to the right of his head; main.js draws it there.
 //
 // ⚠️ THE SAME INSTRUCTIONS, NOT A SCRIPT. Client, on the first cut, which had
 // him introducing himself: "obviously everybody knows he's Will Hill so why
 // [would] he introduce himself in his own game, it would just be a goal and
 // instruction after the goal." Then, on the order: "he tells you how to play
 // instructions and then the goal is something simple like make it to the end
-// of the stage." Then: "that plain line should be something like complete the
-// stage." So: the controls, then the goal, then each hazard as it comes
-// up, in the old HOW TO PLAY screen's own words (index.html #howList). No
-// persona lines — his commentary is a later pass, once this framing is right.
+// of the stage." And the final order: "the last phrase should be help me make
+// it to the show cause it should be the how to — like how to move, jump and
+// dash, collect coins, get the bag and... defeat enemies." So: the three
+// controls (each one DONE, see TUTORIAL_DRILLS), then the bag, the enemies,
+// and the goal; then each hazard as it comes up, in the old HOW TO PLAY
+// screen's words (index.html #howList). The money in this game is bags, not
+// coins, so the line says the bag. His fuller commentary is a later pass.
 // The numbers are the code's — stomp +50 (main.js), CHAMPAGNE_MULT 2,
 // CHAMPAGNE_SECONDS 9; if they change, these change with them.
 //
@@ -41,7 +42,9 @@ export const TUTORIAL_LESSONS = {
     '◀ ▶ to move.',
     'JUMP to jump. Tap it twice for a double jump.',
     'DASH to roll past trouble. You can’t be hit while rolling.',
-    'Complete the stage.',
+    'Get the bag.',
+    'Defeat enemies.',
+    'Help me make it to the show.',
   ],
   pothole: ['Pothole. Jump it.'],
   // ⚠️ CALLED `gap` IN CODE, "MANHOLE" ON SCREEN. The old HOW TO PLAY panel's
@@ -52,6 +55,18 @@ export const TUTORIAL_LESSONS = {
   gap: ['Manhole. Jump it.'],
   ninja: ['Ninja. Jump on him. +$50'],
   champagne: ['Champagne. Grab it for double money, 9 seconds.'],
+};
+
+// ⚠️ THE CONTROLS ARE DONE, NOT READ. Client: "when it says move, you should
+// have to move left and right for like one or two seconds and then you should
+// be able to actually press those buttons to demonstrate that you actually
+// understand and then start the game." So a page named here is a DRILL: the
+// player has the controls while it is up, a tap cannot skip it, and it turns
+// by itself the moment the move has actually been made (main.js,
+// drillDone()). A null page is read and tapped through, world frozen, the
+// way every hazard lesson is. Same indices as TUTORIAL_LESSONS.
+export const TUTORIAL_DRILLS = {
+  intro: ['move', 'jump', 'dash', null, null, null],
 };
 
 // `intro` first, always — everything else is picked by proximity, not by
@@ -65,15 +80,28 @@ export const TUTORIAL_ORDER = ['intro', 'pothole', 'gap', 'ninja', 'champagne'];
 // as a bug), not so far that it fires while the hazard is still off-camera.
 const HAZARD_LEAD = 260;
 
-// The four hazard arrays this stage's generator streams forward-only, so
-// index 0 is always "the first one placed" — i.e. the first one the player
-// will reach. See generator.js: obstacles (potholes), pits (gaps/"manholes"),
-// enemies (ninjas), champagnes (bottles).
-function hazardX(level, id) {
-  if (id === 'pothole') return level.obstacles[0]?.x;
-  if (id === 'gap') return level.pits[0]?.x;
-  if (id === 'ninja') return level.enemies[0]?.x;
-  if (id === 'champagne') return level.champagnes[0]?.x;
+// The nearest hazard of a kind that is still AHEAD of him — not simply the
+// first one placed. A lesson can only open while he is standing (main.js
+// never freezes him in mid-air), so a player who jumps clean over the first
+// pothole lands past it; keyed on index 0 that lesson could never fire again
+// and the tutorial could never finish. See generator.js for the arrays:
+// obstacles (potholes), pits (gaps/"manholes"), enemies (ninjas),
+// champagnes (bottles).
+function nextAhead(list, px) {
+  let best;
+  for (const h of list) {
+    if (h.alive === false) continue;              // a stomped ninja
+    if (h.x + (h.w || 0) <= px) continue;          // already behind him
+    if (best === undefined || h.x < best) best = h.x;
+  }
+  return best;
+}
+
+function hazardX(level, id, px) {
+  if (id === 'pothole') return nextAhead(level.obstacles, px);
+  if (id === 'gap') return nextAhead(level.pits, px);
+  if (id === 'ninja') return nextAhead(level.enemies, px);
+  if (id === 'champagne') return nextAhead(level.champagnes, px);
   return undefined;
 }
 
@@ -86,7 +114,7 @@ export function nextTutorialTrigger(level, player, fired) {
   let best = null;
   for (const id of TUTORIAL_ORDER) {
     if (id === 'intro' || fired.has(id)) continue;
-    const x = hazardX(level, id);
+    const x = hazardX(level, id, player.x);
     if (x == null || player.x + HAZARD_LEAD < x) continue;
     if (!best || x < best.x) best = { id, x };
   }

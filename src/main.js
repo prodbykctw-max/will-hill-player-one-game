@@ -42,7 +42,7 @@ import { createRunLog, lbSubmit, bankLocalRun, isRegistered, hasPendingRun,
   recordRunStats, pendingRunCount, flushPendingRun } from './net/leaderboard.js';
 import { createPanel, soundEnabled, setSoundEnabled,
   sfxEnabled, setSfxEnabled, howToSeen, markHowToSeen } from './ui/panel.js';
-import { TUTORIAL_LESSONS, TUTORIAL_ORDER, nextTutorialTrigger } from './world/tutorial.js';
+import { TUTORIAL_LESSONS, TUTORIAL_ORDER, TUTORIAL_DRILLS, nextTutorialTrigger } from './world/tutorial.js';
 import { createHaptics } from './core/haptics.js';
 import { STAGE_SLOTS, MAP_SLOTS, MANIFEST } from './audio/music.js';
 import { isRelay, setRelay } from './core/relay.js';
@@ -749,23 +749,47 @@ function openTutorialDialogue(id) {
   return {
     id,
     pages: TUTORIAL_LESSONS[id],
+    drills: TUTORIAL_DRILLS[id] || [],
     page: 0,
     pageT: 0,
-    // Seeded from whatever JUMP is doing RIGHT NOW, not `false`. The intro
-    // lesson can open on the very tick the player landed from the title —
-    // if JUMP is still physically held from that press, starting `wasDown`
-    // false would read the still-held key as a brand new press and skip
-    // page one before it had ever been on screen.
+    drill: {},
+    // Seeded from whatever JUMP is doing RIGHT NOW, not `false`. A lesson can
+    // open on a tick where JUMP is still physically held from an earlier
+    // press, and starting `wasDown` false would read that held key as a
+    // brand new press and turn the page before it had ever been on screen.
     wasDown: confirmPressed(),
   };
 }
 
-// A press (JUMP, or a tap anywhere while the box is open — see
-// handleCanvasPress) does one of three things, in order: finish revealing
-// the current page if it is still typing, else advance to the next page,
-// else close the box and — if that was the last untaught lesson — retire
-// the tutorial for good via markHowToSeen(), the same latch OPTIONS → HOW TO
-// PLAY reads to know it is now just a recap.
+// Which move the current page is waiting for the player to actually make —
+// 'move' / 'jump' / 'dash' — or null for a page that is read and tapped.
+function tutorialDrill(d) {
+  return d.drills[d.page] || null;
+}
+
+function turnTutorialPage(d) {
+  if (d.page + 1 < d.pages.length) {
+    d.page++;
+    d.pageT = 0;
+    d.drill = {};
+    // Same reason as in openTutorialDialogue: the JUMP drill ends ON a jump
+    // press, so the next page must not read that same held key as its own.
+    d.wasDown = confirmPressed();
+    return;
+  }
+  state.tutorialFired.add(d.id);
+  state.dialogue = null;
+  if (TUTORIAL_ORDER.every((lessonId) => state.tutorialFired.has(lessonId))) markHowToSeen();
+}
+
+// A press (JUMP, or a tap anywhere while the bubble is open — see
+// handleCanvasPress) finishes revealing the current page if it is still
+// typing, else turns it — closing the bubble after its last page, and, if
+// that was the last untaught lesson, retiring the tutorial for good via
+// markHowToSeen(), the latch OPTIONS → HOW TO PLAY reads to know it is only a
+// recap now. ⚠️ A DRILL PAGE CANNOT BE TAPPED PAST — only doing the move turns
+// it (drillDone); JUMP is itself one of the drills, so a press that turned
+// pages would skip the very lesson it is practising.
 function advanceTutorialDialogue() {
   const d = state.dialogue;
   if (!d) return;
@@ -775,15 +799,34 @@ function advanceTutorialDialogue() {
     d.pageT = text.length * TUTORIAL_TICKS_PER_CHAR;
     return;
   }
-  if (d.page + 1 < d.pages.length) {
-    d.page++;
-    d.pageT = 0;
-    return;
-  }
-  state.tutorialFired.add(d.id);
-  state.dialogue = null;
-  if (TUTORIAL_ORDER.every((lessonId) => state.tutorialFired.has(lessonId))) markHowToSeen();
+  if (tutorialDrill(d)) return;
+  turnTutorialPage(d);
 }
+
+// Has he made the move this page asked for? Read off the player AFTER this
+// tick's stepPlayer, from the same state the game itself uses.
+//   move  both directions held for DRILL_MOVE_TICKS each — "move left and
+//         right for like one or two seconds"
+//   jump  the double jump spent (airJumps is refilled only on landing)
+//   dash  a dash under way
+const DRILL_MOVE_TICKS = 40;
+function drillDone(kind, d, p) {
+  if (kind === 'move') {
+    if (input.right()) d.drill.r = (d.drill.r || 0) + 1;
+    if (input.left()) d.drill.l = (d.drill.l || 0) + 1;
+    return d.drill.r >= DRILL_MOVE_TICKS && d.drill.l >= DRILL_MOVE_TICKS;
+  }
+  if (kind === 'jump') return p.airJumps === 0;
+  if (kind === 'dash') return p.dashing;
+  return false;
+}
+
+// The drills happen on the runway, which is flat and has nothing on it; he is
+// held inside it so practising cannot walk him into the first real hazard
+// before the lesson for it.
+const DRILL_MIN_X = 2 * T;
+const DRILL_MAX_X = 18 * T;
+const NO_INPUT = { left: () => false, right: () => false, jump: () => false, dash: () => false };
 
 // ── PAUSE ────────────────────────────────────────────────────────────────
 // Menu buttons are rebuilt each frame so they track the canvas size; their
@@ -1397,6 +1440,18 @@ function cueForScreen() {
   }
 }
 
+// Stretch the locomotion clips to the speed he is actually moving at. Both
+// were authored for one speed, and with a walk gear and a run gear the same
+// clip now has to cover a range — without this the feet skate whenever the
+// two disagree.
+function animatePlayer(player) {
+  const sp = Math.abs(player.vx);
+  let animScale = 1;
+  if (player.anim === 'walk') animScale = WALK_SPEED / Math.max(sp, 0.8);
+  else if (player.anim === 'run') animScale = RUN_SPEED / Math.max(sp, 0.8);
+  advanceAnim(player, PLAYER_SPRITE.atlas, 4, Math.min(2.2, Math.max(0.55, animScale)));
+}
+
 function update() {
   state.tick++;
   // ⚠️ NO AUDIO ON THE LOADING SCREEN — this gate is about the NETWORK, not
@@ -1549,23 +1604,53 @@ function update() {
   // time it passed a hazard would be exactly the friction the flag exists
   // to remove, over a lesson nobody watching it needs.
   if (state.stageIndex === 0 && !howToSeen() && !isRelay()) {
-    if (!state.dialogue) {
+    // ⚠️ NEVER OPENED ON A FRAME HE IS IN THE AIR. He spawns four rows above
+    // the street and drops onto it, and the first cut opened the intro on the
+    // stage's very first tick — frozen mid-drop, hanging over the pavement.
+    // Client, from his phone: "Firstly, he's floating in the air." Until the
+    // intro has had its turn he just lands (no input — nothing has been
+    // taught yet); every later lesson also waits for his feet.
+    if (!state.dialogue && !state.tutorialFired.has('intro') && !player.onGround) {
+      stepPlayer(player, NO_INPUT, level.map);
+      camera.follow(player);
+      animatePlayer(player);
+      return;
+    }
+    if (!state.dialogue && player.onGround) {
       const id = nextTutorialTrigger(level, player, state.tutorialFired);
       if (id) state.dialogue = openTutorialDialogue(id);
     }
-    if (state.dialogue) {
-      state.dialogue.pageT++;
+    const d = state.dialogue;
+    if (d) {
+      d.pageT++;
+      const kind = tutorialDrill(d);
+      // A DRILL PAGE HANDS HIM THE CONTROLS — nothing else runs (no enemies,
+      // no pickups), he is held on the runway, and the page turns itself the
+      // tick the move is made. A read page reached while he is still moving
+      // lets him finish first, hands off: land, and — on the intro — also
+      // stop, because the DASH drill turns on the dash's FIRST tick and
+      // freezing him there parked a half-finished dash that then carried him
+      // backwards the moment the run began. A hazard lesson only waits for
+      // his feet, and keeps his speed for when play resumes.
+      const settled = player.onGround && (d.id !== 'intro'
+        || (!player.dashing && Math.abs(player.vx) < 0.3));
+      if (kind || !settled) {
+        stepPlayer(player, kind ? input : NO_INPUT, level.map);
+        if (d.id === 'intro') player.x = Math.min(Math.max(player.x, DRILL_MIN_X), DRILL_MAX_X);
+        if (kind && drillDone(kind, d, player)) turnTutorialPage(d);
+        camera.follow(player);
+        animatePlayer(player);
+        return;
+      }
       const down = confirmPressed();
-      if (down && !state.dialogue.wasDown) advanceTutorialDialogue();
-      // advanceTutorialDialogue() can close the box (set it null) on the
-      // same press that reached this line — guard the write, not the read.
-      if (state.dialogue) state.dialogue.wasDown = down;
-      // ⚠️ THE CAMERA KEEPS SETTLING WHILE HE TALKS. The intro opens on the
-      // stage's first tick, when the camera is still at startStage()'s 0,0
-      // and has not come down to the gameplay framing yet. Freezing it there
-      // held the whole intro on a frame no player otherwise sees — street
-      // high, undercroft filling the screen, bubble jammed under the HUD.
-      // He is not moving, so this only finishes the settle he already had.
+      if (down && !d.wasDown) advanceTutorialDialogue();
+      // advanceTutorialDialogue() can close the bubble on the same press that
+      // reached this line — write to `d`, which is still this page's object.
+      d.wasDown = down;
+      // ⚠️ THE CAMERA KEEPS SETTLING WHILE HE TALKS. A frozen page used to
+      // freeze the camera wherever it happened to be, including mid-settle on
+      // the stage's first ticks — a frame no player otherwise sees. He is not
+      // moving, so this only finishes a settle already under way.
       camera.follow(player);
       return;
     }
@@ -1806,15 +1891,7 @@ function update() {
   }
 
   camera.follow(player);
-  // Stretch the locomotion clips to the speed he is actually moving at. Both
-  // were authored for one speed, and with a walk gear and a run gear the same
-  // clip now has to cover a range — without this the feet skate whenever the
-  // two disagree.
-  const sp = Math.abs(player.vx);
-  let animScale = 1;
-  if (player.anim === 'walk') animScale = WALK_SPEED / Math.max(sp, 0.8);
-  else if (player.anim === 'run') animScale = RUN_SPEED / Math.max(sp, 0.8);
-  advanceAnim(player, PLAYER_SPRITE.atlas, 4, Math.min(2.2, Math.max(0.55, animScale)));
+  animatePlayer(player);
   for (const e of level.enemies) advanceAnim(e, ENEMY_SPRITES[e.variant].atlas);
 
   state.hearts = player.hearts;
@@ -2257,7 +2334,9 @@ function drawTutorialBubble(d) {
   const P = BUBBLE_PX;
   const style = bubbleStyle;
   // His head in screen px: the sprite stands CHAR_DRAW_H tall on the bottom
-  // of his hitbox.
+  // of his hitbox. Always where his head IS — during the JUMP drill the
+  // bubble rides up with him. Pinning it at standing height (tried) put his
+  // head straight through the bubble at the top of every jump.
   const headX = (p.x + p.w / 2 - camera.x) * z;
   const headY = (p.y + p.h - CHAR_DRAW_H - camera.y) * z;
 
@@ -2313,11 +2392,12 @@ function drawTutorialBubble(d) {
   });
 
   // A small pixel ▼ once the page has finished typing — until then a press
-  // finishes the line rather than turning the page, so it would lie.
-  if (full) {
+  // finishes the line rather than turning the page, so it would lie. Never on
+  // a drill page: those turn when the move is made, not on a tap.
+  if (full && !tutorialDrill(d)) {
     const bob = Math.floor(state.tick / 16) % 2 ? P : 0;
     const ax = bx + w - 7 * P;
-    const ay = by + h - 5 * P + bob;
+    const ay = by + h - 7 * P + bob;
     ctx.fillStyle = BUBBLE_INK;
     ctx.fillRect(ax, ay, 5 * P, P);
     ctx.fillRect(ax + P, ay + P, 3 * P, P);
