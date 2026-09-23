@@ -46,6 +46,10 @@ async function play(p) {
   return p.evaluate(async () => {
     const frame = () => new Promise((r) => requestAnimationFrame(r));
     const g = window.__game;
+    // Already taught — this grades the submit paths, not Will Hill's live
+    // tutorial (world/tutorial.js), which would otherwise freeze stage one
+    // on its intro lesson the instant __startStage(0) lands.
+    try { localStorage.setItem('wh_howto_seen', '1'); } catch (_e) {}
     window.__startStage(0);
     for (let k = 0; k < 6; k++) await frame();
     // ⚠️ START THE LOG. __startStage is the dev door straight into a stage and

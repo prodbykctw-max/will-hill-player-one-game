@@ -200,5 +200,12 @@ export function createHud(ctx, canvas) {
     ctx.restore();
   }
 
-  return { draw, pauseRect };
+  // ⚠️ BOTH EXPOSED FOR THE LIVE TUTORIAL BOX (world/tutorial.js via
+  // main.js), NOT JUST USED IN HERE. Will Hill's speech-bubble portrait is
+  // the same head-crop this HUD already draws — reusing it keeps the two
+  // in sync instead of maintaining a second portrait renderer that can
+  // drift from the sprite sheet. `safeInsets` is exported for the same
+  // reason: the dialogue box sits at the bottom of the screen, which is
+  // exactly where a phone's home-indicator inset bites.
+  return { draw, pauseRect, drawPortrait, safeInsets };
 }

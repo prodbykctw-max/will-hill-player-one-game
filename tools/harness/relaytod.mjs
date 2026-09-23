@@ -55,6 +55,12 @@ const enter = async (p) => {
 
 // Walk all five stages: what spawned, is the aura up, does a pit kill him.
 async function sweep(p) {
+  // Already taught — every stage here is walked cold via __startStage, and
+  // stage index 0 is exactly where a never-taught profile would open frozen
+  // on Will Hill's live tutorial (world/tutorial.js) instead of falling into
+  // the pit this function expects it to fall into. Harmless to set on the
+  // relay page too (isRelay() already suppresses the tutorial there).
+  await p.evaluate(() => { try { localStorage.setItem('wh_howto_seen', '1'); } catch (_e) {} });
   const out = [];
   for (let i = 0; i < 5; i++) {
     out.push(await p.evaluate(async (idx) => {

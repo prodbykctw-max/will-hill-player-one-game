@@ -136,6 +136,9 @@ check('and the note goes back to describing the setting, not "Switching…"',
 
 // ── the new half is real, not just a label ───────────────────────────────
 const run = await p.evaluate(async () => {
+  // Already taught — grading the time-of-day swap, not Will Hill's live
+  // tutorial (world/tutorial.js).
+  try { localStorage.setItem('wh_howto_seen', '1'); } catch (_e) {}
   window.__startStage(0);
   await new Promise((r) => requestAnimationFrame(r));
   const st = window.__game;

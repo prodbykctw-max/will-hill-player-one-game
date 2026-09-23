@@ -40,7 +40,8 @@ import { loadImages } from './render/images.js';
 import { createRunLog, lbSubmit, bankLocalRun, isRegistered, hasPendingRun,
   recordRunStats, pendingRunCount, flushPendingRun } from './net/leaderboard.js';
 import { createPanel, soundEnabled, setSoundEnabled,
-  sfxEnabled, setSfxEnabled, howToSeen } from './ui/panel.js';
+  sfxEnabled, setSfxEnabled, howToSeen, markHowToSeen } from './ui/panel.js';
+import { TUTORIAL_LESSONS, TUTORIAL_ORDER, nextTutorialTrigger } from './world/tutorial.js';
 import { createHaptics } from './core/haptics.js';
 import { STAGE_SLOTS, MAP_SLOTS, MANIFEST } from './audio/music.js';
 import { isRelay, setRelay } from './core/relay.js';
@@ -85,7 +86,6 @@ const panel = createPanel({
     if (state.pendingRun) { state.pendingRun = false; startRun(); return; }
     if (state.screen === 'paused' && state.resumeTo) resume();
   },
-  isPendingRun: () => !!state.pendingRun,
   onSoundChange: (on) => audio.setMuted(!on),
   onSfxChange: (on) => audio.setSfxMuted(!on),
   onHapticsChange: (on) => haptics.setEnabled(on),
@@ -404,6 +404,15 @@ const state = {
   // dashboard can say about it, and touches nothing that decides the prize.
   combo: 0,
   comboBest: 0,
+  // ── THE LIVE TUTORIAL ───────────────────────────────────────────────────
+  // `dialogue` is the active Will Hill text box, or null — see
+  // world/tutorial.js and the trigger/advance code in update()/draw() below.
+  // `tutorialFired` is which lessons this RUN has already shown, so a lesson
+  // does not repeat if the player walks back and forth past it; it resets
+  // per run (startRun()), not per stage-1 continue, so a died-and-continued
+  // player is not taught what they already read minutes ago.
+  dialogue: null,
+  tutorialFired: new Set(),
 };
 
 // DEV ONLY — a handle on the live state, so a headless browser can drive the
@@ -470,6 +479,24 @@ if (import.meta.env.DEV) {
   // point being that nothing restarts and nothing is thrown away.
   Object.defineProperty(window, '__tod', { get: () => (STAGES[0] ? STAGES[0].tod : null) });
   window.__panel = panel;
+  // ── THE LIVE TUTORIAL'S OWN DOOR ───────────────────────────────────────
+  // Reaching all five lessons for real means walking the whole procedural
+  // layout of stage one, hitting a pothole, a gap, a ninja and a bottle in
+  // whatever order the seed puts them — playable, but not something a
+  // harness should have to choreograph just to prove the ADVANCE state
+  // machine (reveal → skip → next page → close → mark-seen) behaves.
+  // `__tutorialOpen` opens any lesson directly, same door `state.tutorialFired`
+  // already gets driven through (it's a plain Set on the exposed `state`,
+  // mutable same as anything else on `window.__game`); `__tutorialAdvance`
+  // is the exact function a JUMP press or a canvas tap calls. See
+  // tools/harness/tutorial.mjs.
+  window.__tutorialOpen = openTutorialDialogue;
+  window.__tutorialAdvance = advanceTutorialDialogue;
+  // A getter, not a value — same reason `__images` a few lines down is one.
+  // `TUTORIAL_TICKS_PER_CHAR` is a `const` declared further down this file;
+  // reading it eagerly HERE, before that line has run, is the temporal dead
+  // zone and throws before the game ever boots.
+  Object.defineProperty(window, '__tutorialTicksPerChar', { get: () => TUTORIAL_TICKS_PER_CHAR });
   // A getter, not a value: `images` is declared with `let` further down and
   // reading it here would hit the temporal dead zone and kill the module.
   Object.defineProperty(window, '__titleImages', { get: () => images });
@@ -611,22 +638,24 @@ function beginFromTitle() {
   // The contest, until they enter it — that offer repeats every start, his
   // instruction, and it is the whole point of the gate.
   //
-  // ⚠️ THE TUTORIAL DOES NOT REPEAT. Client: "you only show me how to play
-  // before a stage one time in the beginning… that's the only time you show me
-  // how to play." It used to be on every start down BOTH branches — straight
-  // to it if registered, onto it off NOT NOW if not — which meant a player who
-  // kept declining the contest was taught the game again every single run.
-  // docs/NEXT_CHAT.md had this written down as a question to put to him.
-  //
-  // Somebody already entered, who has already been shown it, has nothing left
-  // to answer: the run just starts. NOT NOW and SAVE on the form take the same
-  // decision from the other side — see onwardFromStart() in ui/panel.js.
-  if (isRegistered() && howToSeen()) {
+  // ⚠️ HOW TO PLAY IS NO LONGER A STOP ON THIS CHAIN. It used to be the
+  // second door — CONTEST → HOW TO PLAY → run — with its own once-ever latch
+  // (howToSeen()) deciding whether the second door opened. Client: "replacing
+  // the gameplay how to play instruction section completely with the portion
+  // of the first stage where Will Hill describes how to play with talk
+  // bubbles." The lesson now happens IN stage one (world/tutorial.js,
+  // triggered from update()'s 'playing' branch), gated by the same
+  // howToSeen() latch from the other side — so it still only teaches once,
+  // ever, it just does so live instead of on a screen between the tap and
+  // the run. Somebody already entered has nothing left to answer here: the
+  // run just starts, and OPTIONS → HOW TO PLAY still opens the panel as a
+  // recap on request (ui/panel.js).
+  if (isRegistered()) {
     state.pendingRun = false;
     startRun();
     return;
   }
-  panel.open(isRegistered() ? 'how' : 'form', { flow: 'start' });
+  panel.open('form', { flow: 'start' });
 }
 
 function startRun() {
@@ -660,6 +689,12 @@ function startRun() {
   // dismissing the board would reopen it on the next frame and the RESTART
   // button underneath could never be reached.
   state.resultsShown = false;
+  // Fresh run, fresh teaching — see the note on `tutorialFired` above. Stage
+  // 1 re-teaches everything on a from-the-title restart even if a previous
+  // run this session got partway through the lessons; only ACTUALLY seeing
+  // every one of them, ever, retires it for good (howToSeen()).
+  state.tutorialFired = new Set();
+  state.dialogue = null;
   startStage(startStageIndex());
 }
 
@@ -692,6 +727,59 @@ function startStageIndex() {
 
 function confirmPressed() {
   return input.jump();
+}
+
+// ── THE LIVE TUTORIAL: OPEN / ADVANCE ───────────────────────────────────
+//
+// Rendered in draw() (drawTutorialBox), triggered and frozen from update()
+// (see the 'playing' branch above) — this pair is the state machine for the
+// box in between: which page is showing, how much of it has typed out, and
+// what a JUMP press or a tap does about it. See world/tutorial.js for the
+// words and for which lesson fires when.
+
+// Roughly 30 characters/second at 60fps — fast enough not to feel like a
+// wait, slow enough that "press to skip the reveal" is a real choice and not
+// the only thing anyone ever does.
+const TUTORIAL_TICKS_PER_CHAR = 2;
+
+function openTutorialDialogue(id) {
+  return {
+    id,
+    pages: TUTORIAL_LESSONS[id],
+    page: 0,
+    pageT: 0,
+    // Seeded from whatever JUMP is doing RIGHT NOW, not `false`. The intro
+    // lesson can open on the very tick the player landed from the title —
+    // if JUMP is still physically held from that press, starting `wasDown`
+    // false would read the still-held key as a brand new press and skip
+    // page one before it had ever been on screen.
+    wasDown: confirmPressed(),
+  };
+}
+
+// A press (JUMP, or a tap anywhere while the box is open — see
+// handleCanvasPress) does one of three things, in order: finish revealing
+// the current page if it is still typing, else advance to the next page,
+// else close the box and — if that was the last untaught lesson — retire
+// the tutorial for good via markHowToSeen(), the same latch OPTIONS → HOW TO
+// PLAY reads to know it is now just a recap.
+function advanceTutorialDialogue() {
+  const d = state.dialogue;
+  if (!d) return;
+  const text = d.pages[d.page];
+  const shown = Math.min(text.length, Math.floor(d.pageT / TUTORIAL_TICKS_PER_CHAR));
+  if (shown < text.length) {
+    d.pageT = text.length * TUTORIAL_TICKS_PER_CHAR;
+    return;
+  }
+  if (d.page + 1 < d.pages.length) {
+    d.page++;
+    d.pageT = 0;
+    return;
+  }
+  state.tutorialFired.add(d.id);
+  state.dialogue = null;
+  if (TUTORIAL_ORDER.every((lessonId) => state.tutorialFired.has(lessonId))) markHowToSeen();
 }
 
 // ── PAUSE ────────────────────────────────────────────────────────────────
@@ -727,7 +815,13 @@ if (import.meta.env.DEV) {
 }
 
 function pause() {
-  if (state.screen !== 'playing') return;
+  // ⚠️ AND NOT WHILE WILL HILL IS TALKING. Same modal reasoning as
+  // `if (panel.isOpen) return;` in update() — a tutorial box already froze
+  // the world (see the 'playing' branch's early return there), so letting
+  // PAUSED stack on top of it would draw one overlay over another for no
+  // reason and give resume() two different things it might be resuming
+  // back into.
+  if (state.screen !== 'playing' || state.dialogue) return;
   state.resumeTo = state.screen;
   state.screen = 'paused';
   state.screenT = 0;
@@ -917,6 +1011,14 @@ function handleCanvasPress(clientX, clientY, preventDefault = () => {}) {
     return;
   }
   if (state.screen === 'playing') {
+    // Tap anywhere advances Will Hill's tutorial box, same "tap anywhere"
+    // convention STAGE CLEAR/GAME KNOCKED use (see screenButtons above) —
+    // and it takes over the whole screen while it is up, same as the pause
+    // button does not work UNDER the panel. Without this a phone with no
+    // physical JUMP key bound would have no way through the box at all; the
+    // on-screen JUMP pad already reaches confirmPressed() every frame, this
+    // is just the second route to the same advance.
+    if (state.dialogue) { press(); advanceTutorialDialogue(); preventDefault(); return; }
     if (hit(hud.pauseRect, x, y)) { press(); pause(); preventDefault(); }
     return;
   }
@@ -1429,6 +1531,36 @@ function update() {
   const now = Date.now();
 
   genAhead(level, camera.visibleRight() / T + GEN_LOOKAHEAD_COLS);
+
+  // ── WILL HILL TEACHES THE GAME, LIVE ─────────────────────────────────
+  // Stage one only, and only until every lesson has fired at least once,
+  // ever (howToSeen()) — see world/tutorial.js and beginFromTitle() above
+  // for the rest of the story. `state.dialogue` truthy means a text box is
+  // open: the world freezes exactly like it does under the panel or on
+  // 'paused' (update()'s early returns above), just one tick later than
+  // those because a lesson can start firing mid-frame, right here.
+  //
+  // ⚠️ NOT DURING CHAMPAGNE RELAY. `?relay=1` exists to be a frictionless
+  // walkthrough build — "no enemies, no pit deaths, aura always lit" — for
+  // the client to inspect backgrounds with. Freezing it on a text box every
+  // time it passed a hazard would be exactly the friction the flag exists
+  // to remove, over a lesson nobody watching it needs.
+  if (state.stageIndex === 0 && !howToSeen() && !isRelay()) {
+    if (!state.dialogue) {
+      const id = nextTutorialTrigger(level, player, state.tutorialFired);
+      if (id) state.dialogue = openTutorialDialogue(id);
+    }
+    if (state.dialogue) {
+      state.dialogue.pageT++;
+      const down = confirmPressed();
+      if (down && !state.dialogue.wasDown) advanceTutorialDialogue();
+      // advanceTutorialDialogue() can close the box (set it null) on the
+      // same press that reached this line — guard the write, not the read.
+      if (state.dialogue) state.dialogue.wasDown = down;
+      return;
+    }
+  }
+
   stepPlayer(player, input, level.map);
 
   // ── CHAMPAGNE RELAY ──────────────────────────────────────────────────
@@ -1987,6 +2119,95 @@ function retryBoot() {
   }
 }
 
+// Greedy word-wrap against the CURRENTLY SET font — caller sets ctx.font
+// before calling, same contract martamap.js's own wrapper uses.
+function wrapText(text, maxWidth) {
+  const words = text.split(' ');
+  const lines = [];
+  let line = '';
+  for (const w of words) {
+    const test = line ? `${line} ${w}` : w;
+    if (line && ctx.measureText(test).width > maxWidth) {
+      lines.push(line);
+      line = w;
+    } else {
+      line = test;
+    }
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+
+// WILL HILL'S TUTORIAL BOX — the Pokémon-Game-Boy-NPC-style text box the
+// live lessons open in (see world/tutorial.js and the advance/open pair
+// above `confirmPressed()`). Drawn over the frozen run, same "world keeps
+// breathing under the dialog" idea as the panel and pause menu — this one
+// is a fixed screen-space plate rather than a full scrim, because Will
+// Hill is still standing right there in the frame it is teaching about.
+function drawTutorialBox(d) {
+  const text = d.pages[d.page];
+  const shown = Math.min(text.length, Math.floor(d.pageT / TUTORIAL_TICKS_PER_CHAR));
+  const revealed = text.slice(0, shown);
+  const full = shown >= text.length;
+
+  const margin = 14;
+  const pad = 14;
+  const portrait = 52;
+  const lineH = 20;
+  const boxW = canvas.width - margin * 2;
+  const textX = margin + pad + portrait + 12;
+  const textMaxW = boxW - (portrait + 12) - pad * 2;
+
+  ctx.save();
+  ctx.font = '600 15px sans-serif';
+  const lines = wrapText(revealed, textMaxW);
+  // Three text rows' worth of height always reserved, even on a one-line
+  // page — a box that grows and shrinks page to page reads as flicker, not
+  // as pacing.
+  const bodyH = Math.max(3, lines.length) * lineH;
+  const nameRowH = 26;
+  const boxH = pad * 2 + nameRowH + bodyH;
+  const boxX = margin;
+  // hud.safeInsets() is CSS read fresh, same as the HUD's own top inset —
+  // the box sits above a phone's home-indicator strip instead of under it.
+  const boxY = canvas.height - hud.safeInsets().bottom - margin - boxH;
+
+  ctx.fillStyle = 'rgba(10,8,16,0.92)';
+  ctx.fillRect(boxX, boxY, boxW, boxH);
+  ctx.strokeStyle = 'rgba(255,214,110,0.75)';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(boxX + 1, boxY + 1, boxW - 2, boxH - 2);
+
+  // The HUD's own head-crop, not a second portrait asset — see the note on
+  // hud.js's return statement.
+  hud.drawPortrait(images.player, PLAYER_SPRITE.atlas, boxX + pad, boxY + pad, portrait);
+
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#ffd66e';
+  ctx.font = '800 12px sans-serif';
+  ctx.fillText('WILL HILL', textX, boxY + pad + 10);
+
+  ctx.fillStyle = 'rgba(232,217,160,0.92)';
+  ctx.font = '600 15px sans-serif';
+  let ly = boxY + pad + nameRowH;
+  for (const line of lines) {
+    ctx.fillText(line, textX, ly);
+    ly += lineH;
+  }
+
+  // The classic bouncing ▼ — only once the page has fully typed out, so it
+  // never reads as "press to skip" when what a press actually does right
+  // now is finish the reveal.
+  if (full) {
+    const bob = Math.sin(state.tick / 8) * 3;
+    ctx.textAlign = 'right';
+    ctx.fillStyle = 'rgba(255,214,110,0.85)';
+    ctx.font = '700 14px sans-serif';
+    ctx.fillText('▼', boxX + boxW - 10, boxY + boxH - 10 + bob);
+  }
+  ctx.restore();
+}
+
 function drawOverlayText(lines, buttons = []) {
   screenButtons.length = 0;
   ctx.save();
@@ -2281,6 +2502,13 @@ function draw() {
     portraitImg: images.player,
     portraitAtlas: PLAYER_SPRITE.atlas,
   });
+
+  // Above the pause menu / stage-clear chain below: the two states are
+  // mutually exclusive (the tutorial only ever runs on `state.screen ===
+  // 'playing'`, and update() froze the world for it via the early return in
+  // the 'playing' branch above), but the box has to paint LAST so it sits on
+  // top of the HUD it is standing over.
+  if (state.dialogue) drawTutorialBox(state.dialogue);
 
   if (state.screen === 'paused') {
     drawPauseMenu(stage);

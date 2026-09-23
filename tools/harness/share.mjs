@@ -166,6 +166,10 @@ const GAME_URL = 'https://prodbykctw-max.github.io/will-hill-player-one-game/';
   const banked = await p.evaluate(async () => {
     const frame = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
     const g = window.__game;
+    // Already taught — grading the share card, not Will Hill's live tutorial
+    // (world/tutorial.js), which would otherwise freeze stage one on its
+    // intro lesson the instant __startStage(0) lands on a fresh profile.
+    try { localStorage.setItem('wh_howto_seen', '1'); } catch (_e) {}
     window.__startStage(0);
     for (let k = 0; k < 4; k++) await frame();
     g.score = 777;
