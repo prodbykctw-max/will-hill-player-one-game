@@ -41,6 +41,10 @@ for (const tod of ['day', 'night']) {
   p.on('pageerror', (e) => console.log('  THROWN: ' + e.message));
   await p.goto(`http://localhost:5199/?tod=${tod}`, { waitUntil: 'networkidle' });
   await p.waitForFunction(() => window.__game && window.__game.screen === 'title', null, { timeout: 25000 });
+  // Already taught — stage index 0 is in this sweep, and a never-taught
+  // profile would otherwise open it frozen on Will Hill's live tutorial
+  // (world/tutorial.js) instead of the lamp measurement this drives.
+  await p.evaluate(() => { try { localStorage.setItem('wh_howto_seen', '1'); } catch (_e) {} });
 
   for (let si = 0; si < 5; si++) {
     const r = await p.evaluate(async ([stageIdx, SPACING]) => {

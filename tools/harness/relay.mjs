@@ -10,6 +10,9 @@ const probe = async (url, label) => {
   const errs = []; p.on('pageerror', (e) => errs.push(e.message));
   await p.goto(url, { waitUntil: 'networkidle' });
   await p.waitForFunction(() => window.__game && window.__game.screen === 'title', null, { timeout: 25000 });
+  // Already taught — see the note in daylamps.mjs. Harmless on the relay URL
+  // too (isRelay() already suppresses the live tutorial there).
+  await p.evaluate(() => { try { localStorage.setItem('wh_howto_seen', '1'); } catch (_e) {} });
   const out = [];
   for (let i = 0; i < 5; i++) {
     const r = await p.evaluate(async (idx) => {

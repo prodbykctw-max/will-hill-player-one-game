@@ -40,6 +40,9 @@ const STAGES = [[0, 'eav'], [1, 'edgewood'], [2, 'underground'], [3, 'l5p'],
 
 await p.goto(`${BASE}/?tod=day`, { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__game && window.__game.screen === 'title', null, { timeout: 25000 });
+// Already taught — see the note in daylamps.mjs. This one "walks a way in",
+// which depends on camera.follow() still running every frame.
+await p.evaluate(() => { try { localStorage.setItem('wh_howto_seen', '1'); } catch (_e) {} });
 
 for (const [idx, id] of STAGES) {
   // Walk a way in so the street is real generated level, not the runway, and
