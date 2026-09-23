@@ -13,7 +13,8 @@
 // [would] he introduce himself in his own game, it would just be a goal and
 // instruction after the goal." Then, on the order: "he tells you how to play
 // instructions and then the goal is something simple like make it to the end
-// of the stage." So: the controls, then the goal, then each hazard as it comes
+// of the stage." Then: "that plain line should be something like complete the
+// stage." So: the controls, then the goal, then each hazard as it comes
 // up, in the old HOW TO PLAY screen's own words (index.html #howList). No
 // persona lines — his commentary is a later pass, once this framing is right.
 // The numbers are the code's — stomp +50 (main.js), CHAMPAGNE_MULT 2,
@@ -40,7 +41,7 @@ export const TUTORIAL_LESSONS = {
     '◀ ▶ to move.',
     'JUMP to jump. Tap it twice for a double jump.',
     'DASH to roll past trouble. You can’t be hit while rolling.',
-    'Make it to the end of the stage.',
+    'Complete the stage.',
   ],
   pothole: ['Pothole. Jump it.'],
   // ⚠️ CALLED `gap` IN CODE, "MANHOLE" ON SCREEN. The old HOW TO PLAY panel's
