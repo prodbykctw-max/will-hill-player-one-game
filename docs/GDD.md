@@ -42,13 +42,15 @@ Boy: *"make a text bubble come from Will describing the same instructions."*
 - **How:** a speech bubble off his head; the player taps (or presses JUMP)
   through it. A line types out; the first press finishes it, the next turns
   the page. Nothing interrupts the run afterwards.
-- **What, in this order:** move · jump (and the double jump) · dash (roll past
+- **What, in this order:** "Yo, it's Will Hill." · "Help me make it to my
+  show." · move · jump (and the double jump) · dash (roll past
   trouble, can't be hit) · get the bag *(bag picture)* · defeat enemies, jump on
   their heads *(the stage's enemy, as a HUD-style head portrait)* · jump
   potholes and open manholes · champagne, double money for 9 seconds *(bottle
-  picture)* · "Help me make it to the show."
-- **Voice:** instructions only for now. No self-introduction — everybody knows
-  who he is. His commentary is a later pass.
+  picture)* · "Let's get it!"
+- **Voice:** a greeting and the goal, then the instructions, then a send-off.
+  Client: *"he should say like 'Yo, it's Will Hill' then... 'Help me make it to my show.' Then... lead with instructions as they are now. Then at the end say 'Let's get it!'"* His commentary on the
+  instructions is a later pass.
 - **Bubble art:** a stand-in in the look of Dan the Man's cutscene bubbles (the
   reference), drawn in this game's own pixels. Final art is pending the
   client's choice of source.

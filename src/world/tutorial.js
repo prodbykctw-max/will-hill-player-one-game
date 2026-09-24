@@ -15,14 +15,16 @@
 // from there." So there is ONE lesson, at the start of stage one, and nothing
 // interrupts the run after it.
 //
-// ⚠️ THE INSTRUCTIONS, NOT A SCRIPT. On an earlier cut that had him
-// introducing himself: "obviously everybody knows he's Will Hill so why
-// [would] he introduce himself in his own game." The words are the old HOW TO
-// PLAY screen's (index.html #howList) in the client's order — the controls,
-// the bag, the enemies, and last "help me make it to the show." The money in
-// this game is bags, not coins. The numbers are the code's: stomp kills
-// (main.js), CHAMPAGNE_MULT 2, CHAMPAGNE_SECONDS 9 — if they change, these
-// change with them.
+// ⚠️ HELLO, THE GOAL, THE INSTRUCTIONS, THEN GO. An earlier cut dropped the
+// greeting ("obviously everybody knows he's Will Hill"); the client then asked
+// for it back as an opener, with the goal straight after it: "he should say
+// like 'Yo, it's Will Hill' then... 'Help me make it to my show.' Then... lead
+// with instructions as they are now. Then at the end say 'Let's get it!'
+// Where the make it to the show phrase was." The instructions are the old
+// HOW TO PLAY screen's (index.html #howList) in the client's order — the
+// controls, the bag, the enemies. The money in this game is bags, not coins.
+// The numbers are the code's: stomp kills (main.js), CHAMPAGNE_MULT 2,
+// CHAMPAGNE_SECONDS 9 — if they change, these change with them.
 //
 // OPTIONS → HOW TO PLAY keeps the old panel as a static recap (ui/panel.js).
 //
@@ -30,6 +32,8 @@
 // owns the freeze, the paging and the drawing.
 export const TUTORIAL_LESSONS = {
   intro: [
+    'Yo, it’s Will Hill.',
+    'Help me make it to my show.',
     '◀ ▶ to move.',
     'JUMP to jump. Tap it twice for a double jump.',
     'DASH to roll past trouble. You can’t be hit while rolling.',
@@ -37,7 +41,7 @@ export const TUTORIAL_LESSONS = {
     'Defeat enemies. Jump on their heads.',
     'Jump over potholes and open manholes.',
     'Champagne: double money for 9 seconds.',
-    'Help me make it to the show.',
+    'Let’s get it!',
   ],
 };
 
@@ -49,7 +53,7 @@ export const TUTORIAL_LESSONS = {
 // portrait cropped off the stage's own enemy sheet, framed like the HUD's
 // portrait of Will. Same indices as TUTORIAL_LESSONS; null is words only.
 export const TUTORIAL_PICTURES = {
-  intro: [null, null, null, 'bag', 'enemy', null, 'champagne', null],
+  intro: [null, null, null, null, null, 'bag', 'enemy', null, 'champagne', null],
 };
 
 // Every lesson that has to have been seen, once, ever, before the tutorial

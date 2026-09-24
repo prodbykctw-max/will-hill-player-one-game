@@ -47,7 +47,12 @@ const check = (w, ok, d = '') => {
   for (const k of ['bag', 'enemy', 'champagne']) {
     check(`the ${k} gets its picture`, pics.includes(k));
   }
-  check('the last line is the goal', /make it to the show/i.test(lines[lines.length - 1]),
+  // Client: "'Yo, it's Will Hill' then... 'Help me make it to my show.' Then
+  // ... instructions... Then at the end say 'Let's get it!'"
+  check('he opens with the greeting', /^Yo, it.s Will Hill/.test(lines[0]), lines[0]);
+  check('then the goal', /make it to my show/i.test(lines[1]), lines[1]);
+  check('then the instructions, controls first', /to move/.test(lines[2]), lines[2]);
+  check('and signs off with "Let\'s get it!"', /^Let.s get it!$/.test(lines[lines.length - 1]),
     lines[lines.length - 1]);
 }
 
@@ -166,7 +171,7 @@ check('and he is STANDING when it opens, not hanging in the air', opened.onGroun
     dialogue: window.__game.dialogue,
     seen: localStorage.getItem('wh_intro_seen'),
   }));
-  check('after "Help me make it to the show." the bubble closes',
+  check('after "Let\'s get it!" the bubble closes',
     closed.dialogue === null && presses < 60, JSON.stringify({ presses }));
   check('and the tutorial is retired for good (howToSeen)', closed.seen === '1',
     `wh_intro_seen=${closed.seen}`);

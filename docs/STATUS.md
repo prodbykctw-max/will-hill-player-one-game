@@ -187,8 +187,9 @@ this is gonna be everyone's first time seeing this."*
 - START → contest form (unless registered) → the run. No HOW TO PLAY stop.
   OPTIONS → HOW TO PLAY remains as a recap.
 - Stage one, first time only: Will lands, stands still, the world freezes, and
-  the player taps through eight lines (move, jump, dash, the bag, enemies,
-  potholes/manholes, champagne, "Help me make it to the show."), with the bag,
+  the player taps through ten lines ("Yo, it's Will Hill.", "Help me make it
+  to my show.", move, jump, dash, the bag, enemies, potholes/manholes,
+  champagne, "Let's get it!"), with the bag,
   bottle and a HUD-style enemy portrait inside the bubble on their lines.
 - Latch `wh_intro_seen` — everyone sees it once, including anyone who saw the
   old screen (*"New intro."*).
