@@ -167,7 +167,7 @@ async function stageSeam(slot, stageIndex, refuseSpare) {
   await pg.waitForFunction(() => window.__game && window.__startStage, null, { timeout: 25000 });
   await pg.evaluate(() => window.__audio.level());
   // Already taught — see the note in daylamps.mjs.
-  await pg.evaluate(() => { try { localStorage.setItem('wh_intro_seen', '1'); } catch (_e) {} });
+  await pg.evaluate(() => { try { localStorage.setItem('wh_intro_v2', '1'); } catch (_e) {} });
   await pg.evaluate((i) => window.__startStage(i), stageIndex);
   await pg.waitForFunction((s) => {
     const st = window.__audio.music.status();

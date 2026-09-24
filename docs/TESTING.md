@@ -152,20 +152,20 @@ l5p 5.7, and on eav the join never reaches the screen at all.
 
 ⚠️ **`startchain.mjs` IS NOT A HARNESS** and printing nothing is correct — it
 is the shared library the others import to walk title → CONTEST → run. It
-also seeds `wh_intro_seen`, so its callers get stage one without the frozen
+also seeds `wh_intro_v2`, so its callers get stage one without the frozen
 intro (tools/harness/tutorial.mjs is the one that tests the intro itself). A sweep that globs `tools/harness/*.mjs` will run it, get silence, and
 look like a failure. Same for `stagesweep` / `seamsweep` / `stagestrip` /
 `joinshot` / `graphwire` / `daynight` / `musiccheck`, which write captures
 rather than verdicts.
 
 ⚠️ **A NEW HARNESS THAT ENTERS STAGE ONE ON A FRESH PROFILE MUST SEED
-`wh_intro_seen`.** Stage one opens frozen on Will Hill's intro bubbles until
+`wh_intro_v2`.** Stage one opens frozen on Will Hill's intro bubbles until
 they are tapped through, so a harness that reaches it cold — via
 `window.__startStage(0)` or any path that is not `startFromTitle()` — sees its
 input swallowed and its camera parked. Found as `cloudseal` measuring 0px of
 cloud on stage one only (camera.follow does not run the player forward while
 the world is frozen). Every existing harness that needed it has
-`localStorage.setItem('wh_intro_seen', '1')` next to its `goto`.
+`localStorage.setItem('wh_intro_v2', '1')` next to its `goto`.
 
 ⚠️ **`entryfit` and `startflow` end `n/n passed`, NOT `ALL n PASS`.** A sweep
 grepping `'^ALL|^FAILED'` prints them blank, which reads as a hang. Both were
@@ -498,7 +498,7 @@ drifts into grading last month's product and nobody notices.
 | `cloudseal` | weather passes BEHIND the buildings on all four day stages (four until buckhead's day clouds are cut — it ships flat, so there is nothing there to seal yet) — and is still visible. ⚠️ It TRAVELS now: five camera positions from spawn to the finish line. It used to measure at spawn only, where every card's offset is zero by construction, so it was green throughout the weeks the client was photographing the bug. It reports how many samples it had to discard because the camera moved mid-grab, and re-measures a failing tick (min of ≤3) because probe phase spikes were measured at 30× the real leak. The `ALLOW` debt table is EMPTY now — the seal excludes nothing and every stage is held to a bar of 60px |
 | `deferboot` | the three-stage load: the title shows on its OWN art, REST (sprites/props/stage one) lands behind it, stages 2-5 and the MARTA map last, and the ride HOLDS at the platform instead of entering a stage bare when the background load is late — proven with the art blocked at the network, then released. Also the soundtrack prewarm: all ten cues fetched behind the art with no gesture, on dev (via `music.status().warmed`) AND the hashed prod build. Request-order graded on both (needs `vite preview --port 5210` beside the dev server) |
 | `endcue` | each finish line hands to the NEXT scene's music, with no restart |
-| `tutorial` | the stage-one intro: it opens only once he has LANDED (the first cut froze him mid-drop), the world is frozen while it is up, a line types out and the first press finishes it, the second turns the page, a real JUMP press reaches it, P cannot pause over it, the bag / enemy / champagne pictures sit on the lines that name them, the lines run greeting → "Help me make it to my show." → instructions → "Let's get it!", it closes after the last one and sets `wh_intro_seen`, nothing opens mid-stage afterwards, and a profile holding only the OLD `wh_howto_seen` still gets it |
+| `tutorial` | the stage-one intro: it opens only once he has LANDED (the first cut froze him mid-drop), the world is frozen while it is up, a line types out and the first press finishes it, the second turns the page, a real JUMP press reaches it, P cannot pause over it, the bag / enemy / champagne pictures sit on the lines that name them, the lines run greeting → "Help me make it to my show." → instructions → "Let's get it!", it closes after the last one and sets `wh_intro_v2`, nothing opens mid-stage afterwards, and a profile holding the retired `wh_howto_seen` and `wh_intro_seen` latches still gets it |
 | `startflow` | START walks CONTEST → run with no panel stop in between, the offer repeats every visit, Space is the same door as a tap, and a never-taught player lands on the intro while a taught one does not |
 | `howpage` | *(OPTIONS → HOW TO PLAY recap only — it is no longer on the way into a run)* HOW TO PLAY is ONE page of ✕/✓ pairs, its control badges are the game's OWN pads compared by computed style — no ✓ without its ✕ (the fault that killed the first one-pager), the champagne frames really differ at the bags, the copy stays under a word ceiling, and it fits one screen at 430x932 AND 320x568 |
 | `loopseam` | a looping cue's wrap is seamless — by decoded buffer now, by the two-element lap only when a cue is still on an element |

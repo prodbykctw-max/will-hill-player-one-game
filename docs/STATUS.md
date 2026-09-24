@@ -191,8 +191,9 @@ this is gonna be everyone's first time seeing this."*
   to my show.", move, jump, dash, the bag, enemies, potholes/manholes,
   champagne, "Let's get it!"), with the bag,
   bottle and a HUD-style enemy portrait inside the bubble on their lines.
-- Latch `wh_intro_seen` — everyone sees it once, including anyone who saw the
-  old screen (*"New intro."*).
+- Latch `wh_intro_v2` — everyone sees it once, including anyone who saw the
+  old screen (*"New intro."*) or tapped through the first script
+  (`wh_intro_seen`, retired: *"clear everything out so everybody who has the game will see the new intro now"*).
 - Full detail, decisions and the client's words: `docs/HANDOFF.md`
   2026-09-24. Tests: `tools/harness/tutorial.mjs`; harnesses that enter stage
   one cold seed the latch (`docs/TESTING.md`).

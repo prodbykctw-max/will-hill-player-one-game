@@ -50,7 +50,7 @@ await p.waitForFunction(() => window.__game && window.__game.screen === 'title',
 // by teleporting the player, which depends on camera.follow() still running
 // every frame — exactly what freezes while Will Hill's live tutorial box is
 // open on a never-taught profile.
-await p.evaluate(() => { try { localStorage.setItem('wh_intro_seen', '1'); } catch (_e) {} });
+await p.evaluate(() => { try { localStorage.setItem('wh_intro_v2', '1'); } catch (_e) {} });
 
 for (const [idx, id] of STAGES) {
   const r = await p.evaluate(async (stageIdx) => {
