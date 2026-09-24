@@ -42,8 +42,8 @@ import { createRunLog, lbSubmit, bankLocalRun, isRegistered, hasPendingRun,
   recordRunStats, pendingRunCount, flushPendingRun } from './net/leaderboard.js';
 import { createPanel, soundEnabled, setSoundEnabled,
   sfxEnabled, setSfxEnabled, howToSeen, markHowToSeen } from './ui/panel.js';
-import { TUTORIAL_LESSONS, TUTORIAL_ORDER, TUTORIAL_DRILLS, nextTutorialTrigger,
-  tutorialTarget } from './world/tutorial.js';
+import { TUTORIAL_LESSONS, TUTORIAL_ORDER, TUTORIAL_PICTURES, nextTutorialTrigger }
+  from './world/tutorial.js';
 import { createHaptics } from './core/haptics.js';
 import { STAGE_SLOTS, MAP_SLOTS, MANIFEST } from './audio/music.js';
 import { isRelay, setRelay } from './core/relay.js';
@@ -750,50 +750,22 @@ function openTutorialDialogue(id) {
   return {
     id,
     pages: TUTORIAL_LESSONS[id],
-    drills: TUTORIAL_DRILLS[id] || [],
-    // What the lesson is pointing at, so the bubble can keep off it.
-    target: state.level && state.player
-      ? tutorialTarget(state.level, id, state.player.x) : null,
+    pictures: TUTORIAL_PICTURES[id] || [],
     page: 0,
     pageT: 0,
-    drill: {},
-    // Seeded from whatever JUMP is doing RIGHT NOW, not `false`. A lesson can
-    // open on a tick where JUMP is still physically held from an earlier
+    // Seeded from whatever JUMP is doing RIGHT NOW, not `false`. The lesson
+    // can open on a tick where JUMP is still physically held from an earlier
     // press, and starting `wasDown` false would read that held key as a
     // brand new press and turn the page before it had ever been on screen.
     wasDown: confirmPressed(),
   };
 }
 
-// Which move the current page is waiting for the player to actually make —
-// 'move' / 'jump' / 'dash' — or null for a page that is read and tapped.
-function tutorialDrill(d) {
-  return d.drills[d.page] || null;
-}
-
-function turnTutorialPage(d) {
-  if (d.page + 1 < d.pages.length) {
-    d.page++;
-    d.pageT = 0;
-    d.drill = {};
-    // Same reason as in openTutorialDialogue: the JUMP drill ends ON a jump
-    // press, so the next page must not read that same held key as its own.
-    d.wasDown = confirmPressed();
-    return;
-  }
-  state.tutorialFired.add(d.id);
-  state.dialogue = null;
-  if (TUTORIAL_ORDER.every((lessonId) => state.tutorialFired.has(lessonId))) markHowToSeen();
-}
-
 // A press (JUMP, or a tap anywhere while the bubble is open — see
 // handleCanvasPress) finishes revealing the current page if it is still
-// typing, else turns it — closing the bubble after its last page, and, if
-// that was the last untaught lesson, retiring the tutorial for good via
-// markHowToSeen(), the latch OPTIONS → HOW TO PLAY reads to know it is only a
-// recap now. ⚠️ A DRILL PAGE CANNOT BE TAPPED PAST — only doing the move turns
-// it (drillDone); JUMP is itself one of the drills, so a press that turned
-// pages would skip the very lesson it is practising.
+// typing, else turns it — closing the bubble after its last page and
+// retiring the tutorial for good via markHowToSeen(), the latch OPTIONS →
+// HOW TO PLAY reads to know it is only a recap now.
 function advanceTutorialDialogue() {
   const d = state.dialogue;
   if (!d) return;
@@ -803,33 +775,17 @@ function advanceTutorialDialogue() {
     d.pageT = text.length * TUTORIAL_TICKS_PER_CHAR;
     return;
   }
-  if (tutorialDrill(d)) return;
-  turnTutorialPage(d);
-}
-
-// Has he made the move this page asked for? Read off the player AFTER this
-// tick's stepPlayer, from the same state the game itself uses.
-//   move  both directions held for DRILL_MOVE_TICKS each — "move left and
-//         right for like one or two seconds"
-//   jump  the double jump spent (airJumps is refilled only on landing)
-//   dash  a dash under way
-const DRILL_MOVE_TICKS = 40;
-function drillDone(kind, d, p) {
-  if (kind === 'move') {
-    if (input.right()) d.drill.r = (d.drill.r || 0) + 1;
-    if (input.left()) d.drill.l = (d.drill.l || 0) + 1;
-    return d.drill.r >= DRILL_MOVE_TICKS && d.drill.l >= DRILL_MOVE_TICKS;
+  if (d.page + 1 < d.pages.length) {
+    d.page++;
+    d.pageT = 0;
+    return;
   }
-  if (kind === 'jump') return p.airJumps === 0;
-  if (kind === 'dash') return p.dashing;
-  return false;
+  state.tutorialFired.add(d.id);
+  state.dialogue = null;
+  if (TUTORIAL_ORDER.every((lessonId) => state.tutorialFired.has(lessonId))) markHowToSeen();
 }
 
-// The drills happen on the runway, which is flat and has nothing on it; he is
-// held inside it so practising cannot walk him into the first real hazard
-// before the lesson for it.
-const DRILL_MIN_X = 2 * T;
-const DRILL_MAX_X = 18 * T;
+// While he drops onto the street before the lesson opens: gravity only.
 const NO_INPUT = { left: () => false, right: () => false, jump: () => false, dash: () => false };
 
 // ── PAUSE ────────────────────────────────────────────────────────────────
@@ -1594,67 +1550,43 @@ function update() {
 
   genAhead(level, camera.visibleRight() / T + GEN_LOOKAHEAD_COLS);
 
-  // ── WILL HILL TEACHES THE GAME, LIVE ─────────────────────────────────
-  // Stage one only, and only until every lesson has fired at least once,
-  // ever (howToSeen()) — see world/tutorial.js and beginFromTitle() above
-  // for the rest of the story. `state.dialogue` truthy means a text box is
-  // open: the world freezes exactly like it does under the panel or on
-  // 'paused' (update()'s early returns above), just one tick later than
-  // those because a lesson can start firing mid-frame, right here.
+  // ── WILL HILL TEACHES THE GAME, AT THE START OF STAGE ONE ─────────────
+  // Only until the lesson has been read through once, ever (howToSeen()) —
+  // see world/tutorial.js and beginFromTitle() above. `state.dialogue`
+  // truthy means the bubble is open and the world is frozen, exactly as it
+  // is under the panel or on 'paused' (update()'s early returns above). He
+  // stands still and the player taps through; then the run is theirs.
   //
-  // ⚠️ NOT DURING CHAMPAGNE RELAY. `?relay=1` exists to be a frictionless
-  // walkthrough build — "no enemies, no pit deaths, aura always lit" — for
-  // the client to inspect backgrounds with. Freezing it on a text box every
-  // time it passed a hazard would be exactly the friction the flag exists
-  // to remove, over a lesson nobody watching it needs.
+  // ⚠️ NOT DURING CHAMPAGNE RELAY. `?relay=1` is the frictionless walkthrough
+  // build the client inspects backgrounds with; a lesson in the way of it is
+  // exactly the friction the flag exists to remove.
   if (state.stageIndex === 0 && !howToSeen() && !isRelay()) {
-    // ⚠️ NEVER OPENED ON A FRAME HE IS IN THE AIR. He spawns four rows above
-    // the street and drops onto it, and the first cut opened the intro on the
-    // stage's very first tick — frozen mid-drop, hanging over the pavement.
-    // Client, from his phone: "Firstly, he's floating in the air." Until the
-    // intro has had its turn he just lands (no input — nothing has been
-    // taught yet); every later lesson also waits for his feet.
-    if (!state.dialogue && !state.tutorialFired.has('intro') && !player.onGround) {
+    // ⚠️ NEVER OPENED WHILE HE IS IN THE AIR. He spawns four rows above the
+    // street and drops onto it, and the first cut opened the bubble on the
+    // stage's very first tick — frozen mid-drop. Client, from his phone:
+    // "Firstly, he's floating in the air." So he lands first, hands off.
+    if (!state.dialogue && !player.onGround) {
       stepPlayer(player, NO_INPUT, level.map);
       camera.follow(player);
       animatePlayer(player);
       return;
     }
-    if (!state.dialogue && player.onGround) {
+    if (!state.dialogue) {
       const id = nextTutorialTrigger(level, player, state.tutorialFired);
       if (id) state.dialogue = openTutorialDialogue(id);
     }
     const d = state.dialogue;
     if (d) {
       d.pageT++;
-      const kind = tutorialDrill(d);
-      // A DRILL PAGE HANDS HIM THE CONTROLS — nothing else runs (no enemies,
-      // no pickups), he is held on the runway, and the page turns itself the
-      // tick the move is made. A read page reached while he is still moving
-      // lets him finish first, hands off: land, and — on the intro — also
-      // stop, because the DASH drill turns on the dash's FIRST tick and
-      // freezing him there parked a half-finished dash that then carried him
-      // backwards the moment the run began. A hazard lesson only waits for
-      // his feet, and keeps his speed for when play resumes.
-      const settled = player.onGround && (d.id !== 'intro'
-        || (!player.dashing && Math.abs(player.vx) < 0.3));
-      if (kind || !settled) {
-        stepPlayer(player, kind ? input : NO_INPUT, level.map);
-        if (d.id === 'intro') player.x = Math.min(Math.max(player.x, DRILL_MIN_X), DRILL_MAX_X);
-        if (kind && drillDone(kind, d, player)) turnTutorialPage(d);
-        camera.follow(player);
-        animatePlayer(player);
-        return;
-      }
       const down = confirmPressed();
       if (down && !d.wasDown) advanceTutorialDialogue();
       // advanceTutorialDialogue() can close the bubble on the same press that
       // reached this line — write to `d`, which is still this page's object.
       d.wasDown = down;
-      // ⚠️ THE CAMERA KEEPS SETTLING WHILE HE TALKS. A frozen page used to
-      // freeze the camera wherever it happened to be, including mid-settle on
-      // the stage's first ticks — a frame no player otherwise sees. He is not
-      // moving, so this only finishes a settle already under way.
+      // ⚠️ THE CAMERA KEEPS SETTLING WHILE HE TALKS. Freezing it froze it
+      // wherever it was, including mid-settle on the stage's first ticks — a
+      // frame no player otherwise sees. He is not moving, so this only
+      // finishes a settle already under way.
       camera.follow(player);
       return;
     }
@@ -2329,8 +2261,33 @@ function drawPixelDisk(cx, cy, r) {
   }
 }
 
+// The picture a line names, drawn into a PIC-sized square at x,y. Pickups are
+// their own in-game sprites; the enemy is the HUD's own portrait treatment —
+// dark square, gold rule, head cropped off the idle frame — applied to the
+// stage's enemy sheet, so it reads as the same family as Will's portrait up
+// in the corner.
+const PIC = 40;
+function drawTutorialPicture(kind, x, y) {
+  if (kind === 'enemy') {
+    const v = STAGES[state.stageIndex].enemyVariants[0];
+    hud.drawPortrait(images['enemy_' + v], ENEMY_SPRITES[v].atlas, x, y, PIC);
+    return;
+  }
+  const img = kind === 'bag' ? images.bag : kind === 'champagne' ? images.champagne : null;
+  if (!img || !img.naturalWidth) return;
+  const k = Math.min(PIC / img.naturalWidth, PIC / img.naturalHeight);
+  const w = img.naturalWidth * k;
+  const h = img.naturalHeight * k;
+  ctx.save();
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(img, x + (PIC - w) / 2, y + (PIC - h) / 2, w, h);
+  ctx.restore();
+}
+
 function drawTutorialBubble(d) {
   const text = d.pages[d.page];
+  const pic = d.pictures[d.page] || null;
   const shown = Math.min(text.length, Math.floor(d.pageT / TUTORIAL_TICKS_PER_CHAR));
   const full = shown >= text.length;
   const p = state.player;
@@ -2338,9 +2295,7 @@ function drawTutorialBubble(d) {
   const P = BUBBLE_PX;
   const style = bubbleStyle;
   // His head in screen px: the sprite stands CHAR_DRAW_H tall on the bottom
-  // of his hitbox. Always where his head IS — during the JUMP drill the
-  // bubble rides up with him. Pinning it at standing height (tried) put his
-  // head straight through the bubble at the top of every jump.
+  // of his hitbox.
   const headX = (p.x + p.w / 2 - camera.x) * z;
   const headY = (p.y + p.h - CHAR_DRAW_H - camera.y) * z;
 
@@ -2350,13 +2305,17 @@ function drawTutorialBubble(d) {
   const padX = 14;
   const padY = 11;
   const lineH = 20;
+  const picGap = pic ? 10 : 0;
+  const picW = pic ? PIC : 0;
   const maxW = Math.min(canvas.width - margin * 2, 270);
   // Wrapped from the WHOLE page so the bubble is its final size from the
   // first letter and the words type into place rather than reflowing.
-  const lines = wrapText(text, maxW - padX * 2);
+  const lines = wrapText(text, maxW - padX * 2 - picW - picGap);
   const textW = Math.max(...lines.map((l) => ctx.measureText(l).width));
-  const wA = Math.max(24, Math.ceil((textW + padX * 2) / P));
-  const hA = Math.ceil((lines.length * lineH + padY * 2) / P);
+  const contentW = picW + picGap + textW;
+  const contentH = Math.max(pic ? PIC : 0, lines.length * lineH);
+  const wA = Math.max(24, Math.ceil((contentW + padX * 2) / P));
+  const hA = Math.ceil((contentH + padY * 2) / P);
   const w = wA * P;
   const h = hA * P;
 
@@ -2365,26 +2324,8 @@ function drawTutorialBubble(d) {
   const top = hud.pauseRect.y + hud.pauseRect.h + 20;
   const gap = style === 'speech' ? 8 : 34;             // room for tail / trail
   const snap = (v) => Math.round(v / P) * P;
-  let bx = snap(Math.min(Math.max(headX - 22, margin), canvas.width - margin - w));
-  let by = snap(Math.max(headY - gap - h, top));
-  // ⚠️ NEVER OVER THE THING IT IS TEACHING. The first champagne lesson drew
-  // its bubble straight across the bottle on its ledge — the bottle sits up
-  // at head height, exactly where the bubble goes. If the lesson's target is
-  // under the bubble, slide the bubble left clear of it while the tail can
-  // still reach his head; failing that, lift it clear.
-  const t = d.target;
-  if (t) {
-    const tx0 = (t.x - camera.x) * z;
-    const tw = (t.w || T) * z;
-    const ty0 = t.y != null ? (t.y - camera.y) * z : (FLOOR_R * T - camera.y) * z;
-    const th = (t.h || T) * z;
-    const hits = (x, y) => x < tx0 + tw + 8 && x + w > tx0 - 8 && y < ty0 + th + 8 && y + h > ty0 - 8;
-    if (hits(bx, by)) {
-      const left = snap(tx0 - 8 - w);
-      if (left >= margin && headX - left <= w - 12 * P) bx = left;
-      else by = snap(Math.max(top, ty0 - 8 - h));
-    }
-  }
+  const bx = snap(Math.min(Math.max(headX - 22, margin), canvas.width - margin - w));
+  const by = snap(Math.max(headY - gap - h, top));
   // Tail foot sits over his head, kept clear of the rounded corners.
   const tailX = Math.min(Math.max(Math.round((headX - bx) / P) - 1, 4), wA - 10);
 
@@ -2402,21 +2343,24 @@ function drawTutorialBubble(d) {
     drawPixelDisk(sx + (ax - sx) * 0.28, sy + (ay - sy) * 0.28, 2);
   }
 
+  const cx = bx + (w - contentW) / 2;
+  if (pic) drawTutorialPicture(pic, cx, by + (h - PIC) / 2);
+
   ctx.fillStyle = BUBBLE_INK;
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
-  const tx = bx + (w - textW) / 2;
+  const tx = cx + picW + picGap;
+  const ty = by + (h - lines.length * lineH) / 2;
   let left = shown;
   lines.forEach((line, i) => {
     if (left <= 0) return;
-    ctx.fillText(line.slice(0, left), tx, by + padY + lineH * (i + 0.5));
+    ctx.fillText(line.slice(0, left), tx, ty + lineH * (i + 0.5));
     left -= line.length + 1;   // +1: the space wrapText split on
   });
 
   // A small pixel ▼ once the page has finished typing — until then a press
-  // finishes the line rather than turning the page, so it would lie. Never on
-  // a drill page: those turn when the move is made, not on a tap.
-  if (full && !tutorialDrill(d)) {
+  // finishes the line rather than turning the page, so it would lie.
+  if (full) {
     const bob = Math.floor(state.tick / 16) % 2 ? P : 0;
     const ax = bx + w - 7 * P;
     const ay = by + h - 7 * P + bob;

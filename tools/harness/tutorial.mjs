@@ -1,32 +1,25 @@
-// WILL HILL'S LIVE TUTORIAL — does the box actually freeze the world, type
-// out, skip, advance, close, and retire itself, and does the trigger picker
-// choose correctly?
+// WILL HILL'S TUTORIAL BUBBLE — at the start of stage one, standing still,
+// tapped through, then nothing else interrupts the run.
 //
-// Client: "replacing the gameplay how to play instruction section completely
-// with the portion of the first stage where Will Hill describes how to play
-// with talk bubbles" — Pokémon-Game-Boy-NPC style: the world freezes, a box
-// opens, and Will Hill (there is no separate NPC — it's the player) narrates
-// what the old HOW TO PLAY panel used to show as ✕/✓ screenshots. This file
-// tests THAT mechanism: src/world/tutorial.js (the words and the trigger
-// math) and the open/advance/freeze wiring in src/main.js.
+// Client: "I kind of want you just to be standing still in the beginning,
+// read off all the instructions, let them tap through those... and then we
+// gonna let the instructions just be at the beginning stage when you can't
+// move and then go from there." And the pictures: "the champagne bottle, when
+// you mention it, just show an image of the champagne bottle; money bags...
+// show the money bags; enemies... a HUD image of them inside the bubble."
 //
-// ⚠️ NOT WHAT startflow.mjs TESTS. That file is the START CHAIN — does NOT
-// NOW/SAVE reach a running game with no panel stop in the way. This file is
-// what happens once you're there: does the box on-screen actually behave
-// like Game Boy dialogue.
+// Tests src/world/tutorial.js (the words and pictures) and the freeze /
+// paging / drawing in src/main.js. Not the start chain — that is
+// startflow.mjs.
 //
-// ⚠️ NOT DRIVEN BY WALKING THE PROCEDURAL STAGE. Reaching all five lessons
-// for real means hitting a pothole, a gap, a ninja and a bottle in whatever
-// order stage one's seed puts them — playable, but choreographing that in a
-// harness tests the LEVEL GENERATOR's layout, not the tutorial's own state
-// machine. `window.__tutorialOpen`/`window.__tutorialAdvance` (main.js, DEV
-// only) are the same door `window.__startStage` already opens for skipping
-// straight to a stage — this harness uses them to drive the box directly and
-// proves the picker logic (nextTutorialTrigger) separately, as a pure
-// function, against synthetic levels.
+// Driven through `window.__tutorialOpen` / `__tutorialAdvance` (main.js, DEV
+// only) where the point is the state machine, and through real key presses
+// where the point is that a player's input reaches it.
 //
 //   PLAYWRIGHT=... CHROMIUM=... node tools/harness/tutorial.mjs
-import { nextTutorialTrigger, TUTORIAL_ORDER, TUTORIAL_LESSONS } from '../../src/world/tutorial.js';
+import {
+  nextTutorialTrigger, TUTORIAL_ORDER, TUTORIAL_LESSONS, TUTORIAL_PICTURES,
+} from '../../src/world/tutorial.js';
 
 const checks = [];
 const check = (w, ok, d = '') => {
@@ -34,64 +27,31 @@ const check = (w, ok, d = '') => {
   console.log(`  ${ok ? 'PASS' : 'FAIL'}  ${w}${d ? '   ' + d : ''}`);
 };
 
-// ── PART 1 — nextTutorialTrigger AS A PURE FUNCTION, no browser needed ────
-// The whole point of keeping the trigger math out of main.js: this is cheap
-// and exhaustive against level shapes a real seeded playthrough might not
-// happen to produce.
+// ── PART 1 — the words and the pictures, no browser ──────────────────────
 {
-  const emptyLevel = () => ({ obstacles: [], pits: [], enemies: [], champagnes: [] });
+  check('the intro opens first, with nothing fired',
+    nextTutorialTrigger({}, { x: 0 }, new Set()) === 'intro');
+  check('and nothing ever opens after it — no mid-stage lessons',
+    nextTutorialTrigger({}, { x: 99999 }, new Set(['intro'])) === null
+    && TUTORIAL_ORDER.length === 1);
 
-  check('intro fires first no matter what, with an empty `fired` set',
-    nextTutorialTrigger(emptyLevel(), { x: 0 }, new Set()) === 'intro');
-
-  const fired1 = new Set(['intro']);
-  check('nothing fires with every hazard array still empty',
-    nextTutorialTrigger(emptyLevel(), { x: 0 }, fired1) === null);
-
-  // Four hazards, all within lead range, at different distances — nearest
-  // one (ninja, x=100) must win, not TUTORIAL_ORDER's own listed order
-  // (which puts pothole before ninja).
-  const mixed = {
-    obstacles: [{ x: 500 }],
-    pits: [{ x: 300 }],
-    enemies: [{ x: 100 }],
-    champagnes: [{ x: 200 }],
-  };
-  check('the NEAREST un-taught hazard wins, not TUTORIAL_ORDER’s listed order',
-    nextTutorialTrigger(mixed, { x: 0 }, fired1) === 'ninja');
-
-  // Same level, ninja already taught — gap (300) beats champagne (200)? No —
-  // champagne is closer (200 < 300), so champagne should win next.
-  const fired2 = new Set(['intro', 'ninja']);
-  check('with the nearest already taught, the NEXT nearest wins',
-    nextTutorialTrigger(mixed, { x: 0 }, fired2) === 'champagne');
-
-  // A hazard exists but is still beyond HAZARD_LEAD — must not fire early.
-  const farOff = { obstacles: [{ x: 100000 }], pits: [], enemies: [], champagnes: [] };
-  check('a hazard far beyond the lead distance does not fire yet',
-    nextTutorialTrigger(farOff, { x: 0 }, fired1) === null);
-
-  // Every lesson taught — nothing left to fire, ever.
-  const allFired = new Set(TUTORIAL_ORDER);
-  check('with every lesson fired, nothing triggers again',
-    nextTutorialTrigger(mixed, { x: 0 }, allFired) === null);
-
-  // Client: "I had to grab it, go back... and then come back for the bubble
-  // to appear. It should appear right before you approach it."
-  const firedAllButBottle = new Set(['intro', 'pothole', 'gap', 'ninja']);
-  const bottle = (extra) => ({ obstacles: [], pits: [], enemies: [],
-    champagnes: [{ x: 1000, w: 24, approachX: 900, ...extra }] });
-  check('the champagne lesson is timed from the LEDGE, not the bottle on top of it',
-    nextTutorialTrigger(bottle({}), { x: 900 - 250 }, firedAllButBottle) === 'champagne');
-  check('a bottle already drunk never re-arms the lesson',
-    nextTutorialTrigger(bottle({ got: true }), { x: 900 - 250 }, firedAllButBottle) === null);
-
-  check('TUTORIAL_LESSONS has a non-empty page array for every id in TUTORIAL_ORDER',
-    TUTORIAL_ORDER.every((id) => Array.isArray(TUTORIAL_LESSONS[id]) && TUTORIAL_LESSONS[id].length > 0),
-    JSON.stringify(TUTORIAL_ORDER.map((id) => [id, TUTORIAL_LESSONS[id]?.length])));
+  const lines = TUTORIAL_LESSONS.intro;
+  const pics = TUTORIAL_PICTURES.intro;
+  check('one picture slot per line', pics.length === lines.length,
+    `${pics.length} slots, ${lines.length} lines`);
+  const names = { bag: /bag/i, champagne: /champagne/i, enemy: /enem/i };
+  const mismatched = pics.map((k, i) => (k && !names[k].test(lines[i]) ? `${k}→"${lines[i]}"` : null))
+    .filter(Boolean);
+  check('each picture sits on the line that names it', mismatched.length === 0,
+    mismatched.join(', '));
+  for (const k of ['bag', 'enemy', 'champagne']) {
+    check(`the ${k} gets its picture`, pics.includes(k));
+  }
+  check('the last line is the goal', /make it to the show/i.test(lines[lines.length - 1]),
+    lines[lines.length - 1]);
 }
 
-// ── PART 2 — THE BOX, LIVE IN THE GAME ─────────────────────────────────
+// ── PART 2 — live ─────────────────────────────────────────────────────
 const _pw = await import(process.env.PLAYWRIGHT || 'playwright');
 const chromium = _pw.chromium || _pw.default?.chromium;
 const b = await chromium.launch(process.env.CHROMIUM ? { executablePath: process.env.CHROMIUM } : {});
@@ -106,153 +66,79 @@ const frame = (n = 1) => p.evaluate(async (count) => {
   for (let i = 0; i < count; i++) await raf();
 }, n);
 
-// Straight to stage one, no title/panel dance — same door endcue.mjs and the
-// others already use. A fresh context has no `wh_howto_seen`, so this is a
-// never-taught player. Polled, not slept: the intro waits for him to land.
+// Straight to stage one. A fresh context has no `wh_howto_seen`, so this is
+// a never-taught player. Polled, not slept: the bubble waits for him to land.
 await p.evaluate(() => window.__startStage(0));
 await p.waitForFunction(() => window.__game.dialogue, null, { timeout: 10000 });
 
 const opened = await p.evaluate(() => ({
   screen: window.__game.screen,
-  id: window.__game.dialogue && window.__game.dialogue.id,
-  page: window.__game.dialogue && window.__game.dialogue.page,
+  id: window.__game.dialogue.id,
+  page: window.__game.dialogue.page,
   onGround: window.__game.player.onGround,
-  vy: window.__game.player.vy,
 }));
-check('a never-taught player lands stage one on the intro — controls first',
-  opened.screen === 'playing' && opened.id === 'intro' && opened.page === 0,
-  JSON.stringify(opened));
-// Client, from his phone: "Firstly, he's floating in the air." The intro
-// used to open on tick one, frozen mid-drop from the spawn point.
-check('and he is STANDING when it opens, not hanging in the air',
-  opened.onGround === true, JSON.stringify(opened));
+check('stage one opens on the tutorial, first line first',
+  opened.screen === 'playing' && opened.id === 'intro' && opened.page === 0, JSON.stringify(opened));
+// Client, from his phone: "Firstly, he's floating in the air."
+check('and he is STANDING when it opens, not hanging in the air', opened.onGround === true);
 
-// ── THE DRILLS: each control is DONE, not read ─────────────────────────
-// Client: "when it says move, you should have to move left and right for
-// like one or two seconds and then you should be able to actually press
-// those buttons to demonstrate that you actually understand."
-const page = () => p.evaluate(() => (window.__game.dialogue ? window.__game.dialogue.page : null));
+// ── HE CANNOT MOVE WHILE IT IS UP ────────────────────────────────────────
 {
-  // A tap cannot skip a drill.
-  await p.evaluate(() => { for (let i = 0; i < 6; i++) window.__tutorialAdvance(); });
-  check('tapping cannot skip the MOVE drill', (await page()) === 0, `page=${await page()}`);
-
-  // Right alone is not enough.
-  const x0 = await p.evaluate(() => window.__game.player.x);
-  await p.keyboard.down('ArrowRight');
-  await p.waitForFunction(() => (window.__game.dialogue.drill.r || 0) >= 45, null, { timeout: 10000 });
-  await p.keyboard.up('ArrowRight');
-  const x1 = await p.evaluate(() => window.__game.player.x);
-  check('during the MOVE drill he actually moves', x1 > x0, `x ${x0} -> ${x1}`);
-  check('moving only right does not pass it', (await page()) === 0, `page=${await page()}`);
-
-  await p.keyboard.down('ArrowLeft');
-  await p.waitForFunction(() => window.__game.dialogue && window.__game.dialogue.page >= 1, null, { timeout: 10000 })
-    .catch(() => {});
-  await p.keyboard.up('ArrowLeft');
-  check('moving left AND right passes the MOVE drill', (await page()) === 1, `page=${await page()}`);
-
-  // One jump is not a double jump.
-  await p.keyboard.down('Space'); await frame(4); await p.keyboard.up('Space');
-  await frame(4);
-  check('a single jump does not pass the JUMP drill', (await page()) === 1, `page=${await page()}`);
-  await p.keyboard.down('Space'); await frame(4); await p.keyboard.up('Space');
-  await p.waitForFunction(() => window.__game.dialogue && window.__game.dialogue.page >= 2, null, { timeout: 5000 })
-    .catch(() => {});
-  check('a double jump passes the JUMP drill', (await page()) === 2, `page=${await page()}`);
-
-  // Let him land before dashing — a dash is a ground move here too.
-  await p.waitForFunction(() => window.__game.player.onGround, null, { timeout: 5000 });
-  await p.keyboard.down('ShiftLeft'); await frame(3); await p.keyboard.up('ShiftLeft');
-  await p.waitForFunction(() => window.__game.dialogue && window.__game.dialogue.page >= 3, null, { timeout: 5000 })
-    .catch(() => {});
-  check('a dash passes the DASH drill', (await page()) === 3, `page=${await page()}`);
-
-  const xs = await p.evaluate(() => window.__game.player.x);
-  check('all that practice kept him on the runway', xs <= 18 * 32 && xs >= 32, `x=${xs}`);
-}
-
-// ── THE READ PAGES FREEZE THE WORLD ──────────────────────────────────────
-{
-  await p.waitForFunction(() => window.__game.player.onGround, null, { timeout: 5000 });
-  await frame(3);
   const before = await p.evaluate(() => window.__game.player.x);
   await p.keyboard.down('ArrowRight');
   await frame(30);
   await p.keyboard.up('ArrowRight');
   const after = await p.evaluate(() => window.__game.player.x);
-  check('on "Get the bag." holding RIGHT does nothing — the world is frozen',
-    after === before, `x ${before} -> ${after}`);
+  check('holding RIGHT does nothing while the bubble is up', after === before,
+    `x ${before} -> ${after}`);
 }
 
-// ── THE TYPEWRITER — partial reveal, then a press instantly completes it ──
+// ── THE PICTURES HAVE SOMETHING TO DRAW ──────────────────────────────────
+{
+  const loaded = await p.evaluate(() => {
+    const im = window.__images;
+    const v = window.__game.level.stage.enemyVariants[0];
+    const ok = (i) => !!(i && i.naturalWidth > 0);
+    return { bag: ok(im.bag), champagne: ok(im.champagne), enemy: ok(im['enemy_' + v]), v };
+  });
+  check('the bag, bottle and enemy art are loaded for the bubble',
+    loaded.bag && loaded.champagne && loaded.enemy, JSON.stringify(loaded));
+}
+
+// ── THE TYPEWRITER — partial reveal, then a press completes it ───────────
 {
   const ticksPerChar = await p.evaluate(() => window.__tutorialTicksPerChar);
-  const d0 = await p.evaluate(() => { const d = window.__game.dialogue; d.pageT = 0; return d.page; });
-  const full = TUTORIAL_LESSONS.intro[d0];
-  await frame(3);
+  const longest = TUTORIAL_LESSONS.intro.reduce((a, t, i, all) =>
+    (t.length > all[a].length ? i : a), 0);
+  const full = TUTORIAL_LESSONS.intro[longest];
+  await p.evaluate((i) => { const d = window.__game.dialogue; d.page = i; d.pageT = 0; }, longest);
+  await frame(6);
   const mid = await p.evaluate(() => window.__game.dialogue.pageT);
   const shownAtMid = Math.min(full.length, Math.floor(mid / ticksPerChar));
-  check('the page is still mid-reveal a few frames after opening, not dumped instantly',
-    shownAtMid > 0 && shownAtMid < full.length,
-    `pageT=${mid} shown=${shownAtMid}/${full.length}`);
-  // First press finishes the line, second turns the page — Game Boy rules.
+  check('a line types out rather than appearing all at once',
+    shownAtMid > 0 && shownAtMid < full.length, `shown=${shownAtMid}/${full.length}`);
   await p.evaluate(() => window.__tutorialAdvance());
   const afterSkip = await p.evaluate(() => ({
     page: window.__game.dialogue.page, pageT: window.__game.dialogue.pageT,
   }));
-  check('a press while typing finishes the reveal and stays on the same page',
-    afterSkip.page === d0 && afterSkip.pageT >= full.length * ticksPerChar,
+  check('the first press finishes the line and stays on it',
+    afterSkip.page === longest && afterSkip.pageT >= full.length * ticksPerChar,
     JSON.stringify(afterSkip));
+  await p.evaluate(() => window.__tutorialAdvance());
+  check('the second press turns the page',
+    (await p.evaluate(() => window.__game.dialogue.page)) === longest + 1);
 }
 
-// ── THROUGH THE LAST LINES, THEN CLOSE ───────────────────────────────────
+// ── PAUSE IS REFUSED WHILE IT IS UP ──────────────────────────────────────
 {
-  const last = TUTORIAL_LESSONS.intro[TUTORIAL_LESSONS.intro.length - 1];
-  const presses = await p.evaluate(() => {
-    let n = 0;
-    while (window.__game.dialogue && n < 40) { window.__tutorialAdvance(); n++; }
-    return n;
-  });
-  const closed = await p.evaluate(() => ({
-    dialogue: window.__game.dialogue,
-    firedIntro: window.__game.tutorialFired.has('intro'),
-    howToSeen: localStorage.getItem('wh_howto_seen'),
-  }));
-  check(`after "${last}" the bubble closes and \`intro\` is marked fired`,
-    closed.dialogue === null && closed.firedIntro === true && presses < 40,
-    JSON.stringify({ ...closed, presses }));
-  check('but howToSeen() stays false — the hazard lessons are still untaught',
-    closed.howToSeen !== '1', `wh_howto_seen=${closed.howToSeen}`);
-}
-
-// ── THE GAME IS ON ─────────────────────────────────────────────────────
-{
-  const before = await p.evaluate(() => window.__game.player.x);
-  await p.keyboard.down('ArrowRight');
-  await frame(20);
-  await p.keyboard.up('ArrowRight');
-  const after = await p.evaluate(() => window.__game.player.x);
-  check('with the intro done, holding RIGHT moves Will Hill again',
-    after > before, `x ${before} -> ${after}`);
-}
-
-// ── PAUSE IS REFUSED WHILE A BOX IS OPEN ──────────────────────────────────
-{
-  await p.evaluate(() => { window.__game.dialogue = window.__tutorialOpen('pothole'); });
   await p.keyboard.down('KeyP');
   await p.keyboard.up('KeyP');
   await frame(2);
-  const screen = await p.evaluate(() => window.__game.screen);
-  check('P does not open the pause menu over a live tutorial box',
-    screen === 'playing', `screen=${screen}`);
+  check('P does not open the pause menu over the bubble',
+    (await p.evaluate(() => window.__game.screen)) === 'playing');
 }
 
-// ── THE REAL INPUT PATH: A PHYSICAL KEY PRESS REACHES THE BOX TOO ────────
-// Everything above drove the box through the DEV door directly, which
-// proves the state machine but not that confirmPressed() (JUMP) actually
-// routes into it during a real frame of update(). One press, through a
-// synthetic keyboard event exactly like a player's, closes the loop.
+// ── A REAL JUMP PRESS REACHES IT ─────────────────────────────────────────
 {
   const before = await p.evaluate(() => ({
     page: window.__game.dialogue.page, pageT: window.__game.dialogue.pageT,
@@ -262,35 +148,58 @@ const page = () => p.evaluate(() => (window.__game.dialogue ? window.__game.dial
   await p.keyboard.up('Space');
   await frame(2);
   const after = await p.evaluate(() => ({
-    page: window.__game.dialogue && window.__game.dialogue.page,
-    pageT: window.__game.dialogue && window.__game.dialogue.pageT,
+    page: window.__game.dialogue.page, pageT: window.__game.dialogue.pageT,
   }));
-  check('a real JUMP keypress advances the box through update(), not just the DEV door',
+  check('a physical JUMP press advances the bubble, through update()',
     after.pageT !== before.pageT || after.page !== before.page,
     `${JSON.stringify(before)} -> ${JSON.stringify(after)}`);
 }
 
-// ── EVERY LESSON TAUGHT RETIRES THE TUTORIAL FOR GOOD ─────────────────────
+// ── THROUGH TO THE END ───────────────────────────────────────────────────
 {
-  // Close whatever `pothole` left open from the two checks above, then force
-  // every remaining lesson fired except the last, open the last directly,
-  // and walk it to the end.
-  await p.evaluate(() => {
-    while (window.__game.dialogue) window.__tutorialAdvance();
-    window.__game.tutorialFired = new Set(['intro', 'pothole', 'gap', 'ninja']);
-    window.__game.dialogue = window.__tutorialOpen('champagne');
+  const presses = await p.evaluate(() => {
+    let n = 0;
+    while (window.__game.dialogue && n < 60) { window.__tutorialAdvance(); n++; }
+    return n;
   });
-  const pages = TUTORIAL_LESSONS.champagne.length;
-  for (let i = 0; i < pages; i++) {
-    await p.evaluate(() => window.__tutorialAdvance());
-    await p.evaluate(() => window.__tutorialAdvance());
-  }
-  const done = await p.evaluate(() => ({
+  const closed = await p.evaluate(() => ({
     dialogue: window.__game.dialogue,
     seen: localStorage.getItem('wh_howto_seen'),
   }));
-  check('the fifth and final lesson retires the tutorial (howToSeen -> true)',
-    done.dialogue === null && done.seen === '1', JSON.stringify(done));
+  check('after "Help me make it to the show." the bubble closes',
+    closed.dialogue === null && presses < 60, JSON.stringify({ presses }));
+  check('and the tutorial is retired for good (howToSeen)', closed.seen === '1',
+    `wh_howto_seen=${closed.seen}`);
+}
+
+// ── THEN THE RUN IS THEIRS, UNINTERRUPTED ────────────────────────────────
+{
+  const before = await p.evaluate(() => window.__game.player.x);
+  await p.keyboard.down('ArrowRight');
+  await frame(20);
+  await p.keyboard.up('ArrowRight');
+  const after = await p.evaluate(() => window.__game.player.x);
+  check('holding RIGHT moves him again', after > before, `x ${before} -> ${after}`);
+
+  // Walk him up to the first bottle, the first ninja and the first pothole —
+  // the places that used to stop the run with a lesson — and make sure
+  // nothing opens.
+  const stops = await p.evaluate(async () => {
+    const raf = () => new Promise((r) => requestAnimationFrame(r));
+    const g = window.__game;
+    const { genAhead } = await import('/src/world/generator.js');
+    genAhead(g.level, g.level.stage.stageEnd + 60);
+    const out = [];
+    for (const [name, list] of [['pothole', g.level.obstacles], ['ninja', g.level.enemies],
+      ['champagne', g.level.champagnes]]) {
+      g.player.x = list[0].x - 200; g.player.vy = 0;
+      for (let i = 0; i < 6; i++) await raf();
+      out.push([name, !!g.dialogue]);
+    }
+    return out;
+  });
+  check('no bubble opens mid-stage at a pothole, a ninja or a bottle',
+    stops.every(([, open]) => !open), JSON.stringify(stops));
 }
 
 await b.close();

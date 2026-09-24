@@ -158,12 +158,6 @@ export function createLevel(stage, stageIndex = 0) {
     bags: [],
     champagnes: [],
     obstacles: [], // static hazards: {x,y,w,h}
-    // Open pits ("manholes"), tracked the same forward-only-push way as the
-    // arrays above. `pit()` only edits `map.solid` — nothing used to record
-    // WHERE a gap went, because nothing needed to until the live tutorial
-    // (world/tutorial.js) needed to find "the first one in stage 1" without
-    // rescanning the tilemap every frame.
-    pits: [],
     // The stage's bag budget, and the generator's own tally against it. See
     // wantsBag() — the tally is separate from bags.length on purpose, because
     // a player taking a hit scatters dropped bags into that same array.
@@ -277,7 +271,6 @@ export function genAhead(level, untilCol) {
       // GAP — jump-only pit, guaranteed landing strip after.
       const w = 2 + Math.floor(rnd01(c * 3.1 + level.seed) * recipe.gapMax);
       pit(level.map, c, w, FLOOR_R, LH - 1);
-      level.pits.push({ x: c * T, w: w * T });
       groundCol(level.map, c + w, FLOOR_R, LH - 1);
       level.lastFeatureCol = c + w;
       // c+w+1 ONWARDS, not c+w+3. Skipping ahead left two columns that the
@@ -339,8 +332,6 @@ export function genAhead(level, untilCol) {
         level.champagneMarks.shift();
         level.champagnes.push(createChampagneBottle(
           c * T + w * T * 0.5 - 12, champagneTopFor((FLOOR_R - heightRows) * T)));
-        // Where the climb to it starts — see world/tutorial.js hazardX().
-        level.champagnes[level.champagnes.length - 1].approachX = c * T;
       } else if (wantsBag(level, c, 5.3)) {
         placeBag(level, createMoneyBag(
           c * T + w * T * 0.5 - 12, (FLOOR_R - heightRows) * T - 26));
@@ -445,7 +436,6 @@ export function genAhead(level, untilCol) {
       plat(level.map, c, FLOOR_R - heightRows, w);
       level.champagnes.push(createChampagneBottle(
         c * T + w * T * 0.5 - 12, champagneTopFor((FLOOR_R - heightRows) * T)));
-      level.champagnes[level.champagnes.length - 1].approachX = c * T;
       level.lastFeatureCol = c + w;
       level.genC = c + w;
       continue;
