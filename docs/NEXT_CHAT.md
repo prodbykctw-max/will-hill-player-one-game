@@ -445,13 +445,15 @@ freeze, the paging and the drawing (`drawTutorialBubble`).
   bubble comes from is his decision — his artist, a still from the Dan the Man
   video matched exactly, or generated options — and it is open.
 
-`wh_intro_seen` is the latch (`howToSeen()` / `markHowToSeen()` in
+`wh_intro_v2` is the latch (`howToSeen()` / `markHowToSeen()` in
 `src/ui/panel.js`), set when the last line is tapped. ⚠️ **Not the old
 `wh_howto_seen`** — that one was set by merely reaching the old panel, so every
 returning player has it. Asked whether everyone should get the new intro once,
-he answered *"New intro."*
+he answered *"New intro."* ⚠️ **Not `wh_intro_seen` either** — that latched
+the first script; when the script changed he wanted everyone to see it again:
+*"clear everything out so everybody who has the game will see the new intro now"*. A changed script gets a new key suffix; never reuse one.
 
-⚠️ **Harnesses that drive stage one cold must seed `wh_intro_seen`**, or the
+⚠️ **Harnesses that drive stage one cold must seed `wh_intro_v2`**, or the
 frozen intro swallows their input. `startFromTitle()` does it for its callers;
 the ones that go through `window.__startStage(0)` set it themselves.
 `tools/harness/tutorial.mjs` is the one that tests the tutorial un-skipped.

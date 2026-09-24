@@ -26,7 +26,7 @@ champagne, and last "Let's get it!" Then the run is theirs.
 trigger); `src/main.js` (`openTutorialDialogue` / `advanceTutorialDialogue`,
 the freeze in update()'s playing branch, `drawTutorialBubble` /
 `bubbleSprite` / `drawTutorialPicture`); `hud.drawPortrait` is exported for
-the enemy's head portrait. Latch: `wh_intro_seen` in `src/ui/panel.js`.
+the enemy's head portrait. Latch: `wh_intro_v2` in `src/ui/panel.js`.
 
 **Decisions and the client's words behind them**
 
@@ -49,7 +49,9 @@ the enemy's head portrait. Latch: `wh_intro_seen` in `src/ui/panel.js`.
 - **Never frozen mid-air.** He spawns four rows up and drops; the first cut
   froze him hanging there. It now waits for his feet.
 - **Everyone gets it once.** The old `wh_howto_seen` was set by merely reaching
-  the old panel. *"New intro."* — the latch moved to `wh_intro_seen`.
+  the old panel. *"New intro."* — the latch moved to `wh_intro_seen`. When the script
+  then changed to greeting → goal → instructions → "Let's get it!", it moved
+  again, to `wh_intro_v2`: *"clear everything out so everybody who has the game will see the new intro now"*.
 
 **Open.**
 
@@ -63,7 +65,7 @@ the enemy's head portrait. Latch: `wh_intro_seen` in `src/ui/panel.js`.
   (DEV) for comparison and was judged not good enough to offer.
 
 **Harnesses.** `tools/harness/tutorial.mjs` (25 checks) tests it un-skipped.
-Every harness that enters stage one cold now seeds `wh_intro_seen` — a frozen
+Every harness that enters stage one cold now seeds `wh_intro_v2` — a frozen
 intro swallows input and parks the camera (cloudseal read 0px of cloud on stage
 one because of it). `startflow` and `optionsmenu` were rewritten where they
 defended the old CONTEST → HOW TO PLAY → run chain. See LESSONS §26–29.

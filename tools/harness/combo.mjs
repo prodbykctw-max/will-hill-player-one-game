@@ -35,7 +35,7 @@ await p.waitForFunction(() => window.__game && window.__game.screen === 'title',
 // Already taught — grading the combo chain, not Will Hill's live tutorial
 // (world/tutorial.js), which would otherwise freeze stage one on its intro
 // lesson on a fresh profile the moment __startStage(0) below lands.
-await p.evaluate(() => { try { localStorage.setItem('wh_intro_seen', '1'); } catch (_e) {} });
+await p.evaluate(() => { try { localStorage.setItem('wh_intro_v2', '1'); } catch (_e) {} });
 
 // Drive the REAL update loop. Nothing here calls resolveEnemyCollision
 // directly: a stomp has to arrive the way a player's does, through the frame,

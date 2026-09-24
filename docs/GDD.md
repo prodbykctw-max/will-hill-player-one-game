@@ -37,7 +37,7 @@ There is no instructions screen between PRESS START and the run. Will Hill's
 management asked for the game to teach itself the way Pokémon did on the Game
 Boy: *"make a text bubble come from Will describing the same instructions."*
 
-- **Where:** the very start of stage one, the first time only (`wh_intro_seen`).
+- **Where:** the very start of stage one, the first time only (`wh_intro_v2`).
   Will lands on the street, stands still, and the world is frozen.
 - **How:** a speech bubble off his head; the player taps (or presses JUMP)
   through it. A line types out; the first press finishes it, the next turns

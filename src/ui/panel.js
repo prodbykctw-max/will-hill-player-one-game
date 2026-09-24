@@ -997,7 +997,14 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
 // have played before. Asked whether everyone should get the new intro once,
 // the client answered: "New intro." The old key is left where it lies in
 // their storage, unread.
-const INTRO_SEEN_KEY = 'wh_intro_seen';
+//
+// ⚠️ AND `wh_intro_seen` IS RETIRED THE SAME WAY. It latched the first script
+// (instructions, then "Help me make it to the show."). The script then changed
+// to greeting → goal → instructions → "Let's get it!", and the client wanted
+// everyone to see it: "clear everything out so everybody who has the game will
+// see the new intro now... like you did last night." A new script gets a new
+// key; bump the suffix, never reuse one.
+const INTRO_SEEN_KEY = 'wh_intro_v2';
 
 export function howToSeen() {
   try {
