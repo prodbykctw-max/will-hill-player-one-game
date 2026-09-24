@@ -23,13 +23,36 @@ source says otherwise, and should be credited to him, not to Will Hill.
 Will Hill is on his way to his performance — the run through the game's stages *is* him making his way to the show.
 
 - **Collectible/currency token:** money bags. "Collect the bag" is the core objective/scoring loop.
-- **Power-up:** champagne bottles — grant **9 seconds** of invulnerability AND a **2x money multiplier** on pickup. (This said 30 seconds for a long time and the code never did: `CHAMPAGNE_SECONDS = 9` in `src/entities/player.js`, `CHAMPAGNE_MULT = 2` in `src/entities/collectibles.js`. While it is lit the bags are drawn **grown and blue** — the two cues say the same thing, and the HOW TO PLAY page has to show it.)
+- **Power-up:** champagne bottles — grant **9 seconds** of invulnerability AND a **2x money multiplier** on pickup. (This said 30 seconds for a long time and the code never did: `CHAMPAGNE_SECONDS = 9` in `src/entities/player.js`, `CHAMPAGNE_MULT = 2` in `src/entities/collectibles.js`. While it is lit the bags are drawn **grown and blue** — the two cues say the same thing, and the HOW TO PLAY recap page shows it.)
 - **Combat:** none. No sword/melee system.
 - **Core mechanic — Mario-style stomp:** jumping on top of an enemy defeats it. Side/head-on contact damages the player instead.
 - **Platforming:** platforms are asphalt-textured (visually distinct street/road material within the level geometry).
 - **Enemy behavior & physics — confirmed "exactly like Mario":** classic bounded patrol AI (enemies walk back and forth within a range — but ⚠️ they do **not** walk off ledges any more: `canStand()` in `src/entities/enemy.js` probes the leading edge and turns them at the brink, because a patrol that suicides into a pit removes the hazard the player was supposed to deal with), standard platformer physics (gravity/jump arc, solid ground + floating platforms, pits/gaps as hazards). This is the well-understood Mario ruleset transplanted onto the Atlanta setting — no novel mechanic being invented.
 - **Camera:** pulled back further than a typical side-scroller, with extra headroom so the player can see upcoming obstacles, platforms, and enemies before reaching them. Same rationale as a Mario-style camera looking ahead of the player, just pulled back further.
 - **Movement/perspective:** side-scroll, in the same style as the Jandé game's Action RPG mode (`once-upon-a-time` repo) — explicitly **not** a Streets-of-Rage-style brawler (an earlier framing that was corrected) and **not** isometric (an isometric animation set exists but is unused — see Character Asset Pipeline below).
+
+## Teaching the game: Will Hill's intro bubbles (2026-09)
+
+There is no instructions screen between PRESS START and the run. Will Hill's
+management asked for the game to teach itself the way Pokémon did on the Game
+Boy: *"make a text bubble come from Will describing the same instructions."*
+
+- **Where:** the very start of stage one, the first time only (`wh_intro_seen`).
+  Will lands on the street, stands still, and the world is frozen.
+- **How:** a speech bubble off his head; the player taps (or presses JUMP)
+  through it. A line types out; the first press finishes it, the next turns
+  the page. Nothing interrupts the run afterwards.
+- **What, in this order:** move · jump (and the double jump) · dash (roll past
+  trouble, can't be hit) · get the bag *(bag picture)* · defeat enemies, jump on
+  their heads *(the stage's enemy, as a HUD-style head portrait)* · jump
+  potholes and open manholes · champagne, double money for 9 seconds *(bottle
+  picture)* · "Help me make it to the show."
+- **Voice:** instructions only for now. No self-introduction — everybody knows
+  who he is. His commentary is a later pass.
+- **Bubble art:** a stand-in in the look of Dan the Man's cutscene bubbles (the
+  reference), drawn in this game's own pixels. Final art is pending the
+  client's choice of source.
+- OPTIONS → HOW TO PLAY keeps the one-page ✕/✓ card as a recap.
 
 ## The finish line is the bank (2026-09)
 

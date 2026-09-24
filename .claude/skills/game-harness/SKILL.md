@@ -246,6 +246,12 @@ Roughly half the time on this project it was the harness. Signs it is the test:
 - **It encodes a decision that was reversed.** `ceiling.mjs` demanded a pinned
   benchmark row the client had asked to be REMOVED. The suite went red on
   correct code.
+- **One item alone reads zero.** When a first-run overlay (here, the stage-one
+  intro bubbles) freezes the world, a harness that enters that stage cold has
+  its input swallowed and — because the freeze skips `camera.follow()` — its
+  camera parked. `cloudseal` read 0px of cloud on stage one only. Harnesses
+  that are not testing the overlay must seed past it (`wh_intro_seen`); ask
+  what is different about the one stage before suspecting its art.
 
 **So: run the whole suite end to end regularly.** A suite nobody runs entire
 drifts into grading last month's product, and then teaches everyone to

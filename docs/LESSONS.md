@@ -866,3 +866,61 @@ network-first so a deploy still lands on the next launch. Measured: first visit
 ⚠️ **Do not diagnose "the game got heavy" from a payload number without
 checking what the code IMPORTS.** `src/assets` on disk includes files nothing
 imports; Vite only ships imported ones. The two differ by several MB here.
+
+## 26. The reference image was in hand and never looked at again
+
+The in-game tutorial was requested with a photo attached: Scoon's own drawing,
+a bubble up and to the right of Will Hill's head. The session was compacted
+before the work started, and the rebuilt context carried the words of the ask
+but not the picture. The first build put a Game Boy dialogue box along the
+bottom of the screen with a portrait in it — a reasonable reading of the words,
+and the opposite of the drawing. Client: *"did you not look at the drawings
+[Scoon] sent you? He wants the text bubbles to be coming from Will Hill's
+face."*
+
+⚠️ **When a request came with an image, find the image before building.** The
+session transcript is on disk; an attachment is recoverable from it. "I have the
+text of the request" is not "I have the request."
+
+## 27. A green harness is not a look at the screen
+
+The same feature was reported as ready with 17 checks passing and not one
+rendered frame looked at. The first screenshot, taken only because a link had to
+be sent, showed the text box sitting UNDER the touch pads — unreadable on a
+phone. The next rounds kept finding the same class of thing only by looking:
+the bubble covering the bottle it was naming, Will's head going through the
+bubble at the top of a jump, and Will frozen in the air on the first frame of
+the stage (he spawns four rows up and drops) — which the client caught from his
+phone before anyone here did, in a screenshot that already showed it.
+
+⚠️ **For anything drawn, the check is a screenshot at phone size, looked at.**
+State-machine checks prove the paging; only a frame proves the player can read
+it. And look at the WHOLE frame — "he's floating" was visible in every early
+screenshot that was taken to check the bubble.
+
+## 28. Taste is not a substitute for a reference
+
+The first bubble was a smooth vector cloud invented on the spot. Client: *"that
+bubble shit is tacky... Don't even look like a bubble... It's no border to it.
+You need to be searching for references, quality references, and references
+that fit high-end games."* The reference he had already given (Dan the Man's
+cutscene bubbles) was then found on The Spriters Resource in minutes. The free
+pixel-bubble packs turned up in the same search were plain boxes and were NOT
+offered as an answer, and Halfbrick's own sprites were not lifted into a game
+with a prize on it — the look was rebuilt in this game's pixels as a stand-in
+while the final art is his call.
+
+⚠️ **On a visual decision the client cares about, bring references and let him
+choose; do not ship a first idea as if it were a design.**
+
+## 29. Freezing the world freezes more than the player
+
+The tutorial freezes stage one by returning early from update()'s playing
+branch. That also skips `camera.follow()`, so a harness that teleports the
+player and waits for the camera to follow (cloudseal, pitsky, skyleak) quietly
+measured a parked camera — cloudseal reported 0px of cloud on stage one alone,
+while every other stage measured thousands. The freeze now keeps the camera
+settling; the harnesses seed `wh_intro_seen` so they never meet the intro.
+
+⚠️ **When one stage alone reads zero, suspect what is different about that
+stage before suspecting the art.**

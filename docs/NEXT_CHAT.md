@@ -374,7 +374,7 @@ Three harnesses broke on the flow rewire for that reason alone.
 
 ---
 
-## 3. Where the flow stands (shipped, `ca4e5a2`)
+## 3. Where the flow stands (tutorial moved into stage one, 2026-09-24)
 
 His spec, verbatim across two messages:
 
@@ -384,17 +384,23 @@ His spec, verbatim across two messages:
 
 > Ask again next time they start until they're registered.
 
-Implemented as:
+⚠️ **HOW TO PLAY IS NO LONGER A SCREEN ON THE WAY IN.** Will Hill's management
+(Scoon), with a drawing: *"Instead of that screen can we get rid of that and
+make a text bubble come from Will describing the same instructions. Kinda like
+Pokémon on gameboy used to be."* The "how to play" stop is now the opening of
+stage one itself — see "The in-game tutorial" below.
 
 ```
 TITLE ──tap or Space──► beginFromTitle()   [src/main.js]
                           │
       registered? ────────┴──── not registered
           │                          │
-          ▼                          ▼
-     HOW TO PLAY              CONTEST FORM  ──NOT NOW / ✕──► HOW TO PLAY
-          │                          │  └──SAVE──────────────┘
-          └───────── PLAY ───────────┴──────────► the run
+          │                    CONTEST FORM ──NOT NOW / SAVE──┐
+          ▼                                                   ▼
+       the run ◄──────────────────────────────────────────────┘
+          │
+          └─ stage one, first time only: Will Hill lands, stands still, and
+             the player taps through his instruction bubbles; then play.
 ```
 
 ```
@@ -406,39 +412,46 @@ DIE / WIN ──► (win: ending scene) ──► showTitle() + panel.open(…, 
 **Key pieces**
 
 - `beginFromTitle()` in `src/main.js` is the single START. Both the pointer
-  handler and the keyboard/JUMP path call it. Previously only the pointer path
-  ran the gate, so Space and the JUMP pad walked straight past the sign-up.
-- The offer **repeats every start** until they actually enter. The old
-  `signupOffered()` localStorage latch is gone, and so is the
-  `localRuns().length` guard that made the gate unreachable for the brand-new
-  player it exists for.
-- `flow` on the panel (`'start' | 'post' | 'menu'`) decides where every BACK
-  lands. Set by `panel.open(view, { flow })`. The same three views serve two
-  journeys; nothing else varies.
-- HOW TO PLAY's footer button reads **PLAY** and launches the run when a run
-  is queued, **BACK** and returns to OPTIONS when not.
+  handler and the keyboard/JUMP path call it.
+- The contest offer **repeats every start** until they actually enter.
+- `flow` on the panel (`'start' | 'post' | 'menu' | 'title'`) decides where
+  every BACK lands. On `'start'`, NOT NOW and SAVE both close the panel, which
+  is what starts the run (`onwardFromStart()` in `src/ui/panel.js`).
+- OPTIONS → HOW TO PLAY still opens the old one-page ✕/✓ panel, as a recap.
+  Its footer is always BACK now; nothing routes to it from START.
 - The one guard kept: `introDone`. A tap during the title assembly means "skip
   the animation", and a skip stays a skip.
 
-**✅ ANSWERED, AND IT IS FIRST-TIME-ONLY NOW.** He put it plainly: *"you only
-show me how to play before a stage one time in the beginning… that's the only
-time you show me how to play. So at the end, when I die and I hit end my run
-and you present me the option to register, immediately after that, I don't
-need to see how to play."*
+### The in-game tutorial
 
-`wh_howto_seen` is the latch (`howToSeen()` / `markHowToSeen()` in
-`src/ui/panel.js`). Three call sites routed to the lesson and all three now
-check it: `beginFromTitle()`, `notNow` and `save()`. Registered **and** taught
-means the tap on the title IS the run — `beginFromTitle()` returns before
-`panel.open()` is ever reached.
+`src/world/tutorial.js` holds the words and pictures; `src/main.js` holds the
+freeze, the paging and the drawing (`drawTutorialBubble`).
 
-⚠️ **The contest offer still repeats and the tutorial does not.** Two opposite
-rules on the same chain, which is very easy to "fix" one of by breaking the
-other, so `startflow.mjs` asserts both in the same block.
+- Stage one only, first time only, never during `?relay=1`.
+- He drops onto the street first — it never opens with him in the air.
+- The world freezes; JUMP or a tap anywhere finishes the line typing out, then
+  turns the page. Pause is refused while it is up.
+- Eight lines, the client's order: ◀ ▶ to move · JUMP (double jump) · DASH ·
+  Get the bag (bag sprite) · Defeat enemies (the stage's enemy, as a HUD-style
+  head portrait) · potholes and manholes · Champagne (bottle sprite) · "Help me
+  make it to the show." Then the run is theirs — nothing interrupts it later.
+- ⚠️ **No self-introduction, no commentary yet.** *"Everybody knows he's Will
+  Hill"*; his commentary is a later pass.
+- **The bubble art is a stand-in.** A pixel speech bubble in the look of Dan
+  the Man's (his reference), drawn in this game's own pixels. Where the final
+  bubble comes from is his decision — his artist, a still from the Dan the Man
+  video matched exactly, or generated options — and it is open.
 
-⚠️ **Marked only from the START chain** (`flow === 'start'`, and not as the
-sign-up card's backdrop). Reading it out of OPTIONS must not burn the one
-automatic showing, or someone who browses the menu first is never taught.
+`wh_intro_seen` is the latch (`howToSeen()` / `markHowToSeen()` in
+`src/ui/panel.js`), set when the last line is tapped. ⚠️ **Not the old
+`wh_howto_seen`** — that one was set by merely reaching the old panel, so every
+returning player has it. Asked whether everyone should get the new intro once,
+he answered *"New intro."*
+
+⚠️ **Harnesses that drive stage one cold must seed `wh_intro_seen`**, or the
+frozen intro swallows their input. `startFromTitle()` does it for its callers;
+the ones that go through `window.__startStage(0)` set it themselves.
+`tools/harness/tutorial.mjs` is the one that tests the tutorial un-skipped.
 
 ---
 
@@ -457,8 +470,7 @@ a pixel of where the aspect ratio of the crop he sent puts it.
 **It is an overlay.** `#entryLayer`, a sibling of `#panelCard` inside `#panel`,
 not a `.pv`. It could not stay in the card: the plate WAS the card's background
 and a card cannot show another view through it. What sits behind falls out of
-the `flow` variable that was already there — `start` → HOW TO PLAY, `post` and
-`menu` → the board — so all three of his painted ways out (the card's x, the
+the `flow` variable that was already there — `post` and `menu` → the board — so all three of his painted ways out (the card's x, the
 NOT NOW / CANCEL plate, the red ✕) just dismiss the layer, and what they reveal
 is where the player was going anyway. Nothing navigates.
 
@@ -1063,7 +1075,8 @@ the link goes public rather than finding out from the first real player.
 - Underground's "P PEACHTREE" traced and fixed (§6 fault B), plus the `trees`
   card moved to base depth with its sign-shearing sway band removed.
 - START rewired to CONTEST → HOW TO PLAY → run, both doors, asking every start
-  until registered.
+  until registered. *(Superseded 2026-09-24: HOW TO PLAY is now the stage-one
+  intro, not a stop on the chain — see §3.)*
 - Post-run routing: form → board → out, one `flow` variable instead of
   hardcoded per-button destinations.
 - Pinch and double-tap no longer zoom the page. The viewport meta already said
