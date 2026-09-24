@@ -49,8 +49,8 @@ Boy: *"make a text bubble come from Will describing the same instructions."*
   potholes and open manholes · champagne, double money for 9 seconds *(bottle
   picture)* · "Let's get it!"
 - **Voice:** a greeting and the goal, then the instructions, then a send-off.
-  Client: *"he should say like 'Yo, it's Will Hill' then... 'Help me make it to my show.' Then... lead with instructions as they are now. Then at the end say 'Let's get it!'"* His commentary on the
-  instructions is a later pass.
+  Client: *"he should say like 'Yo, it's Will Hill' then... 'Help me make it to my show.' Then... lead with instructions as they are now. Then at the end say 'Let's get it!'"* No commentary on
+  the individual instructions — this script is final: *"No commentary for each instruction... what you just showed me on that link is what we have."*
 - **Bubble art:** a stand-in in the look of Dan the Man's cutscene bubbles (the
   reference), drawn in this game's own pixels. Final art is pending the
   client's choice of source.

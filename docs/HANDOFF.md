@@ -35,8 +35,8 @@ the enemy's head portrait. Latch: `wh_intro_seen` in `src/ui/panel.js`.
   *"He wants the text bubbles to be coming from Will Hill's face."*
 - **Greeting, goal, instructions, send-off.** The first cuts had no
   greeting (*"everybody knows he's Will Hill"*) and ended on the goal line.
-  The client then reordered it: *"he should say like 'Yo, it's Will Hill' then... 'Help me make it to my show.' Then... lead with instructions as they are now. Then at the end say 'Let's get it!'"* His commentary
-  on the instructions is a later pass.
+  The client then reordered it: *"he should say like 'Yo, it's Will Hill' then... 'Help me make it to my show.' Then... lead with instructions as they are now. Then at the end say 'Let's get it!'"* No commentary
+  on the individual instructions; the live script is final: *"No commentary for each instruction... what you just showed me on that link is what we have."*
 - **Standing still, tapped through, all at the start.** Tried and reverted in
   the same session: acting the controls out as drills, and a separate bubble
   the first time each hazard came up. *"I kinda don't want them to act it out
@@ -61,9 +61,8 @@ the enemy's head portrait. Latch: `wh_intro_seen` in `src/ui/panel.js`.
   Man video is matched exactly, or generated options to choose from. A
   scalloped 'thought' variant exists behind `window.__bubbleStyle('thought')`
   (DEV) for comparison and was judged not good enough to offer.
-- **His commentary** as he gives the instructions.
 
-**Harnesses.** `tools/harness/tutorial.mjs` (22 checks) tests it un-skipped.
+**Harnesses.** `tools/harness/tutorial.mjs` (25 checks) tests it un-skipped.
 Every harness that enters stage one cold now seeds `wh_intro_seen` — a frozen
 intro swallows input and parks the camera (cloudseal read 0px of cloud on stage
 one because of it). `startflow` and `optionsmenu` were rewritten where they
