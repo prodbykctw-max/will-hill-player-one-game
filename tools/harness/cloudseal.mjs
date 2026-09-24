@@ -86,6 +86,11 @@ const p = await (await b.newContext({ viewport: { width: 430, height: 932 } })).
 p.on('pageerror', (e) => console.log('  THROWN: ' + e.message));
 await p.goto('http://localhost:5199/?tod=day', { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__game && window.__game.screen === 'title', null, { timeout: 25000 });
+// Already taught — this teleports the player (park(), below) and relies on
+// camera.follow() still running every frame to converge on him; that call
+// is one of the things that freezes while Will Hill's live tutorial box
+// (world/tutorial.js) is open on a never-taught profile at stage index 0.
+await p.evaluate(() => { try { localStorage.setItem('wh_intro_seen', '1'); } catch (_e) {} });
 
 for (let si = 0; si < 5; si++) {
  const perPos = [];

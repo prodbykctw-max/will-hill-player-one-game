@@ -33,6 +33,11 @@ async function page() {
   await p.goto('http://localhost:5199/?tod=night', { waitUntil: 'networkidle' });
   await p.waitForFunction(() => window.__game && window.__game.screen === 'title', null, { timeout: 30000 });
   await p.waitForTimeout(1500);
+  // Already taught — this grades the bank/pocket split, not Will Hill's live
+  // tutorial (world/tutorial.js), which would otherwise freeze stage one on
+  // its intro lesson the moment __startStage(0) below lands on a fresh
+  // profile. See tools/harness/tutorial.mjs for the one that tests THAT.
+  await p.evaluate(() => { try { localStorage.setItem('wh_intro_seen', '1'); } catch (_e) {} });
   return { ctx, p };
 }
 

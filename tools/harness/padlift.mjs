@@ -19,6 +19,9 @@ const p = await (await b.newContext({ viewport: { width: 430, height: 932 }, has
 p.on('pageerror', (e) => console.log('  THROWN: ' + e.message));
 await p.goto('http://localhost:5199/', { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__game && window.__game.screen === 'title', null, { timeout: 25000 });
+// Already taught — see tools/harness/tutorial.mjs for the harness that
+// grades Will Hill's live tutorial itself.
+await p.evaluate(() => { try { localStorage.setItem('wh_intro_seen', '1'); } catch (_e) {} });
 await p.evaluate(() => window.__startStage(0));
 await p.waitForTimeout(900);
 

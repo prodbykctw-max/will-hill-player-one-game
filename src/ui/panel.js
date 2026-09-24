@@ -150,7 +150,7 @@ function agreeProblem(checked) {
 }
 
 export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
-  onSfxChange, onHapticsChange, onShowCredits, haptics, audio, isPendingRun }) {
+  onSfxChange, onHapticsChange, onShowCredits, haptics, audio }) {
   const el = $('panel');
   if (!el) return { open() {}, close() {}, get isOpen() { return false; } };
 
@@ -372,17 +372,13 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
     title.textContent = view === 'settings' ? 'SETTINGS'
       : view === 'menu' ? 'OPTIONS'
         : view === 'how' ? 'HOW TO PLAY' : 'LEADERBOARD';
-    // The footer button on HOW TO PLAY is the launch control when a run is
-    // queued behind the panel, and the plain way back to OPTIONS when it is
-    // not. Set here rather than in fillHow() because it depends on how the
-    // player arrived, not on what the page contains.
-    const howBack = $('btnHowBack');
-    if (howBack) {
-      howBack.textContent = (isPendingRun && isPendingRun()) ? 'PLAY' : 'BACK';
-    }
-    // ⚠️ MARKED HERE, AND ONLY FOR THE START CHAIN. This is the single place
-    // that knows both which view is up and which journey it is on.
-    if (view === 'how' && overlay === false && flow === 'start') markHowToSeen();
+    // ⚠️ HOW TO PLAY IS A RECAP NOW, NOT A STOP ON THE START CHAIN. The
+    // in-game tutorial (world/tutorial.js, live in stage one) is what teaches
+    // a first-time player and what marks howToSeen() — see main.js's
+    // beginFromTitle(). Nothing routes here from START any more, so this
+    // view is only ever reached from OPTIONS, with no run queued behind it
+    // and nothing to mark: the old PLAY/BACK-footer split and the
+    // markHowToSeen() call both went with that route.
     if (view === 'how') fillHow();
     if (view === 'board') fillBoard();
     if (view === 'settings') fillSettings();
@@ -686,18 +682,9 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
   on('btnMenuHow', 'press', () => show('how'));
   on('btnMenuSettings', 'press', () => show('settings'));
   on('btnMenuClose', 'back', () => api.close());
-  // ── THE LAST DOOR IN THE START CHAIN ───────────────────────────────────
-  //
-  // HOW TO PLAY is the final stop before a queued run, so its button is the
-  // thing that actually launches the game — closing the panel is what
-  // main.js's onClose watches for. Reached the ordinary way (OPTIONS → HOW TO
-  // PLAY) it is still just BACK to the menu. Same button, two jobs, and the
-  // LABEL has to say which or a player waiting to be taken to the game reads
-  // "BACK" as "you are about to lose your place".
-  on('btnHowBack', () => (isPendingRun && isPendingRun() ? 'commit' : 'back'), () => {
-    if (isPendingRun && isPendingRun()) { api.close(); return; }
-    show('menu');
-  });
+  // HOW TO PLAY is reachable only from OPTIONS now (see the note in show()),
+  // so its footer button is always just BACK to the menu.
+  on('btnHowBack', 'back', () => show('menu'));
   // BACK off the leaderboard closes outright when the board IS the end of the
   // journey — after a run, per his order: ending scene, then the board, then
   // out. Reached from OPTIONS it still steps one level up to the menu.
@@ -749,7 +736,6 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
   // panel these rows already live in.
   on('btnCredits', 'commit', () => onShowCredits?.());
   // NOT NOW, CANCEL and the red ✕ all land wherever the opener said to land.
-  // 'how'   — the pre-run chain: skipping the contest still gets the lesson.
   // 'close' — off the back of a run: one tap out, straight to the title.
   // 'board' — the default, for REGISTER pressed from the leaderboard.
   // 'title' — opened by the contest banner on the home page. There is no
@@ -759,10 +745,13 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
   // than a second launch path: api.close() fires onClose in main.js, which
   // sees `state.pendingRun` and calls startRun(). A `startRun()` call from
   // here would be a second way to begin a run and the two would drift.
-  const onwardFromStart = () => {
-    if (howToSeen()) { api.close(); return; }
-    show('how');
-  };
+  //
+  // ⚠️ NO MORE `how` STOP. This used to branch on howToSeen() and show the
+  // panel one more time before closing — that was HOW TO PLAY's place in the
+  // start chain. The lesson is taught live in stage one now (world/
+  // tutorial.js), so skipping the contest just runs straight into the game,
+  // same as entering it does.
+  const onwardFromStart = () => { api.close(); };
   const notNow = () => {
     if (flow === 'title') { api.close(); return; }
     return flow === 'start' ? onwardFromStart() : show('board');
@@ -985,33 +974,41 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
 
 // ── HOW TO PLAY IS A FIRST-RUN THING, NOT A TOLLGATE ─────────────────────
 //
-// Client: "you only show me how to play before a stage one time in the
-// beginning… That's the only time you show me how to play. So at the end, when
-// I die and I hit end my run and you present me the option to register,
-// immediately after that, I don't need to see how to play."
+// Client, on the original panel-screen version of this gate: "you only show
+// me how to play before a stage one time in the beginning… That's the only
+// time you show me how to play." Still true — only WHERE the one showing
+// happens has moved.
 //
-// It used to be on EVERY start, both branches of the gate — a registered
-// player went straight to it, and an unregistered one landed on it off NOT
-// NOW. docs/NEXT_CHAT.md had already written that down as a question to put to
-// him; this is the answer.
+// ⚠️ THIS LATCH NOW GATES THE LIVE TUTORIAL, NOT THE PANEL. Client: "replacing
+// the gameplay how to play instruction section completely with the portion of
+// the first stage where Will Hill describes how to play with talk bubbles."
+// The flag is set by main.js's tutorial-advance code once every lesson in
+// world/tutorial.js's TUTORIAL_ORDER has fired at least once, ever — not by
+// this file any more, and not by reaching a screen.
 //
-// ⚠️ IT IS NOT GONE, IT IS UNCOMPELLED. OPTIONS -> HOW TO PLAY still opens it
-// any time, forever. The latch only decides whether the START chain stops
-// there.
+// ⚠️ IT IS NOT GONE FROM HERE, IT IS UNCOMPELLED. OPTIONS -> HOW TO PLAY still
+// opens the panel view any time, forever, as a recap — see the note in
+// show(). It just never marks this latch itself: someone who opens it from
+// OPTIONS before ever finishing a run should still get the live lessons.
 //
-// ⚠️ AND IT IS ONLY SET FROM THE START CHAIN. Reading it out of OPTIONS must
-// not burn the one automatic showing — someone who pokes around the menu
-// before their first run would then never be taught anything.
+// ⚠️ A NEW KEY, NOT `wh_howto_seen`, ON PURPOSE. That key was set by merely
+// reaching the old HOW TO PLAY panel, so every returning player already has it
+// — reusing it would skip the new in-game intro for exactly the people who
+// have played before. Asked whether everyone should get the new intro once,
+// the client answered: "New intro." The old key is left where it lies in
+// their storage, unread.
+const INTRO_SEEN_KEY = 'wh_intro_seen';
+
 export function howToSeen() {
   try {
-    return localStorage.getItem('wh_howto_seen') === '1';
+    return localStorage.getItem(INTRO_SEEN_KEY) === '1';
   } catch (_e) {
     return false;
   }
 }
 
 export function markHowToSeen() {
-  try { localStorage.setItem('wh_howto_seen', '1'); } catch (_e) {}
+  try { localStorage.setItem(INTRO_SEEN_KEY, '1'); } catch (_e) {}
 }
 
 // Read once at boot, before the stage table resolves. `?tod=` still wins over

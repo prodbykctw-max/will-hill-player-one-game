@@ -175,30 +175,35 @@ check('a returning player is offered sign-up before the run',
 check('the offer is NOT latched away on the device', offered.asked === null,
   String(offered.asked));
 
-// NOT NOW hands them on to the lesson, which is the next link in his chain —
-// not straight to the run, and above all not stranded on a panel.
+// ⚠️ NOT NOW STARTS THE RUN DIRECTLY NOW — no more panel stop in between.
+// HOW TO PLAY moved off its own screen and into stage one itself (the live
+// tutorial, world/tutorial.js); above all, still not stranded on a panel.
 await p.click('#btnSkip');
 await p.waitForTimeout(550);
 const afterSkip = await p.evaluate(() => ({
   form: !document.getElementById('entryLayer').hidden,
-  how: !document.getElementById('pvHow').hidden,
-  back: document.getElementById('btnHowBack')?.textContent,
+  panelOpen: !document.getElementById('panel').hidden,
+  screen: window.__game.screen,
+  dialogue: window.__game.dialogue && window.__game.dialogue.id,
 }));
-check('NOT NOW dismisses the card and lands on HOW TO PLAY',
-  !afterSkip.form && afterSkip.how, JSON.stringify(afterSkip));
-check('and HOW TO PLAY is holding the run, so its footer reads PLAY',
-  afterSkip.back === 'PLAY', String(afterSkip.back));
-await p.click('#btnHowBack');
-await p.waitForTimeout(600);
-check('PLAY starts the run they asked for',
-  await p.evaluate(() => window.__game.screen) === 'playing');
+check('NOT NOW dismisses the card and starts the run directly, no panel left open',
+  !afterSkip.form && !afterSkip.panelOpen && afterSkip.screen === 'playing',
+  JSON.stringify(afterSkip));
+check('and — never taught before — Will Hill’s live tutorial is what greets them',
+  afterSkip.dialogue === 'intro', String(afterSkip.dialogue));
 await ctx.close();
 
 // ── 3. and after death ────────────────────────────────────────────────────
 const c2 = await b.newContext({ viewport: { width: 430, height: 932 }, hasTouch: true });
 const p2 = await c2.newPage();
 p2.on('pageerror', (e) => console.log('  THROWN: ' + e.message));
-await p2.addInitScript(() => { localStorage.setItem('wh_signup_asked', '1'); });
+await p2.addInitScript(() => {
+  localStorage.setItem('wh_signup_asked', '1');
+  // Already taught — this grades GAME KNOCKED, not Will Hill's live
+  // tutorial (world/tutorial.js), which would otherwise freeze stage one
+  // on its intro lesson before the death sequence ever gets to run.
+  localStorage.setItem('wh_intro_seen', '1');
+});
 await p2.goto('http://localhost:5199/?tod=night', { waitUntil: 'networkidle' });
 await p2.waitForFunction(() => window.__game && window.__game.screen === 'title', null, { timeout: 25000 });
 const dead = await p2.evaluate(async () => {

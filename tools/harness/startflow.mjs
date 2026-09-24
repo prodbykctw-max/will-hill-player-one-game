@@ -1,10 +1,21 @@
-// DOES START ACTUALLY WALK CONTEST → HOW TO PLAY → GAME?
+// DOES START ACTUALLY WALK CONTEST → GAME, AND STAY OUT OF THE LIVE TUTORIAL'S WAY?
 //
 // Client, spelling the order out: "once you hit start game, you should be
 // presented with registering for the contest with an option to skip if you
 // want to, and then you should be presented with the instructions on how to
 // play and then you can go." And, when asked whether a skip should stick:
 // "ask again next time they start until they're registered."
+//
+// ⚠️ HOW TO PLAY IS NO LONGER A STOP ON THIS CHAIN. Client, later: "replacing
+// the gameplay how to play instruction section completely with the portion of
+// the first stage where Will Hill describes how to play with talk bubbles."
+// The lesson now happens live in stage one (world/tutorial.js) instead of on
+// a panel screen between the form and the run — this file only asserts that
+// NOT NOW / SAVE now go STRAIGHT into a running game, with no second panel
+// stop in the way, and that the live tutorial is (or is not) the thing
+// waiting on the other side depending on howToSeen(). The lesson's own
+// content, trigger order and freeze/advance behaviour are
+// tools/harness/tutorial.mjs's job, not this file's.
 //
 // Three things this exists to stop coming back, each of which shipped once:
 //
@@ -99,21 +110,21 @@ const clickBtn = async (p, id) => {
   check('first START on a fresh device opens the contest form', v === 'form',
     `banked runs=${runs} view=${v}`);
 
-  // ── 2. NOT NOW goes on to HOW TO PLAY, it does not dump them in the game
+  // ── 2. NOT NOW goes STRAIGHT into a running game — no second panel stop.
   await clickBtn(p, 'btnSkip');
-  const v2 = await view(p);
-  check('NOT NOW steps on to HOW TO PLAY', v2 === 'how', `view=${v2}`);
-  check('the run is still queued behind it',
-    await p.evaluate(() => !!window.__game.pendingRun));
-
-  // ── 3. and that page's footer button is the way IN, labelled as one
-  const label = await p.evaluate(() => document.getElementById('btnHowBack').textContent.trim());
-  check('the HOW TO PLAY footer reads PLAY, not BACK', label === 'PLAY', `label=${label}`);
-  await clickBtn(p, 'btnHowBack');
   await p.waitForTimeout(900);
-  const screen = await p.evaluate(() => window.__game.screen);
-  check('PLAY starts the run', screen === 'playing', `screen=${screen}`);
-  check('the panel is gone', (await view(p)) === 'none');
+  const v2 = await view(p);
+  const screen2 = await p.evaluate(() => window.__game.screen);
+  check('NOT NOW starts the run directly, no HOW TO PLAY panel stop',
+    v2 === 'none' && screen2 === 'playing', `view=${v2} screen=${screen2}`);
+
+  // ── 3. and Will Hill's live tutorial is what's waiting on the other side
+  //       of it — a fresh device has never been taught, so the world opens
+  //       frozen on the intro lesson rather than immediately playable.
+  const dialogue = await p.evaluate(() => window.__game.dialogue &&
+    { id: window.__game.dialogue.id, page: window.__game.dialogue.page });
+  check('stage one opens on the live tutorial’s intro lesson',
+    !!dialogue && dialogue.id === 'intro' && dialogue.page === 0, JSON.stringify(dialogue));
   await p.context().close();
 }
 
@@ -124,7 +135,6 @@ const clickBtn = async (p, id) => {
   const p = await fresh();
   await tapTitle(p);
   await clickBtn(p, 'btnSkip');
-  await clickBtn(p, 'btnHowBack');
   await p.waitForTimeout(600);
   // RELOAD, not an in-page reset — a reload keeps localStorage and throws
   // away memory, which is precisely the axis the old bug lived on. A latch
@@ -140,19 +150,18 @@ const clickBtn = async (p, id) => {
   check('the SECOND visit asks again — no one-time latch', v === 'form',
     `view=${v} wh_signup_offered=${offered}`);
 
-  // ⚠️ AND THE TUTORIAL DOES **NOT** REPEAT, which is the opposite rule on the
-  // same screen. Client: "you only show me how to play before a stage one time
-  // in the beginning… that's the only time you show me how to play." The
-  // contest offer is the thing that repeats; the lesson is not. Both live in
-  // this one chain, so both are checked in the same breath — it would be very
-  // easy to "fix" one by breaking the other.
+  // ⚠️ NOT NOW STILL LANDS IN A RUNNING GAME, EVERY VISIT — the contest
+  // offer repeating (checked above) must not leave a stale panel stop
+  // behind it on a second pass through the same chain. Whether the live
+  // tutorial (world/tutorial.js) has anything left to teach at this point
+  // is tools/harness/tutorial.mjs's question, not this one's — this only
+  // asserts the PANEL routing itself, not the lesson content.
   await clickBtn(p, 'btnSkip');
   await p.waitForTimeout(900);
   const v2 = await view(p);
   const screen2 = await p.evaluate(() => window.__game.screen);
-  check('NOT NOW the second time goes STRAIGHT to the run, no lesson',
-    v2 === 'none' && screen2 === 'playing',
-    `view=${v2} screen=${screen2} seen=${await p.evaluate(() => localStorage.getItem('wh_howto_seen'))}`);
+  check('NOT NOW the second time also goes straight into a running game',
+    v2 === 'none' && screen2 === 'playing', `view=${v2} screen=${screen2}`);
   await p.context().close();
 }
 
@@ -173,8 +182,9 @@ const clickBtn = async (p, id) => {
   await p.context().close();
 }
 
-// ── 6. A REGISTERED PLAYER IS NOT ASKED AGAIN — they get the lesson, not the
-//       form. "They never should even have to sign up again."
+// ── 6. A REGISTERED PLAYER IS NOT ASKED AGAIN — the tap IS the run, straight
+//       in, and (never having been taught) opens on the live tutorial rather
+//       than a panel stop. "They never should even have to sign up again."
 {
   const ctx = await b.newContext({ viewport: { width: 430, height: 932 }, hasTouch: true });
   const p = await ctx.newPage();
@@ -190,21 +200,25 @@ const clickBtn = async (p, id) => {
   await p.waitForFunction(() => window.__game && window.__game.screen === 'title', null, { timeout: 25000 });
   await p.waitForTimeout(3000);
   await tapTitle(p);
-  const v = await view(p);
-  check('a registered player who has never seen it gets HOW TO PLAY',
-    v === 'how', `view=${v}`);
-  await clickBtn(p, 'btnHowBack');
   await p.waitForTimeout(900);
-  check('and PLAY still starts their run',
-    (await p.evaluate(() => window.__game.screen)) === 'playing');
+  const v = await view(p);
+  const screen = await p.evaluate(() => window.__game.screen);
+  check('a registered player who has never been taught is dropped straight into the run',
+    v === 'none' && screen === 'playing', `view=${v} screen=${screen}`);
+  const dialogueId = await p.evaluate(() => window.__game.dialogue && window.__game.dialogue.id);
+  check('with the live tutorial open, not a blank playable stage',
+    dialogueId === 'intro', `dialogue=${dialogueId}`);
   await p.context().close();
 }
 
-// ── 6b. REGISTERED AND ALREADY TAUGHT: NO PANEL AT ALL ───────────────────
+// ── 6b. REGISTERED AND ALREADY TAUGHT: NO PANEL, NO LIVE TUTORIAL EITHER ──
 //
 // The end state of his instruction. Nothing is owed — no contest offer, no
-// lesson — so the tap on the title IS the run. beginFromTitle() returns before
-// panel.open() is ever called.
+// panel stop — so the tap on the title IS the run. beginFromTitle() returns
+// before panel.open() is ever called, and the stage-one trigger check in
+// main.js's update() reads the same howToSeen() latch and never opens a
+// dialogue box either — this is the one path a player reaches an
+// UNINTERRUPTED stage one from the title.
 {
   const ctx = await b.newContext({ viewport: { width: 430, height: 932 }, hasTouch: true });
   const p = await ctx.newPage();
@@ -213,7 +227,7 @@ const clickBtn = async (p, id) => {
     localStorage.setItem('wh_name', 'TESTER');
     localStorage.setItem('wh_contest_reg',
       JSON.stringify({ phone: '4045551234', email: 't@e.com' }));
-    localStorage.setItem('wh_howto_seen', '1');
+    localStorage.setItem('wh_intro_seen', '1');
   });
   await p.reload({ waitUntil: 'networkidle' });
   await p.waitForFunction(() => window.__game && window.__game.screen === 'title', null, { timeout: 25000 });
@@ -224,6 +238,9 @@ const clickBtn = async (p, id) => {
   const screen = await p.evaluate(() => window.__game.screen);
   check('registered AND already taught: the tap is the run, no panel',
     v === 'none' && screen === 'playing', `view=${v} screen=${screen}`);
+  const dialogueId = await p.evaluate(() => window.__game.dialogue && window.__game.dialogue.id);
+  check('and no live tutorial box either — howToSeen() suppresses both',
+    !dialogueId, `dialogue=${dialogueId}`);
   await p.context().close();
 }
 

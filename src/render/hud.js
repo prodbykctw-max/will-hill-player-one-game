@@ -200,5 +200,8 @@ export function createHud(ctx, canvas) {
     ctx.restore();
   }
 
-  return { draw, pauseRect };
+  // drawPortrait is also the tutorial bubble's enemy picture (main.js,
+  // drawTutorialPicture) — the client asked for a "HUD image" of them, and
+  // this is the HUD's own portrait treatment, not a copy of it.
+  return { draw, pauseRect, drawPortrait };
 }

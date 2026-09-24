@@ -43,6 +43,17 @@ async function clickIfShown(p, id) {
  * they used to name a patch of empty skyline anyway.
  */
 export async function startFromTitle(p, { x = 0, y = 0, tap = 'touch' } = {}) {
+  // ⚠️ SEEDED AS A RETURNING PLAYER, ON PURPOSE. Will Hill's live tutorial
+  // (world/tutorial.js) now teaches stage one instead of the old HOW TO PLAY
+  // panel screen, and it FREEZES THE WORLD to do it — the same "get past the
+  // stop, don't make every caller learn its shape" job this file already
+  // does for the contest form. A harness that wants to test the tutorial
+  // itself needs the opposite of this seed; everything else — which is
+  // nearly every harness in this repo, per the header note above — wants
+  // stage one playable the instant this function returns, exactly as it was
+  // before the tutorial moved off its own screen. See tools/harness/
+  // tutorial.mjs for the one that tests it un-skipped.
+  await p.evaluate(() => { try { localStorage.setItem('wh_intro_seen', '1'); } catch (_e) {} });
   const pt = await p.evaluate(() => {
     const r = window.__title.promptRect(window.__game.titleBox);
     const cv = document.querySelector('canvas');
@@ -52,8 +63,10 @@ export async function startFromTitle(p, { x = 0, y = 0, tap = 'touch' } = {}) {
   if (tap === 'mouse') await p.mouse.click(pt.x, pt.y);
   else await p.touchscreen.tap(pt.x, pt.y);
   await p.waitForTimeout(900);
-  // NOT NOW past the contest form (a registered player never sees it), then
-  // PLAY off the end of HOW TO PLAY. Both are no-ops if the stop is absent.
+  // NOT NOW past the contest form (a registered player never sees it).
+  // `btnHowBack` has not been reachable from this chain since HOW TO PLAY
+  // moved off its own screen — kept as a no-op click rather than deleted, in
+  // case OPTIONS ever routes back through here for some future chain shape.
   await clickIfShown(p, 'btnSkip');
   await clickIfShown(p, 'btnHowBack');
   await p.waitForTimeout(1200);

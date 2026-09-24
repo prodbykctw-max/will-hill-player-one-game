@@ -6,6 +6,68 @@ Repo: https://github.com/prodbykctw-max/will-hill-player-one-game
 Read `docs/GDD.md` for design and `CLAUDE.md` for architecture first. This
 file covers what a fresh session needs that isn't obvious from the code.
 
+## 2026-09-24 — HOW TO PLAY becomes Will Hill's intro bubbles in stage one
+
+Will Hill's management (Scoon), with a drawing of a bubble coming off his
+head: *"Instead of that screen can we get rid of that and make a text bubble
+come from Will describing the same instructions. Kinda like Pokémon on gameboy
+used to be."* Worked out over several rounds with the client on his phone,
+against a private preview build; this entry is where it landed.
+
+**The flow.** START → contest form (unless registered) → the run. The HOW TO
+PLAY panel is no longer a stop on the way in (`beginFromTitle()` and
+`onwardFromStart()`); OPTIONS → HOW TO PLAY still opens it as a recap. Stage
+one, the first time only: Will lands, stands still, the world freezes, and
+the player taps through eight lines — move, jump, dash, the bag, enemies,
+potholes/manholes, champagne, "Help me make it to the show." Then the run is
+theirs.
+
+**Where it lives.** `src/world/tutorial.js` (words, pictures, the one-lesson
+trigger); `src/main.js` (`openTutorialDialogue` / `advanceTutorialDialogue`,
+the freeze in update()'s playing branch, `drawTutorialBubble` /
+`bubbleSprite` / `drawTutorialPicture`); `hud.drawPortrait` is exported for
+the enemy's head portrait. Latch: `wh_intro_seen` in `src/ui/panel.js`.
+
+**Decisions and the client's words behind them**
+
+- **Off his head, not a box along the bottom.** The first build put a Game Boy
+  dialogue box at the foot of the screen, which also sat under the touch pads.
+  *"He wants the text bubbles to be coming from Will Hill's face."*
+- **Instructions, not a script.** *"Everybody knows he's Will Hill"* — no
+  self-introduction. The goal line is *"Help me make it to the show."* His
+  commentary is a later pass.
+- **Standing still, tapped through, all at the start.** Tried and reverted in
+  the same session: acting the controls out as drills, and a separate bubble
+  the first time each hazard came up. *"I kinda don't want them to act it out
+  now... just be standing still in the beginning, read off all the
+  instructions, let them tap through those."*
+- **Pictures in the bubble.** *"When you mention it, show an image of the
+  champagne bottle... money bags... enemies, a HUD image of them."* Bag and
+  bottle are the in-game sprites; the enemy is the HUD portrait crop of the
+  stage's enemy sheet.
+- **Never frozen mid-air.** He spawns four rows up and drops; the first cut
+  froze him hanging there. It now waits for his feet.
+- **Everyone gets it once.** The old `wh_howto_seen` was set by merely reaching
+  the old panel. *"New intro."* — the latch moved to `wh_intro_seen`.
+
+**Open.**
+
+- **The bubble art.** On screen now is a stand-in: a pixel speech bubble in the
+  look of Dan the Man's cutscene bubbles (his reference; their sheet is on The
+  Spriters Resource), drawn in this game's own pixels, not Halfbrick's. A
+  smooth vector cloud before it was rejected outright. The final bubble's
+  source is the client's call: his artist draws one, a still from the Dan the
+  Man video is matched exactly, or generated options to choose from. A
+  scalloped 'thought' variant exists behind `window.__bubbleStyle('thought')`
+  (DEV) for comparison and was judged not good enough to offer.
+- **His commentary** as he gives the instructions.
+
+**Harnesses.** `tools/harness/tutorial.mjs` (22 checks) tests it un-skipped.
+Every harness that enters stage one cold now seeds `wh_intro_seen` — a frozen
+intro swallows input and parks the camera (cloudseal read 0px of cloud on stage
+one because of it). `startflow` and `optionsmenu` were rewritten where they
+defended the old CONTEST → HOW TO PLAY → run chain. See LESSONS §26–29.
+
 ## 2026-09-09 — dashboard: no pinch-zoom, real charts, Top 3 on Home
 
 Follow-up round on the Lightning rebuild above, same day. Client: *"I don't

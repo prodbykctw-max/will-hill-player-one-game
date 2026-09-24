@@ -41,6 +41,10 @@ const p = await (await b.newContext({ viewport: { width: 430, height: 932 }, has
 p.on('pageerror', (e) => console.log('  THROWN: ' + e.message));
 await p.goto('http://localhost:5199/?tod=night', { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__game && window.__game.screen === 'title', null, { timeout: 25000 });
+// Already taught — see the note in daylamps.mjs. Stage index 0 is in this
+// sweep and would otherwise open frozen on the live tutorial instead of
+// racing the player to the finish line.
+await p.evaluate(() => { try { localStorage.setItem('wh_intro_seen', '1'); } catch (_e) {} });
 
 // What each stage's clear card must ask for: the thing that comes NEXT.
 // Stage 4 rides to Buckhead on map_04_05 now; only stage FIVE hands to the

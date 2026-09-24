@@ -17,6 +17,7 @@ import { overlapsPlayer, PROP_SPRITES, createDroppedBag, BAG_VALUE, CHAMPAGNE_MU
 import { createLevel, buildRunway, genAhead, finishLineX } from './world/generator.js';
 import { STAGES, resolveStages, timeOfDay } from './world/stages.js';
 import { T, FLOOR_R, SLAB_R, FALL_DEATH_Y, isSolid } from './world/tilemap.js';
+import { CHAR_DRAW_H } from './world/scale.js';
 import { createRenderer } from './render/renderer.js';
 import { createBackdrop } from './render/backdrop.js';
 import { createUndercroft } from './render/undercroft.js';
@@ -40,7 +41,9 @@ import { loadImages } from './render/images.js';
 import { createRunLog, lbSubmit, bankLocalRun, isRegistered, hasPendingRun,
   recordRunStats, pendingRunCount, flushPendingRun } from './net/leaderboard.js';
 import { createPanel, soundEnabled, setSoundEnabled,
-  sfxEnabled, setSfxEnabled, howToSeen } from './ui/panel.js';
+  sfxEnabled, setSfxEnabled, howToSeen, markHowToSeen } from './ui/panel.js';
+import { TUTORIAL_LESSONS, TUTORIAL_ORDER, TUTORIAL_PICTURES, nextTutorialTrigger }
+  from './world/tutorial.js';
 import { createHaptics } from './core/haptics.js';
 import { STAGE_SLOTS, MAP_SLOTS, MANIFEST } from './audio/music.js';
 import { isRelay, setRelay } from './core/relay.js';
@@ -85,7 +88,6 @@ const panel = createPanel({
     if (state.pendingRun) { state.pendingRun = false; startRun(); return; }
     if (state.screen === 'paused' && state.resumeTo) resume();
   },
-  isPendingRun: () => !!state.pendingRun,
   onSoundChange: (on) => audio.setMuted(!on),
   onSfxChange: (on) => audio.setSfxMuted(!on),
   onHapticsChange: (on) => haptics.setEnabled(on),
@@ -404,6 +406,15 @@ const state = {
   // dashboard can say about it, and touches nothing that decides the prize.
   combo: 0,
   comboBest: 0,
+  // ── THE LIVE TUTORIAL ───────────────────────────────────────────────────
+  // `dialogue` is the active Will Hill text box, or null — see
+  // world/tutorial.js and the trigger/advance code in update()/draw() below.
+  // `tutorialFired` is which lessons this RUN has already shown, so a lesson
+  // does not repeat if the player walks back and forth past it; it resets
+  // per run (startRun()), not per stage-1 continue, so a died-and-continued
+  // player is not taught what they already read minutes ago.
+  dialogue: null,
+  tutorialFired: new Set(),
 };
 
 // DEV ONLY — a handle on the live state, so a headless browser can drive the
@@ -470,6 +481,26 @@ if (import.meta.env.DEV) {
   // point being that nothing restarts and nothing is thrown away.
   Object.defineProperty(window, '__tod', { get: () => (STAGES[0] ? STAGES[0].tod : null) });
   window.__panel = panel;
+  // ── THE LIVE TUTORIAL'S OWN DOOR ───────────────────────────────────────
+  // Reaching all five lessons for real means walking the whole procedural
+  // layout of stage one, hitting a pothole, a gap, a ninja and a bottle in
+  // whatever order the seed puts them — playable, but not something a
+  // harness should have to choreograph just to prove the ADVANCE state
+  // machine (reveal → skip → next page → close → mark-seen) behaves.
+  // `__tutorialOpen` opens any lesson directly, same door `state.tutorialFired`
+  // already gets driven through (it's a plain Set on the exposed `state`,
+  // mutable same as anything else on `window.__game`); `__tutorialAdvance`
+  // is the exact function a JUMP press or a canvas tap calls. See
+  // tools/harness/tutorial.mjs.
+  window.__tutorialOpen = openTutorialDialogue;
+  window.__tutorialAdvance = advanceTutorialDialogue;
+  // Which of the two bubble treatments draws — for putting them side by side.
+  window.__bubbleStyle = (v) => { bubbleStyle = v; };
+  // A getter, not a value — same reason `__images` a few lines down is one.
+  // `TUTORIAL_TICKS_PER_CHAR` is a `const` declared further down this file;
+  // reading it eagerly HERE, before that line has run, is the temporal dead
+  // zone and throws before the game ever boots.
+  Object.defineProperty(window, '__tutorialTicksPerChar', { get: () => TUTORIAL_TICKS_PER_CHAR });
   // A getter, not a value: `images` is declared with `let` further down and
   // reading it here would hit the temporal dead zone and kill the module.
   Object.defineProperty(window, '__titleImages', { get: () => images });
@@ -611,22 +642,24 @@ function beginFromTitle() {
   // The contest, until they enter it — that offer repeats every start, his
   // instruction, and it is the whole point of the gate.
   //
-  // ⚠️ THE TUTORIAL DOES NOT REPEAT. Client: "you only show me how to play
-  // before a stage one time in the beginning… that's the only time you show me
-  // how to play." It used to be on every start down BOTH branches — straight
-  // to it if registered, onto it off NOT NOW if not — which meant a player who
-  // kept declining the contest was taught the game again every single run.
-  // docs/NEXT_CHAT.md had this written down as a question to put to him.
-  //
-  // Somebody already entered, who has already been shown it, has nothing left
-  // to answer: the run just starts. NOT NOW and SAVE on the form take the same
-  // decision from the other side — see onwardFromStart() in ui/panel.js.
-  if (isRegistered() && howToSeen()) {
+  // ⚠️ HOW TO PLAY IS NO LONGER A STOP ON THIS CHAIN. It used to be the
+  // second door — CONTEST → HOW TO PLAY → run — with its own once-ever latch
+  // (howToSeen()) deciding whether the second door opened. Client: "replacing
+  // the gameplay how to play instruction section completely with the portion
+  // of the first stage where Will Hill describes how to play with talk
+  // bubbles." The lesson now happens IN stage one (world/tutorial.js,
+  // triggered from update()'s 'playing' branch), gated by the same
+  // howToSeen() latch from the other side — so it still only teaches once,
+  // ever, it just does so live instead of on a screen between the tap and
+  // the run. Somebody already entered has nothing left to answer here: the
+  // run just starts, and OPTIONS → HOW TO PLAY still opens the panel as a
+  // recap on request (ui/panel.js).
+  if (isRegistered()) {
     state.pendingRun = false;
     startRun();
     return;
   }
-  panel.open(isRegistered() ? 'how' : 'form', { flow: 'start' });
+  panel.open('form', { flow: 'start' });
 }
 
 function startRun() {
@@ -660,6 +693,12 @@ function startRun() {
   // dismissing the board would reopen it on the next frame and the RESTART
   // button underneath could never be reached.
   state.resultsShown = false;
+  // Fresh run, fresh teaching — see the note on `tutorialFired` above. Stage
+  // 1 re-teaches everything on a from-the-title restart even if a previous
+  // run this session got partway through the lessons; only ACTUALLY seeing
+  // every one of them, ever, retires it for good (howToSeen()).
+  state.tutorialFired = new Set();
+  state.dialogue = null;
   startStage(startStageIndex());
 }
 
@@ -694,6 +733,61 @@ function confirmPressed() {
   return input.jump();
 }
 
+// ── THE LIVE TUTORIAL: OPEN / ADVANCE ───────────────────────────────────
+//
+// Rendered in draw() (drawTutorialBubble), triggered and frozen from update()
+// (see the 'playing' branch above) — this pair is the state machine for the
+// box in between: which page is showing, how much of it has typed out, and
+// what a JUMP press or a tap does about it. See world/tutorial.js for the
+// words and for which lesson fires when.
+
+// Roughly 30 characters/second at 60fps — fast enough not to feel like a
+// wait, slow enough that "press to skip the reveal" is a real choice and not
+// the only thing anyone ever does.
+const TUTORIAL_TICKS_PER_CHAR = 2;
+
+function openTutorialDialogue(id) {
+  return {
+    id,
+    pages: TUTORIAL_LESSONS[id],
+    pictures: TUTORIAL_PICTURES[id] || [],
+    page: 0,
+    pageT: 0,
+    // Seeded from whatever JUMP is doing RIGHT NOW, not `false`. The lesson
+    // can open on a tick where JUMP is still physically held from an earlier
+    // press, and starting `wasDown` false would read that held key as a
+    // brand new press and turn the page before it had ever been on screen.
+    wasDown: confirmPressed(),
+  };
+}
+
+// A press (JUMP, or a tap anywhere while the bubble is open — see
+// handleCanvasPress) finishes revealing the current page if it is still
+// typing, else turns it — closing the bubble after its last page and
+// retiring the tutorial for good via markHowToSeen(), the latch OPTIONS →
+// HOW TO PLAY reads to know it is only a recap now.
+function advanceTutorialDialogue() {
+  const d = state.dialogue;
+  if (!d) return;
+  const text = d.pages[d.page];
+  const shown = Math.min(text.length, Math.floor(d.pageT / TUTORIAL_TICKS_PER_CHAR));
+  if (shown < text.length) {
+    d.pageT = text.length * TUTORIAL_TICKS_PER_CHAR;
+    return;
+  }
+  if (d.page + 1 < d.pages.length) {
+    d.page++;
+    d.pageT = 0;
+    return;
+  }
+  state.tutorialFired.add(d.id);
+  state.dialogue = null;
+  if (TUTORIAL_ORDER.every((lessonId) => state.tutorialFired.has(lessonId))) markHowToSeen();
+}
+
+// While he drops onto the street before the lesson opens: gravity only.
+const NO_INPUT = { left: () => false, right: () => false, jump: () => false, dash: () => false };
+
 // ── PAUSE ────────────────────────────────────────────────────────────────
 // Menu buttons are rebuilt each frame so they track the canvas size; their
 // rects are what the pointer handler hit-tests against.
@@ -727,7 +821,13 @@ if (import.meta.env.DEV) {
 }
 
 function pause() {
-  if (state.screen !== 'playing') return;
+  // ⚠️ AND NOT WHILE WILL HILL IS TALKING. Same modal reasoning as
+  // `if (panel.isOpen) return;` in update() — a tutorial box already froze
+  // the world (see the 'playing' branch's early return there), so letting
+  // PAUSED stack on top of it would draw one overlay over another for no
+  // reason and give resume() two different things it might be resuming
+  // back into.
+  if (state.screen !== 'playing' || state.dialogue) return;
   state.resumeTo = state.screen;
   state.screen = 'paused';
   state.screenT = 0;
@@ -917,6 +1017,14 @@ function handleCanvasPress(clientX, clientY, preventDefault = () => {}) {
     return;
   }
   if (state.screen === 'playing') {
+    // Tap anywhere advances Will Hill's tutorial box, same "tap anywhere"
+    // convention STAGE CLEAR/GAME KNOCKED use (see screenButtons above) —
+    // and it takes over the whole screen while it is up, same as the pause
+    // button does not work UNDER the panel. Without this a phone with no
+    // physical JUMP key bound would have no way through the box at all; the
+    // on-screen JUMP pad already reaches confirmPressed() every frame, this
+    // is just the second route to the same advance.
+    if (state.dialogue) { press(); advanceTutorialDialogue(); preventDefault(); return; }
     if (hit(hud.pauseRect, x, y)) { press(); pause(); preventDefault(); }
     return;
   }
@@ -1292,6 +1400,18 @@ function cueForScreen() {
   }
 }
 
+// Stretch the locomotion clips to the speed he is actually moving at. Both
+// were authored for one speed, and with a walk gear and a run gear the same
+// clip now has to cover a range — without this the feet skate whenever the
+// two disagree.
+function animatePlayer(player) {
+  const sp = Math.abs(player.vx);
+  let animScale = 1;
+  if (player.anim === 'walk') animScale = WALK_SPEED / Math.max(sp, 0.8);
+  else if (player.anim === 'run') animScale = RUN_SPEED / Math.max(sp, 0.8);
+  advanceAnim(player, PLAYER_SPRITE.atlas, 4, Math.min(2.2, Math.max(0.55, animScale)));
+}
+
 function update() {
   state.tick++;
   // ⚠️ NO AUDIO ON THE LOADING SCREEN — this gate is about the NETWORK, not
@@ -1429,6 +1549,49 @@ function update() {
   const now = Date.now();
 
   genAhead(level, camera.visibleRight() / T + GEN_LOOKAHEAD_COLS);
+
+  // ── WILL HILL TEACHES THE GAME, AT THE START OF STAGE ONE ─────────────
+  // Only until the lesson has been read through once, ever (howToSeen()) —
+  // see world/tutorial.js and beginFromTitle() above. `state.dialogue`
+  // truthy means the bubble is open and the world is frozen, exactly as it
+  // is under the panel or on 'paused' (update()'s early returns above). He
+  // stands still and the player taps through; then the run is theirs.
+  //
+  // ⚠️ NOT DURING CHAMPAGNE RELAY. `?relay=1` is the frictionless walkthrough
+  // build the client inspects backgrounds with; a lesson in the way of it is
+  // exactly the friction the flag exists to remove.
+  if (state.stageIndex === 0 && !howToSeen() && !isRelay()) {
+    // ⚠️ NEVER OPENED WHILE HE IS IN THE AIR. He spawns four rows above the
+    // street and drops onto it, and the first cut opened the bubble on the
+    // stage's very first tick — frozen mid-drop. Client, from his phone:
+    // "Firstly, he's floating in the air." So he lands first, hands off.
+    if (!state.dialogue && !player.onGround) {
+      stepPlayer(player, NO_INPUT, level.map);
+      camera.follow(player);
+      animatePlayer(player);
+      return;
+    }
+    if (!state.dialogue) {
+      const id = nextTutorialTrigger(level, player, state.tutorialFired);
+      if (id) state.dialogue = openTutorialDialogue(id);
+    }
+    const d = state.dialogue;
+    if (d) {
+      d.pageT++;
+      const down = confirmPressed();
+      if (down && !d.wasDown) advanceTutorialDialogue();
+      // advanceTutorialDialogue() can close the bubble on the same press that
+      // reached this line — write to `d`, which is still this page's object.
+      d.wasDown = down;
+      // ⚠️ THE CAMERA KEEPS SETTLING WHILE HE TALKS. Freezing it froze it
+      // wherever it was, including mid-settle on the stage's first ticks — a
+      // frame no player otherwise sees. He is not moving, so this only
+      // finishes a settle already under way.
+      camera.follow(player);
+      return;
+    }
+  }
+
   stepPlayer(player, input, level.map);
 
   // ── CHAMPAGNE RELAY ──────────────────────────────────────────────────
@@ -1664,15 +1827,7 @@ function update() {
   }
 
   camera.follow(player);
-  // Stretch the locomotion clips to the speed he is actually moving at. Both
-  // were authored for one speed, and with a walk gear and a run gear the same
-  // clip now has to cover a range — without this the feet skate whenever the
-  // two disagree.
-  const sp = Math.abs(player.vx);
-  let animScale = 1;
-  if (player.anim === 'walk') animScale = WALK_SPEED / Math.max(sp, 0.8);
-  else if (player.anim === 'run') animScale = RUN_SPEED / Math.max(sp, 0.8);
-  advanceAnim(player, PLAYER_SPRITE.atlas, 4, Math.min(2.2, Math.max(0.55, animScale)));
+  animatePlayer(player);
   for (const e of level.enemies) advanceAnim(e, ENEMY_SPRITES[e.variant].atlas);
 
   state.hearts = player.hearts;
@@ -1987,6 +2142,236 @@ function retryBoot() {
   }
 }
 
+// Greedy word-wrap against the CURRENTLY SET font — caller sets ctx.font
+// before calling, same contract martamap.js's own wrapper uses.
+function wrapText(text, maxWidth) {
+  const words = text.split(' ');
+  const lines = [];
+  let line = '';
+  for (const w of words) {
+    const test = line ? `${line} ${w}` : w;
+    if (line && ctx.measureText(test).width > maxWidth) {
+      lines.push(line);
+      line = w;
+    } else {
+      line = test;
+    }
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+
+// WILL HILL'S TEXT BUBBLE — a pixel-art bubble off his head.
+//
+// Scoon's drawing (Will Hill's management) put a bubble up and to the right of
+// his head. The client then pointed at Dan the Man's cutscene bubbles as the
+// standard, after a smooth vector cloud was rejected outright: "that bubble
+// shit is tacky... Don't even look like a bubble... It's no border to it."
+// Dan the Man's sheet has two kinds, and both are built here, in this game's
+// own pixels (not Halfbrick's sprites):
+//   'speech'   white fill, a crisp dark pixel outline, rounded pixel corners,
+//              a stepped pixel tail pointing down at the speaker
+//   'thought'  the same body with a scalloped pixel edge, and a trail of small
+//              pixel circles down to his head instead of a tail
+//
+// Drawn at ART resolution into a small offscreen canvas and scaled up by
+// BUBBLE_PX with smoothing off, so every edge lands on the same hard pixel
+// grid as the sprites rather than being an anti-aliased curve. Cached per
+// shape — a page is the same size from its first letter to its last.
+const BUBBLE_PX = 2;
+const BUBBLE_INK = '#1b1a2a';
+const BUBBLE_FILL = '#ffffff';
+const BUBBLE_SHADE = '#cdd6e4';
+let bubbleStyle = 'speech';
+const bubbleCache = new Map();
+
+function bubbleSprite(wA, hA, style, tailX) {
+  const key = `${style}|${wA}|${hA}|${tailX}`;
+  const hit = bubbleCache.get(key);
+  if (hit) return hit;
+  const bump = style === 'thought' ? 2 : 0;           // scallops stand this far proud
+  const tailH = style === 'speech' ? 5 : 0;
+  const cv = document.createElement('canvas');
+  cv.width = wA + bump * 2;
+  cv.height = hA + bump * 2 + tailH;
+  const g = cv.getContext('2d');
+  const px = (x, y, c) => { g.fillStyle = c; g.fillRect(x + bump, y + bump, 1, 1); };
+  const run = (x0, x1, y, c) => { g.fillStyle = c; g.fillRect(x0 + bump, y + bump, x1 - x0 + 1, 1); };
+
+  // Body: a rounded pixel rectangle — two-pixel corners, one-pixel outline.
+  run(2, wA - 3, 0, BUBBLE_INK);
+  px(1, 1, BUBBLE_INK); px(wA - 2, 1, BUBBLE_INK); run(2, wA - 3, 1, BUBBLE_FILL);
+  for (let y = 2; y <= hA - 3; y++) {
+    px(0, y, BUBBLE_INK); px(wA - 1, y, BUBBLE_INK); run(1, wA - 2, y, BUBBLE_FILL);
+  }
+  px(1, hA - 2, BUBBLE_INK); px(wA - 2, hA - 2, BUBBLE_INK); run(2, wA - 3, hA - 2, BUBBLE_SHADE);
+  run(2, wA - 3, hA - 1, BUBBLE_INK);
+  // The inner shade row under the fill, as on the reference bubbles.
+  run(1, wA - 2, hA - 3, BUBBLE_SHADE);
+
+  if (style === 'thought') {
+    // Scallops: a 5-pixel bump every 6 pixels on all four edges, each with
+    // its own outline, so the edge reads as a cloud and not a box.
+    const bumpH = (x) => {                 // top & bottom
+      run(x + 1, x + 3, -2, BUBBLE_INK);
+      px(x, -1, BUBBLE_INK); run(x + 1, x + 3, -1, BUBBLE_FILL); px(x + 4, -1, BUBBLE_INK);
+      run(x + 1, x + 3, 0, BUBBLE_FILL);
+      run(x + 1, x + 3, hA + 1, BUBBLE_INK);
+      px(x, hA, BUBBLE_INK); run(x + 1, x + 3, hA, BUBBLE_SHADE); px(x + 4, hA, BUBBLE_INK);
+      run(x + 1, x + 3, hA - 1, BUBBLE_SHADE);
+    };
+    for (let x = 3; x + 4 <= wA - 4; x += 6) bumpH(x);
+    const bumpV = (y) => {                 // left & right
+      g.fillStyle = BUBBLE_INK;
+      g.fillRect(bump - 2, y + 1 + bump, 1, 3); g.fillRect(wA + 1 + bump, y + 1 + bump, 1, 3);
+      px(-1, y, BUBBLE_INK); px(wA, y, BUBBLE_INK);
+      px(-1, y + 4, BUBBLE_INK); px(wA, y + 4, BUBBLE_INK);
+      g.fillStyle = BUBBLE_FILL;
+      g.fillRect(bump - 1, y + 1 + bump, 2, 3); g.fillRect(wA - 1 + bump, y + 1 + bump, 2, 3);
+    };
+    for (let y = 3; y + 4 <= hA - 5; y += 6) bumpV(y);
+  } else {
+    // The tail: a stepped right-angle wedge dropping from the bottom edge,
+    // vertical on its left like the reference, pointing down at his head.
+    const tx = tailX;
+    run(tx + 1, tx + 5, hA - 1, BUBBLE_SHADE);
+    run(tx + 1, tx + 5, hA - 2, BUBBLE_SHADE);
+    px(tx, hA, BUBBLE_INK); run(tx + 1, tx + 4, hA, BUBBLE_FILL); px(tx + 5, hA, BUBBLE_INK);
+    px(tx, hA + 1, BUBBLE_INK); run(tx + 1, tx + 3, hA + 1, BUBBLE_FILL); px(tx + 4, hA + 1, BUBBLE_INK);
+    px(tx, hA + 2, BUBBLE_INK); run(tx + 1, tx + 2, hA + 2, BUBBLE_FILL); px(tx + 3, hA + 2, BUBBLE_INK);
+    px(tx, hA + 3, BUBBLE_INK); px(tx + 1, hA + 3, BUBBLE_FILL); px(tx + 2, hA + 3, BUBBLE_INK);
+    run(tx, tx + 1, hA + 4, BUBBLE_INK);
+  }
+  const out = { cv, bump, tailH };
+  bubbleCache.set(key, out);
+  return out;
+}
+
+// A small outlined pixel disk for the thought trail. r in art pixels.
+function drawPixelDisk(cx, cy, r) {
+  const P = BUBBLE_PX;
+  for (let y = -r; y <= r; y++) {
+    for (let x = -r; x <= r; x++) {
+      const d = x * x + y * y;
+      if (d > r * r + r * 0.8) continue;
+      const edge = d > (r - 1) * (r - 1) + (r - 1) * 0.8;
+      ctx.fillStyle = edge ? BUBBLE_INK : (y >= r - 1 ? BUBBLE_SHADE : BUBBLE_FILL);
+      ctx.fillRect(Math.round(cx / P + x) * P, Math.round(cy / P + y) * P, P, P);
+    }
+  }
+}
+
+// The picture a line names, drawn into a PIC-sized square at x,y. Pickups are
+// their own in-game sprites; the enemy is the HUD's own portrait treatment —
+// dark square, gold rule, head cropped off the idle frame — applied to the
+// stage's enemy sheet, so it reads as the same family as Will's portrait up
+// in the corner.
+const PIC = 40;
+function drawTutorialPicture(kind, x, y) {
+  if (kind === 'enemy') {
+    const v = STAGES[state.stageIndex].enemyVariants[0];
+    hud.drawPortrait(images['enemy_' + v], ENEMY_SPRITES[v].atlas, x, y, PIC);
+    return;
+  }
+  const img = kind === 'bag' ? images.bag : kind === 'champagne' ? images.champagne : null;
+  if (!img || !img.naturalWidth) return;
+  const k = Math.min(PIC / img.naturalWidth, PIC / img.naturalHeight);
+  const w = img.naturalWidth * k;
+  const h = img.naturalHeight * k;
+  ctx.save();
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(img, x + (PIC - w) / 2, y + (PIC - h) / 2, w, h);
+  ctx.restore();
+}
+
+function drawTutorialBubble(d) {
+  const text = d.pages[d.page];
+  const pic = d.pictures[d.page] || null;
+  const shown = Math.min(text.length, Math.floor(d.pageT / TUTORIAL_TICKS_PER_CHAR));
+  const full = shown >= text.length;
+  const p = state.player;
+  const z = camera.zoom;
+  const P = BUBBLE_PX;
+  const style = bubbleStyle;
+  // His head in screen px: the sprite stands CHAR_DRAW_H tall on the bottom
+  // of his hitbox.
+  const headX = (p.x + p.w / 2 - camera.x) * z;
+  const headY = (p.y + p.h - CHAR_DRAW_H - camera.y) * z;
+
+  ctx.save();
+  ctx.font = '700 15px sans-serif';
+  const margin = 12;
+  const padX = 14;
+  const padY = 11;
+  const lineH = 20;
+  const picGap = pic ? 10 : 0;
+  const picW = pic ? PIC : 0;
+  const maxW = Math.min(canvas.width - margin * 2, 270);
+  // Wrapped from the WHOLE page so the bubble is its final size from the
+  // first letter and the words type into place rather than reflowing.
+  const lines = wrapText(text, maxW - padX * 2 - picW - picGap);
+  const textW = Math.max(...lines.map((l) => ctx.measureText(l).width));
+  const contentW = picW + picGap + textW;
+  const contentH = Math.max(pic ? PIC : 0, lines.length * lineH);
+  const wA = Math.max(24, Math.ceil((contentW + padX * 2) / P));
+  const hA = Math.ceil((contentH + padY * 2) / P);
+  const w = wA * P;
+  const h = hA * P;
+
+  // Up and to the right of his head, per the drawing; on the pixel grid, on
+  // screen, and under the HUD.
+  const top = hud.pauseRect.y + hud.pauseRect.h + 20;
+  const gap = style === 'speech' ? 8 : 34;             // room for tail / trail
+  const snap = (v) => Math.round(v / P) * P;
+  const bx = snap(Math.min(Math.max(headX - 22, margin), canvas.width - margin - w));
+  const by = snap(Math.max(headY - gap - h, top));
+  // Tail foot sits over his head, kept clear of the rounded corners.
+  const tailX = Math.min(Math.max(Math.round((headX - bx) / P) - 1, 4), wA - 10);
+
+  const spr = bubbleSprite(wA, hA, style, tailX);
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(spr.cv, bx - spr.bump * P, by - spr.bump * P,
+    spr.cv.width * P, spr.cv.height * P);
+
+  if (style === 'thought') {
+    const ax = Math.min(Math.max(headX + 8, bx + 18), bx + w - 18);
+    const ay = by + h + 4;
+    const sx = headX + 4;
+    const sy = headY - 2;
+    drawPixelDisk(sx + (ax - sx) * 0.62, sy + (ay - sy) * 0.62, 4);
+    drawPixelDisk(sx + (ax - sx) * 0.28, sy + (ay - sy) * 0.28, 2);
+  }
+
+  const cx = bx + (w - contentW) / 2;
+  if (pic) drawTutorialPicture(pic, cx, by + (h - PIC) / 2);
+
+  ctx.fillStyle = BUBBLE_INK;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  const tx = cx + picW + picGap;
+  const ty = by + (h - lines.length * lineH) / 2;
+  let left = shown;
+  lines.forEach((line, i) => {
+    if (left <= 0) return;
+    ctx.fillText(line.slice(0, left), tx, ty + lineH * (i + 0.5));
+    left -= line.length + 1;   // +1: the space wrapText split on
+  });
+
+  // A small pixel ▼ once the page has finished typing — until then a press
+  // finishes the line rather than turning the page, so it would lie.
+  if (full) {
+    const bob = Math.floor(state.tick / 16) % 2 ? P : 0;
+    const ax = bx + w - 7 * P;
+    const ay = by + h - 7 * P + bob;
+    ctx.fillStyle = BUBBLE_INK;
+    ctx.fillRect(ax, ay, 5 * P, P);
+    ctx.fillRect(ax + P, ay + P, 3 * P, P);
+    ctx.fillRect(ax + 2 * P, ay + 2 * P, P, P);
+  }
+  ctx.restore();
+}
+
 function drawOverlayText(lines, buttons = []) {
   screenButtons.length = 0;
   ctx.save();
@@ -2281,6 +2666,13 @@ function draw() {
     portraitImg: images.player,
     portraitAtlas: PLAYER_SPRITE.atlas,
   });
+
+  // Above the pause menu / stage-clear chain below: the two states are
+  // mutually exclusive (the tutorial only ever runs on `state.screen ===
+  // 'playing'`, and update() froze the world for it via the early return in
+  // the 'playing' branch above), but the box has to paint LAST so it sits on
+  // top of the HUD it is standing over.
+  if (state.dialogue) drawTutorialBubble(state.dialogue);
 
   if (state.screen === 'paused') {
     drawPauseMenu(stage);
