@@ -37,6 +37,35 @@ in a commit of its own.** And for any quote this file attributes to a source
 file, grep the quote — one of them had been deleted from the source and was
 still being repeated here as current.
 
+## State at main `3dec992` — the stage-one intro is merged and LIVE
+
+Re-derived, not remembered (2026-09-24, BACKDROPS / DEPLOY chat). PR #18 merged
+`claude/contest-reg-image-crop-d4y6c0` into `main` as `3dec992`, and `gh-pages`
+was rebuilt from it (`3b2932b`, union deploy). Before it, PRs #14–#17 (start
+and iOS audio fixes, `fix/*` branches) had landed on `main` as `3c8e5a3`; this
+merge sat directly on top of that — no conflicts, deletion check empty.
+
+| branch | ahead | note |
+|---|---|---|
+| `claude/contest-reg-image-crop-d4y6c0` | 0 (docs commits after the merge may put it a few ahead) | HOW TO PLAY → stage-one intro bubbles |
+| `claude/depth-assisted-backdrop-poc` | 1 | `0386845` (09-15), a backdrop experiment — not merged, not touched |
+| `claude/dashboard-kills-display-sizing-wgufbm` | 385 (long-diverged history, as before) | not touched |
+| `claude/last-markdown-game-link-lvk1n6`, `fix/*` | 0 | |
+
+Things another chat must NOT undo without reading `docs/HANDOFF.md` 2026-09-24:
+
+- **There is no HOW TO PLAY stop on the way into a run any more.** START →
+  contest form (unless registered) → the run. The lesson is Will Hill's intro
+  bubbles at the start of stage one (`src/world/tutorial.js`, freeze and
+  drawing in `src/main.js`). OPTIONS → HOW TO PLAY stays as a recap.
+- **The latch is `wh_intro_seen`, not `wh_howto_seen`** — deliberately, so
+  everyone gets the new intro once. Do not "tidy" it back.
+- **A harness that enters stage one cold must seed `wh_intro_seen`**, or the
+  frozen intro swallows its input and parks its camera (cloudseal read 0px on
+  stage one alone before this was found). `startFromTitle()` seeds it.
+- **The bubble art is a stand-in**; the client is choosing where the final one
+  comes from. Do not polish the stand-in into a design decision.
+
 ## State at main `e1711ca` — ALL THREE BRANCHES ARE FULLY MERGED, DASHBOARD IS A NEW DESIGN
 
 Re-derived, not remembered (2026-09-10, BACKDROPS / DEPLOY chat, after the
