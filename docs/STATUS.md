@@ -4,19 +4,25 @@
 proposed, everything not done, everything undone, everything on hold.
 
 - Repo: `prodbykctw-max/will-hill-player-one-game`
-- `main` is at **`e1711ca`** (2026-09-10) — the Salesforce-Lightning
-  dashboard, no-pinch-zoom, the credits fix, and the full load/security test
-  round, all merged in and deployed. See the new entry at the top of "DONE —
-  shipped and live" below for the detail.
+- `main` is at **`3dec992`** (2026-09-24, PR #18) — HOW TO PLAY is now Will
+  Hill's intro bubbles at the start of stage one. Before it, PRs #14–#17 (the
+  start-audio and iOS audio fixes) landed on top of the 2026-09-10 build. See
+  the top entry of "DONE — shipped and live" below.
 - Live: <https://prodbykctw-max.github.io/will-hill-player-one-game/>
 - Dashboard: <https://will-hill-dashboard.prodbykctw.workers.dev/> (token
   required — see `docs/HANDOFF.md`)
 - Loop bench: <https://prodbykctw-max.github.io/will-hill-player-one-game/bench/>
   (only live if someone has run `tools/build_loopbench.py` since the last
   deploy — see CLAUDE.md, this has been wrong before)
-- `gh-pages` was rebuilt from `e1711ca`. Live matches main — verified
-  directly: fetched the live bundle after deploy and grepped it for the
-  credits fix (`MUSIC/SFX` present, `role:"DESIGN"` absent), not assumed.
+- `gh-pages` is `3b2932b`, deployed 2026-09-24 01:18Z from `main` `3dec992`
+  with `tools/deploy.sh` (union: 216 current files, 2 carried from the previous
+  generation). Verified against the live site, not assumed: the live
+  `index.html` loads `assets/index-Cldol9wK.js`, the same hash as the build
+  from `main`, and that live bundle contains the intro's lines and
+  `wh_intro_seen`. That exact build was played end to end on `vite preview`
+  at phone size before the deploy. (Headless Chromium in the build container
+  cannot load the live site through its egress proxy's certificate, so the
+  live check is by bundle hash and content.)
 
 ---
 
@@ -169,6 +175,35 @@ built here — this was a status question, not a request.
 ---
 
 ## DONE — shipped and live
+
+### 2026-09-24 — HOW TO PLAY becomes Will Hill's intro bubbles in stage one
+
+Merged (PR #18, `3dec992`) and deployed (`gh-pages` `3b2932b`). Will Hill's
+management asked for the game to teach itself Pokémon-style — *"a text bubble
+come from Will describing the same instructions"* — and the client approved it
+for launch: *"no one else has played this. The competition hasn't start yet...
+this is gonna be everyone's first time seeing this."*
+
+- START → contest form (unless registered) → the run. No HOW TO PLAY stop.
+  OPTIONS → HOW TO PLAY remains as a recap.
+- Stage one, first time only: Will lands, stands still, the world freezes, and
+  the player taps through eight lines (move, jump, dash, the bag, enemies,
+  potholes/manholes, champagne, "Help me make it to the show."), with the bag,
+  bottle and a HUD-style enemy portrait inside the bubble on their lines.
+- Latch `wh_intro_seen` — everyone sees it once, including anyone who saw the
+  old screen (*"New intro."*).
+- Full detail, decisions and the client's words: `docs/HANDOFF.md`
+  2026-09-24. Tests: `tools/harness/tutorial.mjs`; harnesses that enter stage
+  one cold seed the latch (`docs/TESTING.md`).
+
+**Open, and the client's to decide:**
+
+- **The bubble's final art.** Live now is a stand-in pixel speech bubble in
+  the look of Dan the Man's (his reference), drawn in this game's own pixels.
+  Options offered: his artist draws one; a still from the Dan the Man video
+  matched exactly; generated options to pick from.
+- **Will Hill's commentary** over the instructions — a later pass, by his call.
+
 
 ### 2026-09-10 — dashboard rebuilt, credits fixed, full load/security test, merged and deployed
 
