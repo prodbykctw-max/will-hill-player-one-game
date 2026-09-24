@@ -60,7 +60,7 @@ async function sweep(p) {
   // on Will Hill's live tutorial (world/tutorial.js) instead of falling into
   // the pit this function expects it to fall into. Harmless to set on the
   // relay page too (isRelay() already suppresses the tutorial there).
-  await p.evaluate(() => { try { localStorage.setItem('wh_howto_seen', '1'); } catch (_e) {} });
+  await p.evaluate(() => { try { localStorage.setItem('wh_intro_seen', '1'); } catch (_e) {} });
   const out = [];
   for (let i = 0; i < 5; i++) {
     out.push(await p.evaluate(async (idx) => {

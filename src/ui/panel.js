@@ -990,16 +990,25 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
 // opens the panel view any time, forever, as a recap — see the note in
 // show(). It just never marks this latch itself: someone who opens it from
 // OPTIONS before ever finishing a run should still get the live lessons.
+//
+// ⚠️ A NEW KEY, NOT `wh_howto_seen`, ON PURPOSE. That key was set by merely
+// reaching the old HOW TO PLAY panel, so every returning player already has it
+// — reusing it would skip the new in-game intro for exactly the people who
+// have played before. Asked whether everyone should get the new intro once,
+// the client answered: "New intro." The old key is left where it lies in
+// their storage, unread.
+const INTRO_SEEN_KEY = 'wh_intro_seen';
+
 export function howToSeen() {
   try {
-    return localStorage.getItem('wh_howto_seen') === '1';
+    return localStorage.getItem(INTRO_SEEN_KEY) === '1';
   } catch (_e) {
     return false;
   }
 }
 
 export function markHowToSeen() {
-  try { localStorage.setItem('wh_howto_seen', '1'); } catch (_e) {}
+  try { localStorage.setItem(INTRO_SEEN_KEY, '1'); } catch (_e) {}
 }
 
 // Read once at boot, before the stage table resolves. `?tod=` still wins over

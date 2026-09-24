@@ -66,7 +66,7 @@ const frame = (n = 1) => p.evaluate(async (count) => {
   for (let i = 0; i < count; i++) await raf();
 }, n);
 
-// Straight to stage one. A fresh context has no `wh_howto_seen`, so this is
+// Straight to stage one. A fresh context has no `wh_intro_seen`, so this is
 // a never-taught player. Polled, not slept: the bubble waits for him to land.
 await p.evaluate(() => window.__startStage(0));
 await p.waitForFunction(() => window.__game.dialogue, null, { timeout: 10000 });
@@ -164,12 +164,12 @@ check('and he is STANDING when it opens, not hanging in the air', opened.onGroun
   });
   const closed = await p.evaluate(() => ({
     dialogue: window.__game.dialogue,
-    seen: localStorage.getItem('wh_howto_seen'),
+    seen: localStorage.getItem('wh_intro_seen'),
   }));
   check('after "Help me make it to the show." the bubble closes',
     closed.dialogue === null && presses < 60, JSON.stringify({ presses }));
   check('and the tutorial is retired for good (howToSeen)', closed.seen === '1',
-    `wh_howto_seen=${closed.seen}`);
+    `wh_intro_seen=${closed.seen}`);
 }
 
 // ── THEN THE RUN IS THEIRS, UNINTERRUPTED ────────────────────────────────
@@ -200,6 +200,23 @@ check('and he is STANDING when it opens, not hanging in the air', opened.onGroun
   });
   check('no bubble opens mid-stage at a pothole, a ninja or a bottle',
     stops.every(([, open]) => !open), JSON.stringify(stops));
+}
+
+// ── A RETURNING PLAYER STILL GETS THE NEW INTRO ──────────────────────────
+// The old HOW TO PLAY panel set `wh_howto_seen` just by being reached, so
+// everyone who has played before has it. Asked whether they should get the
+// new intro anyway, the client: "New intro." It must not count.
+{
+  const c2 = await b.newContext({ viewport: { width: 430, height: 932 }, hasTouch: true });
+  const p2 = await c2.newPage();
+  await p2.addInitScript(() => { localStorage.setItem('wh_howto_seen', '1'); });
+  await p2.goto('http://localhost:5199/?tod=night', { waitUntil: 'networkidle' });
+  await p2.waitForFunction(() => window.__game && window.__game.screen === 'title', null, { timeout: 25000 });
+  await p2.evaluate(() => window.__startStage(0));
+  const got = await p2.waitForFunction(() => window.__game.dialogue, null, { timeout: 10000 })
+    .then(() => true).catch(() => false);
+  check('someone who saw the OLD how-to-play screen still gets the new intro', got);
+  await c2.close();
 }
 
 await b.close();

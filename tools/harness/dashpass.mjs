@@ -20,7 +20,7 @@ await p.waitForFunction(() => window.__game && window.__game.screen === 'title',
 // Already taught — see tools/harness/tutorial.mjs for the harness that
 // grades Will Hill's live tutorial itself; this one would otherwise open
 // frozen on its intro lesson the instant __startStage(0) lands below.
-await p.evaluate(() => { try { localStorage.setItem('wh_howto_seen', '1'); } catch (_e) {} });
+await p.evaluate(() => { try { localStorage.setItem('wh_intro_seen', '1'); } catch (_e) {} });
 await p.evaluate(async () => { await window.__startStage(0); });
 await p.waitForFunction(() => window.__game.screen === 'playing' && window.__game.level.enemies.length > 0,
   null, { timeout: 15000 });
