@@ -438,7 +438,8 @@ freeze, the paging and the drawing (`drawTutorialBubble`).
   get it!" Then the run is theirs — nothing interrupts it later.
 - **The greeting is back, as an opener.** An earlier cut dropped it
   (*"everybody knows he's Will Hill"*); the client then asked for it: *"he should say like 'Yo, it's Will Hill' then... 'Help me make it to my show.' Then... lead with instructions as they are now. Then at the end say 'Let's get it!'"*
-  His commentary on the instructions is still a later pass.
+  ⚠️ **No commentary on the individual instructions — the script is final:**
+  *"No commentary for each instruction... what you just showed me on that link is what we have."*
 - **The bubble art is a stand-in.** A pixel speech bubble in the look of Dan
   the Man's (his reference), drawn in this game's own pixels. Where the final
   bubble comes from is his decision — his artist, a still from the Dan the Man

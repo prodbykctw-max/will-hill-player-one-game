@@ -203,7 +203,9 @@ this is gonna be everyone's first time seeing this."*
   the look of Dan the Man's (his reference), drawn in this game's own pixels.
   Options offered: his artist draws one; a still from the Dan the Man video
   matched exactly; generated options to pick from.
-- **Will Hill's commentary** over the instructions — a later pass, by his call.
+
+Not happening: commentary over each instruction. Client, after playing the
+live build: *"No commentary for each instruction... what you just showed me on that link is what we have."*
 
 
 ### 2026-09-10 — dashboard rebuilt, credits fixed, full load/security test, merged and deployed
