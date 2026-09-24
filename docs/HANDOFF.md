@@ -18,9 +18,9 @@ against a private preview build; this entry is where it landed.
 PLAY panel is no longer a stop on the way in (`beginFromTitle()` and
 `onwardFromStart()`); OPTIONS → HOW TO PLAY still opens it as a recap. Stage
 one, the first time only: Will lands, stands still, the world freezes, and
-the player taps through eight lines — move, jump, dash, the bag, enemies,
-potholes/manholes, champagne, "Help me make it to the show." Then the run is
-theirs.
+the player taps through ten lines — "Yo, it's Will Hill.", "Help me make it
+to my show.", then move, jump, dash, the bag, enemies, potholes/manholes,
+champagne, and last "Let's get it!" Then the run is theirs.
 
 **Where it lives.** `src/world/tutorial.js` (words, pictures, the one-lesson
 trigger); `src/main.js` (`openTutorialDialogue` / `advanceTutorialDialogue`,
@@ -33,9 +33,10 @@ the enemy's head portrait. Latch: `wh_intro_seen` in `src/ui/panel.js`.
 - **Off his head, not a box along the bottom.** The first build put a Game Boy
   dialogue box at the foot of the screen, which also sat under the touch pads.
   *"He wants the text bubbles to be coming from Will Hill's face."*
-- **Instructions, not a script.** *"Everybody knows he's Will Hill"* — no
-  self-introduction. The goal line is *"Help me make it to the show."* His
-  commentary is a later pass.
+- **Greeting, goal, instructions, send-off.** The first cuts had no
+  greeting (*"everybody knows he's Will Hill"*) and ended on the goal line.
+  The client then reordered it: *"he should say like 'Yo, it's Will Hill' then... 'Help me make it to my show.' Then... lead with instructions as they are now. Then at the end say 'Let's get it!'"* His commentary
+  on the instructions is a later pass.
 - **Standing still, tapped through, all at the start.** Tried and reverted in
   the same session: acting the controls out as drills, and a separate bubble
   the first time each hazard came up. *"I kinda don't want them to act it out

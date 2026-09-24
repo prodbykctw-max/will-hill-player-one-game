@@ -431,12 +431,14 @@ freeze, the paging and the drawing (`drawTutorialBubble`).
 - He drops onto the street first — it never opens with him in the air.
 - The world freezes; JUMP or a tap anywhere finishes the line typing out, then
   turns the page. Pause is refused while it is up.
-- Eight lines, the client's order: ◀ ▶ to move · JUMP (double jump) · DASH ·
+- Ten lines, the client's order: "Yo, it's Will Hill." · "Help me make it to
+  my show." · ◀ ▶ to move · JUMP (double jump) · DASH ·
   Get the bag (bag sprite) · Defeat enemies (the stage's enemy, as a HUD-style
-  head portrait) · potholes and manholes · Champagne (bottle sprite) · "Help me
-  make it to the show." Then the run is theirs — nothing interrupts it later.
-- ⚠️ **No self-introduction, no commentary yet.** *"Everybody knows he's Will
-  Hill"*; his commentary is a later pass.
+  head portrait) · potholes and manholes · Champagne (bottle sprite) · "Let's
+  get it!" Then the run is theirs — nothing interrupts it later.
+- **The greeting is back, as an opener.** An earlier cut dropped it
+  (*"everybody knows he's Will Hill"*); the client then asked for it: *"he should say like 'Yo, it's Will Hill' then... 'Help me make it to my show.' Then... lead with instructions as they are now. Then at the end say 'Let's get it!'"*
+  His commentary on the instructions is still a later pass.
 - **The bubble art is a stand-in.** A pixel speech bubble in the look of Dan
   the Man's (his reference), drawn in this game's own pixels. Where the final
   bubble comes from is his decision — his artist, a still from the Dan the Man
