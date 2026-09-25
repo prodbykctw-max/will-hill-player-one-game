@@ -44,7 +44,7 @@ for (const tod of ['day', 'night']) {
   // Already taught — stage index 0 is in this sweep, and a never-taught
   // profile would otherwise open it frozen on Will Hill's live tutorial
   // (world/tutorial.js) instead of the lamp measurement this drives.
-  await p.evaluate(() => { try { localStorage.setItem('wh_intro_v2', '1'); } catch (_e) {} });
+  await p.evaluate(() => { try { localStorage.setItem('wh_intro_v3', '1'); } catch (_e) {} });
 
   for (let si = 0; si < 5; si++) {
     const r = await p.evaluate(async ([stageIdx, SPACING]) => {

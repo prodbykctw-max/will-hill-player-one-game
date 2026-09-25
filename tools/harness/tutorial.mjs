@@ -18,7 +18,7 @@
 //
 //   PLAYWRIGHT=... CHROMIUM=... node tools/harness/tutorial.mjs
 import {
-  nextTutorialTrigger, TUTORIAL_ORDER, TUTORIAL_LESSONS, TUTORIAL_PICTURES,
+  nextTutorialTrigger, TUTORIAL_ORDER, TUTORIAL_LESSONS, TUTORIAL_PICTURES, BAG_ICON,
 } from '../../src/world/tutorial.js';
 
 const checks = [];
@@ -47,11 +47,21 @@ const check = (w, ok, d = '') => {
   for (const k of ['bag', 'enemy', 'champagne']) {
     check(`the ${k} gets its picture`, pics.includes(k));
   }
-  // Client: "'Yo, it's Will Hill' then... 'Help me make it to my show.' Then
-  // ... instructions... Then at the end say 'Let's get it!'"
-  check('he opens with the greeting', /^Yo, it.s Will Hill/.test(lines[0]), lines[0]);
-  check('then the goal', /make it to my show/i.test(lines[1]), lines[1]);
-  check('then the instructions, controls first', /to move/.test(lines[2]), lines[2]);
+  // Client, on a sticky note, "in an effort to reduce clicks": the greeting
+  // and the goal on ONE card, then the instructions, then "Let's get it!"
+  check('one card: the greeting, then the goal on its own line',
+    /^Yo! It.s Will Hill\.\nHelp me make it to my show\.$/.test(lines[0]), JSON.stringify(lines[0]));
+  check('then the instructions, controls first', /to move/.test(lines[1]), lines[1]);
+  check('jump and manholes are ONE card, and the old two are gone',
+    lines.filter((t) => /JUMP|manhole|pothole|double jump/i.test(t) && !/heads/.test(t)).length === 1
+    && lines.includes('Press JUMP to get over manholes.'));
+  check('champagne says power up, invincible, x2, 9 sec',
+    lines.includes(`Champagne Power Ups!\nInvincible & ${BAG_ICON}x2 - 9 sec`));
+  // Client: "use the games money bag for the x2 statement. I used my phones
+  // emoji thinking youd know to use the games moneybag."
+  check('the x2 is the GAME\'S money bag, not a phone emoji',
+    lines.every((t) => !/\p{Emoji_Presentation}/u.test(t)) && lines.some((t) => t.includes(BAG_ICON)));
+  check('eight cards, down from ten', lines.length === 8, `${lines.length}`);
   check('and signs off with "Let\'s get it!"', /^Let.s get it!$/.test(lines[lines.length - 1]),
     lines[lines.length - 1]);
 }
@@ -71,7 +81,7 @@ const frame = (n = 1) => p.evaluate(async (count) => {
   for (let i = 0; i < count; i++) await raf();
 }, n);
 
-// Straight to stage one. A fresh context has no `wh_intro_v2`, so this is
+// Straight to stage one. A fresh context has no `wh_intro_v3`, so this is
 // a never-taught player. Polled, not slept: the bubble waits for him to land.
 await p.evaluate(() => window.__startStage(0));
 await p.waitForFunction(() => window.__game.dialogue, null, { timeout: 10000 });
@@ -169,12 +179,12 @@ check('and he is STANDING when it opens, not hanging in the air', opened.onGroun
   });
   const closed = await p.evaluate(() => ({
     dialogue: window.__game.dialogue,
-    seen: localStorage.getItem('wh_intro_v2'),
+    seen: localStorage.getItem('wh_intro_v3'),
   }));
   check('after "Let\'s get it!" the bubble closes',
     closed.dialogue === null && presses < 60, JSON.stringify({ presses }));
   check('and the tutorial is retired for good (howToSeen)', closed.seen === '1',
-    `wh_intro_v2=${closed.seen}`);
+    `wh_intro_v3=${closed.seen}`);
 }
 
 // ── THEN THE RUN IS THEIRS, UNINTERRUPTED ────────────────────────────────
@@ -215,20 +225,23 @@ check('and he is STANDING when it opens, not hanging in the air', opened.onGroun
 //     ended "Help me make it to the show." When it became greeting → goal →
 //     instructions → "Let's get it!": "clear everything out so everybody who
 //     has the game will see the new intro now."
-// Neither may count.
+//   `wh_intro_v2` — that ten-card script, before it was cut to eight "in an
+//     effort to reduce clicks".
+// None may count.
 {
   const c2 = await b.newContext({ viewport: { width: 430, height: 932 }, hasTouch: true });
   const p2 = await c2.newPage();
   await p2.addInitScript(() => {
     localStorage.setItem('wh_howto_seen', '1');
     localStorage.setItem('wh_intro_seen', '1');
+    localStorage.setItem('wh_intro_v2', '1');
   });
   await p2.goto('http://localhost:5199/?tod=night', { waitUntil: 'networkidle' });
   await p2.waitForFunction(() => window.__game && window.__game.screen === 'title', null, { timeout: 25000 });
   await p2.evaluate(() => window.__startStage(0));
   const got = await p2.waitForFunction(() => window.__game.dialogue, null, { timeout: 10000 })
     .then(() => true).catch(() => false);
-  check('someone who saw the old screen AND the first script still gets this one', got);
+  check('someone who saw the old screen AND both earlier scripts still gets this one', got);
   await c2.close();
 }
 

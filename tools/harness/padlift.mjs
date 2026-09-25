@@ -21,7 +21,7 @@ await p.goto('http://localhost:5199/', { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__game && window.__game.screen === 'title', null, { timeout: 25000 });
 // Already taught — see tools/harness/tutorial.mjs for the harness that
 // grades Will Hill's live tutorial itself.
-await p.evaluate(() => { try { localStorage.setItem('wh_intro_v2', '1'); } catch (_e) {} });
+await p.evaluate(() => { try { localStorage.setItem('wh_intro_v3', '1'); } catch (_e) {} });
 await p.evaluate(() => window.__startStage(0));
 await p.waitForTimeout(900);
 

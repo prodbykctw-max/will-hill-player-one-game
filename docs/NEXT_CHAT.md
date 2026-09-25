@@ -431,11 +431,13 @@ freeze, the paging and the drawing (`drawTutorialBubble`).
 - He drops onto the street first — it never opens with him in the air.
 - The world freezes; JUMP or a tap anywhere finishes the line typing out, then
   turns the page. Pause is refused while it is up.
-- Ten lines, the client's order: "Yo, it's Will Hill." · "Help me make it to
-  my show." · ◀ ▶ to move · JUMP (double jump) · DASH ·
+- Eight cards, the client's order: "Yo! It's Will Hill. / Help me make it to
+  my show." · ◀ ▶ to move · "Press JUMP to get over manholes." · DASH ·
   Get the bag (bag sprite) · Defeat enemies (the stage's enemy, as a HUD-style
-  head portrait) · potholes and manholes · Champagne (bottle sprite) · "Let's
-  get it!" Then the run is theirs — nothing interrupts it later.
+  head portrait) · "Champagne Power Ups! / Invincible & [bag]x2 - 9 sec" (bottle
+  sprite) · "Let's get it!" Then the run is theirs — nothing interrupts it
+  later. Cut from ten *"in an effort to reduce clicks"*; a `\n` in a card is a hard line
+  break.
 - **The greeting is back, as an opener.** An earlier cut dropped it
   (*"everybody knows he's Will Hill"*); the client then asked for it: *"he should say like 'Yo, it's Will Hill' then... 'Help me make it to my show.' Then... lead with instructions as they are now. Then at the end say 'Let's get it!'"*
   ⚠️ **No commentary on the individual instructions — the script is final:**
@@ -445,15 +447,16 @@ freeze, the paging and the drawing (`drawTutorialBubble`).
   bubble comes from is his decision — his artist, a still from the Dan the Man
   video matched exactly, or generated options — and it is open.
 
-`wh_intro_v2` is the latch (`howToSeen()` / `markHowToSeen()` in
+`wh_intro_v3` is the latch (`howToSeen()` / `markHowToSeen()` in
 `src/ui/panel.js`), set when the last line is tapped. ⚠️ **Not the old
 `wh_howto_seen`** — that one was set by merely reaching the old panel, so every
 returning player has it. Asked whether everyone should get the new intro once,
 he answered *"New intro."* ⚠️ **Not `wh_intro_seen` either** — that latched
 the first script; when the script changed he wanted everyone to see it again:
-*"clear everything out so everybody who has the game will see the new intro now"*. A changed script gets a new key suffix; never reuse one.
+*"clear everything out so everybody who has the game will see the new intro now"*. `wh_intro_v2` retired the same way when the cards
+went from ten to eight. A changed script gets a new key suffix; never reuse one.
 
-⚠️ **Harnesses that drive stage one cold must seed `wh_intro_v2`**, or the
+⚠️ **Harnesses that drive stage one cold must seed `wh_intro_v3`**, or the
 frozen intro swallows their input. `startFromTitle()` does it for its callers;
 the ones that go through `window.__startStage(0)` set it themselves.
 `tools/harness/tutorial.mjs` is the one that tests the tutorial un-skipped.

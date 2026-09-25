@@ -920,7 +920,7 @@ branch. That also skips `camera.follow()`, so a harness that teleports the
 player and waits for the camera to follow (cloudseal, pitsky, skyleak) quietly
 measured a parked camera — cloudseal reported 0px of cloud on stage one alone,
 while every other stage measured thousands. The freeze now keeps the camera
-settling; the harnesses seed `wh_intro_v2` so they never meet the intro.
+settling; the harnesses seed `wh_intro_v3` so they never meet the intro.
 
 ⚠️ **When one stage alone reads zero, suspect what is different about that
 stage before suspecting the art.**

@@ -53,7 +53,7 @@ export async function startFromTitle(p, { x = 0, y = 0, tap = 'touch' } = {}) {
   // stage one playable the instant this function returns, exactly as it was
   // before the tutorial moved off its own screen. See tools/harness/
   // tutorial.mjs for the one that tests it un-skipped.
-  await p.evaluate(() => { try { localStorage.setItem('wh_intro_v2', '1'); } catch (_e) {} });
+  await p.evaluate(() => { try { localStorage.setItem('wh_intro_v3', '1'); } catch (_e) {} });
   const pt = await p.evaluate(() => {
     const r = window.__title.promptRect(window.__game.titleBox);
     const cv = document.querySelector('canvas');

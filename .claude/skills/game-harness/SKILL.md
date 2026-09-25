@@ -250,7 +250,7 @@ Roughly half the time on this project it was the harness. Signs it is the test:
   intro bubbles) freezes the world, a harness that enters that stage cold has
   its input swallowed and — because the freeze skips `camera.follow()` — its
   camera parked. `cloudseal` read 0px of cloud on stage one only. Harnesses
-  that are not testing the overlay must seed past it (`wh_intro_v2`); ask
+  that are not testing the overlay must seed past it (`wh_intro_v3`); ask
   what is different about the one stage before suspecting its art.
 
 **So: run the whole suite end to end regularly.** A suite nobody runs entire
