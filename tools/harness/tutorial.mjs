@@ -18,7 +18,7 @@
 //
 //   PLAYWRIGHT=... CHROMIUM=... node tools/harness/tutorial.mjs
 import {
-  nextTutorialTrigger, TUTORIAL_ORDER, TUTORIAL_LESSONS, TUTORIAL_PICTURES, BAG_ICON,
+  nextTutorialTrigger, TUTORIAL_ORDER, TUTORIAL_LESSONS, TUTORIAL_PICTURES, BAG_ICON, ARROW_L, ARROW_R,
 } from '../../src/world/tutorial.js';
 
 const checks = [];
@@ -61,6 +61,12 @@ const check = (w, ok, d = '') => {
   // emoji thinking youd know to use the games moneybag."
   check('the x2 is the GAME\'S money bag, not a phone emoji',
     lines.every((t) => !/\p{Emoji_Presentation}/u.test(t)) && lines.some((t) => t.includes(BAG_ICON)));
+  // Client: "make those two arrows in the move card normal black arrows...
+  // not the stock blue arrows." A typed ◀ / ▶ falls back to the phone's emoji
+  // font on a canvas; the drawn stand-ins cannot.
+  check('the move card\'s arrows are DRAWN, not typed ◀ ▶ glyphs',
+    lines.every((t) => !/[\u25C0\u25B6\u2B05\u27A1]/.test(t))
+    && lines[1].startsWith(`${ARROW_L} ${ARROW_R}`), JSON.stringify(lines[1]));
   check('eight cards, down from ten', lines.length === 8, `${lines.length}`);
   check('and signs off with "Let\'s get it!"', /^Let.s get it!$/.test(lines[lines.length - 1]),
     lines[lines.length - 1]);
@@ -81,7 +87,7 @@ const frame = (n = 1) => p.evaluate(async (count) => {
   for (let i = 0; i < count; i++) await raf();
 }, n);
 
-// Straight to stage one. A fresh context has no `wh_intro_v3`, so this is
+// Straight to stage one. A fresh context has no `wh_intro_v4`, so this is
 // a never-taught player. Polled, not slept: the bubble waits for him to land.
 await p.evaluate(() => window.__startStage(0));
 await p.waitForFunction(() => window.__game.dialogue, null, { timeout: 10000 });
@@ -179,12 +185,12 @@ check('and he is STANDING when it opens, not hanging in the air', opened.onGroun
   });
   const closed = await p.evaluate(() => ({
     dialogue: window.__game.dialogue,
-    seen: localStorage.getItem('wh_intro_v3'),
+    seen: localStorage.getItem('wh_intro_v4'),
   }));
   check('after "Let\'s get it!" the bubble closes',
     closed.dialogue === null && presses < 60, JSON.stringify({ presses }));
   check('and the tutorial is retired for good (howToSeen)', closed.seen === '1',
-    `wh_intro_v3=${closed.seen}`);
+    `wh_intro_v4=${closed.seen}`);
 }
 
 // ── THEN THE RUN IS THEIRS, UNINTERRUPTED ────────────────────────────────
@@ -227,6 +233,7 @@ check('and he is STANDING when it opens, not hanging in the air', opened.onGroun
 //     has the game will see the new intro now."
 //   `wh_intro_v2` — that ten-card script, before it was cut to eight "in an
 //     effort to reduce clicks".
+//   `wh_intro_v3` — the eight cards with typed ◀ ▶ (blue emoji on a phone).
 // None may count.
 {
   const c2 = await b.newContext({ viewport: { width: 430, height: 932 }, hasTouch: true });
@@ -235,6 +242,7 @@ check('and he is STANDING when it opens, not hanging in the air', opened.onGroun
     localStorage.setItem('wh_howto_seen', '1');
     localStorage.setItem('wh_intro_seen', '1');
     localStorage.setItem('wh_intro_v2', '1');
+    localStorage.setItem('wh_intro_v3', '1');
   });
   await p2.goto('http://localhost:5199/?tod=night', { waitUntil: 'networkidle' });
   await p2.waitForFunction(() => window.__game && window.__game.screen === 'title', null, { timeout: 25000 });

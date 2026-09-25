@@ -44,9 +44,16 @@ The fill is a per-row median of that row's own non-ink pixels. His wall behind
 the numbers is near-black and slightly textured brick, so a flat black leaves a
 visible clean rectangle over a noisy wall.
 
+THEN TWO RETOUCHES (tools/retouch_ending.py) — his skin a little lighter, and
+the stat board scaled up — and the result is written as ending-plate.webp, the
+pristine plate tools/cut_ending_crowd.py cuts the shipped base and crowd from.
+⚠️ So after this, ALWAYS run `cut_ending_crowd.py --write`, or the game keeps
+drawing the old base and crowd.
+
 Usage:
-    python3 tools/cut_ending_plate.py            # write the asset + the geometry
+    python3 tools/cut_ending_plate.py            # write the plate + the geometry
     python3 tools/cut_ending_plate.py --preview  # + a contact sheet to /tmp
+    python3 tools/cut_ending_crowd.py --write    # then cut base + crowd from it
 """
 import os
 import sys
@@ -54,9 +61,15 @@ import sys
 import numpy as np
 from PIL import Image
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from retouch_ending import lighten_will, enlarge_board, BOARD_SCALE   # noqa: E402
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = os.path.join(ROOT, 'assets', 'ui-concept', 'ending-showtime-stats.png')
-OUT = os.path.join(ROOT, 'src', 'assets', 'backgrounds', 'ending-base.webp')
+# ⚠️ THE PLATE, NOT THE BASE. This used to write ending-base.webp directly;
+# since the crowd cut, ending-base is cut FROM ending-plate, and writing the
+# base here would be silently overwritten by the next crowd run.
+OUT = os.path.join(ROOT, 'src', 'assets', 'backgrounds', 'ending-plate.webp')
 PREVIEW_DIR = os.environ.get('PREVIEW_DIR', '/tmp')
 
 W, H = 853, 1843
@@ -124,31 +137,39 @@ def main():
             out[y, x:ERASE_TO] = (np.median(src, axis=0) if src is not None
                                   else np.array([2, 2, 3]))
 
-    img = Image.fromarray(out.astype(np.uint8), 'RGB')
-    img.save(OUT, 'WEBP', quality=88, method=6)
-    print(f'wrote {OUT}  {W}x{H}  {os.path.getsize(OUT) / 1024:.0f}KB')
-
-    if '--preview' in sys.argv:
-        p = os.path.join(PREVIEW_DIR, 'ending-emptied.png')
-        img.crop((490, 440, 810, 740)).resize((640, 600), Image.NEAREST).save(p)
-        print('preview:', p)
-
-    # The numbers src/render/ending.js needs, printed rather than remembered.
     # VALUE_X is the right edge of his own values: they are right-aligned, so
-    # every row agrees on it and the max is it.
+    # every row agrees on it and the max is it. Measured on the ORIGINAL, so
+    # it has to happen before the values are gone... which they already are
+    # in `out` but not in `a`.
     value_x = max(r[3] for r in rows)
     for top, bot, _le, vx in rows:
         seg = ink[top:bot + 1, vx:ERASE_TO]
         cols = np.where(seg.any(axis=0))[0]
         if len(cols):
             value_x = max(value_x, vx + cols.max() + 1)
-    print(f'\n// measured off {os.path.basename(SRC)} — {W}x{H}')
+
+    out = lighten_will(out)
+    out, move = enlarge_board(out, rows, value_x)
+
+    img = Image.fromarray(out.astype(np.uint8), 'RGB')
+    img.save(OUT, 'WEBP', quality=88, method=6)
+    print(f'wrote {OUT}  {W}x{H}  {os.path.getsize(OUT) / 1024:.0f}KB')
+
+    if '--preview' in sys.argv:
+        p = os.path.join(PREVIEW_DIR, 'ending-emptied.png')
+        img.crop((440, 360, 853, 760)).save(p)
+        print('preview:', p)
+
+    # The numbers src/render/ending.js needs, printed rather than remembered —
+    # for the board as it now stands on the plate, after the enlargement.
+    caps = sum(b - t for t, b, _, _ in rows) / len(rows)
+    print(f'\n// measured off {os.path.basename(SRC)} — {W}x{H}, board x{BOARD_SCALE}')
     print(f'const SRC_W = {W}, SRC_H = {H};')
-    print(f'const VALUE_X = {value_x};   // right edge of his own values')
-    print('const ROW_Y = [' + ', '.join(str(r[1]) for r in rows) + '];'
+    print(f'const VALUE_X = {round(move(value_x, 0)[0])};   // right edge of the values')
+    print('const ROW_Y = [' + ', '.join(str(round(move(0, r[1])[1])) for r in rows) + '];'
           '   // baselines: caps sit on the band bottom')
-    caps = round(sum(b - t for t, b, _, _ in rows) / len(rows))
-    print(f'// cap height {caps}px  ->  font-size about {round(caps / 0.72)}px')
+    print(f'// cap height {caps * BOARD_SCALE:.0f}px  ->  font-size about '
+          f'{round(caps * BOARD_SCALE / 0.72)}px')
     print('rows (band, label ends, value starts):')
     for i, (top, bot, le, vx) in enumerate(rows):
         print(f'  {i + 1}. y {top}-{bot}   label ends x{le}   value from x{vx}')

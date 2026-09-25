@@ -90,7 +90,7 @@ await p.waitForFunction(() => window.__game && window.__game.screen === 'title',
 // camera.follow() still running every frame to converge on him; that call
 // is one of the things that freezes while Will Hill's live tutorial box
 // (world/tutorial.js) is open on a never-taught profile at stage index 0.
-await p.evaluate(() => { try { localStorage.setItem('wh_intro_v3', '1'); } catch (_e) {} });
+await p.evaluate(() => { try { localStorage.setItem('wh_intro_v4', '1'); } catch (_e) {} });
 
 for (let si = 0; si < 5; si++) {
  const perPos = [];

@@ -6,6 +6,37 @@ Repo: https://github.com/prodbykctw-max/will-hill-player-one-game
 Read `docs/GDD.md` for design and `CLAUDE.md` for architecture first. This
 file covers what a fresh session needs that isn't obvious from the code.
 
+## 2026-09-25 — black arrows on the move card; the ending: lighter skin, bigger stats
+
+Three asks in one message, after playing it through.
+
+- **Move card arrows.** *"make those two arrows in the move card normal black arrows... not the stock blue arrows i asked not to use"* A typed ◀ / ▶ on a
+  canvas falls back to the phone's emoji font — blue keycaps on an iPhone —
+  whatever the font stack says. They are now private-use stand-ins
+  (`ARROW_L` / `ARROW_R` in `src/world/tutorial.js`) that `drawTutorialBubble`
+  paints as solid triangles in the bubble's ink, the same inline mechanism as
+  the money bag. Latch → `wh_intro_v4` so anyone who saw the blue ones sees the
+  fix.
+- **Will Hill lighter on the ending.** *"Can we make will hill in the ending screen a little lighter/fairer skinned?"* Done in the
+  source chain, not on a shipped file: `tools/retouch_ending.py`, called by
+  `tools/cut_ending_plate.py`. Masked by his geometry first (face, ear, the
+  hand on the mic, the hand at his hip) and only then by a warm-skin colour
+  test, feathered — the brick and the crowd share his colour under that
+  stage light, so a colour test alone would have lightened them too. Skin luma
+  66.8 → ~93. Beard, brows and glasses barely move, because it multiplies.
+- **The stat board, larger and wider.** *"Can we make the end game stats section wider/larger?"* His
+  lettering is lifted (plate minus the plate with the lettering filled out),
+  scaled 1.3x, and added back onto the filled wall on a new footprint: right
+  edge x808, top y398, clear of the PLAYER ONE sign, the subtitle and the
+  crowd's head line (the tool refuses to write if it would overlap any of
+  them). The values follow: `ending.js` ROW_Y 421..726, VALUE_X 808,
+  VALUE_PX 32.
+- ⚠️ **After `cut_ending_plate.py`, always `cut_ending_crowd.py --write`.**
+  The plate tool now writes `ending-plate.webp` (it used to write the base,
+  which the crowd tool has cut from the plate ever since the sway). Both
+  tools were checked to reproduce the shipped files byte-for-byte from their
+  inputs before either was changed.
+
 ## 2026-09-24 — HOW TO PLAY becomes Will Hill's intro bubbles in stage one
 
 Will Hill's management (Scoon), with a drawing of a bubble coming off his
@@ -28,7 +59,7 @@ enemies, "Champagne Power Ups! / Invincible & [bag]x2 - 9 sec", and last
 trigger); `src/main.js` (`openTutorialDialogue` / `advanceTutorialDialogue`,
 the freeze in update()'s playing branch, `drawTutorialBubble` /
 `bubbleSprite` / `drawTutorialPicture`); `hud.drawPortrait` is exported for
-the enemy's head portrait. Latch: `wh_intro_v3` in `src/ui/panel.js`.
+the enemy's head portrait. Latch: `wh_intro_v4` in `src/ui/panel.js`.
 
 **Decisions and the client's words behind them**
 
@@ -54,7 +85,8 @@ the enemy's head portrait. Latch: `wh_intro_v3` in `src/ui/panel.js`.
   the old panel. *"New intro."* — the latch moved to `wh_intro_seen`. When the script
   then changed to greeting → goal → instructions → "Let's get it!", it moved
   again, to `wh_intro_v2`: *"clear everything out so everybody who has the game will see the new intro now"*.
-  And to `wh_intro_v3` when the cards went from ten to eight *"in an effort to reduce clicks"*.
+  And to `wh_intro_v3` when the cards went from ten to eight *"in an effort to reduce clicks"*,
+  and `wh_intro_v4` when the move card's arrows went from blue emoji to drawn black triangles.
 
 **Open.**
 
@@ -68,7 +100,7 @@ the enemy's head portrait. Latch: `wh_intro_v3` in `src/ui/panel.js`.
   (DEV) for comparison and was judged not good enough to offer.
 
 **Harnesses.** `tools/harness/tutorial.mjs` (25 checks) tests it un-skipped.
-Every harness that enters stage one cold now seeds `wh_intro_v3` — a frozen
+Every harness that enters stage one cold now seeds `wh_intro_v4` — a frozen
 intro swallows input and parks the camera (cloudseal read 0px of cloud on stage
 one because of it). `startflow` and `optionsmenu` were rewritten where they
 defended the old CONTEST → HOW TO PLAY → run chain. See LESSONS §26–29.

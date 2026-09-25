@@ -42,7 +42,7 @@ import { createRunLog, lbSubmit, bankLocalRun, isRegistered, hasPendingRun,
   recordRunStats, pendingRunCount, flushPendingRun } from './net/leaderboard.js';
 import { createPanel, soundEnabled, setSoundEnabled,
   sfxEnabled, setSfxEnabled, howToSeen, markHowToSeen } from './ui/panel.js';
-import { BAG_ICON, TUTORIAL_LESSONS, TUTORIAL_ORDER, TUTORIAL_PICTURES, nextTutorialTrigger }
+import { ARROW_L, ARROW_R, BAG_ICON, TUTORIAL_LESSONS, TUTORIAL_ORDER, TUTORIAL_PICTURES, nextTutorialTrigger }
   from './world/tutorial.js';
 import { createHaptics } from './core/haptics.js';
 import { STAGE_SLOTS, MAP_SLOTS, MANIFEST } from './audio/music.js';
@@ -2285,24 +2285,38 @@ function drawTutorialPicture(kind, x, y, S = PIC) {
   ctx.restore();
 }
 
-// The game's money bag drawn INSIDE a line of text, where tutorial.js put
-// BAG_ICON. Measured and drawn here so the wrap, the bubble width and the
-// typewriter all treat it as one glyph ICON px wide.
+// Icons drawn INSIDE a line of text, where tutorial.js put a private-use
+// stand-in: the game's money bag (BAG_ICON) and plain ◀ / ▶ triangles
+// (ARROW_L / ARROW_R — see tutorial.js for why they are not typed glyphs).
+// Measured and drawn here so the wrap, the bubble width and the typewriter all
+// treat each one as a single glyph of its own width.
 const ICON = 20;
 const ICON_PAD = 2;
+const ARROW_W = 11;        // a 15px bold face's ◀ is about this wide
+const INLINE = {
+  [BAG_ICON]: { w: ICON + ICON_PAD * 2,
+    draw: (x, y) => drawTutorialPicture('bag', x + ICON_PAD, y - ICON / 2, ICON) },
+  [ARROW_L]: { w: ARROW_W, draw: (x, y) => drawArrow(x, y, -1) },
+  [ARROW_R]: { w: ARROW_W, draw: (x, y) => drawArrow(x, y, 1) },
+};
+const INLINE_RE = new RegExp(`([${Object.keys(INLINE).join('')}])`);
+function drawArrow(x, y, dir) {
+  const h = 12;
+  ctx.beginPath();
+  if (dir < 0) { ctx.moveTo(x + ARROW_W - 1, y - h / 2); ctx.lineTo(x + ARROW_W - 1, y + h / 2); ctx.lineTo(x + 1, y); }
+  else { ctx.moveTo(x + 1, y - h / 2); ctx.lineTo(x + 1, y + h / 2); ctx.lineTo(x + ARROW_W - 1, y); }
+  ctx.closePath();
+  ctx.fill();              // in the bubble's current ink (BUBBLE_INK)
+}
 function measureRich(s) {
-  const n = s.split(BAG_ICON).length - 1;
-  return ctx.measureText(s.split(BAG_ICON).join('')).width + n * (ICON + ICON_PAD * 2);
+  return s.split(INLINE_RE).reduce((w, seg) =>
+    w + (INLINE[seg] ? INLINE[seg].w : seg ? ctx.measureText(seg).width : 0), 0);
 }
 function fillRich(s, x, y) {
-  const parts = s.split(BAG_ICON);
-  parts.forEach((seg, i) => {
-    if (seg) { ctx.fillText(seg, x, y); x += ctx.measureText(seg).width; }
-    if (i < parts.length - 1) {
-      drawTutorialPicture('bag', x + ICON_PAD, y - ICON / 2, ICON);
-      x += ICON + ICON_PAD * 2;
-    }
-  });
+  for (const seg of s.split(INLINE_RE)) {
+    if (INLINE[seg]) { INLINE[seg].draw(x, y); x += INLINE[seg].w; }
+    else if (seg) { ctx.fillText(seg, x, y); x += ctx.measureText(seg).width; }
+  }
 }
 
 function drawTutorialBubble(d) {

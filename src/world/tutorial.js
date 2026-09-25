@@ -46,10 +46,19 @@
 // typewriter counts it as one letter; main.js draws images.bag where it sits.
 export const BAG_ICON = '\uE000';
 
+// ◀ AND ▶, DRAWN, NOT TYPED. Client: "make those two arrows in the move card
+// normal black arrows... not the stock blue arrows i asked not to use." U+25C0
+// and U+25B6 have emoji forms, and a phone's canvas falls back to its emoji
+// font for them — blue keycaps on an iPhone — whatever this file asks for.
+// So they are private-use stand-ins like BAG_ICON, and main.js paints plain
+// solid triangles in the bubble's own ink.
+export const ARROW_L = '\uE001';
+export const ARROW_R = '\uE002';
+
 export const TUTORIAL_LESSONS = {
   intro: [
     'Yo! It’s Will Hill.\nHelp me make it to my show.',
-    '◀ ▶ to move.',
+    `${ARROW_L} ${ARROW_R} to move.`,
     'Press JUMP to get over manholes.',
     'DASH to roll past trouble. You can’t be hit while rolling.',
     'Get the bag.',

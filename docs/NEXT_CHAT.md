@@ -432,7 +432,7 @@ freeze, the paging and the drawing (`drawTutorialBubble`).
 - The world freezes; JUMP or a tap anywhere finishes the line typing out, then
   turns the page. Pause is refused while it is up.
 - Eight cards, the client's order: "Yo! It's Will Hill. / Help me make it to
-  my show." · ◀ ▶ to move · "Press JUMP to get over manholes." · DASH ·
+  my show." · ◀ ▶ to move (drawn triangles — a typed ◀ ▶ is a blue emoji on a phone) · "Press JUMP to get over manholes." · DASH ·
   Get the bag (bag sprite) · Defeat enemies (the stage's enemy, as a HUD-style
   head portrait) · "Champagne Power Ups! / Invincible & [bag]x2 - 9 sec" (bottle
   sprite) · "Let's get it!" Then the run is theirs — nothing interrupts it
@@ -447,16 +447,17 @@ freeze, the paging and the drawing (`drawTutorialBubble`).
   bubble comes from is his decision — his artist, a still from the Dan the Man
   video matched exactly, or generated options — and it is open.
 
-`wh_intro_v3` is the latch (`howToSeen()` / `markHowToSeen()` in
+`wh_intro_v4` is the latch (`howToSeen()` / `markHowToSeen()` in
 `src/ui/panel.js`), set when the last line is tapped. ⚠️ **Not the old
 `wh_howto_seen`** — that one was set by merely reaching the old panel, so every
 returning player has it. Asked whether everyone should get the new intro once,
 he answered *"New intro."* ⚠️ **Not `wh_intro_seen` either** — that latched
 the first script; when the script changed he wanted everyone to see it again:
 *"clear everything out so everybody who has the game will see the new intro now"*. `wh_intro_v2` retired the same way when the cards
-went from ten to eight. A changed script gets a new key suffix; never reuse one.
+went from ten to eight, and `wh_intro_v3` when the move card's blue emoji
+arrows became drawn black ones. A changed script gets a new key suffix; never reuse one.
 
-⚠️ **Harnesses that drive stage one cold must seed `wh_intro_v3`**, or the
+⚠️ **Harnesses that drive stage one cold must seed `wh_intro_v4`**, or the
 frozen intro swallows their input. `startFromTitle()` does it for its callers;
 the ones that go through `window.__startStage(0)` set it themselves.
 `tools/harness/tutorial.mjs` is the one that tests the tutorial un-skipped.
@@ -603,10 +604,24 @@ standing preference and the better outcome.
 millisecond stamp, so the chained-stomp run the punch sounds already escalate
 on is derivable with no new state. He picked the eight that exist.)
 
-**Geometry**, printed by `tools/cut_ending_plate.py` off the plate itself:
-labels x547 (never drawn over), values right-aligned at x780, baselines
-483/516/550/583/617/651/684/717, 25px face, ink `#e1bb88` sampled off his own
-`$31,200`. RESTART is x169-673, y1620-1761.
+**Geometry**, printed by `tools/cut_ending_plate.py` off the plate itself —
+for the ENLARGED board (1.3x, *"Can we make the end game stats section wider/larger?"*): values
+right-aligned at x808, baselines 421/464/508/551/596/640/683/726, 32px face,
+ink `#e1bb88` sampled off his own `$31,200`. (Unscaled it was x780,
+483..717, 25px.) RESTART is x169-673, y1620-1761.
+
+⚠️ **The ending chain is three steps and the last one is not optional:**
+`cut_ending_plate.py` (his PNG → values emptied → `retouch_ending.py`: his
+skin lightened, the board scaled → `ending-plate.webp`), then
+`cut_ending_crowd.py --write` (plate → `ending-base.webp` + `ending-crowd.webp`).
+Skip the second and the game still draws the old base AND an old crowd layer
+over the new one. Both steps reproduce the shipped files byte-for-byte from
+their inputs; that was checked before either was changed.
+
+**His skin on the ending is lighter than the painting** — *"Can we make will hill in the ending screen a little lighter/fairer skinned?"*
+`retouch_ending.py` masks by his own geometry (face, ear, both hands) and
+only then by a warm-skin colour test, so the wall and the crowd are
+untouched; skin luma measured 66.8 → ~93 (SKIN_GAIN 1.42, SKIN_DESAT 0.12).
 
 ⚠️ **Only the VALUES are emptied, and not by a column cut.** His longest label
 ends at x728 and his longest value starts at x696, so they overlap in x — a
