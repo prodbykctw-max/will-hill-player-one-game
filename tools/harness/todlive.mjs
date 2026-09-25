@@ -138,7 +138,7 @@ check('and the note goes back to describing the setting, not "Switching…"',
 const run = await p.evaluate(async () => {
   // Already taught — grading the time-of-day swap, not Will Hill's live
   // tutorial (world/tutorial.js).
-  try { localStorage.setItem('wh_intro_v2', '1'); } catch (_e) {}
+  try { localStorage.setItem('wh_intro_v3', '1'); } catch (_e) {}
   window.__startStage(0);
   await new Promise((r) => requestAnimationFrame(r));
   const st = window.__game;

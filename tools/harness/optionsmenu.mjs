@@ -202,7 +202,7 @@ await p2.addInitScript(() => {
   // Already taught — this grades GAME KNOCKED, not Will Hill's live
   // tutorial (world/tutorial.js), which would otherwise freeze stage one
   // on its intro lesson before the death sequence ever gets to run.
-  localStorage.setItem('wh_intro_v2', '1');
+  localStorage.setItem('wh_intro_v3', '1');
 });
 await p2.goto('http://localhost:5199/?tod=night', { waitUntil: 'networkidle' });
 await p2.waitForFunction(() => window.__game && window.__game.screen === 'title', null, { timeout: 25000 });

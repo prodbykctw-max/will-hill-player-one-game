@@ -31,7 +31,7 @@ for (const tod of ['night', 'day']) {
   await p.goto(`http://localhost:5199/?tod=${tod}`, { waitUntil: 'networkidle' });
   await p.waitForFunction(() => window.__game && window.__game.screen === 'title', null, { timeout: 25000 });
   // Already taught — see the note in daylamps.mjs.
-  await p.evaluate(() => { try { localStorage.setItem('wh_intro_v2', '1'); } catch (_e) {} });
+  await p.evaluate(() => { try { localStorage.setItem('wh_intro_v3', '1'); } catch (_e) {} });
 
   for (let i = 0; i < 5; i++) {
     const r = await p.evaluate(async ([idx, scale]) => {

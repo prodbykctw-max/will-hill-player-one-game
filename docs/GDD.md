@@ -37,17 +37,26 @@ There is no instructions screen between PRESS START and the run. Will Hill's
 management asked for the game to teach itself the way Pokémon did on the Game
 Boy: *"make a text bubble come from Will describing the same instructions."*
 
-- **Where:** the very start of stage one, the first time only (`wh_intro_v2`).
+- **Where:** the very start of stage one, the first time only (`wh_intro_v3`).
   Will lands on the street, stands still, and the world is frozen.
 - **How:** a speech bubble off his head; the player taps (or presses JUMP)
   through it. A line types out; the first press finishes it, the next turns
   the page. Nothing interrupts the run afterwards.
-- **What, in this order:** "Yo, it's Will Hill." · "Help me make it to my
-  show." · move · jump (and the double jump) · dash (roll past
-  trouble, can't be hit) · get the bag *(bag picture)* · defeat enemies, jump on
-  their heads *(the stage's enemy, as a HUD-style head portrait)* · jump
-  potholes and open manholes · champagne, double money for 9 seconds *(bottle
-  picture)* · "Let's get it!"
+- **What, eight cards, in this order:**
+  1. "Yo! It's Will Hill. / Help me make it to my show."
+  2. "◀ ▶ to move."
+  3. "Press JUMP to get over manholes."
+  4. "DASH to roll past trouble. You can't be hit while rolling."
+  5. "Get the bag." *(bag picture)*
+  6. "Defeat enemies. Jump on their heads." *(the stage's enemy, as a HUD-style
+     head portrait)*
+  7. "Champagne Power Ups! / Invincible & [bag]x2 - 9 sec" *(bottle picture;
+     [bag] is the game's own money bag drawn inline in the text — not a phone
+     emoji: "use the games money bag for the x2 statement")*
+  8. "Let's get it!"
+
+  Cut from ten cards *"in an effort to reduce clicks"*: the greeting and goal share a card, and
+  one JUMP/manholes card replaces the separate jump and potholes cards.
 - **Voice:** a greeting and the goal, then the instructions, then a send-off.
   Client: *"he should say like 'Yo, it's Will Hill' then... 'Help me make it to my show.' Then... lead with instructions as they are now. Then at the end say 'Let's get it!'"* No commentary on
   the individual instructions — this script is final: *"No commentary for each instruction... what you just showed me on that link is what we have."*

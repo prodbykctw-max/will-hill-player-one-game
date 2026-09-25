@@ -26,21 +26,35 @@
 // The numbers are the code's: stomp kills (main.js), CHAMPAGNE_MULT 2,
 // CHAMPAGNE_SECONDS 9 — if they change, these change with them.
 //
+// ⚠️ FEWER CARDS. Client, on a sticky note, "in an effort to reduce clicks":
+// the greeting and the goal share ONE card ("Yo! It's Will Hill / Help me make
+// it to my show"); "Press jump to get over man holes" combines and replaces
+// the jump card and the potholes/manholes card; champagne becomes "Champagne
+// Power Ups! / Invincible & [bag]x2 - 9 sec" (grantInvulnerability for
+// CHAMPAGNE_SECONDS, and CHAMPAGNE_MULT on bags — both true of the code).
+// "All other text cards fine. Please include images where they were already."
+// A '\n' is a hard line break inside a card (main.js drawTutorialBubble).
+//
 // OPTIONS → HOW TO PLAY keeps the old panel as a static recap (ui/panel.js).
 //
 // This file owns the WORDS and which picture goes with which line. main.js
 // owns the freeze, the paging and the drawing.
+// THE GAME'S OWN MONEY BAG, INLINE IN A LINE OF TEXT. Client, after the
+// sticky note's 💰 went in as a phone emoji: "use the games money bag for the
+// x2 statement. I used my phones emoji thinking youd know to use the games
+// moneybag." One private-use character stands in for the icon so the
+// typewriter counts it as one letter; main.js draws images.bag where it sits.
+export const BAG_ICON = '\uE000';
+
 export const TUTORIAL_LESSONS = {
   intro: [
-    'Yo, it’s Will Hill.',
-    'Help me make it to my show.',
+    'Yo! It’s Will Hill.\nHelp me make it to my show.',
     '◀ ▶ to move.',
-    'JUMP to jump. Tap it twice for a double jump.',
+    'Press JUMP to get over manholes.',
     'DASH to roll past trouble. You can’t be hit while rolling.',
     'Get the bag.',
     'Defeat enemies. Jump on their heads.',
-    'Jump over potholes and open manholes.',
-    'Champagne: double money for 9 seconds.',
+    `Champagne Power Ups!\nInvincible & ${BAG_ICON}x2 - 9 sec`,
     'Let’s get it!',
   ],
 };
@@ -53,7 +67,7 @@ export const TUTORIAL_LESSONS = {
 // portrait cropped off the stage's own enemy sheet, framed like the HUD's
 // portrait of Will. Same indices as TUTORIAL_LESSONS; null is words only.
 export const TUTORIAL_PICTURES = {
-  intro: [null, null, null, null, null, 'bag', 'enemy', null, 'champagne', null],
+  intro: [null, null, null, null, 'bag', 'enemy', 'champagne', null],
 };
 
 // Every lesson that has to have been seen, once, ever, before the tutorial

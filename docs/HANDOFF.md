@@ -18,15 +18,17 @@ against a private preview build; this entry is where it landed.
 PLAY panel is no longer a stop on the way in (`beginFromTitle()` and
 `onwardFromStart()`); OPTIONS → HOW TO PLAY still opens it as a recap. Stage
 one, the first time only: Will lands, stands still, the world freezes, and
-the player taps through ten lines — "Yo, it's Will Hill.", "Help me make it
-to my show.", then move, jump, dash, the bag, enemies, potholes/manholes,
-champagne, and last "Let's get it!" Then the run is theirs.
+the player taps through eight cards — "Yo! It's Will Hill. / Help me make it
+to my show.", move, "Press JUMP to get over manholes.", dash, the bag,
+enemies, "Champagne Power Ups! / Invincible & [bag]x2 - 9 sec", and last
+"Let's get it!" Then the run is theirs. (Cut from ten cards *"in an effort to reduce clicks"*
+— the client's sticky note merged greeting + goal, and jump + manholes.)
 
 **Where it lives.** `src/world/tutorial.js` (words, pictures, the one-lesson
 trigger); `src/main.js` (`openTutorialDialogue` / `advanceTutorialDialogue`,
 the freeze in update()'s playing branch, `drawTutorialBubble` /
 `bubbleSprite` / `drawTutorialPicture`); `hud.drawPortrait` is exported for
-the enemy's head portrait. Latch: `wh_intro_v2` in `src/ui/panel.js`.
+the enemy's head portrait. Latch: `wh_intro_v3` in `src/ui/panel.js`.
 
 **Decisions and the client's words behind them**
 
@@ -52,6 +54,7 @@ the enemy's head portrait. Latch: `wh_intro_v2` in `src/ui/panel.js`.
   the old panel. *"New intro."* — the latch moved to `wh_intro_seen`. When the script
   then changed to greeting → goal → instructions → "Let's get it!", it moved
   again, to `wh_intro_v2`: *"clear everything out so everybody who has the game will see the new intro now"*.
+  And to `wh_intro_v3` when the cards went from ten to eight *"in an effort to reduce clicks"*.
 
 **Open.**
 
@@ -65,7 +68,7 @@ the enemy's head portrait. Latch: `wh_intro_v2` in `src/ui/panel.js`.
   (DEV) for comparison and was judged not good enough to offer.
 
 **Harnesses.** `tools/harness/tutorial.mjs` (25 checks) tests it un-skipped.
-Every harness that enters stage one cold now seeds `wh_intro_v2` — a frozen
+Every harness that enters stage one cold now seeds `wh_intro_v3` — a frozen
 intro swallows input and parks the camera (cloudseal read 0px of cloud on stage
 one because of it). `startflow` and `optionsmenu` were rewritten where they
 defended the old CONTEST → HOW TO PLAY → run chain. See LESSONS §26–29.

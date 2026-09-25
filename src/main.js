@@ -42,7 +42,7 @@ import { createRunLog, lbSubmit, bankLocalRun, isRegistered, hasPendingRun,
   recordRunStats, pendingRunCount, flushPendingRun } from './net/leaderboard.js';
 import { createPanel, soundEnabled, setSoundEnabled,
   sfxEnabled, setSfxEnabled, howToSeen, markHowToSeen } from './ui/panel.js';
-import { TUTORIAL_LESSONS, TUTORIAL_ORDER, TUTORIAL_PICTURES, nextTutorialTrigger }
+import { BAG_ICON, TUTORIAL_LESSONS, TUTORIAL_ORDER, TUTORIAL_PICTURES, nextTutorialTrigger }
   from './world/tutorial.js';
 import { createHaptics } from './core/haptics.js';
 import { STAGE_SLOTS, MAP_SLOTS, MANIFEST } from './audio/music.js';
@@ -2144,13 +2144,13 @@ function retryBoot() {
 
 // Greedy word-wrap against the CURRENTLY SET font — caller sets ctx.font
 // before calling, same contract martamap.js's own wrapper uses.
-function wrapText(text, maxWidth) {
+function wrapText(text, maxWidth, measure = (s) => ctx.measureText(s).width) {
   const words = text.split(' ');
   const lines = [];
   let line = '';
   for (const w of words) {
     const test = line ? `${line} ${w}` : w;
-    if (line && ctx.measureText(test).width > maxWidth) {
+    if (line && measure(test) > maxWidth) {
       lines.push(line);
       line = w;
     } else {
@@ -2267,22 +2267,42 @@ function drawPixelDisk(cx, cy, r) {
 // stage's enemy sheet, so it reads as the same family as Will's portrait up
 // in the corner.
 const PIC = 40;
-function drawTutorialPicture(kind, x, y) {
+function drawTutorialPicture(kind, x, y, S = PIC) {
   if (kind === 'enemy') {
     const v = STAGES[state.stageIndex].enemyVariants[0];
-    hud.drawPortrait(images['enemy_' + v], ENEMY_SPRITES[v].atlas, x, y, PIC);
+    hud.drawPortrait(images['enemy_' + v], ENEMY_SPRITES[v].atlas, x, y, S);
     return;
   }
   const img = kind === 'bag' ? images.bag : kind === 'champagne' ? images.champagne : null;
   if (!img || !img.naturalWidth) return;
-  const k = Math.min(PIC / img.naturalWidth, PIC / img.naturalHeight);
+  const k = Math.min(S / img.naturalWidth, S / img.naturalHeight);
   const w = img.naturalWidth * k;
   const h = img.naturalHeight * k;
   ctx.save();
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'high';
-  ctx.drawImage(img, x + (PIC - w) / 2, y + (PIC - h) / 2, w, h);
+  ctx.drawImage(img, x + (S - w) / 2, y + (S - h) / 2, w, h);
   ctx.restore();
+}
+
+// The game's money bag drawn INSIDE a line of text, where tutorial.js put
+// BAG_ICON. Measured and drawn here so the wrap, the bubble width and the
+// typewriter all treat it as one glyph ICON px wide.
+const ICON = 20;
+const ICON_PAD = 2;
+function measureRich(s) {
+  const n = s.split(BAG_ICON).length - 1;
+  return ctx.measureText(s.split(BAG_ICON).join('')).width + n * (ICON + ICON_PAD * 2);
+}
+function fillRich(s, x, y) {
+  const parts = s.split(BAG_ICON);
+  parts.forEach((seg, i) => {
+    if (seg) { ctx.fillText(seg, x, y); x += ctx.measureText(seg).width; }
+    if (i < parts.length - 1) {
+      drawTutorialPicture('bag', x + ICON_PAD, y - ICON / 2, ICON);
+      x += ICON + ICON_PAD * 2;
+    }
+  });
 }
 
 function drawTutorialBubble(d) {
@@ -2310,8 +2330,9 @@ function drawTutorialBubble(d) {
   const maxW = Math.min(canvas.width - margin * 2, 270);
   // Wrapped from the WHOLE page so the bubble is its final size from the
   // first letter and the words type into place rather than reflowing.
-  const lines = wrapText(text, maxW - padX * 2 - picW - picGap);
-  const textW = Math.max(...lines.map((l) => ctx.measureText(l).width));
+  // A '\n' in a line is a hard break (the client's cards are two-line).
+  const lines = text.split('\n').flatMap((par) => wrapText(par, maxW - padX * 2 - picW - picGap, measureRich));
+  const textW = Math.max(...lines.map((l) => measureRich(l)));
   const contentW = picW + picGap + textW;
   const contentH = Math.max(pic ? PIC : 0, lines.length * lineH);
   const wA = Math.max(24, Math.ceil((contentW + padX * 2) / P));
@@ -2354,8 +2375,8 @@ function drawTutorialBubble(d) {
   let left = shown;
   lines.forEach((line, i) => {
     if (left <= 0) return;
-    ctx.fillText(line.slice(0, left), tx, ty + lineH * (i + 0.5));
-    left -= line.length + 1;   // +1: the space wrapText split on
+    fillRich(line.slice(0, left), tx, ty + lineH * (i + 0.5));
+    left -= line.length + 1;   // +1: the space or '\n' it was split on
   });
 
   // A small pixel ▼ once the page has finished typing — until then a press

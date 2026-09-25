@@ -1004,7 +1004,10 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
 // everyone to see it: "clear everything out so everybody who has the game will
 // see the new intro now... like you did last night." A new script gets a new
 // key; bump the suffix, never reuse one.
-const INTRO_SEEN_KEY = 'wh_intro_v2';
+//
+// `wh_intro_v2` retired the same way when the cards were cut from ten to
+// eight "in an effort to reduce clicks".
+const INTRO_SEEN_KEY = 'wh_intro_v3';
 
 export function howToSeen() {
   try {

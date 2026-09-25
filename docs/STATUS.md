@@ -187,13 +187,14 @@ this is gonna be everyone's first time seeing this."*
 - START → contest form (unless registered) → the run. No HOW TO PLAY stop.
   OPTIONS → HOW TO PLAY remains as a recap.
 - Stage one, first time only: Will lands, stands still, the world freezes, and
-  the player taps through ten lines ("Yo, it's Will Hill.", "Help me make it
-  to my show.", move, jump, dash, the bag, enemies, potholes/manholes,
-  champagne, "Let's get it!"), with the bag,
+  the player taps through eight cards ("Yo! It's Will Hill. / Help me make it
+  to my show.", move, "Press JUMP to get over manholes.", dash, the bag,
+  enemies, "Champagne Power Ups! / Invincible & [bag]x2 - 9 sec", "Let's get
+  it!"), with the bag,
   bottle and a HUD-style enemy portrait inside the bubble on their lines.
-- Latch `wh_intro_v2` — everyone sees it once, including anyone who saw the
-  old screen (*"New intro."*) or tapped through the first script
-  (`wh_intro_seen`, retired: *"clear everything out so everybody who has the game will see the new intro now"*).
+- Latch `wh_intro_v3` — everyone sees it once, including anyone who saw the
+  old screen (*"New intro."*), the ten-card script (`wh_intro_v2`), or the first
+  script (`wh_intro_seen`, retired: *"clear everything out so everybody who has the game will see the new intro now"*).
 - Full detail, decisions and the client's words: `docs/HANDOFF.md`
   2026-09-24. Tests: `tools/harness/tutorial.mjs`; harnesses that enter stage
   one cold seed the latch (`docs/TESTING.md`).
