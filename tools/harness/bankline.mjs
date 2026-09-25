@@ -37,7 +37,7 @@ async function page() {
   // tutorial (world/tutorial.js), which would otherwise freeze stage one on
   // its intro lesson the moment __startStage(0) below lands on a fresh
   // profile. See tools/harness/tutorial.mjs for the one that tests THAT.
-  await p.evaluate(() => { try { localStorage.setItem('wh_intro_v3', '1'); } catch (_e) {} });
+  await p.evaluate(() => { try { localStorage.setItem('wh_intro_v4', '1'); } catch (_e) {} });
   return { ctx, p };
 }
 

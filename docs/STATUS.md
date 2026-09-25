@@ -148,16 +148,13 @@ bare digits with the `$`/commas pasted on at the end. `audio.js` gets
 paint, so they cannot drift apart. Verified with synthetic stats:
 MONEY BAGS genuinely climbs 78→85 mid-screenshot, not a jump cut.
 
-**NOT DONE, from the same message — his "wider, more centered across the
-screen" ask for the stat block.** The eight LABELS are baked into
-`ending-base.webp`; this file only draws the eight numeric values beside
-them. Genuinely centering/widening the block as he described means moving
-his painted label text, which this project's own rule is not to do without
-his sign-off (`CLAUDE.md`: "do not edit his artwork to solve a UI
-problem"). Not started — needs either his input on a repaint, or an
-explicit go-ahead to move only the VALUE column's positions in code (which
-would still leave the labels themselves in their current, narrower
-corner-ish placement).
+**DONE since (2026-09-25) — the stat block is larger and wider.** He asked
+again, which is the sign-off this paragraph was waiting on: *"Can we make the end game stats section wider/larger?"*
+His painted lettering is lifted off the wall, scaled 1.3x and put back on a
+new footprint (`tools/retouch_ending.py`) — still his letters, not a system
+font — and the values follow (`ending.js` ROW_Y / VALUE_X / VALUE_PX). It is
+still right-hand, not centred: centring would put it over the WILL HILL /
+RESPECT THE CULTURE signs, and "centered" was not in this ask.
 
 **Also NOT done: "where is combo?"** Answered in-conversation, not
 code — MAX COMBO exists in the game (HUD `xN COMBO`, the admin dashboard's
@@ -192,8 +189,9 @@ this is gonna be everyone's first time seeing this."*
   enemies, "Champagne Power Ups! / Invincible & [bag]x2 - 9 sec", "Let's get
   it!"), with the bag,
   bottle and a HUD-style enemy portrait inside the bubble on their lines.
-- Latch `wh_intro_v3` — everyone sees it once, including anyone who saw the
-  old screen (*"New intro."*), the ten-card script (`wh_intro_v2`), or the first
+- Latch `wh_intro_v4` — everyone sees it once, including anyone who saw the
+  old screen (*"New intro."*), the blue-arrow eight cards (`wh_intro_v3`), the
+  ten-card script (`wh_intro_v2`), or the first
   script (`wh_intro_seen`, retired: *"clear everything out so everybody who has the game will see the new intro now"*).
 - Full detail, decisions and the client's words: `docs/HANDOFF.md`
   2026-09-24. Tests: `tools/harness/tutorial.mjs`; harnesses that enter stage

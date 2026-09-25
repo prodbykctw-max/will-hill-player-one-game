@@ -227,7 +227,7 @@ const clickBtn = async (p, id) => {
     localStorage.setItem('wh_name', 'TESTER');
     localStorage.setItem('wh_contest_reg',
       JSON.stringify({ phone: '4045551234', email: 't@e.com' }));
-    localStorage.setItem('wh_intro_v3', '1');
+    localStorage.setItem('wh_intro_v4', '1');
   });
   await p.reload({ waitUntil: 'networkidle' });
   await p.waitForFunction(() => window.__game && window.__game.screen === 'title', null, { timeout: 25000 });

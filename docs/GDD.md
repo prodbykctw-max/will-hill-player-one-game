@@ -37,14 +37,15 @@ There is no instructions screen between PRESS START and the run. Will Hill's
 management asked for the game to teach itself the way Pokémon did on the Game
 Boy: *"make a text bubble come from Will describing the same instructions."*
 
-- **Where:** the very start of stage one, the first time only (`wh_intro_v3`).
+- **Where:** the very start of stage one, the first time only (`wh_intro_v4`).
   Will lands on the street, stands still, and the world is frozen.
 - **How:** a speech bubble off his head; the player taps (or presses JUMP)
   through it. A line types out; the first press finishes it, the next turns
   the page. Nothing interrupts the run afterwards.
 - **What, eight cards, in this order:**
   1. "Yo! It's Will Hill. / Help me make it to my show."
-  2. "◀ ▶ to move."
+  2. "◀ ▶ to move." — the arrows are DRAWN black triangles, not typed
+     glyphs, which a phone renders as blue emoji keycaps: *"make those two arrows in the move card normal black arrows... not the stock blue arrows i asked not to use"*
   3. "Press JUMP to get over manholes."
   4. "DASH to roll past trouble. You can't be hit while rolling."
   5. "Get the bag." *(bag picture)*

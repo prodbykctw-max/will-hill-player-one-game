@@ -143,14 +143,20 @@ export const ENDING_SAFE = { top: 250, bottom: 1780 };
 // derived from one measurement rather than agreeing by hand.
 // Caps sit on the baseline and none of these glyphs descend, so the baseline
 // is the bottom of each ink band.
-const ROW_Y = [483, 516, 550, 583, 617, 651, 684, 717];
-const VALUE_X = 780;
+//
+// ⚠️ THE BOARD IS 1.3x HIS ORIGINAL NOW, on a new footprint. Client: "Can we
+// make the end game stats section wider/larger?" His lettering is lifted,
+// scaled and put back by tools/retouch_ending.py (still his letters, not a
+// system font), so these came from the same run that moved it. Were
+// [483..717] / 780 / 25 on the unscaled board.
+const ROW_Y = [421, 464, 508, 551, 596, 640, 683, 726];
+const VALUE_X = 808;
 // Sampled off the core of his own "$31,200", not chosen: the numbers this
 // draws have to look like the numbers he drew, because for one row they
 // literally replace them.
 const VALUE_INK = '#e1bb88';
-// Cap height measures 18px on the plate, which is a 25px face.
-const VALUE_PX = 25;
+// Cap height measures 23px on the enlarged board (18px x 1.3), a 32px face.
+const VALUE_PX = 32;
 
 // ── THE READOUT — accumulating, not appearing ────────────────────────────
 //
