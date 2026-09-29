@@ -1008,8 +1008,9 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
 // `wh_intro_v2` retired the same way when the cards were cut from ten to
 // eight "in an effort to reduce clicks". And `wh_intro_v3` when the move
 // card's ◀ ▶ went from typed glyphs (blue emoji keycaps on his phone) to drawn
-// black triangles — so the people who saw the blue ones see the fix.
-const INTRO_SEEN_KEY = 'wh_intro_v4';
+// black triangles — so the people who saw the blue ones see the fix. And
+// `wh_intro_v4` when Will's own voice was put on every card.
+const INTRO_SEEN_KEY = 'wh_intro_v5';
 
 export function howToSeen() {
   try {

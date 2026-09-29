@@ -6,6 +6,50 @@ Repo: https://github.com/prodbykctw-max/will-hill-player-one-game
 Read `docs/GDD.md` for design and `CLAUDE.md` for architecture first. This
 file covers what a fresh session needs that isn't obvious from the code.
 
+## 2026-09-29 — Will Hill's voice and music, the ending matched to him, coloured knockdown buttons
+
+Source for all the audio: Will Hill's "Player One" Video Game Assets (VIDEO GAME ASSETS.zip on his Google Drive, sent 2026-09-29 via Scoon: INSTRUMENTALS/ and VOCALS/). The zip is 161MB of 32-bit
+float WAVs; it is re-downloadable, so it is not committed.
+
+- **Listening page first.** The client asked to hear the songs before placing
+  them (*"you need to create a player for me to listen to these songs"*): a
+  private claude.ai artifact, "Player One Soundtrack", with the four songs,
+  all 27 lines, and a picker per slot saved to its store. His picks: intro
+  Smooth, stages New Day New Money, train map Bobby Boucher, pause & menus
+  Smooth, ending Iridescent.
+- **Music** (`src/audio/music.js`, `src/assets/music/will-hill/`): whole songs
+  looped whole, trailing silence trimmed and a few ms of fade at each end, NOT
+  levelled — his instruction. They are hotter than the prodbyKCTW loops they
+  replaced (about -6 to -11 LUFS against -16; the ending meters ~1.07 on the
+  master bus), so the per-cue `gain` is where the agreed adjustment goes. The
+  old loops and `tools/cut_loop.py`'s plan are in git history and in
+  `tools/cue_sheet.json` under `previous`. `loopseam.mjs` no longer grades the
+  title's wrap as a loop seam while the title is a whole song: Smooth ends on
+  a two-second fade.
+- **Voice** (`src/audio/audio.js` `voice()`, `src/assets/voice/<moment>/`,
+  hooks via `say()` in `src/main.js`, intro takes in `TUTORIAL_VOICE` in
+  `src/world/tutorial.js`): the folder is the moment. Random from a shuffled
+  deck per moment, never twice running (*"randomize... each respectively"*);
+  every power-up take plays on champagne, the game's only power-up. Stomps
+  speak on a chance with a gap so a combo chain is not a monologue. Music
+  ducks for the length of the line. One take in hit-by-ninja uses explicit
+  language; it is his recording, shipped as sent.
+- **Ending skin tone.** *"Google him, the real Will Hill... match his skin
+  tone."* His available colour photos are graded album art, so hue was not
+  trusted; lightness was. His studio portrait has him in a white T-shirt:
+  cheeks/shirt = 0.315 in linear light. The painting also has him in a white
+  T-shirt under the same light, so the target is 0.315 of the painted shirt,
+  measured every run (`tools/retouch_ending.py`). Painted skin went
+  (103,49,3) → (155,85,32).
+- **Stat board under the W.** *"Stretched out towards the left... under the
+  W... black out the background."* Labels anchor left at x446 (the W is
+  x438-545), values stay right-aligned at x808, the wall behind (the PLAYER
+  ONE sign) is darkened to 16% with a feathered edge. ROW_Y / VALUE_X /
+  VALUE_PX unchanged.
+- **GAME KNOCKED buttons.** `drawButtonPlate` takes a tone: GET BACK UP green,
+  END RUN red; every other plate keeps the gold.
+- Latch → `wh_intro_v5`.
+
 ## 2026-09-25 — black arrows on the move card; the ending: lighter skin, bigger stats
 
 Three asks in one message, after playing it through.
@@ -59,7 +103,7 @@ enemies, "Champagne Power Ups! / Invincible & [bag]x2 - 9 sec", and last
 trigger); `src/main.js` (`openTutorialDialogue` / `advanceTutorialDialogue`,
 the freeze in update()'s playing branch, `drawTutorialBubble` /
 `bubbleSprite` / `drawTutorialPicture`); `hud.drawPortrait` is exported for
-the enemy's head portrait. Latch: `wh_intro_v4` in `src/ui/panel.js`.
+the enemy's head portrait. Latch: `wh_intro_v5` in `src/ui/panel.js`.
 
 **Decisions and the client's words behind them**
 
@@ -100,7 +144,7 @@ the enemy's head portrait. Latch: `wh_intro_v4` in `src/ui/panel.js`.
   (DEV) for comparison and was judged not good enough to offer.
 
 **Harnesses.** `tools/harness/tutorial.mjs` (25 checks) tests it un-skipped.
-Every harness that enters stage one cold now seeds `wh_intro_v4` — a frozen
+Every harness that enters stage one cold now seeds `wh_intro_v5` — a frozen
 intro swallows input and parks the camera (cloudseal read 0px of cloud on stage
 one because of it). `startflow` and `optionsmenu` were rewritten where they
 defended the old CONTEST → HOW TO PLAY → run chain. See LESSONS §26–29.

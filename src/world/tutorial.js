@@ -79,6 +79,14 @@ export const TUTORIAL_PICTURES = {
   intro: [null, null, null, null, 'bag', 'enemy', 'champagne', null],
 };
 
+// HIS VOICE, ONE TAKE PER CARD. Will recorded the intro card by card (the
+// "Player One" assets, VOCALS/INSTRUCTIONS/); each name is a file in
+// src/assets/voice/instructions/. Same indices as TUTORIAL_LESSONS.
+export const TUTORIAL_VOICE = {
+  intro: ['help-me-make-it', 'arrows', 'manholes', 'dash', 'get-the-bag',
+    'defeat-enemies', 'champagne-power-up', 'lets-get-it'],
+};
+
 // Every lesson that has to have been seen, once, ever, before the tutorial
 // retires itself (howToSeen()). One now.
 export const TUTORIAL_ORDER = ['intro'];

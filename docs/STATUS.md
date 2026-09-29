@@ -173,6 +173,23 @@ built here — this was a status question, not a request.
 
 ## DONE — shipped and live
 
+### 2026-09-29 — Will Hill's voice and music; the ending matched to him; coloured knockdown buttons
+
+- **Voice lines** in every moment his folders name, random without repeats
+  (details: GDD "Will Hill's voice and music"). `tools/harness/voice.mjs`.
+- **Music** replaced with his four instrumentals, placed by the client on the
+  Player One Soundtrack listening page (a private claude.ai page with every
+  song and line, where the picks were saved). At his own levels until the
+  client has listened — the level pass is still to come.
+- **Ending:** his skin tone measured against the real Will Hill (his studio
+  portrait, skin vs his white T-shirt, 0.315 in linear light) and applied
+  against the painted white T-shirt; the stat board's labels now start under
+  the W of SHOWTIME with the wall behind it (the PLAYER ONE sign) blacked out.
+- **GAME KNOCKED:** GET BACK UP green, END RUN red.
+- Latch → `wh_intro_v5` so everyone hears the voiced intro once.
+
+**Open from this pass:** the music level adjustment, after the client listens.
+
 ### 2026-09-24 — HOW TO PLAY becomes Will Hill's intro bubbles in stage one
 
 Merged (PR #18, `3dec992`) and deployed (`gh-pages` `3b2932b`). Will Hill's
@@ -189,8 +206,8 @@ this is gonna be everyone's first time seeing this."*
   enemies, "Champagne Power Ups! / Invincible & [bag]x2 - 9 sec", "Let's get
   it!"), with the bag,
   bottle and a HUD-style enemy portrait inside the bubble on their lines.
-- Latch `wh_intro_v4` — everyone sees it once, including anyone who saw the
-  old screen (*"New intro."*), the blue-arrow eight cards (`wh_intro_v3`), the
+- Latch `wh_intro_v5` — everyone sees it once, including anyone who saw the
+  old screen (*"New intro."*), the voiceless cards (`wh_intro_v4`), the blue-arrow eight cards (`wh_intro_v3`), the
   ten-card script (`wh_intro_v2`), or the first
   script (`wh_intro_seen`, retired: *"clear everything out so everybody who has the game will see the new intro now"*).
 - Full detail, decisions and the client's words: `docs/HANDOFF.md`

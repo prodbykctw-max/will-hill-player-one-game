@@ -37,7 +37,7 @@ There is no instructions screen between PRESS START and the run. Will Hill's
 management asked for the game to teach itself the way Pokémon did on the Game
 Boy: *"make a text bubble come from Will describing the same instructions."*
 
-- **Where:** the very start of stage one, the first time only (`wh_intro_v4`).
+- **Where:** the very start of stage one, the first time only (`wh_intro_v5`).
   Will lands on the street, stands still, and the world is frozen.
 - **How:** a speech bubble off his head; the player taps (or presses JUMP)
   through it. A line types out; the first press finishes it, the next turns
@@ -65,6 +65,36 @@ Boy: *"make a text bubble come from Will describing the same instructions."*
   reference), drawn in this game's own pixels. Final art is pending the
   client's choice of source.
 - OPTIONS → HOW TO PLAY keeps the one-page ✕/✓ card as a recap.
+
+## Will Hill's voice and music (2026-09-29)
+
+Source: Will Hill's "Player One" Video Game Assets (VIDEO GAME ASSETS.zip on his Google Drive, sent 2026-09-29 via Scoon: INSTRUMENTALS/ and VOCALS/).
+
+**Voice.** Each of his folders speaks at the moment it is named for:
+
+| folder | when | takes |
+|---|---|---|
+| instructions | each intro card, its own take | 8 |
+| jump-on-ninja | a stomp (about 1 in 3, with a 7s gap) | 2 |
+| hit-by-ninja | an enemy takes a heart | 2 |
+| power-ups | a champagne bottle | 6 |
+| stage-clear | the stage-clear card | 6 |
+| loss | GAME KNOCKED | 3 |
+
+Outside the intro every moment deals its takes at random from a shuffled deck:
+never the same line twice running, every line once before any repeats
+(*"randomize... it should never just get stuck on repeating the same thing"*).
+One voice at a time; the music dips while he talks; the SFX switch silences
+him. Takes are trimmed of silence and levelled to -16 LUFS mono.
+
+**Music.** His four instrumentals, placed by the client on the listening page:
+intro/title **Smooth** · all five stages **New Day New Money** · train map
+**Bobby Boucher** · pause & menus **Smooth** · ending **Iridescent**. Whole
+songs, looped whole, at Will's own levels for now (*"leave it as is first,
+and then we're gonna make the adjustment after they listen to it"*).
+
+**Knocked-down screen.** GET BACK UP is green, END RUN is red (*"the
+navigation button should be color-coded"*).
 
 ## The finish line is the bank (2026-09)
 
