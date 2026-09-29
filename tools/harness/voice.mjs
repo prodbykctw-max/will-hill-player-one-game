@@ -158,6 +158,57 @@ for (const [g, seq] of Object.entries(deal)) {
     `${seq.slice(0, Math.min(12, seq.length)).join(' ')}${noRepeat ? '' : '  (REPEAT)'}`);
 }
 
+// ── ENEMY DEFEATS: A STOMP, OR AN AIR DASH ONTO HIS HEAD ────────────────
+// The rule is about 1 in 3 defeats with a 7s gap. Client: "make sure it
+// applies to when you dash on the enemy's head too." Real defeats through the
+// loop, parked high so he never lands (combo.mjs's method). The chance is
+// pinned with a Math.random stub so each case is decided, not rolled: 0 makes
+// the 1-in-3 pass, 0.99 makes it fail.
+await p.evaluate(() => window.__startStage(0));
+await p.waitForTimeout(600);
+const defeat = (dash, roll) => p.evaluate(async ({ dash, roll }) => {
+  const frame = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+  const g = window.__game; const a = window.__audio;
+  const { createEnemy } = await import('/src/entities/enemy.js');
+  const pl = g.player;
+  g.level.enemies.length = 0;
+  const e = createEnemy(pl.x + 400, pl.y - 600, 0, 'a');
+  g.level.enemies.push(e);
+  const before = a.voiceCount();
+  const home = { x: pl.x, y: pl.y };   // on the street, where startStage left him
+  const real = Math.random;
+  Math.random = () => roll;
+  pl.x = e.x; pl.y = e.y - pl.h + 10; pl.vy = 2; pl.onGround = false; pl.dead = false;
+  if (dash) { pl.dashing = true; pl.dashT = 12; pl.dashVx = 0; }
+  await frame();
+  Math.random = real;
+  // Back down on the street, so he cannot fall into a pit while the next
+  // check waits out the 7s gap — a knockdown would speak its own line and
+  // (correctly) restart the gap.
+  pl.dashing = false; pl.dashT = 0; pl.x = home.x; pl.y = home.y; pl.vy = 0;
+  return { killed: !e.alive, spoke: a.voiceCount() > before, line: a.lastVoice() };
+}, { dash, roll });
+await p.waitForTimeout(7500);                       // clear of the 7s gap
+await p.evaluate(() => window.__startStage(0));
+await p.waitForTimeout(400);
+const d1 = await defeat(true, 0);
+check('an AIR DASH onto his head defeats him and speaks jump-on-ninja',
+  d1.killed && d1.spoke && d1.line.startsWith('jump-on-ninja/'), JSON.stringify(d1));
+const d2 = await defeat(false, 0);
+check('a stomp right after stays quiet: the 7-second gap', d2.killed && !d2.spoke, JSON.stringify(d2));
+await p.waitForTimeout(7500);
+// ⚠️ A FRESH STAGE AFTER EVERY WAIT. Parked 600 up and left alone for 7.5s,
+// he falls — through a pit on a bad draw — and GAME KNOCKED takes over, so
+// the next "defeat" happened on the knockdown card and read as silence.
+await p.evaluate(() => window.__startStage(0));
+await p.waitForTimeout(400);
+const d3 = await defeat(true, 0.99);
+check('past the gap, a dash defeat that loses the 1-in-3 roll stays quiet', d3.killed && !d3.spoke,
+  JSON.stringify(d3));
+const d4 = await defeat(false, 0);
+check('and a stomp that wins it speaks', d4.killed && d4.spoke && d4.line.startsWith('jump-on-ninja/'),
+  JSON.stringify(d4));
+
 // ── THE SFX SWITCH SILENCES HIM ──────────────────────────────────────────
 const muted = await p.evaluate(() => {
   const a = window.__audio;

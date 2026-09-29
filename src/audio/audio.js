@@ -79,6 +79,7 @@ export function createAudio() {
   const voiceDeck = {};
   const voiceLast = {};
   let lastVoice = null;
+  let voiceCount = 0;
   function deal(group, all) {
     let deck = voiceDeck[group];
     if (!deck || !deck.length) {
@@ -763,11 +764,14 @@ export function createAudio() {
       voiceSrc = src;
       voiceEnd = c.currentTime + buf.duration;
       lastVoice = `${group}/${name}`;
+      voiceCount++;
       music.duck(buf.duration * 1000 + 250);
       return true;
     },
     // The last line he said, as 'moment/take' — for the harness.
     lastVoice: () => lastVoice,
+    // How many lines he has said this session — for the harness.
+    voiceCount: () => voiceCount,
     // Which lines exist, by moment — for the harness.
     voiceLines() {
       return Object.fromEntries(Object.entries(VOICE).map(([g, l]) => [g, Object.keys(l).sort()]));

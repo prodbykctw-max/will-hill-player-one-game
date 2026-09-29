@@ -800,10 +800,15 @@ function advanceTutorialDialogue() {
 //   power-ups      a champagne bottle (all six takes — the folder IS the
 //                  power-up, and champagne is the game's only one)
 //   stage-clear    the stage-clear card        loss  GAME KNOCKED
-// The one judgement on top: stomps happen constantly, so they speak on a
-// chance with a gap, so a line still means something the tenth time. The
-// rest happen a handful of times a run and always speak. audio.voice()
-// already refuses to talk over itself.
+// The one judgement on top: enemy defeats happen constantly, so they speak on
+// a chance (about 1 in 3) with a 7-second gap, so a line still means
+// something the tenth time. That includes an AIR DASH that lands his feet in
+// the stomp box — client: "make sure it applies to when you dash on the
+// enemy's head too" — which needs nothing extra here: entities/enemy.js
+// resolves a dashing descent into the stomp box as a 'stomp', so it arrives
+// at the same line below (voice.mjs proves it through the loop). The rest
+// happen a handful of times a run and always speak. audio.voice() already
+// refuses to talk over itself.
 let lastSaid = -1e9;
 function say(group, { chance = 1, gapMs = 0, force = false } = {}) {
   const now = performance.now();
