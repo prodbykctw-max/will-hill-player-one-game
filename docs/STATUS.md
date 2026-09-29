@@ -263,7 +263,10 @@ shipped. Full detail: `docs/HANDOFF.md`'s two entries from today.
 **Credits screen: no separate DESIGN line.** Client: game development
 already covers design, so the `_kematry` DESIGN row is gone; MUSIC and
 SOUND EFFECTS merged into one MUSIC/SFX line (`src/render/credits.js`) —
-same person, same credit, no reason to say it twice.
+same person, same credit, no reason to say it twice. ⚠️ Superseded
+2026-09-29: the line is now **SFX** only — the music is Will Hill's
+instrumentals, and the client: *"change the credit for me to only SFX...
+I didn't produce any of the music."*
 
 **A full load and security test against the live account**, client:
 *"pressure test... 10,000 people try to download, play, visit this
