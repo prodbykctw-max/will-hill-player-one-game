@@ -83,25 +83,37 @@ import mIridescent from '../assets/music/will-hill/iridescent.mp3';
 // song change is a `src` change. Several slots share one file now; Vite
 // dedupes the import, so each song ships once. Every cue loops.
 //
+// ⚠️ `stream: true` — WHOLE SONGS ARE NEVER DECODED. The decoded-buffer path
+// below exists for sample-exact loops of short CUT loops. A whole song
+// decoded is float32 PCM: 46-61MB each at a phone's 48kHz (Iridescent,
+// 158s, is 60.6MB), and the cache was keyed by SLOT, so twelve slots over
+// four files decoded the same song repeatedly — ~630MB of decoding churn at
+// boot and up to ~220MB held at once, which is the kind of number that gets
+// a Safari tab killed on an older iPhone. Streamed on the element instead:
+// a few MB, and the element's two-element lap (LAP) crossfades each song's
+// own fade-out into its first bar, which is all a whole-song loop needs. It
+// also means a paused stage song RESUMES where it was instead of restarting
+// from the top (a buffer source cannot be paused, only replaced).
+//
 // ⚠️ A STAGE STILL STARTS ITS SONG FROM THE TOP. stage_01..05 are separate
 // keys pointing at the same file, and each stage is reached through the
 // train map's cue, so moving to the next stage crossfades into a fresh start
 // of New Day New Money rather than resuming mid-song. Same for the map.
 export const MANIFEST = {
-  title:     { src: mSmooth,     loop: true, gain: 0.55, startAt: 0 },  // Smooth
-  stage_01:  { src: mNewDay,     loop: true, gain: 0.50, startAt: 0 },  // New Day New Money
-  map_01_02: { src: mBobby,      loop: true, gain: 0.50, startAt: 0 },  // Bobby Boucher
-  stage_02:  { src: mNewDay,     loop: true, gain: 0.50, startAt: 0 },
-  map_02_03: { src: mBobby,      loop: true, gain: 0.50, startAt: 0 },
-  stage_03:  { src: mNewDay,     loop: true, gain: 0.50, startAt: 0 },
-  map_03_04: { src: mBobby,      loop: true, gain: 0.50, startAt: 0 },
-  stage_04:  { src: mNewDay,     loop: true, gain: 0.50, startAt: 0 },
-  map_04_05: { src: mBobby,      loop: true, gain: 0.50, startAt: 0 },
-  stage_05:  { src: mNewDay,     loop: true, gain: 0.50, startAt: 0 },
+  title:     { src: mSmooth,     loop: true, stream: true, gain: 0.55, startAt: 0 },  // Smooth
+  stage_01:  { src: mNewDay,     loop: true, stream: true, gain: 0.50, startAt: 0 },  // New Day New Money
+  map_01_02: { src: mBobby,      loop: true, stream: true, gain: 0.50, startAt: 0 },  // Bobby Boucher
+  stage_02:  { src: mNewDay,     loop: true, stream: true, gain: 0.50, startAt: 0 },
+  map_02_03: { src: mBobby,      loop: true, stream: true, gain: 0.50, startAt: 0 },
+  stage_03:  { src: mNewDay,     loop: true, stream: true, gain: 0.50, startAt: 0 },
+  map_03_04: { src: mBobby,      loop: true, stream: true, gain: 0.50, startAt: 0 },
+  stage_04:  { src: mNewDay,     loop: true, stream: true, gain: 0.50, startAt: 0 },
+  map_04_05: { src: mBobby,      loop: true, stream: true, gain: 0.50, startAt: 0 },
+  stage_05:  { src: mNewDay,     loop: true, stream: true, gain: 0.50, startAt: 0 },
   // An interlude, under a frozen screen — quieter, so it does not pull focus.
-  ui_pause:  { src: mSmooth,     loop: true, gain: 0.38, startAt: 0 },  // Smooth
+  ui_pause:  { src: mSmooth,     loop: true, stream: true, gain: 0.38, startAt: 0 },  // Smooth
   // The ending has no time limit, so it loops like everything else.
-  credits:   { src: mIridescent, loop: true, gain: 0.60, startAt: 0 },  // Iridescent
+  credits:   { src: mIridescent, loop: true, stream: true, gain: 0.60, startAt: 0 },  // Iridescent
 };
 
 // Which cue belongs to which stage index, so main.js never builds a slot name
@@ -291,13 +303,13 @@ export function createMusic(getContext, getMaster) {
   const buffers = new Map();      // slot -> AudioBuffer
   const decoding = new Map();     // slot -> Promise
   // Two at a time: the cue playing and the one warm() has fetched ahead of it.
-  // A decoded stage track is ~35MB of Float32 — holding all ten would be
-  // several hundred megabytes for no benefit, on a phone.
+  // A decoded cut loop was ~5-20MB of Float32; a whole song is 46-61MB, which
+  // is why whole songs set `stream` and never come through here at all.
   const MAX_BUFFERS = 2;
 
   function decodeSlot(slot) {
     const cue = MANIFEST[slot];
-    if (!cue || !cue.src || !cue.loop) return Promise.resolve(null);
+    if (!cue || !cue.src || !cue.loop || cue.stream) return Promise.resolve(null);
     if (buffers.has(slot)) return Promise.resolve(buffers.get(slot));
     if (decoding.has(slot)) return decoding.get(slot);
     const ctx = getContext();
@@ -708,9 +720,9 @@ export function createMusic(getContext, getMaster) {
     // The punch is the loudest thing in the game and the music is the widest.
     // Ducking is what stops a stomp disappearing into a chorus.
     // `ms` holds it down longer — Will's voice lines duck for their own length.
-    duck(ms = DUCK_MS) {
+    duck(ms = DUCK_MS, { replace = false } = {}) {
       if (!current) return;
-      ducking = Math.max(ducking, ms);
+      ducking = replace ? ms : Math.max(ducking, ms);
       ramp(current, levelOf(current), 0.05);
     },
 

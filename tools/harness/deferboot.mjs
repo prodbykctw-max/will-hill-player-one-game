@@ -124,10 +124,18 @@ const BOOT = /\/(eav-|title|enemy|will-hill|moneybag|champagne|ending-)[^/]*\.(w
   const groupsIn = () => ['edgewood', 'underground', 'l5p', 'marta-map'].every((g) => reqs.some((u) => u.includes('/' + g)));
   for (let n = 0; n < 100 && !groupsIn(); n++) await p.waitForTimeout(250);
   ck('C1 prod background load fetches all late groups', groupsIn(), `${reqs.length} image requests`);
-  // The soundtrack prewarm on the real build: ten cues, no gesture, no
-  // screen ever left the title. Staggered 900ms apart behind the images.
-  for (let n = 0; n < 80 && mp3s.size < 10; n++) await p.waitForTimeout(250);
-  ck('C3 prod prewarms the whole soundtrack, no gesture needed', mp3s.size >= 10, `${mp3s.size} cues: ${[...mp3s].join(',')}`);
+  // The soundtrack prewarm on the real build: every distinct music FILE, no
+  // gesture, no screen ever left the title. Staggered 900ms apart behind the
+  // images. ⚠️ COUNTED FROM THE CUE SHEET, NOT A LITERAL. This read `>= 10`
+  // while ten slots meant ten files; since 2026-09-29 twelve slots share Will
+  // Hill's four songs (Vite ships each once), so ten could never arrive and
+  // the check failed on a soundtrack that was, in fact, fully prewarmed.
+  const { readFileSync } = await import('fs');
+  const sheet = JSON.parse(readFileSync(new URL('../cue_sheet.json', import.meta.url), 'utf8'));
+  const WANT_FILES = new Set(Object.values(sheet.cues).map((c) => c.track)).size;
+  for (let n = 0; n < 80 && mp3s.size < WANT_FILES; n++) await p.waitForTimeout(250);
+  ck('C3 prod prewarms the whole soundtrack, no gesture needed', mp3s.size >= WANT_FILES,
+    `${mp3s.size} of ${WANT_FILES} files: ${[...mp3s].join(',')}`);
   const firstLate = reqs.findIndex((u) => LATE.test(u));
   const lastBoot = reqs.reduce((a, u, i) => (BOOT.test(u) ? i : a), -1);
   ck('C2 prod order: boot art first, late art strictly after',

@@ -154,7 +154,9 @@ def main():
           f"(x{skin['gain']:.2f} light, white shirt reads {skin['white'].round()})")
     out, row_y, value_right = enlarge_board(out, rows, value_x)
 
-    img = Image.fromarray(out.astype(np.uint8), 'RGB')
+    # ROUNDED, not truncated: the retouches return floats, and astype() alone
+    # floors them — about 9% of the untouched plate came out one level darker.
+    img = Image.fromarray(np.clip(np.rint(out), 0, 255).astype(np.uint8), 'RGB')
     img.save(OUT, 'WEBP', quality=88, method=6)
     print(f'wrote {OUT}  {W}x{H}  {os.path.getsize(OUT) / 1024:.0f}KB')
 

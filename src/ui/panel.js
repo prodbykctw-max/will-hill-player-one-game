@@ -1012,15 +1012,27 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
 // `wh_intro_v4` when Will's own voice was put on every card.
 const INTRO_SEEN_KEY = 'wh_intro_v5';
 
+// ⚠️ ALSO HELD IN MEMORY, once true. main.js asks this every tick of stage
+// one, and two things went wrong when the answer lived only in storage:
+//   * a browser that refuses storage (Safari "Block All Cookies", old iOS
+//     private mode) could never record it, so after the last card the game
+//     kept taking the "tutorial still pending" branch — no input while he was
+//     airborne, no stomps, a pit that fell forever. A softlock.
+//   * a localStorage read on every frame of stage one, forever, for a value
+//     that only ever changes once.
+// Once seen, it stays seen for the page's life whatever storage does.
+let seenInMemory = false;
+
 export function howToSeen() {
+  if (seenInMemory) return true;
   try {
-    return localStorage.getItem(INTRO_SEEN_KEY) === '1';
-  } catch (_e) {
-    return false;
-  }
+    seenInMemory = localStorage.getItem(INTRO_SEEN_KEY) === '1';
+  } catch (_e) { /* storage refused: the in-memory latch still works */ }
+  return seenInMemory;
 }
 
 export function markHowToSeen() {
+  seenInMemory = true;
   try { localStorage.setItem(INTRO_SEEN_KEY, '1'); } catch (_e) {}
 }
 

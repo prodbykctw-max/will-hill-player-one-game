@@ -1613,13 +1613,22 @@ function update() {
       d.pageT++;
       // His take for this card, as the card opens. Asked again each tick
       // until it plays (the take may still be decoding on the very first
-      // card), but only for the first second and a half — a line that
-      // arrives after the player has read the card is worse than none.
+      // card — a first visit on cellular is exactly when this shows), but
+      // only for the first 2.5 seconds: a line that arrives after the player
+      // has read the card is worse than none. 150, not 90: skipping the
+      // typing jumps pageT to the line's full length (94 on card one), which
+      // used to close the window on a take that had simply not landed yet.
       const take = (TUTORIAL_VOICE[d.id] || [])[d.page];
-      if (take && d.voiced !== d.page && d.pageT < 90
+      if (take && d.voiced !== d.page && d.pageT < 150
           && audio.voice('instructions', { line: take, force: true })) d.voiced = d.page;
       const down = confirmPressed();
       if (down && !d.wasDown) advanceTutorialDialogue();
+      // ⚠️ AND TELL THE PLAYER, not just the bubble. stepPlayer() does not
+      // run while the bubble is up, so its own last-held record stayed false —
+      // and the JUMP that closed the last card read as a FRESH press on the
+      // first live tick, so he jumped. Holding it here makes that press
+      // belong to the bubble, as it did.
+      player._lastJumpHeld = down;
       // advanceTutorialDialogue() can close the bubble on the same press that
       // reached this line — write to `d`, which is still this page's object.
       d.wasDown = down;
@@ -2400,8 +2409,16 @@ function drawTutorialBubble(d) {
   // Wrapped from the WHOLE page so the bubble is its final size from the
   // first letter and the words type into place rather than reflowing.
   // A '\n' in a line is a hard break (the client's cards are two-line).
-  const lines = text.split('\n').flatMap((par) => wrapText(par, maxW - padX * 2 - picW - picGap, measureRich));
-  const textW = Math.max(...lines.map((l) => measureRich(l)));
+  // Laid out ONCE per card and canvas width, not every frame: the wrap is a
+  // regex split and a measureText per word, and draw() runs at the display's
+  // rate — 120 times a second on a ProMotion phone — for a layout that only
+  // changes when the page does.
+  const layoutKey = `${d.page}|${canvas.width}`;
+  if (!d.layout || d.layout.key !== layoutKey) {
+    const ls = text.split('\n').flatMap((par) => wrapText(par, maxW - padX * 2 - picW - picGap, measureRich));
+    d.layout = { key: layoutKey, lines: ls, textW: Math.max(...ls.map((l) => measureRich(l))) };
+  }
+  const { lines, textW } = d.layout;
   const contentW = picW + picGap + textW;
   const contentH = Math.max(pic ? PIC : 0, lines.length * lineH);
   const wA = Math.max(24, Math.ceil((contentW + padX * 2) / P));
@@ -2935,10 +2952,10 @@ function pumpLoads() {
 // gesture), so the driver below warms the whole soundtrack behind the art:
 // stage one's cues the moment a run is possible, everything else once the
 // images are done. The service worker then holds the bytes across visits.
-// Staggered, one cue at a time: warm() also kicks a decode when the audio
-// context is awake, and a decoded stage track is ~35 MB of Float32 — seven
-// at once would be a real memory spike on a phone. 900ms apart, decodes
-// never stack more than two deep (music.js's own buffer cap).
+// Staggered, one cue at a time: warm() also kicks a decode for a cut-loop
+// cue when the audio context is awake. (Will Hill's whole songs are marked
+// `stream` in music.js and are never decoded — at 46-61MB of Float32 each
+// they would be exactly the memory spike this stagger was written to avoid.)
 const warmedSlots = new Set();
 function warmMusic(slots) {
   const todo = slots.filter((s) => !warmedSlots.has(s));
