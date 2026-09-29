@@ -28,9 +28,13 @@
 // ⚠️ NO SEPARATE DESIGN LINE. This screen briefly had one — "DESIGN →
 // _kematry", credited for converting the backgrounds into pixel art — before
 // the client reversed it: game development already covers design, so it
-// doesn't get its own row. MUSIC and SOUND EFFECTS are likewise folded into
-// one MUSIC/SFX line rather than two identical `prodbyKCTW` rows back to
-// back — same person, same credit, no reason to say it twice.
+// doesn't get its own row.
+//
+// ⚠️ SFX ONLY, NOT MUSIC/SFX. It read MUSIC/SFX while the soundtrack was
+// prodbyKCTW's own loops. Since 2026-09-29 the music is Will Hill's
+// instrumentals, and the client: "Can we change the credit for me to only
+// SFX? Because I didn't produce any of the music that they just put in
+// there." The effects (the stomp is his own voice) are still his.
 //
 // NOTHING IS PAINTED HERE. There is no plate for this screen — it was never
 // commissioned — so unlike ending.js this file draws real text on a real
@@ -59,7 +63,7 @@ const LINES = [
   { role: 'GAME DEVELOPMENT' },
   { name: 'RARƎ AGENCY' },
   { gap: 0.6 },
-  { role: 'MUSIC/SFX' },
+  { role: 'SFX' },
   { name: 'prodbyKCTW' },
   { gap: 1.4 },
   { small: 'THANK YOU FOR PLAYING' },

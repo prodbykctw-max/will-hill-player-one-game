@@ -52,8 +52,8 @@ placed as artwork, flip that glyph horizontally; do not type a normal E.
 |---|---|
 | Game development — front and back end, app and web | **RARƎ AGENCY** — prodbyKCTW as Lead Developer |
 | Design — background art conversion | **_kematry** |
-| Music | **prodbyKCTW** |
-| Sound effects | **prodbyKCTW** |
+| Music | Will Hill's own instrumentals (since 2026-09-29) — not a line on the credits screen |
+| Sound effects | **prodbyKCTW** — the screen's only audio line, `SFX` |
 
 ⚠️ **THIS TABLE NOW MATCHES `src/render/credits.js`, THE SCREEN THAT ACTUALLY
 SHIPS.** It didn't always — this file first listed game development straight
