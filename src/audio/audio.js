@@ -47,6 +47,13 @@ for (const [path, url] of Object.entries(VOICE_URLS)) {
   if (m) (VOICE[m[1]] ||= {})[m[2]] = url;
 }
 const VOICE_GAIN = 1.15;
+// Each moment's takes, sorted once here rather than on every voice() call —
+// the tutorial asks every tick while its take is still decoding.
+const VOICE_TAKES = Object.fromEntries(Object.entries(VOICE).map(([g, l]) => [g, Object.keys(l).sort()]));
+// The intro's takes are fetched FIRST: the stage-one intro opens a second
+// or two after the first tap, on a first visit, and its first card has to
+// have its line by then. Everything else is heard later in a run.
+const VOICE_ORDER = Object.keys(VOICE).sort((a, b) => (a === 'instructions' ? -1 : b === 'instructions' ? 1 : 0));
 
 export function createAudio() {
   let ctx = null;
@@ -77,23 +84,40 @@ export function createAudio() {
   // two takes that is simply A, B, A, B, which is the only way two can avoid
   // repeating).
   const voiceDeck = {};
+  let voiceGain = null;
   const voiceLast = {};
   let lastVoice = null;
   let voiceCount = 0;
-  function deal(group, all) {
-    let deck = voiceDeck[group];
-    if (!deck || !deck.length) {
-      deck = all.slice();
-      for (let i = deck.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [deck[i], deck[j]] = [deck[j], deck[i]];
-      }
-      if (deck.length > 1 && deck[deck.length - 1] === voiceLast[group]) {
-        [deck[0], deck[deck.length - 1]] = [deck[deck.length - 1], deck[0]];
-      }
-      voiceDeck[group] = deck;
+  function shuffle(group, all) {
+    const deck = all.slice();
+    for (let i = deck.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [deck[i], deck[j]] = [deck[j], deck[i]];
     }
-    return deck[deck.length - 1];
+    if (deck.length > 1 && deck[deck.length - 1] === voiceLast[group]) {
+      [deck[0], deck[deck.length - 1]] = [deck[deck.length - 1], deck[0]];
+    }
+    voiceDeck[group] = deck;
+    return deck;
+  }
+  // The index of the card to play: the top one, unless its take has not
+  // decoded — then the nearest one below that has. A take still in flight (or
+  // one whose download failed for good) must never hold the moment silent:
+  // before this, a missing top card was returned on every call, and one
+  // failed download muted its folder for the session. If nothing left in the
+  // deck is playable (only the missing take remains), a fresh deck is dealt.
+  function deal(group, all) {
+    const pick = (deck) => {
+      for (let i = deck.length - 1; i >= 0; i--) {
+        if (voiceBufs[`${group}/${deck[i]}`]) return i;
+      }
+      return -1;
+    };
+    let deck = voiceDeck[group];
+    if (!deck || !deck.length) deck = shuffle(group, all);
+    let at = pick(deck);
+    if (at < 0) at = pick(shuffle(group, all));
+    return at;
   }
   let loading = false;
   let alt = 0;
@@ -275,8 +299,8 @@ export function createAudio() {
         .then((buf) => { buffers[key] = buf; })
         .catch(() => {});
     }
-    for (const [group, lines] of Object.entries(VOICE)) {
-      for (const [name, url] of Object.entries(lines)) {
+    for (const group of VOICE_ORDER) {
+      for (const [name, url] of Object.entries(VOICE[group])) {
         fetch(url)
           .then((r) => r.arrayBuffer())
           .then((b) => c.decodeAudioData(b))
@@ -747,25 +771,42 @@ export function createAudio() {
       const c = ensure();
       if (!c || c.state !== 'running') return false;
       if (!force && c.currentTime < voiceEnd) return false;
-      const all = Object.keys(VOICE[group] || {}).sort();
-      if (!all.length) return false;
-      const name = line || deal(group, all);
+      const all = VOICE_TAKES[group];
+      if (!all || !all.length) return false;
+      let name = line;
+      if (!name) {
+        const at = deal(group, all);
+        if (at < 0) return false;
+        name = voiceDeck[group][at];
+      }
       const buf = voiceBufs[`${group}/${name}`];
       if (!buf) return false;
-      if (!line) { voiceDeck[group].pop(); voiceLast[group] = name; }
-      if (voiceSrc) { try { voiceSrc.stop(); } catch (_e) { /* already ended */ } }
+      if (!line) { voiceDeck[group].splice(voiceDeck[group].indexOf(name), 1); voiceLast[group] = name; }
+      const now = c.currentTime;
+      // A cut-off line FADES over ~20ms rather than stopping dead: a buffer
+      // stopped mid-waveform clicks, and a page turn or a stage clear cuts him
+      // off on purpose.
+      if (voiceSrc && now < voiceEnd) {
+        try {
+          voiceGain.gain.setTargetAtTime(0, now, 0.006);
+          voiceSrc.stop(now + 0.03);
+        } catch (_e) { /* already ended */ }
+      }
       const src = c.createBufferSource();
       src.buffer = buf;
       const g = c.createGain();
       g.gain.value = VOICE_GAIN;
       src.connect(g);
       g.connect(master);
-      src.start(c.currentTime);
+      src.start(now);
       voiceSrc = src;
-      voiceEnd = c.currentTime + buf.duration;
+      voiceGain = g;
+      voiceEnd = now + buf.duration;
       lastVoice = `${group}/${name}`;
       voiceCount++;
-      music.duck(buf.duration * 1000 + 250);
+      // The duck is for THIS line: a forced cut replaces the old line's
+      // remaining duck instead of stacking on top of it.
+      music.duck(buf.duration * 1000 + 250, { replace: force });
       return true;
     },
     // The last line he said, as 'moment/take' — for the harness.
@@ -774,7 +815,7 @@ export function createAudio() {
     voiceCount: () => voiceCount,
     // Which lines exist, by moment — for the harness.
     voiceLines() {
-      return Object.fromEntries(Object.entries(VOICE).map(([g, l]) => [g, Object.keys(l).sort()]));
+      return Object.fromEntries(Object.entries(VOICE_TAKES).map(([g, l]) => [g, l.slice()]));
     },
 
     // ⚠️ A CHAIN STEP RIDES ON TOP OF THE PUNCH, IT DOES NOT REPLACE IT.

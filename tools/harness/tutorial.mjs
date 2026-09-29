@@ -223,6 +223,66 @@ check('and he is STANDING when it opens, not hanging in the air', opened.onGroun
     stops.every(([, open]) => !open), JSON.stringify(stops));
 }
 
+// ── CLOSING THE LAST CARD WITH JUMP DOES NOT MAKE HIM JUMP ─────────────
+// stepPlayer() does not run while the bubble is up, so its own record of
+// "JUMP was held" went stale, and the press that closed the last card read as
+// a fresh jump on the first live tick. Real key, real loop.
+{
+  const c3 = await b.newContext({ viewport: { width: 430, height: 932 }, hasTouch: true });
+  const p3 = await c3.newPage();
+  await p3.goto('http://localhost:5199/?tod=night', { waitUntil: 'networkidle' });
+  await p3.waitForFunction(() => window.__game && window.__game.screen === 'title', null, { timeout: 25000 });
+  await p3.evaluate(() => window.__startStage(0));
+  await p3.waitForFunction(() => window.__game.dialogue, null, { timeout: 10000 });
+  // To the last card, fully typed, by the hook; then close it with a real key.
+  await p3.evaluate(() => {
+    const d = window.__game.dialogue;
+    d.page = d.pages.length - 1; d.pageT = 9999;
+  });
+  const y0 = await p3.evaluate(() => window.__game.player.y);
+  await p3.keyboard.down('Space');
+  await p3.waitForFunction(() => !window.__game.dialogue, null, { timeout: 3000 });
+  let minY = y0;
+  for (let i = 0; i < 20; i++) {
+    minY = Math.min(minY, await p3.evaluate(() => window.__game.player.y));
+    await p3.waitForTimeout(16);
+  }
+  await p3.keyboard.up('Space');
+  check('the JUMP that closes the last card does not also make him jump',
+    y0 - minY < 4, `rose ${Math.round(y0 - minY)}px`);
+  await c3.close();
+}
+
+// ── STORAGE REFUSED: THE INTRO STILL ENDS, AND THE STAGE STILL PLAYS ─────
+// Safari with "Block All Cookies" (and old iOS private mode) throws on
+// localStorage. The latch could never be written, so after the last card the
+// game kept taking the tutorial branch — no stomps, no pit deaths, a
+// softlock. The latch is held in memory too now.
+{
+  const c4 = await b.newContext({ viewport: { width: 430, height: 932 }, hasTouch: true });
+  const p4 = await c4.newPage();
+  await p4.addInitScript(() => {
+    const no = () => { throw new DOMException('blocked', 'SecurityError'); };
+    Storage.prototype.getItem = no; Storage.prototype.setItem = no; Storage.prototype.removeItem = no;
+  });
+  await p4.goto('http://localhost:5199/?tod=night', { waitUntil: 'networkidle' });
+  await p4.waitForFunction(() => window.__game && window.__game.screen === 'title', null, { timeout: 25000 });
+  await p4.evaluate(() => window.__startStage(0));
+  await p4.waitForFunction(() => window.__game.dialogue, null, { timeout: 10000 });
+  await p4.evaluate(() => { let n = 0; while (window.__game.dialogue && n < 60) { window.__tutorialAdvance(); n++; } });
+  // Lift him into the air: a live stage lets gravity bring him back down.
+  const fell = await p4.evaluate(() => new Promise((done) => {
+    const g = window.__game; const pl = g.player;
+    const y0 = pl.y; pl.y -= 120; pl.vy = 0; pl.onGround = false;
+    let n = 0;
+    const tick = () => { if (++n < 90 && !pl.onGround) requestAnimationFrame(tick); else done({ landed: pl.onGround, back: Math.abs(pl.y - y0) < 4, dialogue: !!g.dialogue }); };
+    requestAnimationFrame(tick);
+  }));
+  check('with storage blocked the intro still closes and the stage plays on', !fell.dialogue && fell.landed,
+    JSON.stringify(fell));
+  await c4.close();
+}
+
 // ── A RETURNING PLAYER STILL GETS THE NEW INTRO ──────────────────────────
 // Two retired latches, both of which real phones are holding:
 //   `wh_howto_seen` — set just by reaching the old HOW TO PLAY panel. Asked

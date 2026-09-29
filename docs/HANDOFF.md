@@ -6,6 +6,53 @@ Repo: https://github.com/prodbykctw-max/will-hill-player-one-game
 Read `docs/GDD.md` for design and `CLAUDE.md` for architecture first. This
 file covers what a fresh session needs that isn't obvious from the code.
 
+## 2026-09-29 (review) — a code review and performance pass over this month's work
+
+Client: *"Review your own code and do speed and performance tests."* A review
+of every change since the intro work (PRs #18-#27), and a new
+`tools/harness/perf.mjs`. What was found and fixed:
+
+- **Music memory — the big one.** A decoded song is float32 PCM: 46-61MB each
+  at a phone's 48kHz. music.js cached decodes by SLOT, twelve slots over four
+  files, so boot decoded the same songs over and over (~630MB of churn, up to
+  ~220MB held) — enough to get a Safari tab killed on an older iPhone. Whole
+  songs are now `stream: true` in the MANIFEST and never decoded; they play
+  on the element, whose lap crossfades each song's fade-out into its start.
+  Side effect, a good one: a paused stage song resumes instead of restarting.
+- **One missing voice take silenced its folder** (the deck returned the same
+  undecoded card forever). It now deals the nearest decoded card and
+  reshuffles if only a missing take remains; `voice.mjs` fails a download on
+  purpose to prove it.
+- **Storage blocked (Safari "Block All Cookies") softlocked stage one** — the
+  intro latch could not be written, so the tutorial branch kept running: no
+  stomps, pits fell forever. The latch is held in memory too
+  (`ui/panel.js`), which also ends a localStorage read on every frame.
+- **Closing the last card with JUMP made him jump.** The player's own
+  held-JUMP record went stale while the bubble was up; the dialogue branch
+  now keeps it current.
+- Smaller: card one's take gets 2.5s to arrive (skipping the typing used to
+  shut its window); instruction takes are fetched first; a cut-off line
+  fades over ~20ms instead of clicking; a forced line replaces the old duck
+  rather than stacking; the bubble lays its text out once per card instead
+  of every frame; voice take lists are sorted once; the ending plate is
+  rounded, not truncated (9% of it had come out one level darker).
+
+**Measured** (`perf.mjs`, this container, phone viewport at 3x density):
+
+| | before the fixes | after |
+|---|---|---|
+| title / intro bubble, CPU 4x slower | 10 / 8 fps | 16 / 13 fps |
+| worst main-thread task on the first tap, 4x | 335ms | 76ms |
+| every scene, normal speed | — | 57-60 fps |
+| first tap, normal speed | — | no task over 50ms |
+| whole songs decoded into memory | up to ~220MB | none |
+| JS heap after every scene | 21MB | 21MB |
+| total build | 25.1MB | 25.1MB (24.8MB before the month's work) |
+
+The 4x title/stage rate is the same on the build from before this month's
+work, measured side by side: it is this GPU-less container rasterising in
+software, not a regression.
+
 ## 2026-09-29 (later) — the Buckhead ride follows the red line; dash kills speak
 
 - **MARTA map, L5P → Buckhead.** *"It should be following the red train

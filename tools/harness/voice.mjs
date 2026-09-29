@@ -219,6 +219,32 @@ const muted = await p.evaluate(() => {
 });
 check('with SFX off he says nothing', muted === false);
 
+// ── ONE TAKE THAT NEVER ARRIVES DOES NOT SILENCE ITS FOLDER ─────────────
+// The deck used to return the same undecoded top card on every call, so one
+// failed download muted that moment for the session. Fail one stage-clear
+// take at the network, then deal: the other five must still play.
+{
+  const c5 = await b.newContext({ viewport: { width: 430, height: 932 }, hasTouch: true });
+  const p5 = await c5.newPage();
+  // ⚠️ THE AUDIO FETCH, NOT THE MODULE IMPORT. On the dev server the
+  // import.meta.glob `?url` import is itself a module request
+  // (…/wooooo.mp3?t=…&import&url); failing THAT breaks the module graph and
+  // the game never boots. A phone's real failure is the later fetch of the
+  // file itself, which carries no query.
+  await p5.route((u) => u.pathname.endsWith('/wooooo.mp3') && !u.search, (r) => r.abort());
+  await p5.goto('http://localhost:5199/?tod=night', { waitUntil: 'networkidle' });
+  await p5.waitForFunction(() => window.__game && window.__game.screen === 'title', null, { timeout: 25000 });
+  await p5.mouse.click(5, 5);
+  await p5.waitForTimeout(2500);
+  const seq = await p5.evaluate(() => {
+    const a = window.__audio; const out = [];
+    for (let i = 0; i < 15; i++) out.push(a.voice('stage-clear', { force: true }) ? a.lastVoice().split('/')[1] : 'SILENT');
+    return out;
+  });
+  check('a take whose download failed is skipped, not a whole moment gone quiet',
+    !seq.includes('SILENT') && !seq.includes('wooooo') && new Set(seq).size === 5, seq.join(' '));
+  await c5.close();
+}
 check('no page errors', errs.length === 0, errs.join(' | '));
 await b.close();
 console.log('');
