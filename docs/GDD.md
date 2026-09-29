@@ -75,7 +75,7 @@ Source: Will Hill's "Player One" Video Game Assets (VIDEO GAME ASSETS.zip on his
 | folder | when | takes |
 |---|---|---|
 | instructions | each intro card, its own take | 8 |
-| jump-on-ninja | a stomp (about 1 in 3, with a 7s gap) | 2 |
+| jump-on-ninja | an enemy defeat — a stomp, or an air dash that lands on his head (about 1 in 3, with a 7s gap) | 2 |
 | hit-by-ninja | an enemy takes a heart | 2 |
 | power-ups | a champagne bottle | 6 |
 | stage-clear | the stage-clear card | 6 |

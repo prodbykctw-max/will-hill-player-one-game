@@ -6,6 +6,26 @@ Repo: https://github.com/prodbykctw-max/will-hill-player-one-game
 Read `docs/GDD.md` for design and `CLAUDE.md` for architecture first. This
 file covers what a fresh session needs that isn't obvious from the code.
 
+## 2026-09-29 (later) — the Buckhead ride follows the red line; dash kills speak
+
+- **MARTA map, L5P → Buckhead.** *"It should be following the red train
+  line. It looks like it bypasses that."* It did: the train drew straight
+  chords between the red-line stations, and the painted line bends west
+  through Brookwood between Arts Center and Lindbergh and bows east between
+  Lindbergh and Buckhead. `VIA` in `src/render/martamap.js` now carries the
+  line's own path between each pair of stops (placed at 2x, snapped to the
+  red pixels), and `walkArm()` threads it in either direction. Measured
+  against the map's red pixels, every point of the route more than 5px off
+  the line is inside a station ring (white, so not red) — between stations
+  it is on the rails. The ride runs a little longer, because its length is
+  scaled to the route's (capped at 3x).
+- **Dash kills speak.** *"When he dashes in air and defeats an enemy because
+  his feet touch the hit box, that should also trigger the jump on ninja
+  voice over"* — with the same 1-in-3 / 7s rule (*"don't replace the... gap
+  logic. Just make sure it applies to when you dash on the enemy's head
+  too"*). It already did: a dashing descent into the stomp box resolves as a
+  'stomp' in `entities/enemy.js`. `voice.mjs` now proves it through the loop.
+
 ## 2026-09-29 — Will Hill's voice and music, the ending matched to him, coloured knockdown buttons
 
 Source for all the audio: Will Hill's "Player One" Video Game Assets (VIDEO GAME ASSETS.zip on his Google Drive, sent 2026-09-29 via Scoon: INSTRUMENTALS/ and VOCALS/). The zip is 161MB of 32-bit

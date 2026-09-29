@@ -75,6 +75,27 @@ const ARM = ['fivepoints', 'gastate', 'king', 'inman', 'edgewood', 'eastlake'];
 const NORTH_ARM = ['fivepoints', 'civic', 'northave', 'artscenter',
   'lindbergh', 'buckhead'];
 
+// ── THE RED LINE'S OWN BENDS, BETWEEN STATIONS ─────────────────────────
+// Client: "The route the train takes when it goes to Buckhead station, it
+// should be following the red train line. It looks like it bypasses that."
+// It did: between Arts Center and Lindbergh the painted line swings WEST
+// through Brookwood and curves back, and between Lindbergh and Buckhead it
+// bows EAST — and the train drew straight chords across both (up to ~13px
+// off the rails in map space, visible at ride zoom). These are the line's
+// own path, placed along it at 2x and snapped to the centroid of the red
+// line's pixels within 6px (the top bend, where the rail is thin and the
+// snap drifts inside the curve, is the placed point). Keyed 'from>to' in
+// NORTH_ARM order; walkArm() reverses them for a southbound ride.
+const VIA = {
+  'fivepoints>civic': [[476.5, 822.1], [478.9, 805.7]],
+  'civic>northave': [[469.2, 770.2], [470.0, 751.0], [467.4, 729.5]],
+  'northave>artscenter': [[464.2, 684.9]],
+  'artscenter>lindbergh': [[460.1, 653.4], [453.5, 636.0], [467.6, 621.1],
+    [481.9, 601.2], [489.5, 585.8]],
+  'lindbergh>buckhead': [[505.3, 552.6], [518.4, 536.2], [522.4, 520.4],
+    [522.5, 505.0], [512.5, 490.0], [503.0, 475.0], [498.5, 462.5]],
+};
+
 const HOT = '#ffc46b';
 const PALE = '#fff6e2';
 
@@ -98,7 +119,15 @@ function walkArm(arm, aKey, bKey) {
   const j = arm.indexOf(bKey);
   const step = j >= i ? 1 : -1;
   const out = [];
-  for (let k = i; k !== j + step; k += step) out.push(STATIONS[arm[k]]);
+  for (let k = i; k !== j + step; k += step) {
+    out.push(STATIONS[arm[k]]);
+    if (k === j) break;
+    // The rails between this stop and the next, in travel order.
+    const fwd = VIA[`${arm[k]}>${arm[k + step]}`];
+    const back = VIA[`${arm[k + step]}>${arm[k]}`];
+    const via = fwd || (back ? back.slice().reverse() : []);
+    for (const [x, y] of via) out.push({ x, y });
+  }
   return out;
 }
 
