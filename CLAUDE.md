@@ -41,6 +41,11 @@ If a reader explicitly asks about any of these, that's a different, direct quest
 - `assets/` (raw reference art, 3D source, AutoSprite/Tripo3D exports) is ignored **by default, not by rule**. The point is to stop unwanted *exposure*, not to block recordkeeping — a blanket ban was losing irreplaceable work. The test: **if losing the file means the work cannot be rebuilt, commit it.** Currently kept: **42 tracked files** — nine `will-hill-pixel` sheets (downed, fall, hit, idle, jump, knockback, perform, run, walk), the `fall-v2` regeneration alongside the pose it was driven from, twelve enemy sheets (enemy_a/b/c × defeat/idle/stomp/walk), the brand files and prodbyKCTW's voice recording. `assets/ui-concept/` is negated too and is where the client's MARTA-cabinet mockups go. Re-downloadable packs and build scratch stay ignored. (This said "the four SIDESCROLLER sprite sheets" long after the reaction clips and every enemy sheet were added — `git ls-files assets/ | wc -l` is the check.) See `.gitignore` for the negation pattern (`/assets/*`, not `/assets/` — git will not descend into an excluded directory). Composed game-ready assets live in `src/` and are hashed into `dist/` at build time.
 
 - **`public/bench/` is generated, never committed** (`.gitignore` has it).
+  ⚠️ Since 2026-09-29 the game's music is Will Hill's four instrumentals,
+  shipped whole from `src/assets/music/will-hill/` — there are no cut loops
+  left for the bench to serve, so `build_loopbench.py` and `cut_loop.py`
+  describe the previous prodbyKCTW loops (git history, and `previous` in
+  `tools/cue_sheet.json`) until someone re-points them.
   `tools/build_loopbench.py` writes it from `tools/loopbench.html` plus the
   loops in `src/assets/music/`; when it has been generated, the next
   `tools/deploy.sh` run carries it at `/bench/` along with the game.

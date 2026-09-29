@@ -49,62 +49,59 @@
 // for anyone wiring a full track in a hurry; on a looping slot a non-zero
 // value is the bug described above, not a feature.
 //
-// Sizes: 6.84MB for all ten, from 30.4MB of source. Cut, then VBR ~120kbps —
-// the masters are untouched and live in prodbyKCTW's own library.
+// Sizes (the prodbyKCTW loops): 6.84MB for all ten, from 30.4MB of source.
+// ⚠️ EVERYTHING ABOVE IS ABOUT THOSE CUT LOOPS. Will Hill's instrumentals
+// (below) replaced them whole — full songs looped whole, 9.3MB for four —
+// so cut_loop.py and the hook offsets do not apply to them.
 
-import mTitle from '../assets/music/title.mp3';
-import mStage01 from '../assets/music/stage_01.mp3';
-import mMap0102 from '../assets/music/map_01_02.mp3';
-import mStage02 from '../assets/music/stage_02.mp3';
-import mMap0203 from '../assets/music/map_02_03.mp3';
-import mStage03 from '../assets/music/stage_03.mp3';
-import mMap0304 from '../assets/music/map_03_04.mp3';
-import mStage04 from '../assets/music/stage_04.mp3';
-import mPause from '../assets/music/ui_pause.mp3';
-import mCredits from '../assets/music/credits.mp3';
+// ── WILL HILL'S OWN INSTRUMENTALS ─────────────────────────────────────────
+//
+// Will sent four game instrumentals ("Player One" Video Game Assets,
+// INSTRUMENTALS/), and the client picked where each one plays on the
+// Player One Soundtrack listening page:
+//   intro / title ....... Smooth
+//   all five stages ..... New Day New Money
+//   train map ........... Bobby Boucher
+//   pause & menus ....... Smooth
+//   ending (SHOWTIME) ... Iridescent
+// Each is the WHOLE song, looped whole (the buffer loop wraps at the end of
+// the file): trailing silence trimmed and a few ms of fade at each end so the
+// wrap does not click, nothing else. ⚠️ AT WILL'S OWN LEVELS, ON PURPOSE —
+// the client: "don't level it to the game's current [level] yet, leave it as
+// is first, and then we're gonna make the adjustment after they listen to
+// it." So these masters are hotter than the prodbyKCTW loops they replace
+// (roughly -6 to -11 LUFS against those -16); the per-cue `gain` below is
+// where the adjustment goes once it has been heard. The previous loops are in
+// git history, cut by tools/cut_loop.py from prodbyKCTW's own library.
+import mSmooth from '../assets/music/will-hill/smooth.mp3';
+import mNewDay from '../assets/music/will-hill/new-day-new-money.mp3';
+import mBobby from '../assets/music/will-hill/bobby-boucher.mp3';
+import mIridescent from '../assets/music/will-hill/iridescent.mp3';
 
 // ── THE MANIFEST ─────────────────────────────────────────────────────────
-// Slot -> file. Order is play order. `loop` false means it runs once and
-// stops. Every cue is already trimmed to its hook, so startAt is 0 throughout.
+// Slot -> file. The keys are FUNCTIONS (which screen), never song names, so a
+// song change is a `src` change. Several slots share one file now; Vite
+// dedupes the import, so each song ships once. Every cue loops.
 //
-// The song names are here as COMMENTS ONLY, so this file can be read against
-// tools/cue_sheet.json, and so that changing a song never means changing a
-// key. All prodbyKCTW; the number after each is where the hook was found in
-// the full track, which is where that file now begins.
+// ⚠️ A STAGE STILL STARTS ITS SONG FROM THE TOP. stage_01..05 are separate
+// keys pointing at the same file, and each stage is reached through the
+// train map's cue, so moving to the next stage crossfades into a fresh start
+// of New Day New Money rather than resuming mid-song. Same for the map.
 export const MANIFEST = {
-  // Loops longest of anything here — players sit on this screen.
-  title:     { src: mTitle,   loop: true,  gain: 0.55, startAt: 0 },  // Knowledge x POLO   @ 0:18.5
-  // No map before this one — straight in from the title.
-  stage_01:  { src: mStage01, loop: true,  gain: 0.50, startAt: 0 },  // 3.10.26 (2)        @ 0:56.6
-  map_01_02: { src: mMap0102, loop: true,  gain: 0.50, startAt: 0 },  // Knowledge B.Jordan @ 0:40.5
-  stage_02:  { src: mStage02, loop: true,  gain: 0.50, startAt: 0 },  // salvador/Knowledge @ 0:16.1
-  map_02_03: { src: mMap0203, loop: true,  gain: 0.50, startAt: 0 },  // Project 6          @ 0:57.5
-  stage_03:  { src: mStage03, loop: true,  gain: 0.50, startAt: 0 },  // Project 9          @ 1:57.5
-  map_03_04: { src: mMap0304, loop: true,  gain: 0.50, startAt: 0 },  // 2GetHer            @ 0:09.8
-  stage_04:  { src: mStage04, loop: true,  gain: 0.50, startAt: 0 },  // lonliness 2        @ 0:26.8
+  title:     { src: mSmooth,     loop: true, gain: 0.55, startAt: 0 },  // Smooth
+  stage_01:  { src: mNewDay,     loop: true, gain: 0.50, startAt: 0 },  // New Day New Money
+  map_01_02: { src: mBobby,      loop: true, gain: 0.50, startAt: 0 },  // Bobby Boucher
+  stage_02:  { src: mNewDay,     loop: true, gain: 0.50, startAt: 0 },
+  map_02_03: { src: mBobby,      loop: true, gain: 0.50, startAt: 0 },
+  stage_03:  { src: mNewDay,     loop: true, gain: 0.50, startAt: 0 },
+  map_03_04: { src: mBobby,      loop: true, gain: 0.50, startAt: 0 },
+  stage_04:  { src: mNewDay,     loop: true, gain: 0.50, startAt: 0 },
+  map_04_05: { src: mBobby,      loop: true, gain: 0.50, startAt: 0 },
+  stage_05:  { src: mNewDay,     loop: true, gain: 0.50, startAt: 0 },
   // An interlude, under a frozen screen — quieter, so it does not pull focus.
-  ui_pause:  { src: mPause,   loop: true,  gain: 0.38, startAt: 0 },  // doggzzz            @ 0:40.0
-  // ⚠️ THIS LOOPS NOW. It was the one cue set to play start-to-finish, and
-  // the ending screen has no time limit — so anyone who sat on the results
-  // board longer than 41 seconds watched the credits play out and then sat
-  // in silence. Client had it on the list as "the ending goes silent".
-  //
-  // Safe to loop because it was never a raw track: tools/cut_loop.py cut
-  // every one of these to a length whose end genuinely runs back into its own
-  // start, searched by cross-correlation. musiccheck.mjs confirms this file
-  // is 41.4s against a cut plan of 41.4, i.e. it is the loop-ready cut, so
-  // `loop` here wraps at the point that was chosen for wrapping.
-  credits:   { src: mCredits, loop: true,  gain: 0.60, startAt: 0 },  // Project 9          @ 1:57.5
-  // ── STAGE 5, THE BUCKHEAD FINALE — A REPRISE, NOT A NEW FILE ─────────
-  // The 5th stage reuses the opener's cue and the first ride's cue: the
-  // song that started the run comes back for the show, which reads as a
-  // finale and costs ZERO bytes (Vite dedupes the import, so these keys
-  // point at the same hashed mp3s the game already ships). If the client
-  // cuts a real Buckhead track, it drops in here — change the `src`, keep
-  // the keys, and give tools/cue_sheet.json a duration so musiccheck
-  // grades the loop.
-  map_04_05: { src: mMap0102, loop: true,  gain: 0.50, startAt: 0 },  // Knowledge B.Jordan @ 0:40.5 (reprise)
-  stage_05:  { src: mStage01, loop: true,  gain: 0.50, startAt: 0 },  // 3.10.26 (2)        @ 0:56.6 (reprise)
+  ui_pause:  { src: mSmooth,     loop: true, gain: 0.38, startAt: 0 },  // Smooth
+  // The ending has no time limit, so it loops like everything else.
+  credits:   { src: mIridescent, loop: true, gain: 0.60, startAt: 0 },  // Iridescent
 };
 
 // Which cue belongs to which stage index, so main.js never builds a slot name
@@ -710,9 +707,10 @@ export function createMusic(getContext, getMaster) {
 
     // The punch is the loudest thing in the game and the music is the widest.
     // Ducking is what stops a stomp disappearing into a chorus.
-    duck() {
+    // `ms` holds it down longer — Will's voice lines duck for their own length.
+    duck(ms = DUCK_MS) {
       if (!current) return;
-      ducking = DUCK_MS;
+      ducking = Math.max(ducking, ms);
       ramp(current, levelOf(current), 0.05);
     },
 

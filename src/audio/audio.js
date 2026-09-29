@@ -29,6 +29,25 @@ import { createMusic } from './music.js';
 
 const SAMPLES = { punchA: punchAUrl, punchB: punchBUrl, coin: coinUrl, glisten: glistenUrl };
 
+// ── WILL HILL'S VOICE ──────────────────────────────────────────────────────
+//
+// His own lines, from the "Player One" Video Game Assets he sent (VOCALS/,
+// foldered by moment: instructions, jump-on-ninja, hit-by-ninja, power-ups,
+// stage-clear, loss). Trimmed of the silence around each take and levelled to
+// -16 LUFS mono so a whisper and a shout sit at one volume; the words are
+// untouched. src/assets/voice/<moment>/<line>.mp3 — the folder IS the moment,
+// so a new take dropped into a folder is picked up with no code change.
+//
+// ~630kB for all 27, decoded off the first gesture with the other samples.
+const VOICE_URLS = import.meta.glob('../assets/voice/*/*.mp3',
+  { eager: true, query: '?url', import: 'default' });
+const VOICE = {};
+for (const [path, url] of Object.entries(VOICE_URLS)) {
+  const m = path.match(/voice\/([^/]+)\/([^/]+)\.mp3$/);
+  if (m) (VOICE[m[1]] ||= {})[m[2]] = url;
+}
+const VOICE_GAIN = 1.15;
+
 export function createAudio() {
   let ctx = null;
   let master = null;
@@ -46,6 +65,35 @@ export function createAudio() {
   let lastPunch = -99;
   let combo = 0;
   const buffers = {};
+  const voiceBufs = {};
+  let voiceSrc = null;
+  let voiceEnd = 0;
+  // Each moment's SHUFFLED DECK. Client: "randomize... each respectively...
+  // when you lose, it should never just get stuck on repeating the same thing
+  // over and over again, it should just randomize between those three
+  // options." So a moment deals its takes in a random order, every take once
+  // before the deck is reshuffled, and the fresh deck never opens on the take
+  // that just played — random, but never the same line twice running (with
+  // two takes that is simply A, B, A, B, which is the only way two can avoid
+  // repeating).
+  const voiceDeck = {};
+  const voiceLast = {};
+  let lastVoice = null;
+  function deal(group, all) {
+    let deck = voiceDeck[group];
+    if (!deck || !deck.length) {
+      deck = all.slice();
+      for (let i = deck.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [deck[i], deck[j]] = [deck[j], deck[i]];
+      }
+      if (deck.length > 1 && deck[deck.length - 1] === voiceLast[group]) {
+        [deck[0], deck[deck.length - 1]] = [deck[deck.length - 1], deck[0]];
+      }
+      voiceDeck[group] = deck;
+    }
+    return deck[deck.length - 1];
+  }
   let loading = false;
   let alt = 0;
   let probe = null;
@@ -225,6 +273,15 @@ export function createAudio() {
         .then((b) => c.decodeAudioData(b))
         .then((buf) => { buffers[key] = buf; })
         .catch(() => {});
+    }
+    for (const [group, lines] of Object.entries(VOICE)) {
+      for (const [name, url] of Object.entries(lines)) {
+        fetch(url)
+          .then((r) => r.arrayBuffer())
+          .then((b) => c.decodeAudioData(b))
+          .then((buf) => { voiceBufs[`${group}/${name}`] = buf; })
+          .catch(() => {});
+      }
     }
   }
 
@@ -674,6 +731,47 @@ export function createAudio() {
       if (name === 'punch') music.duck();
     },
     stop() {},
+
+    // One of Will's lines. ONE VOICE AT A TIME: a line asked for while he is
+    // still talking is dropped, unless `force` — then it cuts the old one off
+    // (a tutorial page turn, the stage-clear card: the new moment wins). The
+    // music ducks for exactly as long as he talks. `line` names one take
+    // (an intro card's own); otherwise the next card off the moment's
+    // shuffled deck (see deal). Returns whether he spoke — false while muted,
+    // before the first gesture, or before the take has decoded, so a caller
+    // that must be heard can simply ask again, and a take only leaves the
+    // deck when it is actually heard.
+    voice(group, { line, force = false } = {}) {
+      if (sfxMuted) return false;
+      const c = ensure();
+      if (!c || c.state !== 'running') return false;
+      if (!force && c.currentTime < voiceEnd) return false;
+      const all = Object.keys(VOICE[group] || {}).sort();
+      if (!all.length) return false;
+      const name = line || deal(group, all);
+      const buf = voiceBufs[`${group}/${name}`];
+      if (!buf) return false;
+      if (!line) { voiceDeck[group].pop(); voiceLast[group] = name; }
+      if (voiceSrc) { try { voiceSrc.stop(); } catch (_e) { /* already ended */ } }
+      const src = c.createBufferSource();
+      src.buffer = buf;
+      const g = c.createGain();
+      g.gain.value = VOICE_GAIN;
+      src.connect(g);
+      g.connect(master);
+      src.start(c.currentTime);
+      voiceSrc = src;
+      voiceEnd = c.currentTime + buf.duration;
+      lastVoice = `${group}/${name}`;
+      music.duck(buf.duration * 1000 + 250);
+      return true;
+    },
+    // The last line he said, as 'moment/take' — for the harness.
+    lastVoice: () => lastVoice,
+    // Which lines exist, by moment — for the harness.
+    voiceLines() {
+      return Object.fromEntries(Object.entries(VOICE).map(([g, l]) => [g, Object.keys(l).sort()]));
+    },
 
     // ⚠️ A CHAIN STEP RIDES ON TOP OF THE PUNCH, IT DOES NOT REPLACE IT.
     // The punch is the sound of landing on someone and it has to stay exactly

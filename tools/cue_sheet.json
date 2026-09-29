@@ -1,61 +1,128 @@
 {
- "_": "The client's own pairing, made off the cue bench. Slot -> track + the",
- "__": "second the hook starts. tools/cut_loop.py reads this; it is the record",
- "___": "of a creative decision, so edit it rather than editing the mp3s.",
- "tracks_dir": "/tmp/claude-0/-home-user-will-hill-player-one-game/cbc3ff9f-7391-51ef-9349-17836bad5bc5/scratchpad/tracks",
+ "_": "Slot -> track. Since 2026-09-29 every slot is one of Will Hill's four game",
+ "__": "instrumentals, picked slot by slot by the client on the Player One Soundtrack",
+ "___": "page, shipped WHOLE (hook 0, looped whole) from src/assets/music/will-hill/.",
+ "____": "dur is stamped off the shipped file; musiccheck.mjs grades against it.",
+ "_____": "cut_loop.py / build_loopbench.py belong to the previous prodbyKCTW loops (git history).",
  "cues": {
   "title": {
-   "track": "knowledge_x_polo",
-   "hook": 57.132,
-   "dur": 28.66
+   "track": "will_hill/smooth",
+   "hook": 0,
+   "dur": 118.84
   },
   "stage_01": {
-   "track": "mar_10_26",
-   "hook": 56.6,
-   "dur": 66.21
+   "track": "will_hill/new-day-new-money",
+   "hook": 0,
+   "dur": 130.34
   },
   "map_01_02": {
-   "track": "knowledge_bjordan",
-   "hook": 40.5,
-   "dur": 44.44
+   "track": "will_hill/bobby-boucher",
+   "hook": 0,
+   "dur": 146.83
   },
   "stage_02": {
-   "track": "salvador_knowledge",
-   "hook": 16.1,
-   "dur": 99.05
+   "track": "will_hill/new-day-new-money",
+   "hook": 0,
+   "dur": 130.34
   },
   "map_02_03": {
-   "track": "project_6",
-   "hook": 57.5,
-   "dur": 46.86
+   "track": "will_hill/bobby-boucher",
+   "hook": 0,
+   "dur": 146.83
   },
   "stage_03": {
-   "track": "strange_girl",
-   "hook": 61.4,
-   "dur": 102.4
+   "track": "will_hill/new-day-new-money",
+   "hook": 0,
+   "dur": 130.34
   },
   "map_03_04": {
-   "track": "2gether",
-   "hook": 9.8,
-   "dur": 47.73
+   "track": "will_hill/bobby-boucher",
+   "hook": 0,
+   "dur": 146.83
   },
   "stage_04": {
-   "track": "lonliness_2",
-   "hook": 26.8,
-   "dur": 71.72
+   "track": "will_hill/new-day-new-money",
+   "hook": 0,
+   "dur": 130.34
+  },
+  "map_04_05": {
+   "track": "will_hill/bobby-boucher",
+   "hook": 0,
+   "dur": 146.83
+  },
+  "stage_05": {
+   "track": "will_hill/new-day-new-money",
+   "hook": 0,
+   "dur": 130.34
   },
   "ui_pause": {
-   "track": "doggzzz",
-   "hook": 40.0,
-   "dur": 79.45
+   "track": "will_hill/smooth",
+   "hook": 0,
+   "dur": 118.84
   },
   "credits": {
-   "track": "project_9",
-   "hook": 117.5,
-   "dur": 41.43
+   "track": "will_hill/iridescent",
+   "hook": 0,
+   "dur": 157.71
   }
  },
- "unused": [
-  "remembering_the_journey"
- ]
+ "previous": {
+  "note": "prodbyKCTW loop plan, replaced 2026-09-29",
+  "tracks_dir": "/tmp/claude-0/-home-user-will-hill-player-one-game/cbc3ff9f-7391-51ef-9349-17836bad5bc5/scratchpad/tracks",
+  "cues": {
+   "title": {
+    "track": "knowledge_x_polo",
+    "hook": 57.132,
+    "dur": 28.66
+   },
+   "stage_01": {
+    "track": "mar_10_26",
+    "hook": 56.6,
+    "dur": 66.21
+   },
+   "map_01_02": {
+    "track": "knowledge_bjordan",
+    "hook": 40.5,
+    "dur": 44.44
+   },
+   "stage_02": {
+    "track": "salvador_knowledge",
+    "hook": 16.1,
+    "dur": 99.05
+   },
+   "map_02_03": {
+    "track": "project_6",
+    "hook": 57.5,
+    "dur": 46.86
+   },
+   "stage_03": {
+    "track": "strange_girl",
+    "hook": 61.4,
+    "dur": 102.4
+   },
+   "map_03_04": {
+    "track": "2gether",
+    "hook": 9.8,
+    "dur": 47.73
+   },
+   "stage_04": {
+    "track": "lonliness_2",
+    "hook": 26.8,
+    "dur": 71.72
+   },
+   "ui_pause": {
+    "track": "doggzzz",
+    "hook": 40.0,
+    "dur": 79.45
+   },
+   "credits": {
+    "track": "project_9",
+    "hook": 117.5,
+    "dur": 41.43
+   }
+  },
+  "unused": [
+   "remembering_the_journey"
+  ]
+ }
 }

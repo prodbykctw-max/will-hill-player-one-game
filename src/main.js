@@ -42,7 +42,7 @@ import { createRunLog, lbSubmit, bankLocalRun, isRegistered, hasPendingRun,
   recordRunStats, pendingRunCount, flushPendingRun } from './net/leaderboard.js';
 import { createPanel, soundEnabled, setSoundEnabled,
   sfxEnabled, setSfxEnabled, howToSeen, markHowToSeen } from './ui/panel.js';
-import { ARROW_L, ARROW_R, BAG_ICON, TUTORIAL_LESSONS, TUTORIAL_ORDER, TUTORIAL_PICTURES, nextTutorialTrigger }
+import { ARROW_L, ARROW_R, BAG_ICON, TUTORIAL_LESSONS, TUTORIAL_ORDER, TUTORIAL_PICTURES, TUTORIAL_VOICE, nextTutorialTrigger }
   from './world/tutorial.js';
 import { createHaptics } from './core/haptics.js';
 import { STAGE_SLOTS, MAP_SLOTS, MANIFEST } from './audio/music.js';
@@ -785,6 +785,34 @@ function advanceTutorialDialogue() {
   if (TUTORIAL_ORDER.every((lessonId) => state.tutorialFired.has(lessonId))) markHowToSeen();
 }
 
+// ── WILL HILL TALKS ────────────────────────────────────────────────────
+//
+// Client: "Add some voiceover elements for his character to have throughout
+// the game", and then: "the voice lines, they're folded perfectly, so can we
+// just make them match the instructions and where their places should be",
+// and "randomize... each respectively... it should never just get stuck on
+// repeating the same thing." So each of his folders (src/assets/voice/)
+// speaks at exactly the moment it is named for, the intro cards each speak
+// their own take, and every other moment deals its takes at random, never the
+// same one twice running (audio.voice):
+//   instructions   each intro card, its own take
+//   jump-on-ninja  a stomp          hit-by-ninja  an enemy takes a heart
+//   power-ups      a champagne bottle (all six takes — the folder IS the
+//                  power-up, and champagne is the game's only one)
+//   stage-clear    the stage-clear card        loss  GAME KNOCKED
+// The one judgement on top: stomps happen constantly, so they speak on a
+// chance with a gap, so a line still means something the tenth time. The
+// rest happen a handful of times a run and always speak. audio.voice()
+// already refuses to talk over itself.
+let lastSaid = -1e9;
+function say(group, { chance = 1, gapMs = 0, force = false } = {}) {
+  const now = performance.now();
+  if (!force && (Math.random() >= chance || now - lastSaid < gapMs)) return false;
+  if (!audio.voice(group, { force })) return false;
+  lastSaid = now;
+  return true;
+}
+
 // While he drops onto the street before the lesson opens: gravity only.
 const NO_INPUT = { left: () => false, right: () => false, jump: () => false, dash: () => false };
 
@@ -1249,8 +1277,8 @@ function buttonsFor(screen) {
   if (screen === 'stageClear') return [{ label: 'NEXT STAGE', action: nextStage }];
   if (screen === 'gameOver') {
     return state.continues > 0
-      ? [{ label: 'GET BACK UP', action: getBackUp },
-        { label: 'END RUN', action: endRun }]
+      ? [{ label: 'GET BACK UP', action: getBackUp, tone: 'go' },
+        { label: 'END RUN', action: endRun, tone: 'stop' }]
       // Out of continues, the client wants the exits named for where they go:
       // "Buttons should read MAIN MENU and a second button should read ENTER
       // THE CONTEST." SEE YOUR SCORE (endRun) is gone from this card — safe to
@@ -1578,6 +1606,13 @@ function update() {
     const d = state.dialogue;
     if (d) {
       d.pageT++;
+      // His take for this card, as the card opens. Asked again each tick
+      // until it plays (the take may still be decoding on the very first
+      // card), but only for the first second and a half — a line that
+      // arrives after the player has read the card is worse than none.
+      const take = (TUTORIAL_VOICE[d.id] || [])[d.page];
+      if (take && d.voiced !== d.page && d.pageT < 90
+          && audio.voice('instructions', { line: take, force: true })) d.voiced = d.page;
       const down = confirmPressed();
       if (down && !d.wasDown) advanceTutorialDialogue();
       // advanceTutorialDialogue() can close the bubble on the same press that
@@ -1660,6 +1695,7 @@ function update() {
     const result = resolveEnemyCollision(e, player, now);
     if (result === 'stomp') {
       audio.play('punch');
+      say('jump-on-ninja', { chance: 0.35, gapMs: 7000 });
       state.score += 50; // matches SCORE_RULES.stomp in cloudflare/leaderboard-worker.js
       state.runLog.record('stomp');
       haptics.stomp();   // Android; iOS has no in-run haptic and never will
@@ -1689,6 +1725,7 @@ function update() {
       }
     } else if (result === 'contact') {
       haptics.hurt();
+      say('hit-by-ninja', { gapMs: 3000 });
       // AN ENEMY KNOCKS THE MONEY OUT OF YOU. Deliberately different from a
       // pothole, which only trips you: a pothole is the street, an enemy robs
       // you. It also self-sequences into the three-touch rule without any
@@ -1793,6 +1830,7 @@ function update() {
       bottle.got = true;
       audio.play('glisten');
       audio.powerUp();
+      say('power-ups', { force: true });
       grantInvulnerability(player, now, CHAMPAGNE_SECONDS);
       state.runLog.record('champagne');
       haptics.pickup();
@@ -1893,6 +1931,7 @@ function update() {
     }
     state.screen = 'gameOver';
     state.screenT = 0;
+    say('loss', { force: true });
     // ⚠️ RECORDED BEFORE finish(), or it is not in the log that gets sent.
     //
     // Client: "can we count stats like how many deaths throughout the entire
@@ -1967,6 +2006,7 @@ function update() {
     state.banked = state.score;
     state.screen = 'stageClear';
     state.screenT = 0;
+    say('stage-clear', { force: true });
   }
 }
 
@@ -1976,13 +2016,23 @@ function update() {
 // ONE BUTTON, DRAWN ONCE. The pause menu and the between-screens have to look
 // identical or they read as two different systems, and two copies of the same
 // twelve lines is how they stop being identical.
-function drawButtonPlate(x, y, w, h, label, size = 17) {
-  ctx.fillStyle = 'rgba(20,16,30,0.92)';
+// Colour-coded plates. Client: "When you die, the navigation button should be
+// color-coded. End run should be red. Get back up should be yellow or green."
+// Green, not yellow: yellow is already the gold every OTHER plate wears, so it
+// would not read as coded. Everything without a tone keeps the gold.
+const PLATE_TONES = {
+  gold: { fill: 'rgba(20,16,30,0.92)', edge: 'rgba(255,214,110,0.6)', ink: '#ffd66e' },
+  go: { fill: 'rgba(14,52,26,0.94)', edge: 'rgba(96,222,128,0.85)', ink: '#8ff0a4' },
+  stop: { fill: 'rgba(64,12,16,0.94)', edge: 'rgba(240,84,84,0.85)', ink: '#ff8a8a' },
+};
+function drawButtonPlate(x, y, w, h, label, size = 17, tone = 'gold') {
+  const t = PLATE_TONES[tone] || PLATE_TONES.gold;
+  ctx.fillStyle = t.fill;
   ctx.fillRect(x, y, w, h);
-  ctx.strokeStyle = 'rgba(255,214,110,0.6)';
+  ctx.strokeStyle = t.edge;
   ctx.lineWidth = 2;
   ctx.strokeRect(x + 1, y + 1, w - 2, h - 2);
-  ctx.fillStyle = '#ffd66e';
+  ctx.fillStyle = t.ink;
   ctx.font = `700 ${size}px sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
@@ -2433,7 +2483,7 @@ function drawOverlayText(lines, buttons = []) {
   const bx = canvas.width / 2 - bw / 2;
   let by = y + 12;
   for (const b of buttons) {
-    drawButtonPlate(bx, by, bw, bh, b.label);
+    drawButtonPlate(bx, by, bw, bh, b.label, 17, b.tone);
     screenButtons.push({ x: bx, y: by, w: bw, h: bh, action: b.action, label: b.label });
     by += bh + gap;
   }

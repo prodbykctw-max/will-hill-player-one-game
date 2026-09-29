@@ -148,8 +148,11 @@ def main():
         if len(cols):
             value_x = max(value_x, vx + cols.max() + 1)
 
-    out = lighten_will(out)
-    out, move = enlarge_board(out, rows, value_x)
+    skin = {}
+    out = lighten_will(out, skin)
+    print(f"skin: painted {skin['before'].round()} -> {skin['after'].round()}  "
+          f"(x{skin['gain']:.2f} light, white shirt reads {skin['white'].round()})")
+    out, row_y, value_right = enlarge_board(out, rows, value_x)
 
     img = Image.fromarray(out.astype(np.uint8), 'RGB')
     img.save(OUT, 'WEBP', quality=88, method=6)
@@ -165,8 +168,8 @@ def main():
     caps = sum(b - t for t, b, _, _ in rows) / len(rows)
     print(f'\n// measured off {os.path.basename(SRC)} — {W}x{H}, board x{BOARD_SCALE}')
     print(f'const SRC_W = {W}, SRC_H = {H};')
-    print(f'const VALUE_X = {round(move(value_x, 0)[0])};   // right edge of the values')
-    print('const ROW_Y = [' + ', '.join(str(round(move(0, r[1])[1])) for r in rows) + '];'
+    print(f'const VALUE_X = {value_right};   // right edge of the values')
+    print('const ROW_Y = [' + ', '.join(str(round(row_y(r[1]))) for r in rows) + '];'
           '   // baselines: caps sit on the band bottom')
     print(f'// cap height {caps * BOARD_SCALE:.0f}px  ->  font-size about '
           f'{round(caps * BOARD_SCALE / 0.72)}px')

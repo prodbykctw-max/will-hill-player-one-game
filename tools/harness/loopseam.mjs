@@ -127,9 +127,23 @@ check('the cue is back near its start afterwards', on.t > 0 && on.t < 8, `t=${on
 const W = 12;
 const seamWin = Math.max(1, Math.floor(on.wrapFrame / W));
 const local = on.peaks.slice(seamWin - 1, seamWin + 2);
-check('THE SEAM ITSELF NEVER DIPS (wrap ±200ms windows)',
-  local.length === 3 && Math.min(...local) > Math.max(0.02, on.median * 0.25),
-  `seam windows [${local.join(', ')}] vs median ${on.median}`);
+// ⚠️ UNLESS THE CUE IS A WHOLE SONG. Since 2026-09-29 the title plays Will
+// Hill's "Smooth" whole, looped whole, at the client's instruction ("leave it
+// as is first") — so its wrap is the song's own two-second fade-out running
+// back into its first bar, which is a song ending and starting again, not a
+// dropout. That is read off tools/cue_sheet.json (hook 0, a will_hill/ track),
+// not assumed, so a return to cut loops re-arms this gate by itself.
+const { readFileSync } = await import('fs');
+const titleCue = JSON.parse(readFileSync(new URL('../cue_sheet.json', import.meta.url), 'utf8')).cues.title;
+const wholeSong = titleCue && titleCue.hook === 0 && String(titleCue.track).startsWith('will_hill/');
+if (wholeSong) {
+  console.log(`  (title is a whole song, ${titleCue.track}: its wrap is its own outro — `
+    + `seam windows [${local.join(', ')}], not graded as a loop seam)`);
+} else {
+  check('THE SEAM ITSELF NEVER DIPS (wrap ±200ms windows)',
+    local.length === 3 && Math.min(...local) > Math.max(0.02, on.median * 0.25),
+    `seam windows [${local.join(', ')}] vs median ${on.median}`);
+}
 check('one element carries the cue at its intended gain after the swap',
   on.level > 0.3, `level=${on.level}`);
 
@@ -167,7 +181,7 @@ async function stageSeam(slot, stageIndex, refuseSpare) {
   await pg.waitForFunction(() => window.__game && window.__startStage, null, { timeout: 25000 });
   await pg.evaluate(() => window.__audio.level());
   // Already taught — see the note in daylamps.mjs.
-  await pg.evaluate(() => { try { localStorage.setItem('wh_intro_v4', '1'); } catch (_e) {} });
+  await pg.evaluate(() => { try { localStorage.setItem('wh_intro_v5', '1'); } catch (_e) {} });
   await pg.evaluate((i) => window.__startStage(i), stageIndex);
   await pg.waitForFunction((s) => {
     const st = window.__audio.music.status();

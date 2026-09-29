@@ -87,7 +87,7 @@ const frame = (n = 1) => p.evaluate(async (count) => {
   for (let i = 0; i < count; i++) await raf();
 }, n);
 
-// Straight to stage one. A fresh context has no `wh_intro_v4`, so this is
+// Straight to stage one. A fresh context has no `wh_intro_v5`, so this is
 // a never-taught player. Polled, not slept: the bubble waits for him to land.
 await p.evaluate(() => window.__startStage(0));
 await p.waitForFunction(() => window.__game.dialogue, null, { timeout: 10000 });
@@ -185,12 +185,12 @@ check('and he is STANDING when it opens, not hanging in the air', opened.onGroun
   });
   const closed = await p.evaluate(() => ({
     dialogue: window.__game.dialogue,
-    seen: localStorage.getItem('wh_intro_v4'),
+    seen: localStorage.getItem('wh_intro_v5'),
   }));
   check('after "Let\'s get it!" the bubble closes',
     closed.dialogue === null && presses < 60, JSON.stringify({ presses }));
   check('and the tutorial is retired for good (howToSeen)', closed.seen === '1',
-    `wh_intro_v4=${closed.seen}`);
+    `wh_intro_v5=${closed.seen}`);
 }
 
 // ── THEN THE RUN IS THEIRS, UNINTERRUPTED ────────────────────────────────
@@ -234,6 +234,7 @@ check('and he is STANDING when it opens, not hanging in the air', opened.onGroun
 //   `wh_intro_v2` — that ten-card script, before it was cut to eight "in an
 //     effort to reduce clicks".
 //   `wh_intro_v3` — the eight cards with typed ◀ ▶ (blue emoji on a phone).
+//   `wh_intro_v4` — the same cards before they had Will's voice on them.
 // None may count.
 {
   const c2 = await b.newContext({ viewport: { width: 430, height: 932 }, hasTouch: true });
@@ -243,6 +244,7 @@ check('and he is STANDING when it opens, not hanging in the air', opened.onGroun
     localStorage.setItem('wh_intro_seen', '1');
     localStorage.setItem('wh_intro_v2', '1');
     localStorage.setItem('wh_intro_v3', '1');
+    localStorage.setItem('wh_intro_v4', '1');
   });
   await p2.goto('http://localhost:5199/?tod=night', { waitUntil: 'networkidle' });
   await p2.waitForFunction(() => window.__game && window.__game.screen === 'title', null, { timeout: 25000 });
