@@ -30,7 +30,19 @@ export function createCamera() {
     vh: 0,
 
     resize(canvasW, canvasH) {
-      let z = Math.min(BASE_ZOOM, (canvasW / VIEW_W) * BASE_ZOOM, (canvasH / VIEW_H) * BASE_ZOOM);
+      // ⚠️ THE SHORT SIDE, NOT THE WIDTH. Client, with the installed app on a
+      // phone turned sideways: "it is over zoomed on the levels." The width
+      // term is what scales a PHONE down from BASE_ZOOM — 393 wide upright
+      // gives 0.59 — and turned sideways that same phone is 852 wide, the
+      // width term no longer binds, and the zoom jumped to the 0.78 cap: Will
+      // a third bigger and a short slice of street between the HUD and the
+      // pads. Measured off the short side, a phone draws him the SAME size
+      // whichever way it is held and turning it shows more street instead.
+      // Portrait is untouched (its short side IS its width), and so is
+      // anything with a short side of 520+ — tablets, laptops, desktop — where
+      // the cap binds either way.
+      const short = Math.min(canvasW, canvasH);
+      let z = Math.min(BASE_ZOOM, (short / VIEW_W) * BASE_ZOOM, (canvasH / VIEW_H) * BASE_ZOOM);
       z = Math.max(MIN_ZOOM, z);
       this.zoom = z;
       this.vw = canvasW / z;
