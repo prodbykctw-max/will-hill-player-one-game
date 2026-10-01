@@ -59,7 +59,11 @@ export const TUTORIAL_LESSONS = {
   intro: [
     'Yo! It’s Will Hill.\nHelp me make it to my show.',
     `${ARROW_L} ${ARROW_R} to move.`,
-    'Press JUMP to get over manholes.',
+    // "… PAUSE" is Will's own ad-lib on this take ("jump over the manholes"
+    // ... a beat ... "pause"), written in so a player who taps past the
+    // voice still gets it. Client: "people can hit [skip]... add that in
+    // the text as well... Pause... in all caps."
+    'Press JUMP to get over manholes… PAUSE',
     'DASH to roll past trouble. You can’t be hit while rolling.',
     'Get the bag.',
     'Defeat enemies. Jump on their heads.',

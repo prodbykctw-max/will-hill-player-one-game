@@ -152,20 +152,20 @@ l5p 5.7, and on eav the join never reaches the screen at all.
 
 ⚠️ **`startchain.mjs` IS NOT A HARNESS** and printing nothing is correct — it
 is the shared library the others import to walk title → CONTEST → run. It
-also seeds `wh_intro_v5`, so its callers get stage one without the frozen
+also seeds `wh_intro_v6`, so its callers get stage one without the frozen
 intro (tools/harness/tutorial.mjs is the one that tests the intro itself). A sweep that globs `tools/harness/*.mjs` will run it, get silence, and
 look like a failure. Same for `stagesweep` / `seamsweep` / `stagestrip` /
 `joinshot` / `graphwire` / `daynight` / `musiccheck`, which write captures
 rather than verdicts.
 
 ⚠️ **A NEW HARNESS THAT ENTERS STAGE ONE ON A FRESH PROFILE MUST SEED
-`wh_intro_v5`.** Stage one opens frozen on Will Hill's intro bubbles until
+`wh_intro_v6`.** Stage one opens frozen on Will Hill's intro bubbles until
 they are tapped through, so a harness that reaches it cold — via
 `window.__startStage(0)` or any path that is not `startFromTitle()` — sees its
 input swallowed and its camera parked. Found as `cloudseal` measuring 0px of
 cloud on stage one only (camera.follow does not run the player forward while
 the world is frozen). Every existing harness that needed it has
-`localStorage.setItem('wh_intro_v5', '1')` next to its `goto`.
+`localStorage.setItem('wh_intro_v6', '1')` next to its `goto`.
 
 ⚠️ **`entryfit` and `startflow` end `n/n passed`, NOT `ALL n PASS`.** A sweep
 grepping `'^ALL|^FAILED'` prints them blank, which reads as a hang. Both were
@@ -498,7 +498,7 @@ drifts into grading last month's product and nobody notices.
 | `cloudseal` | weather passes BEHIND the buildings on all four day stages (four until buckhead's day clouds are cut — it ships flat, so there is nothing there to seal yet) — and is still visible. ⚠️ It TRAVELS now: five camera positions from spawn to the finish line. It used to measure at spawn only, where every card's offset is zero by construction, so it was green throughout the weeks the client was photographing the bug. It reports how many samples it had to discard because the camera moved mid-grab, and re-measures a failing tick (min of ≤3) because probe phase spikes were measured at 30× the real leak. The `ALLOW` debt table is EMPTY now — the seal excludes nothing and every stage is held to a bar of 60px |
 | `deferboot` | the three-stage load: the title shows on its OWN art, REST (sprites/props/stage one) lands behind it, stages 2-5 and the MARTA map last, and the ride HOLDS at the platform instead of entering a stage bare when the background load is late — proven with the art blocked at the network, then released. Also the soundtrack prewarm: all ten cues fetched behind the art with no gesture, on dev (via `music.status().warmed`) AND the hashed prod build. Request-order graded on both (needs `vite preview --port 5210` beside the dev server) |
 | `endcue` | each finish line hands to the NEXT scene's music, with no restart |
-| `tutorial` | the stage-one intro: it opens only once he has LANDED (the first cut froze him mid-drop), the world is frozen while it is up, a line types out and the first press finishes it, the second turns the page, a real JUMP press reaches it, P cannot pause over it, the bag / enemy / champagne pictures sit on the lines that name them, it is eight cards — greeting and goal on one, one JUMP/manholes card, the champagne power-up card, "Let's get it!" last — it closes after the last one and sets `wh_intro_v5`, nothing opens mid-stage afterwards, the move card's arrows are drawn (no typed ◀ ▶, which a phone turns into blue emoji), the JUMP that closes the last card does not also make him jump, with storage blocked the intro still closes and the stage plays on, and a profile holding the retired `wh_howto_seen`, `wh_intro_seen`, `wh_intro_v2`, `wh_intro_v3` and `wh_intro_v4` latches still gets it |
+| `tutorial` | the stage-one intro: it opens only once he has LANDED (the first cut froze him mid-drop), the world is frozen while it is up, a line types out and the first press finishes it, the second turns the page, a real JUMP press reaches it, P cannot pause over it, the bag / enemy / champagne pictures sit on the lines that name them, it is eight cards — greeting and goal on one, one JUMP/manholes card, the champagne power-up card, "Let's get it!" last — it closes after the last one and sets `wh_intro_v6`, nothing opens mid-stage afterwards, the move card's arrows are drawn (no typed ◀ ▶, which a phone turns into blue emoji), the JUMP that closes the last card does not also make him jump, with storage blocked the intro still closes and the stage plays on, and a profile holding the retired `wh_howto_seen`, `wh_intro_seen`, `wh_intro_v2`, `wh_intro_v3` and `wh_intro_v4` latches still gets it |
 | `voice` | Will Hill's lines, graded by what he actually SAID (`audio.lastVoice()`) through the real loop: every folder shipped with every take, each intro card speaks its own take, an enemy hit speaks hit-by-ninja, an AIR DASH onto an enemy's head speaks jump-on-ninja, the 7s gap and the 1-in-3 roll each hold it back (the roll pinned with a Math.random stub), a bottle speaks power-ups, the finish line speaks stage-clear and the next clear does not repeat it, GAME KNOCKED speaks loss, 60 deals per moment never repeat back-to-back and spread evenly, a take whose download fails is skipped (its folder keeps talking), and the SFX switch silences him. Needs a real gesture first (it clicks) |
 | `perf` | speed and memory on a slowed CPU: the production build's title paint, frame times on the title, the intro bubble, a running stage, the Buckhead ride and the ending, main-thread hitches on the first tap (when every sample and voice line decodes), and that no whole song is decoded into memory. Frames are graded at `SLOW=1`; `SLOW=4` is a stress reading — this container has no GPU, and at 4x the title and stages read 10-16fps on the pre-2026-09 build too. Needs dev :5199 and `vite preview` :5210 |
 | `startflow` | START walks CONTEST → run with no panel stop in between, the offer repeats every visit, Space is the same door as a tap, and a never-taught player lands on the intro while a taught one does not |
