@@ -47,7 +47,12 @@ Boy: *"make a text bubble come from Will describing the same instructions."*
   2. "◀ ▶ to move." — the arrows are DRAWN black triangles, not typed
      glyphs, which a phone renders as blue emoji keycaps: *"make those two arrows in the move card normal black arrows... not the stock blue arrows i asked not to use"*
   3. "Press JUMP to get over manholes… PAUSE" — PAUSE is Will's ad-lib on the
-     take, written in for players who tap past the voice
+     take, written in for players who tap past the voice. **The one card that
+     cannot be tapped past while he is talking**: a press is refused, and the ▼
+     stays off, until his take has finished (3.1s) — *"I don't want you to be
+     able to click past the manhole one until the pause plays."* Held only while
+     the take is actually playing, so SFX off, or a take that never loaded, holds
+     nothing (`TUTORIAL_VOICE_HOLD` in `world/tutorial.js`)
   4. "DASH to roll past trouble. You can't be hit while rolling."
   5. "Get the bag." *(bag picture)*
   6. "Defeat enemies. Jump on their heads." *(the stage's enemy, as a HUD-style

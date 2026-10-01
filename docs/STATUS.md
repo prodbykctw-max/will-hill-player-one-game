@@ -173,6 +173,15 @@ built here — this was a status question, not a request.
 
 ## DONE — shipped and live
 
+### 2026-10-01 — the manholes card waits for "… pause"
+
+- Will Hill's request: his "pause" ad-lib after "jump over the manholes" was
+  cut off. The take is re-encoded from his WAV (2.80s → 3.08s, the other 26
+  untouched — `tools/encode_voice.py --only instructions/manholes`), card 3
+  reads "Press JUMP to get over manholes… PAUSE", and that card cannot be
+  tapped past until the take has finished; every other card still can.
+  Intro latch `wh_intro_v6`. `tools/harness/voice.mjs`.
+
 ### 2026-09-29 — Will Hill's voice and music; the ending matched to him; coloured knockdown buttons
 
 - **Voice lines** in every moment his folders name, random without repeats

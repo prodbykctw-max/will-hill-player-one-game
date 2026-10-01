@@ -62,7 +62,39 @@ await p.evaluate(() => { window.__tutorialAdvance(); window.__tutorialAdvance();
 check('turning to card 2 speaks "arrows"', await waitSaid('instructions/arrows', 3000), await said());
 await p.evaluate(() => { window.__tutorialAdvance(); window.__tutorialAdvance(); });
 check('card 3 speaks "manholes"', await waitSaid('instructions/manholes', 3000), await said());
+
+// ── THE MANHOLES CARD WAITS FOR "... PAUSE" ─────────────────────────────
+// Client: "I don't want you to be able to click past the manhole one until
+// the pause plays." Pressed the instant it speaks, and every 50ms after: the
+// card must not turn while the take is playing, and must turn on the first
+// press after it ends — the wait is the line, never longer.
+const hold = await p.evaluate(() => new Promise((done) => {
+  const a = window.__audio;
+  const t0 = performance.now();
+  window.__tutorialAdvance();                 // finishes the typing
+  window.__tutorialAdvance();                 // tries to turn — refused
+  const refused = window.__game.dialogue.page === 2;
+  let turnedWhilePlaying = false;
+  const poll = () => {
+    const playing = a.voicePlaying('instructions/manholes');
+    window.__tutorialAdvance();
+    if (window.__game.dialogue.page === 2) { if (performance.now() - t0 < 6000) setTimeout(poll, 50); else done({ refused, stuck: true }); return; }
+    turnedWhilePlaying = playing;
+    done({ refused, turnedWhilePlaying, heldMs: Math.round(performance.now() - t0) });
+  };
+  poll();
+}));
+check('the manholes card refuses a press while "... pause" is still playing', hold.refused, JSON.stringify(hold));
+check('and turns on the first press once the line has ended, not before',
+  !hold.stuck && !hold.turnedWhilePlaying && hold.heldMs >= 2500 && hold.heldMs < 3600, JSON.stringify(hold));
+check('turning to card 4 speaks "dash"', await waitSaid('instructions/dash', 3000), await said());
+const free = await p.evaluate(() => {
+  window.__tutorialAdvance(); window.__tutorialAdvance();
+  return window.__game.dialogue.page;
+});
+check('every other card still turns on a press while he is talking', free === 4, `page ${free}`);
 await p.evaluate(() => { let n = 0; while (window.__game.dialogue && n < 60) { window.__tutorialAdvance(); n++; } });
+
 await quiet();
 
 // ── A HIT: an enemy takes a heart ────────────────────────────────────────
@@ -244,6 +276,30 @@ check('with SFX off he says nothing', muted === false);
   check('a take whose download failed is skipped, not a whole moment gone quiet',
     !seq.includes('SILENT') && !seq.includes('wooooo') && new Set(seq).size === 5, seq.join(' '));
   await c5.close();
+}
+// With SFX off nothing plays, so nothing holds: the card turns straight away
+// (a hold that waited on a silent line would strand a muted player). Its own
+// page — the intro only opens once a session.
+{
+  const pm = await (await b.newContext({ viewport: { width: 430, height: 932 }, hasTouch: true })).newPage();
+  pm.on('pageerror', (e) => errs.push(e.message));
+  await pm.goto('http://localhost:5199/?tod=night', { waitUntil: 'networkidle' });
+  await pm.waitForFunction(() => window.__game && window.__game.screen === 'title', null, { timeout: 25000 });
+  await pm.mouse.click(5, 5);
+  await pm.waitForFunction(() => (window.__audio.voiceLines().instructions || []).length === 8, null, { timeout: 10000 });
+  await pm.evaluate(() => { window.__audio.setSfxMuted(true); window.__startStage(0); });
+  await pm.waitForFunction(() => window.__game.dialogue, null, { timeout: 10000 });
+  for (let i = 0; i < 2; i++) {
+    await pm.evaluate(() => { window.__tutorialAdvance(); window.__tutorialAdvance(); });
+    await pm.waitForTimeout(150);
+  }
+  const mutedTurn = await pm.evaluate(() => {
+    const at = window.__game.dialogue.page;
+    window.__tutorialAdvance(); window.__tutorialAdvance();
+    return [at, window.__game.dialogue.page];
+  });
+  check('with SFX off the manholes card does not wait', mutedTurn[0] === 2 && mutedTurn[1] === 3, JSON.stringify(mutedTurn));
+  await pm.context().close();
 }
 check('no page errors', errs.length === 0, errs.join(' | '));
 await b.close();
