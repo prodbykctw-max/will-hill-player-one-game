@@ -42,7 +42,7 @@ import { createRunLog, lbSubmit, bankLocalRun, isRegistered, hasPendingRun,
   recordRunStats, pendingRunCount, flushPendingRun } from './net/leaderboard.js';
 import { createPanel, soundEnabled, setSoundEnabled,
   sfxEnabled, setSfxEnabled, howToSeen, markHowToSeen } from './ui/panel.js';
-import { ARROW_L, ARROW_R, BAG_ICON, TUTORIAL_LESSONS, TUTORIAL_ORDER, TUTORIAL_PICTURES, TUTORIAL_VOICE, nextTutorialTrigger }
+import { ARROW_L, ARROW_R, BAG_ICON, TUTORIAL_LESSONS, TUTORIAL_ORDER, TUTORIAL_PICTURES, TUTORIAL_VOICE, TUTORIAL_VOICE_HOLD, nextTutorialTrigger }
   from './world/tutorial.js';
 import { createHaptics } from './core/haptics.js';
 import { STAGE_SLOTS, MAP_SLOTS, MANIFEST } from './audio/music.js';
@@ -775,6 +775,7 @@ function advanceTutorialDialogue() {
     d.pageT = text.length * TUTORIAL_TICKS_PER_CHAR;
     return;
   }
+  if (tutorialHeld(d)) return;
   if (d.page + 1 < d.pages.length) {
     d.page++;
     d.pageT = 0;
@@ -783,6 +784,17 @@ function advanceTutorialDialogue() {
   state.tutorialFired.add(d.id);
   state.dialogue = null;
   if (TUTORIAL_ORDER.every((lessonId) => state.tutorialFired.has(lessonId))) markHowToSeen();
+}
+
+// A card whose take the player has to hear out (TUTORIAL_VOICE_HOLD) does
+// not turn while he is still saying it — the press is simply not taken, and
+// the ▼ stays off until it would be. Held ONLY while that take is audibly
+// playing (audio.voicePlaying): muted, not yet decoded, or a suspended
+// context holds nothing, so this can never strand a player on the card.
+function tutorialHeld(d) {
+  const take = (TUTORIAL_VOICE[d.id] || [])[d.page];
+  return !!take && TUTORIAL_VOICE_HOLD.has(take) && d.voiced === d.page
+    && audio.voicePlaying(`instructions/${take}`);
 }
 
 // ── WILL HILL TALKS ────────────────────────────────────────────────────
@@ -2388,6 +2400,7 @@ function drawTutorialBubble(d) {
   const pic = d.pictures[d.page] || null;
   const shown = Math.min(text.length, Math.floor(d.pageT / TUTORIAL_TICKS_PER_CHAR));
   const full = shown >= text.length;
+  const held = tutorialHeld(d);
   const p = state.player;
   const z = camera.zoom;
   const P = BUBBLE_PX;
@@ -2466,8 +2479,9 @@ function drawTutorialBubble(d) {
   });
 
   // A small pixel ▼ once the page has finished typing — until then a press
-  // finishes the line rather than turning the page, so it would lie.
-  if (full) {
+  // finishes the line rather than turning the page, so it would lie. Off,
+  // too, while a held card's take is still playing (tutorialHeld).
+  if (full && !held) {
     const bob = Math.floor(state.tick / 16) % 2 ? P : 0;
     const ax = bx + w - 7 * P;
     const ay = by + h - 7 * P + bob;

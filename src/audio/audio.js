@@ -809,6 +809,13 @@ export function createAudio() {
       music.duck(buf.duration * 1000 + 250, { replace: force });
       return true;
     },
+    // Whether he is still saying this take ('moment/take') right now. False
+    // once it ends, was cut off, SFX is switched off, or the context is not
+    // running (a suspended context's clock stops, and a caller waiting on
+    // this must not wait forever) — so a wait on it can never outlast the line.
+    voicePlaying(key) {
+      return !sfxMuted && !!ctx && ctx.state === 'running' && lastVoice === key && ctx.currentTime < voiceEnd;
+    },
     // The last line he said, as 'moment/take' — for the harness.
     lastVoice: () => lastVoice,
     // How many lines he has said this session — for the harness.

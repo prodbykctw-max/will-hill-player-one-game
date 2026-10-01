@@ -91,6 +91,14 @@ export const TUTORIAL_VOICE = {
     'defeat-enemies', 'champagne-power-up', 'lets-get-it'],
 };
 
+// Takes the card WAITS FOR: a press does not turn the page until he has
+// finished saying it. Every other card can be tapped straight past. Client,
+// on MANHOLES' "... pause": "I don't want you to be able to click past the
+// manhole one until the pause plays." Only while the line is actually
+// playing — muted, or a take that never decoded, holds nothing (main.js
+// tutorialHeld).
+export const TUTORIAL_VOICE_HOLD = new Set(['manholes']);
+
 // Every lesson that has to have been seen, once, ever, before the tutorial
 // retires itself (howToSeen()). One now.
 export const TUTORIAL_ORDER = ['intro'];
