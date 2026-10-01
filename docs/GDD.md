@@ -46,7 +46,8 @@ Boy: *"make a text bubble come from Will describing the same instructions."*
   1. "Yo! It's Will Hill. / Help me make it to my show."
   2. "◀ ▶ to move." — the arrows are DRAWN black triangles, not typed
      glyphs, which a phone renders as blue emoji keycaps: *"make those two arrows in the move card normal black arrows... not the stock blue arrows i asked not to use"*
-  3. "Press JUMP to get over manholes."
+  3. "Press JUMP to get over manholes… PAUSE" — PAUSE is Will's ad-lib on the
+     take, written in for players who tap past the voice
   4. "DASH to roll past trouble. You can't be hit while rolling."
   5. "Get the bag." *(bag picture)*
   6. "Defeat enemies. Jump on their heads." *(the stage's enemy, as a HUD-style
