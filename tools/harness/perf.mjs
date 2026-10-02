@@ -47,7 +47,7 @@ async function page(url, { seedIntro = true } = {}) {
   const p = await ctx.newPage();
   const errs = [];
   p.on('pageerror', (e) => errs.push(e.message));
-  if (seedIntro) await p.addInitScript(() => localStorage.setItem('wh_intro_v6', '1'));
+  if (seedIntro) await p.addInitScript(() => localStorage.setItem('wh_intro_v7', '1'));
   const cdp = await ctx.newCDPSession(p);
   await cdp.send('Emulation.setCPUThrottlingRate', { rate: SLOW });
   await p.addInitScript(() => {
@@ -121,7 +121,7 @@ const scenes = [];
   await p.waitForTimeout(1500);
   scenes.push(['title', await frames(p, 4000)]);
   // The intro bubble: a fresh latch, stage one, the bubble typing.
-  await p.evaluate(() => { localStorage.removeItem('wh_intro_v6'); localStorage.removeItem('wh_intro_seen'); window.__startStage(0); });
+  await p.evaluate(() => { localStorage.removeItem('wh_intro_v7'); localStorage.removeItem('wh_intro_seen'); window.__startStage(0); });
   // (A build from before the intro bubble existed has no dialogue: skip it.)
   const hasIntro = await p.waitForFunction(() => window.__game.dialogue, null, { timeout: 8000 })
     .then(() => true).catch(() => false);

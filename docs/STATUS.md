@@ -173,6 +173,14 @@ built here — this was a status question, not a request.
 
 ## DONE — shipped and live
 
+### 2026-10-02 — intro replays once for everyone; credits are RARƎ AGENCY only
+
+- Intro latch bumped to `wh_intro_v7`, so every player sees the intro (with
+  the manholes card's wait) once more.
+- The credits roll's SFX → prodbyKCTW line is removed. Client: "remove the
+  credit for SFX under credits... just Rare Agency." The only credit is
+  GAME DEVELOPMENT → RARƎ AGENCY (`src/render/credits.js`).
+
 ### 2026-10-01 — the manholes card waits for "… pause"
 
 - Will Hill's request: his "pause" ad-lib after "jump over the manholes" was

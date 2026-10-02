@@ -30,11 +30,11 @@
 // the client reversed it: game development already covers design, so it
 // doesn't get its own row.
 //
-// ⚠️ SFX ONLY, NOT MUSIC/SFX. It read MUSIC/SFX while the soundtrack was
-// prodbyKCTW's own loops. Since 2026-09-29 the music is Will Hill's
-// instrumentals, and the client: "Can we change the credit for me to only
-// SFX? Because I didn't produce any of the music that they just put in
-// there." The effects (the stomp is his own voice) are still his.
+// ⚠️ NO SFX LINE — JUST RARƎ AGENCY. It read MUSIC/SFX → prodbyKCTW while
+// the soundtrack was his own loops, then SFX only once the music became Will
+// Hill's instrumentals (2026-09-29). On 2026-10-02 the client removed it:
+// "remove the credit for SFX under credits... just Rare Agency." The only
+// credit on this screen is GAME DEVELOPMENT → RARƎ AGENCY.
 //
 // NOTHING IS PAINTED HERE. There is no plate for this screen — it was never
 // commissioned — so unlike ending.js this file draws real text on a real
@@ -62,9 +62,6 @@ const LINES = [
   { gap: 1 },
   { role: 'GAME DEVELOPMENT' },
   { name: 'RARƎ AGENCY' },
-  { gap: 0.6 },
-  { role: 'SFX' },
-  { name: 'prodbyKCTW' },
   { gap: 1.4 },
   { small: 'THANK YOU FOR PLAYING' },
 ];

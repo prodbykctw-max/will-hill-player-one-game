@@ -1011,8 +1011,9 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
 // black triangles — so the people who saw the blue ones see the fix. And
 // `wh_intro_v4` when Will's own voice was put on every card.
 // `wh_intro_v5` retired when card 3 became "… PAUSE" and its take was
-// re-encoded with the ad-lib whole.
-const INTRO_SEEN_KEY = 'wh_intro_v6';
+// re-encoded with the ad-lib whole. `wh_intro_v6` when that card was made to
+// wait for the take to finish before it can be tapped past.
+const INTRO_SEEN_KEY = 'wh_intro_v7';
 
 // ⚠️ ALSO HELD IN MEMORY, once true. main.js asks this every tick of stage
 // one, and two things went wrong when the answer lived only in storage:
