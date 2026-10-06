@@ -181,7 +181,11 @@ built here — this was a status question, not a request.
   - Adds a `<noscript>` block with the same facts as readable text. The board is a canvas, so crawlers that don't run JavaScript otherwise see nothing.
 - `public/sitemap.xml` and `public/llms.txt`.
 - ⚠️ No `robots.txt`. Crawlers only read one at the domain root (`prodbykctw-max.github.io/robots.txt`), which this repo does not own. A missing one already means "allow all".
-- Keep the JSON-LD, noscript text and llms.txt true to the game when stages or credits change.
+- Second pass, after measuring what Google actually renders:
+  - The rendered page had ZERO words, because Google runs JavaScript and `<noscript>` is not part of that render. The facts now live as fallback text inside `<canvas>`. That text is in the DOM, is never drawn, and is deliberately text only: a link in there would take keyboard focus off the game.
+  - The description and JSON-LD now say "Atlanta rapper", list all five stops (it said four), and tie the game to his official profiles via `sameAs` (realwillhill.com, @realwillhill on Instagram, X, YouTube and Facebook). A bare "Will Hill game" search is all the NFL safety.
+  - `README.md` corrected. Search engines were quoting it verbatim (the public repo outranks the game for its own name) as "four neighborhoods" and "Cloudflare KV".
+- Keep the JSON-LD, canvas text and llms.txt true to the game when stages or credits change.
 
 ### 2026-10-02 — intro replays once for everyone; credits are RARƎ AGENCY only
 

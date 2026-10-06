@@ -1,11 +1,11 @@
 # Will Hill: Player One
 
-> A free side-scrolling runner game starring Atlanta artist Will Hill. Dash, jump and stack bags through five Atlanta stops to make it to his show, to Will Hill's own music. Plays in any phone or desktop browser.
+> A free side-scrolling runner game starring Atlanta rapper Will Hill. Dash, jump and stack bags through five Atlanta stops to make it to his show, to Will Hill's own music. Plays in any phone or desktop browser.
 
 - Play: https://prodbykctw-max.github.io/will-hill-player-one-game/
 - Price: free, no download; can be added to a phone's home screen
 - Developed by: Rare Agency
-- Music: Will Hill
+- Music: Will Hill — Atlanta rapper, owner of THISISILL Records. Official site: https://realwillhill.com/ · Instagram: https://www.instagram.com/realwillhill/
 
 ## The game
 
