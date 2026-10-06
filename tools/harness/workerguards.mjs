@@ -228,6 +228,27 @@ check('with no scheduled window configured, the switch alone decides it',
   reopened.status === 200,
   'CONTEST_START/END are 0 in the shipped worker — inContestWindow() is permissive by design');
 
+// ── the prize contact: validated, and never re-pointed by a stranger ─────
+// The entrant id is a hash of the phone, so anybody who knows a number could
+// post a run under it. Before this fix that run's email REPLACED the stored
+// one — whoever knew your number could move your prize contact to their own
+// inbox. The email is now validated server-side (same pattern as the form,
+// src/ui/panel.js emailProblem) and only ever fills an empty one.
+const emailOf = (digits) => db.prepare('SELECT email FROM entrants WHERE phone = ?').get(digits)?.email;
+const badEmail = await submit({ durationMs: 30000, events: bags(20, 30000), phone: '4045550177', email: 'not an email' });
+check('a malformed email is refused server-side', badEmail.status === 400, String(badEmail.status));
+check('and is in the abuse log', rejectReasons().includes('email'));
+check('and no entrant row was written for it', emailOf('4045550177') === undefined);
+const noEmail = await submit({ durationMs: 30000, events: bags(20, 30000), phone: '4045550177', email: '' });
+check('an empty email still enters (old registrations carry none)', noEmail.status === 200, String(noEmail.status));
+const fill = await submit({ durationMs: 30000, events: bags(20, 30000), phone: '4045550177', email: 'owner@example.com' });
+check('a first email fills an empty one', fill.status === 200 && emailOf('4045550177') === 'owner@example.com', emailOf('4045550177'));
+const hijack = await submit({ durationMs: 30000, events: bags(20, 30000), phone: '(404) 555-0177', email: 'attacker@example.net', name: 'NEWNAME' });
+check('a later run under the same phone cannot replace the email', hijack.status === 200
+  && emailOf('4045550177') === 'owner@example.com', emailOf('4045550177'));
+const blank = await submit({ durationMs: 30000, events: bags(20, 30000), phone: '4045550177', email: '' });
+check('nor can an empty one erase it', blank.status === 200 && emailOf('4045550177') === 'owner@example.com', emailOf('4045550177'));
+
 const bad = checks.filter(([, ok]) => !ok);
 console.log(bad.length ? `\nFAILED: ${bad.length} of ${checks.length}` : `\nALL ${checks.length} PASS`);
 process.exit(bad.length ? 1 : 0);

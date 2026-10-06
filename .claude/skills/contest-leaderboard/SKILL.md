@@ -231,8 +231,26 @@ the thing an attacker already has a URL for.
   shows real phone numbers. One command must invalidate every link ever sent,
   and it should be used the day the contest closes. Say this out loud to the
   client rather than letting them discover it.
+- **Trade the link's token for a cookie on first open.** `/?k=` sets an
+  HttpOnly; Secure; SameSite=Strict cookie (a hash of the token, so rotation
+  still kills it) and reloads at a clean `/`, so the token is not left in the
+  address bar, history or screenshots; the page's own fetches then carry no
+  token. ⚠️ Reload with a page-side redirect (meta refresh), NOT a 302: a 302
+  inherits the cross-site click that opened the link, and the browser withholds
+  the brand-new Strict cookie from it — the 404 that follows looks like a bad
+  token. Keep `?k=` accepted for old links; accept `Authorization: Bearer` for
+  tools; refuse a POST whose `Origin` is another site.
 - Show **everyone**, not the top N — plus filtering to isolate the winners, and
-  CSV export for the call-down.
+  CSV export for the call-down. ⚠️ **Prefix any CSV cell that starts with
+  `= + - @` tab or CR with `'`**: names and emails are typed by entrants, and
+  `=HYPERLINK(...)` in a spreadsheet runs. Escape `"` and `'` too wherever
+  entrant text lands inside an HTML attribute.
+- ⚠️ **Never let a later submit overwrite the prize contact.** When the
+  entrant key is derived from the phone, anyone who knows a number can post a
+  run under it; if that upsert sets `email = excluded.email`, they have just
+  moved the prize to their inbox. Validate the email server-side with the same
+  pattern as the form, and fill it only when empty:
+  `email = COALESCE(NULLIF(entrants.email, ''), excluded.email)`.
 
 ---
 

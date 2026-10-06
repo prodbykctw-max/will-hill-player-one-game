@@ -71,6 +71,10 @@ wrangler secret put DASH_TOKEN --name will-hill-dashboard   # openssl rand -hex 
 ```
 
 Then the link is `https://<dashboard-host>/?k=<DASH_TOKEN>`.
+Opening it sets an HttpOnly session cookie and reloads at a clean `/`, so
+the token does not stay in the address bar. Tools can send
+`Authorization: Bearer <DASH_TOKEN>` instead. Rotating `DASH_TOKEN` ends
+every cookie as well as every link.
 
 ⚠️ **Rotating `DASH_TOKEN` is the kill switch.** Re-run the `secret put` with a
 new value and every link ever sent stops working. That is the only thing that
