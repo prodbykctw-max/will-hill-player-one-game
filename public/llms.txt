@@ -1,0 +1,16 @@
+# Will Hill: Player One
+
+> A free side-scrolling runner game starring Atlanta artist Will Hill. Dash, jump and stack bags through five Atlanta stops to make it to his show, to Will Hill's own music. Plays in any phone or desktop browser.
+
+- Play: https://prodbykctw-max.github.io/will-hill-player-one-game/
+- Price: free, no download; can be added to a phone's home screen
+- Developed by: Rare Agency
+- Music: Will Hill
+
+## The game
+
+- Five stages, in order: East Atlanta Village, Edgewood, The Underground (Five Points), Little 5 Points, Buckhead Theatre — riding MARTA between them.
+- Move left and right, JUMP over manholes and onto enemies' heads, DASH to roll past trouble (you can't be hit while rolling).
+- Collect money bags for score. Champagne bottles make Will invincible and double bags for 9 seconds.
+- Will Hill voices the intro and reacts in-game.
+- Top scores go on a contest leaderboard.

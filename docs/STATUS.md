@@ -173,6 +173,16 @@ built here — this was a status question, not a request.
 
 ## DONE — shipped and live
 
+### 2026-10-06 — search and AI-search basics
+
+- `index.html`:
+  - The tab title is now "Will Hill: Player One — Free Atlanta Runner Game".
+  - Adds a canonical URL, robots, `og:site_name`, `og:locale`, image alt text, and JSON-LD `VideoGame` data (free, browser, five stages, music by Will Hill, Rare Agency).
+  - Adds a `<noscript>` block with the same facts as readable text. The board is a canvas, so crawlers that don't run JavaScript otherwise see nothing.
+- `public/sitemap.xml` and `public/llms.txt`.
+- ⚠️ No `robots.txt`. Crawlers only read one at the domain root (`prodbykctw-max.github.io/robots.txt`), which this repo does not own. A missing one already means "allow all".
+- Keep the JSON-LD, noscript text and llms.txt true to the game when stages or credits change.
+
 ### 2026-10-02 — intro replays once for everyone; credits are RARƎ AGENCY only
 
 - Intro latch bumped to `wh_intro_v7`, so every player sees the intro (with
