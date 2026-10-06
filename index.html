@@ -9,7 +9,7 @@
        1200x630 band cut from the client's own title painting, served from
        public/ so the URL survives every deploy un-hashed (og:image must be an
        absolute, stable URL — crawlers cache it and cannot run our JS). -->
-  <meta name="description" content="Run Atlanta with Will Hill. Dash, jump, and stack bags through EAV, Edgewood, The Underground, and Little 5 Points. Top scores win real prizes." />
+  <meta name="description" content="Play as Atlanta rapper Will Hill. Dash, jump and stack bags through EAV, Edgewood, The Underground, Little 5 Points and Buckhead to make his show. Free — top scores win prizes." />
   <meta property="og:type" content="website" />
   <meta property="og:title" content="Will Hill: Player One" />
   <meta property="og:description" content="Run Atlanta. Stack bags. Top the board — real prizes." />
@@ -63,8 +63,8 @@
        empty page. The canonical pins the one URL every share and search
        result should point at; the JSON-LD tells search engines and AI
        answers what this is — a free browser game, Will Hill's, five Atlanta
-       stages, his own music; the <noscript> block in <body> carries the same
-       facts as readable text. Keep all three true to the game when it
+       stages, his own music; the text inside <canvas> in <body> carries the
+       same facts as readable text Google can see. Keep all three true to the game when it
        changes (stage names: src/world/stages.js). -->
   <link rel="canonical" href="https://prodbykctw-max.github.io/will-hill-player-one-game/" />
   <meta name="robots" content="index, follow, max-image-preview:large" />
@@ -80,7 +80,7 @@
     "alternateName": "Will Hill Player One",
     "url": "https://prodbykctw-max.github.io/will-hill-player-one-game/",
     "image": "https://prodbykctw-max.github.io/will-hill-player-one-game/share-card.jpg",
-    "description": "A free side-scrolling runner game starring Atlanta artist Will Hill. Dash, jump and stack bags through five Atlanta stops — East Atlanta Village, Edgewood, The Underground (Five Points), Little 5 Points and Buckhead Theatre — to make it to his show, to Will Hill's own music. Plays in any phone or desktop browser; top scores go on a contest leaderboard.",
+    "description": "A free side-scrolling runner game starring Atlanta rapper Will Hill. Dash, jump and stack bags through five Atlanta stops — East Atlanta Village, Edgewood, The Underground (Five Points), Little 5 Points and Buckhead Theatre — to make it to his show, to Will Hill's own music. Plays in any phone or desktop browser; top scores go on a contest leaderboard.",
     "genre": ["Platformer", "Runner", "Arcade"],
     "gamePlatform": ["Web browser", "iOS", "Android"],
     "applicationCategory": "Game",
@@ -89,8 +89,22 @@
     "inLanguage": "en",
     "isAccessibleForFree": true,
     "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
-    "character": { "@type": "Person", "name": "Will Hill" },
-    "musicBy": { "@type": "Person", "name": "Will Hill" },
+    "character": { "@id": "https://realwillhill.com/#will-hill" },
+    "musicBy": {
+      "@type": "Person",
+      "@id": "https://realwillhill.com/#will-hill",
+      "name": "Will Hill",
+      "jobTitle": "Rapper",
+      "description": "Atlanta rapper and songwriter, owner of THISISILL Records",
+      "homeLocation": { "@type": "City", "name": "Atlanta, Georgia" },
+      "url": "https://realwillhill.com/",
+      "sameAs": [
+        "https://www.instagram.com/realwillhill/",
+        "https://x.com/realwillhill",
+        "https://www.youtube.com/c/realwillhill",
+        "https://www.facebook.com/realwillhill/"
+      ]
+    },
     "author": { "@type": "Organization", "name": "Rare Agency" },
     "publisher": { "@type": "Organization", "name": "Rare Agency" },
     "contentLocation": { "@type": "City", "name": "Atlanta, Georgia" }
@@ -1736,17 +1750,17 @@
   </style>
 </head>
 <body>
-  <canvas id="game"></canvas>
-  <noscript>
+  <canvas id="game" aria-label="Will Hill: Player One — the game">
     <h1>Will Hill: Player One</h1>
-    <p>A free side-scrolling runner game starring Atlanta artist Will Hill.
+    <p>A free side-scrolling runner game starring Atlanta rapper Will Hill.
       Dash, jump and stack bags through five Atlanta stops — East Atlanta
       Village, Edgewood, The Underground (Five Points), Little 5 Points and
-      Buckhead Theatre — to make it to his show, to Will Hill's own music.
-      Top scores go on the contest leaderboard.</p>
-    <p>Turn on JavaScript to play. Works in any phone or desktop browser, and
-      can be added to the home screen.</p>
-  </noscript>
+      Buckhead Theatre — riding MARTA between them to make it to his show, to
+      Will Hill's own music. Champagne makes him invincible and doubles the
+      bags for 9 seconds. Top scores go on the contest leaderboard.</p>
+    <p>Plays in any phone or desktop browser, and can be added to the home
+      screen. Developed by Rare Agency.</p>
+  </canvas>
 
   <!-- SAFE-AREA PROBE. The canvas is full-bleed under viewport-fit=cover, so
        on a notched or Dynamic Island iPhone the top of the frame is behind

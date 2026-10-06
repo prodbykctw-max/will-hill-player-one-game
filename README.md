@@ -1,6 +1,8 @@
 # Will Hill: Player One
 
-A side-scroll platformer built in the style of the Jandé game's Action RPG mode, starring Will Hill making his way through four real Atlanta neighborhoods to his performance — collecting money bags, dodging (or stomping) street enemies, and grabbing champagne bottles for temporary invulnerability.
+**Play it free: https://prodbykctw-max.github.io/will-hill-player-one-game/**
+
+A side-scrolling runner game starring Atlanta rapper [Will Hill](https://realwillhill.com/), making his way through five Atlanta stops — East Atlanta Village, Edgewood, The Underground (Five Points), Little 5 Points and Buckhead Theatre — to his show, to his own music. Collect money bags, stomp or dash past street enemies, and grab champagne for 9 seconds of invincibility and double bags. Top scores go on the contest leaderboard. Developed by Rare Agency.
 
 Full design details live in [`docs/GDD.md`](docs/GDD.md) — read that first, it's the source of truth for mechanics, stages, art direction, and the leaderboard/contest design.
 
@@ -8,7 +10,7 @@ Full design details live in [`docs/GDD.md`](docs/GDD.md) — read that first, it
 
 - Vanilla JS + Canvas 2D, bundled with [Vite](https://vitejs.dev/)
 - Deployed to GitHub Pages via `tools/deploy.sh` (orphan `gh-pages` branch)
-- Leaderboard backend: Cloudflare Worker + KV (`cloudflare/`) — see [`cloudflare/README.md`](cloudflare/README.md) for deploy status
+- Leaderboard backend: Cloudflare Workers + D1 (`cloudflare/`), deployed
 
 ## Project structure
 
@@ -22,7 +24,7 @@ src/
   audio/
   net/          # leaderboard client
 tools/          # deploy script + pipeline docs
-cloudflare/     # leaderboard Worker (code scaffolded, not yet deployed)
+cloudflare/     # leaderboard + dashboard Workers (deployed)
 docs/           # GDD.md — the living design doc
 assets/         # git-ignored — raw reference art, 3D source, AutoSprite exports (not committed)
 ```
