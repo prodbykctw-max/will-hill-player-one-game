@@ -173,6 +173,14 @@ built here — this was a status question, not a request.
 
 ## DONE — shipped and live
 
+### 2026-10-06 — title loads a second sooner (launch day)
+
+- `title-portrait-skyline.webp` (the towers card) is now q94 with its alpha kept exact, instead of lossless: 1.38 MB to 384 KB. It was over a third of everything loaded before the title paints.
+- Measured composited over the plate it sits on: mean 1.5/255 off, p99 9, alpha identical. Full-screen title screenshot: mean 0.69 off.
+- Fast 4G, phone viewport: the title paints at 2.9s instead of 3.9s, with 2.55 MB loaded before it instead of 3.57 MB.
+- The four cutters that write this file now save it the same way (`cut_title_clouds.py`, `seal_skyline.py`, `cut_title_prompt.py`, `cut_title_options_out.py`).
+- ⚠️ Moving the game to a custom domain needs `ALLOWED_ORIGINS` in `cloudflare/leaderboard-worker.js` updated and that worker redeployed FIRST. Otherwise every score submit from the new address is rejected 403.
+
 ### 2026-10-06 — search and AI-search basics
 
 - `index.html`:
