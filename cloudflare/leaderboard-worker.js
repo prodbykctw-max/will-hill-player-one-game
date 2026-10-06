@@ -133,6 +133,14 @@ const cleanName = (n) => {
 
 const cleanContact = (v, max) => String(v == null ? '' : v).trim().slice(0, max);
 
+// Same pattern as the registration form (src/ui/panel.js emailProblem). Empty
+// is allowed here because the client's submit sends `reg?.email || ''` — a
+// registration stored before email was asked for has none, and refusing those
+// runs would turn away honest returning players. Anything non-empty must look
+// like an address.
+const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+export const emailOk = (v) => v === '' || EMAIL_RE.test(v);
+
 // Digits only, so +1 (404) 555-0100 and 4045550100 are one person.
 const phoneKey = (v) => String(v == null ? '' : v).replace(/\D/g, '').replace(/^1(?=\d{10}$)/, '');
 
@@ -390,6 +398,12 @@ export default {
           return json({ ok: false, err: 'phone required' }, 400);
         }
 
+        const email = cleanContact(b.email, 128);
+        if (!emailOk(email)) {
+          await reject(env, req, 'email', email.slice(0, 60));
+          return json({ ok: false, err: 'bad email' }, 400);
+        }
+
         const runId = String(b.runId || '').slice(0, 64);
         if (!/^[0-9a-f-]{16,64}$/i.test(runId)) {
           await reject(env, req, 'run-id', runId);
@@ -437,8 +451,13 @@ export default {
           `INSERT INTO entrants (id, phone, email, name, created, seen)
            VALUES (?, ?, ?, ?, ?, ?)
            ON CONFLICT(id) DO UPDATE SET
-             email = excluded.email, name = excluded.name, seen = excluded.seen`,
-        ).bind(id, digits, cleanContact(b.email, 128), name, now, now).run();
+             email = COALESCE(NULLIF(entrants.email, ''), excluded.email),
+             name = excluded.name, seen = excluded.seen`,
+        ).bind(id, digits, email, name, now, now).run();
+        // ⚠️ The email is never overwritten once set: the entrant id is a hash
+        // of the phone number, so anyone who knows a number could otherwise
+        // post a run and re-point that entrant's prize contact to their own
+        // address. A first email fills an empty one; nothing replaces it.
 
         // PUBLIC — one row per person, always their best. The whole race the
         // KV version had lives inside MAX() now, where the database owns it.

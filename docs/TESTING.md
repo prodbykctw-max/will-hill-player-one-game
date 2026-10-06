@@ -58,6 +58,9 @@ done
 dev server, `node tools/harness/workerguards.mjs` and nothing else. It drives
 the Worker module directly over an in-memory SQLite built from
 `cloudflare/schema.sql`. Run it before any deploy of either worker.
+`dashguards` is its twin for the dashboard Worker (token/cookie/Bearer access,
+cross-site POSTs, CSV formula cells, attribute escaping): same method, same
+"neither", `node tools/harness/dashguards.mjs`.
 
 ⚠️ **`SEAM_OUT=shots` is not optional.** Several harnesses write PNGs and JSON,
 and a harness that defaults to the repo root drops them beside the source.
@@ -84,7 +87,7 @@ the four wordings above):
 
 `barescars` · `betweenscreens` · `booterror` · `btnglow` · `ceiling` · `cloudseal` · `combo` · `dashfit` · `dashglow` · `dashload` · `dashpass` · `daylamps` · `deferboot` · `endcue` · `entryfit` · `entrypaths` · `finishrun` · `graphwire` · `hapticbtn` · `howpage` · `idleflex` · `introorder` ·
 `loopbench` · `loopseam` · `musicbox` · `optionsmenu` · `outbox` · `padlift` · `panelnav` · `pausemenu` · `pitsky` · `relay` · `relayboard` · `relaytod` ·
-`share` · `skyleak` · `stageflag` · `startflow` · `statsync` · `titlefit` · `titlehome` · `titleintro` · `titleshells` · `todlive` · `workerguards`
+`share` · `skyleak` · `stageflag` · `startflow` · `statsync` · `titlefit` · `titlehome` · `titleintro` · `titleshells` · `todlive` · `workerguards` · `dashguards`
 
 **Report-only** — they print a table or a contact sheet for a human to read,
 and have no pass/fail line at all:

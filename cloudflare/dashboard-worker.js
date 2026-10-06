@@ -37,6 +37,10 @@
  *
  *   https://<host>/?k=<DASH_TOKEN>
  *
+ * Opening that link sets an HttpOnly session cookie and reloads at a clean
+ * `/`, so the token does not stay in the address bar; `Authorization: Bearer`
+ * also works. See authorized() below.
+ *
  * Set it, and rotate it, with:
  *   wrangler secret put DASH_TOKEN --name will-hill-dashboard
  *
@@ -78,6 +82,39 @@ function safeEqual(a, b) {
 }
 
 const notFound = () => new Response('Not found', { status: 404, headers: { 'Content-Type': 'text/plain' } });
+
+// ── WHERE THE TOKEN MAY COME FROM ────────────────────────────────────────
+// 1. `Authorization: Bearer <DASH_TOKEN>` — scripts and tools.
+// 2. The `wh_dash` cookie — set by opening the share link once. The link
+//    `/?k=<DASH_TOKEN>` answers with the cookie and an immediate same-site
+//    redirect to `/`, so the token leaves the address bar (and the history,
+//    screenshots and anything copied from it). The cookie holds a SHA-256 of
+//    the token, not the token, so rotating DASH_TOKEN still kills every
+//    session. HttpOnly; Secure; SameSite=Strict — a cross-site page can
+//    neither read it nor ride it into POST /toggle.
+// 3. `?k=` on any route — kept so old links and open tabs keep working.
+const COOKIE = 'wh_dash';
+const COOKIE_MAX_AGE = 7 * 24 * 3600;
+async function cookieValue(token) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('wh-dash-cookie:' + token));
+  return [...new Uint8Array(buf)].map((x) => x.toString(16).padStart(2, '0')).join('');
+}
+function readCookie(req, name) {
+  for (const part of (req.headers.get('Cookie') || '').split(';')) {
+    const i = part.indexOf('=');
+    if (i > 0 && part.slice(0, i).trim() === name) return part.slice(i + 1).trim();
+  }
+  return '';
+}
+async function authorized(req, env, url) {
+  if (!env.DASH_TOKEN) return false;
+  const k = url.searchParams.get('k');
+  if (k !== null && safeEqual(k, env.DASH_TOKEN)) return true;
+  const m = /^Bearer\s+(\S+)\s*$/i.exec(req.headers.get('Authorization') || '');
+  if (m && safeEqual(m[1], env.DASH_TOKEN)) return true;
+  const c = readCookie(req, COOKIE);
+  return !!c && safeEqual(c, await cookieValue(env.DASH_TOKEN));
+}
 
 // ⚠️ worldmap.js/mapdata.js WERE IMPORTED HERE — dead as of the Lightning
 // rebuild below. They fed the old page's hand-drawn world map, which this
@@ -133,13 +170,41 @@ async function pushEnabled(env) {
 
 const esc = (s) => String(s == null ? '' : s)
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-  .replace(/"/g, '&quot;');
+  .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+
+// CSV cell. Quoted, quotes doubled, and a leading = + - @ tab or CR gets a '
+// so Excel / Sheets show it as text instead of running it as a formula — the
+// email and name fields are typed by entrants.
+export function csvCell(v) {
+  let s = String(v == null ? '' : v);
+  if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
+  return `"${s.replace(/"/g, '""')}"`;
+}
 
 export default {
   async fetch(req, env) {
     const url = new URL(req.url);
-    const key = url.searchParams.get('k');
-    if (!env.DASH_TOKEN || !safeEqual(key, env.DASH_TOKEN)) return notFound();
+    if (!(await authorized(req, env, url))) return notFound();
+
+    // The two writes refuse a request another site started (belt and braces
+    // on top of SameSite=Strict).
+    if (req.method === 'POST') {
+      const origin = req.headers.get('Origin');
+      if (origin && origin !== url.origin) return notFound();
+    }
+
+    // The share link: trade ?k= for the cookie, then reload at a clean URL.
+    // A page that redirects itself (meta refresh) rather than a 302, because
+    // a 302 inherits the cross-site click that opened the link and the
+    // browser would withhold the brand-new SameSite=Strict cookie from it.
+    if (url.pathname === '/' && req.method === 'GET' && url.searchParams.has('k')) {
+      return new Response(
+        '<!doctype html><meta charset="utf-8"><meta name="robots" content="noindex,nofollow">'
+        + '<meta http-equiv="refresh" content="0;url=/"><title>Contest Console</title>',
+        { headers: { ...HEADERS, 'Set-Cookie':
+          `${COOKIE}=${await cookieValue(env.DASH_TOKEN)}; Max-Age=${COOKIE_MAX_AGE}; Path=/; HttpOnly; Secure; SameSite=Strict` } },
+      );
+    }
 
     // ── DATA ─────────────────────────────────────────────────────────────
     // The one place in the system that joins the public board to the contact
@@ -298,7 +363,7 @@ export default {
            FROM runs r LEFT JOIN entrants e ON e.id = r.id
           ORDER BY r.score DESC, r.updated ASC`,
       ).all();
-      const q = (v) => `"${String(v == null ? '' : v).replace(/"/g, '""')}"`;
+      const q = csvCell;
       const csv = ['rank,score,name,phone,email,plays,best_run_at']
         .concat((results || []).map((r, i) => [
           i + 1, r.score, q(r.name), q(r.phone), q(r.email), r.plays,
@@ -316,12 +381,12 @@ export default {
 
     // ── THE PAGE ─────────────────────────────────────────────────────────
     // Polls /data every 5s, so it fills in live during the contest without
-    // anybody refreshing. The token is read from this page's own URL and
-    // never written into the document.
+    // anybody refreshing. Its requests authenticate with the HttpOnly cookie;
+    // the token is never written into the document.
     // ── THE PAGE ─────────────────────────────────────────────────────────
     // Polls /data every 5s, so it fills in live during the contest without
-    // anybody refreshing. The token is read from this page's own URL and
-    // never written into the document.
+    // anybody refreshing. Its requests authenticate with the HttpOnly cookie;
+    // the token is never written into the document.
     //
     // ⚠️ SALESFORCE LIGHTNING, NOT HIS PAINTED PLATE — a deliberate, later
     // rebuild. Kema (PM on this project, a Salesforce admin by trade) asked
@@ -762,10 +827,11 @@ tbody tr:nth-child(even):hover{background:var(--sf-blue-light)}
 </div>
 
 <script>
-const K = new URLSearchParams(location.search).get('k');
+// Auth rides on the HttpOnly wh_dash cookie (set when the share link was
+// opened), so no request below carries the token.
 const $ = (i) => document.getElementById(i);
 const n = (v) => Number(v || 0).toLocaleString();
-const esc = (s) => String(s == null ? '' : s).replace(/[<>&]/g, (c) => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+const esc = (s) => String(s == null ? '' : s).replace(/[<>&"']/g, (c) => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;'}[c]));
 
 function atlanta(){
   return new Date().toLocaleTimeString('en-US', {
@@ -887,7 +953,7 @@ let q = '';
 
 async function pull(){
   let res;
-  try { res = await fetch('/data?k=' + encodeURIComponent(K)); }
+  try { res = await fetch('/data'); }
   catch (e) { $('updText').textContent = 'offline'; return; }
   if (!res.ok) { $('updText').textContent = 'error ' + res.status; return; }
   last = await res.json();
@@ -967,12 +1033,12 @@ function drawSwitches(){
 
 $('tgContest').addEventListener('click', async () => {
   $('tgContest').disabled = true;
-  try { await fetch('/toggle?k=' + encodeURIComponent(K), { method: 'POST' }); }
+  try { await fetch('/toggle', { method: 'POST' }); }
   finally { $('tgContest').disabled = false; pull(); }
 });
 $('tgPush').addEventListener('click', async () => {
   $('tgPush').disabled = true;
-  try { await fetch('/push-toggle?k=' + encodeURIComponent(K), { method: 'POST' }); }
+  try { await fetch('/push-toggle', { method: 'POST' }); }
   finally { $('tgPush').disabled = false; pull(); }
 });
 
@@ -1046,7 +1112,7 @@ document.querySelectorAll('#v-entrants thead th').forEach((th) => {
   });
 });
 $('csvBtn').addEventListener('click', () => {
-  location.href = '/csv?k=' + encodeURIComponent(K);
+  location.href = '/csv';
 });
 
 function drawEntrants(){
