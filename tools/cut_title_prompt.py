@@ -87,7 +87,7 @@ FEATHER = 6
 TARGETS = [
     (os.path.join(BG, 'title-portrait-nooptions.webp'), dict(quality=94, method=6)),
     (os.path.join(BG, 'title-portrait-bare.webp'), dict(quality=95, method=6)),
-    (os.path.join(BG, 'title-portrait-skyline.webp'), dict(lossless=True)),
+    (os.path.join(BG, 'title-portrait-skyline.webp'), dict(quality=94, method=6, alpha_quality=100)),
 ]
 
 CLEAN_CONTRAST = 70     # a clean band measures ~28, the word ~165

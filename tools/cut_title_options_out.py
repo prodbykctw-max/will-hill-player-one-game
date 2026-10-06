@@ -83,11 +83,12 @@ SRC = os.path.join(BG, 'title-portrait.webp')
 # elsewhere; the other two are patched where they lie.
 #
 # ⚠️ EACH FILE IS RE-SAVED THE WAY ITS OWN CUTTER SAVES IT. The skyline card
-# is written LOSSLESS by cut_title_clouds.py and seal_skyline.py; a first pass
-# here re-saved it at quality 94 like an ordinary card and took it from 1.41 MB
-# to 397 KB - a full lossy pass over every tower on the plate, to patch 184x48
-# pixels of pavement. Match the cutter, per file, or the patch costs more than
-# it fixes.
+# was LOSSLESS (1.38 MB, over a third of everything loaded before the title
+# paints) until 2026-10-06, when the client asked for a faster load on launch
+# day. It is now q94 with its alpha kept exact (alpha_quality=100), the same
+# quality as the plate it sits on. Measured composited over that plate: 384 KB,
+# mean 1.5/255 off, p99 9, alpha identical; the title painted at 2.9s instead
+# of 3.9s on fast 4G. Match the cutter, per file.
 TARGETS = [
     (os.path.join(BG, 'title-portrait.webp'),
      os.path.join(BG, 'title-portrait-nooptions.webp'),
@@ -97,7 +98,7 @@ TARGETS = [
      dict(quality=95, method=6)),          # cut_title_bare.py
     (os.path.join(BG, 'title-portrait-skyline.webp'),
      os.path.join(BG, 'title-portrait-skyline.webp'),
-     dict(lossless=True)),                 # cut_title_clouds.py / seal_skyline.py
+     dict(quality=94, method=6, alpha_quality=100)),  # cut_title_clouds.py / seal_skyline.py
 ]
 
 # The word, from OPTIONS_BOX in src/render/title.js, plus a margin for the

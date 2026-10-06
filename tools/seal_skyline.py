@@ -138,7 +138,7 @@ def main():
           f'existing opaque pixels unchanged: {untouched}')
 
     if write:
-        Image.fromarray(out).save(BG / CARD, quality=95, method=6, lossless=True)
+        Image.fromarray(out).save(BG / CARD, quality=94, method=6, alpha_quality=100)  # q94, alpha kept exact: 384 KB vs 1.38 MB lossless, mean 1.5/255 off composited
         print(f'  wrote {CARD}')
     else:
         print('  report only — pass --write to seal it')

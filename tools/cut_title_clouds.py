@@ -523,7 +523,7 @@ def main():
     talpha = np.clip((tsoft - 0.35) / 0.4, 0, 1)
     Image.fromarray(np.dstack([rgb, (talpha * 255).astype(np.uint8)]),
                     "RGBA").save(BG / "title-portrait-skyline.webp",
-                                 lossless=True)
+                                 quality=94, method=6, alpha_quality=100)  # q94, alpha kept exact: 384 KB vs 1.38 MB lossless, mean 1.5/255 off composited
     print(f"skyline card: covers from row {int(skyline.min())} down, "
           f"{int(towers.sum())} px")
 
