@@ -173,6 +173,19 @@ built here — this was a status question, not a request.
 
 ## DONE — shipped and live
 
+### 2026-10-08 — the score ceiling is gone; two lost contest runs restored
+
+- The Worker refused any score over `MAX_LEGIT_SCORE = 70000`. Real players beat it:
+  - **Lani: 78,750**, Oct 7 04:47 UTC, a finished game, 19m17s
+  - **Chando: 72,400**, Oct 7 15:31 UTC
+- Both were recomputed by the server from their own event logs and were well inside the 400/s rate bound. Both were refused as `over-ceiling`.
+- A 400 drops the run from the phone's outbox, so neither could resend. The player saw an empty board. Lani posted that the game "glitches every time I make it to Buckhead".
+- Matched to the players by their run_stats partial submitted minutes before each refusal, and by location: Montgomery AL on a US network, and the only Aruba player on an Aruba IP. Lani's refusal time is 11:47pm Central, the clock in her screenshot.
+- Restored by hand in D1 (`runs.score`, `updated` = the refusal time). The undo values are in the commit message.
+- The ceiling is removed from `cloudflare/leaderboard-worker.js` on the client's word ("remove any maximum believable score"). The rate bound, server recompute, event and body caps, origin, honeypots and replay still stand.
+- ⚠️ The ceiling stays LIVE until the Worker is redeployed: `npx wrangler deploy -c cloudflare/wrangler.toml` from the client's machine. Until then any new run over 70,000 is still refused. Check `rejects` for `over-ceiling` and restore the same way.
+- Her "NO RUNS YET" screen was a separate /top fetch that missed its 4.5s timeout (slow connection). It is not the cause.
+
 ### 2026-10-06 — title loads a second sooner (launch day)
 
 - `title-portrait-skyline.webp` (the towers card) is now q94 with its alpha kept exact, instead of lossless: 1.38 MB to 384 KB. It was over a third of everything loaded before the title paints.

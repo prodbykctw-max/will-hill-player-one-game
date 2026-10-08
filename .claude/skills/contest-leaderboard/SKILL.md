@@ -108,10 +108,32 @@ memory achieves nothing.
 
 Then add the checks that catch a log somebody **built** rather than played:
 
-- **A measured ceiling.** Walk the real level data and count what can actually
-  be scored. Anything above it is synthesised however well-formed it looks.
 - **A floor on run length**, and a **score-per-second** bound.
 - **Monotonic timestamps** inside the claimed duration.
+
+### ⚠️ NO SCORE CEILING — it threw away the two best real runs of the contest
+
+This game shipped a "measured" ceiling: walk the levels, count every bag, enemy
+and bottle, call the total the most anyone can score (70,000), refuse anything
+above it. On day two of the contest it refused **both** of the best runs:
+78,750 (19m17s, a finished game) and 72,400, both honest, both recomputed by the
+server from their own event logs, both far inside the rate bound. The walk
+counted one pass over the map; real players continue after a knockdown, farm,
+and keep going. Worse, a refusal is final to the client (a 400 drops the run
+from the outbox), so the run was gone from the phone, and the player saw an
+empty board. One of them posted that the game "glitches every time I make it
+to Buckhead".
+
+The ceiling was also redundant: a big claim must still respect the rate bound,
+so it must claim a long run, and the server recomputes the score from the log
+either way. Do not cap the top. If a top score looks wrong, that is the human
+review below, not a number in the Worker.
+
+**Recovery, if a cap ever refuses real runs again:** the `rejects` row keeps
+the recomputed score, the time and the IP, not the player. Tie each one to a
+player by their run_stats partial submitted minutes earlier (a run that
+continues submits at the knockdown) plus the location, then set `runs.score`
+by hand with `updated` = the reject time.
 
 ### ⚠️ Derive the floor from the SHORTEST legitimate run, not the longest
 
@@ -262,8 +284,8 @@ there is no secret you can hide in a page anyone can read. Every measure above
 raises the cost; none makes it impossible.
 
 **The backstop is human.** The prize is claimed on a real phone and a real
-address, so before paying out, manually review the top few — score against the
-measured ceiling, run duration, when they entered. Five minutes on three
+address, so before paying out, manually review the top few — score against
+run duration (the rate), how far they got, when they entered. Five minutes on three
 people. Say this to the client plainly; any contest that claims otherwise is
 bluffing.
 

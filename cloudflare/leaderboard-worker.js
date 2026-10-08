@@ -93,12 +93,19 @@ const SCORE_RULES = {
   bagLost: -100,
 };
 
-// ⚠️ THE CEILING IS MEASURED, NOT GUESSED. tools/harness/ceiling.mjs walks the
-// shipping levels and counts every bag, every enemy and every bottle at its
-// real position: 400 bags (40,000), plus stomps, plus what the champagne
-// windows can actually double. Nothing legitimate can exceed this, so anything
-// that does is a synthesised log however well-formed it looks.
-const MAX_LEGIT_SCORE = 70000;
+// ⚠️ THERE IS NO SCORE CEILING ANY MORE, AND THERE MUST NOT BE ONE AGAIN.
+// It was MAX_LEGIT_SCORE = 70000, "measured" by tools/harness/ceiling.mjs
+// walking the levels once. Real players beat it on day two of the contest:
+// Lani finished at 78,750 (19m17s, 354 bags, 167 stomps) and Chando at 72,400
+// — both honest runs, both recomputed from their own event logs by
+// scoreFromEvents below, both well inside the rate bound (68/s and ~100/s
+// against 400/s), and both thrown away as 'over-ceiling' while the board
+// showed the client nothing but "NO RUNS YET". The walk counted one pass
+// over the map; a run that continues, farms and keeps going is not one pass.
+// Client: "remove any maximum believable score." What still protects the
+// board is the server-side recompute from the event log, the rate bound, the
+// event-count and body caps, origin, honeypots and replay — not a guess at
+// the best anyone could ever do.
 // A run that claims more points than seconds by a wide margin is not a run.
 // Generous on purpose — this catches fabrication, not skill.
 //
@@ -114,9 +121,9 @@ const MAX_LEGIT_SCORE = 70000;
 // the rate ceiling — the longest was 3350 points over 39.9s, i.e. 84/s
 // against a limit of 400/s. Two accepted runs in the same window.
 //
-// And the floor never had anti-cheat value up here. To claim the 70,000
-// ceiling a fabricator must respect 400/s, so they must claim at least 175
-// seconds no matter what this is set to; the rate check does all of the work.
+// And the floor never had anti-cheat value up here: any big claim must
+// respect 400/s, so it must claim a long run no matter what this is set to;
+// the rate check does all of the work.
 // All a high floor can refuse is a SMALL score from a SHORT run — which is
 // precisely an honest early death. 3s still stops a zero-duration submit and
 // the divide-by-almost-nothing that comes with it, and stops nothing else.
@@ -421,10 +428,6 @@ export default {
 
         // Plausibility. The recompute already defeats naive tampering; these
         // are what catch a log somebody BUILT rather than played.
-        if (score > MAX_LEGIT_SCORE) {
-          await reject(env, req, 'over-ceiling', String(score));
-          return json({ ok: false, err: 'invalid run' }, 400);
-        }
         if (durationMs < MIN_RUN_MS || score / (durationMs / 1000) > MAX_SCORE_PER_SECOND) {
           await reject(env, req, 'implausible-rate', `${score}/${durationMs}ms`);
           return json({ ok: false, err: 'invalid run' }, 400);
