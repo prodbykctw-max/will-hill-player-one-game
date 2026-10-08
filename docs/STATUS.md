@@ -183,6 +183,9 @@ built here — this was a status question, not a request.
 - Matched to the players by their run_stats partial submitted minutes before each refusal, and by location: Montgomery AL on a US network, and the only Aruba player on an Aruba IP. Lani's refusal time is 11:47pm Central, the clock in her screenshot.
 - Restored by hand in D1 (`runs.score`, `updated` = the refusal time). The undo values are in the commit message.
 - The ceiling is removed from `cloudflare/leaderboard-worker.js` on the client's word ("remove any maximum believable score"). The rate bound, server recompute, event and body caps, origin, honeypots and replay still stand.
+- **Why a real run beat a "measured" ceiling.** Buckhead WAS counted: it was re-derived on Sep 1 with all five stages, giving a perfect run of 66,900 (425 bags, 140 enemies), and Buckhead's quota was cut to 25 bags to stay under 70,000. What the count assumed is ONE pass over the map. GET BACK UP (`getBackUp`, 1 per run) restarts the current stage from its beginning with its bags and enemies refilled, and the score carries.
+  - Lani was knocked out in Little 5 Points at 394 bags, continued, re-collected L5P's 110 and then Buckhead's 25: 394 + 110 + 25 = **529**, her exact total.
+  - So the true ceiling is a perfect run plus one replayed stage, and dying late in a stage then continuing is worth points. That is a design question for after the contest, not a mid-contest change.
 - Their `run_stats` partial rows were promoted to the finished runs, so the dashboard's best-run columns match the board. This is what `supersedes` does for a continued run.
   - **Lani: exact.** Her SHOWTIME screen gives 354 bags (plain only), 167 stomps, 12 champagne, 4 potholes and 19:17, and 78,750 − 167×50 solves to 175 doubled bags. Totals: 529 bags, 175 x2, 5 stages.
   - **Chando: score exact, duration approximate.** Duration is the partial plus the wall-clock gap, 549s. The other counts are the partial's, a lower bound.
