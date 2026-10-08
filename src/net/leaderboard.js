@@ -624,30 +624,56 @@ if (typeof window !== 'undefined') {
   setTimeout(() => { flushPendingRun(); }, 0);
 }
 
-export function lbTop(n, cb) {
-  if (!lbOn()) {
-    cb(null);
-    return;
+// ⚠️ "COULD NOT LOAD" IS NOT "NOBODY HAS PLAYED". A player in the contest's
+// top two opened the board on a slow connection inside Instagram's browser,
+// the one request missed its 4.5s window, and the card told her "NO RUNS
+// YET. BE THE FIRST." So: two tries before giving up, and the last board
+// that DID load is kept on the device (lastTop) to show instead of nothing.
+// cb gets the runs, or null only when both tries failed.
+const LAST_TOP_KEY = 'wh_last_top';
+export function lastTop() {
+  try {
+    const v = JSON.parse(localStorage.getItem(LAST_TOP_KEY) || 'null');
+    return v && Array.isArray(v.runs) && v.runs.length ? v : null;
+  } catch (_e) {
+    return null;
   }
+}
+
+function topOnce(n, ms, cb) {
   let done = false;
-  const to = setTimeout(() => {
-    if (!done) {
-      done = true;
-      cb(null);
-    }
-  }, 4500);
   const fin = (v) => {
     if (done) return;
     done = true;
     clearTimeout(to);
     cb(v);
   };
+  const to = setTimeout(() => fin(null), ms);
   try {
     fetch(LB_URL + '/top?n=' + n)
       .then((r) => r.json())
-      .then((j) => fin(j && j.ok ? j.runs : null))
+      .then((j) => fin(j && j.ok && Array.isArray(j.runs) ? j.runs : null))
       .catch(() => fin(null));
   } catch (_e) {
     fin(null);
   }
+}
+
+export function lbTop(n, cb) {
+  if (!lbOn()) {
+    cb(null);
+    return;
+  }
+  const ok = (runs) => {
+    if (runs.length) {
+      try { localStorage.setItem(LAST_TOP_KEY, JSON.stringify({ runs, t: Date.now() })); } catch (_e) {}
+    }
+    cb(runs);
+  };
+  topOnce(n, 4500, (runs) => {
+    if (runs) return ok(runs);
+    // One more go with a longer window — a phone on a weak signal or an
+    // in-app browser waking its network often answers the second time.
+    setTimeout(() => topOnce(n, 8000, (again) => (again ? ok(again) : cb(null))), 600);
+  });
 }

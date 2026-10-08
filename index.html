@@ -1724,6 +1724,9 @@
       letter-spacing: 0.06em; font-variant-numeric: tabular-nums;
       color: #f0b429; text-shadow: 0 0.27cqw 0 rgba(0,0,0,0.55);
     }
+    /* display:flex above beats the hidden attribute, so a failed load left
+       the PREVIOUS load's rank on screen under "no runs". */
+    #lbYou[hidden], #lbEmpty[hidden] { display: none; }
     #lbYou .r { position: absolute; left: 9.465%; }
     #lbYou .n { position: absolute; left: 26.744%; right: 9.791%;
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
