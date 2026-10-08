@@ -184,7 +184,9 @@ built here — this was a status question, not a request.
 - Restored by hand in D1 (`runs.score`, `updated` = the refusal time). The undo values are in the commit message.
 - The ceiling is removed from `cloudflare/leaderboard-worker.js` on the client's word ("remove any maximum believable score"). The rate bound, server recompute, event and body caps, origin, honeypots and replay still stand.
 - ⚠️ The ceiling stays LIVE until the Worker is redeployed: `npx wrangler deploy -c cloudflare/wrangler.toml` from the client's machine. Until then any new run over 70,000 is still refused. Check `rejects` for `over-ceiling` and restore the same way.
-- Her "NO RUNS YET" screen was a separate /top fetch that missed its 4.5s timeout (slow connection). It is not the cause.
+- Her "NO RUNS YET" screen was a separate /top fetch that missed its 4.5s timeout (slow connection). It is not the cause. It also exposed two board bugs, both fixed:
+  - **A failed load read as an empty board.** `lbTop` now tries twice (4.5s, then 8s) and keeps the last good board on the device (`wh_last_top`). On a failure the card shows that board ("Couldn't refresh — showing the last board loaded"), or "COULDN'T LOAD THE BOARD", never "NO RUNS YET".
+  - **YOUR RANK ignored its `hidden`.** `#lbYou { display: flex }` beats the attribute, so a failed load kept the previous load's rank on screen. Fixed with `#lbYou[hidden], #lbEmpty[hidden] { display: none }`.
 
 ### 2026-10-06 — title loads a second sooner (launch day)
 

@@ -19,7 +19,7 @@
 
 import {
   lbName, setLbName, contestRegistration, setContestRegistration,
-  isRegistered, phoneDigits, lbTop, localRuns, withWillHill, flushPendingRun,
+  isRegistered, phoneDigits, lbTop, lastTop, localRuns, withWillHill, flushPendingRun,
 } from '../net/leaderboard.js';
 // Through the bundler, so the URL is the content-hashed one. A literal path in
 // the stylesheet resolves in dev and 404s in dist.
@@ -403,7 +403,7 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
   // [0.5385, 0.5850, 0.6300, 0.6745, 0.7180]
   const ROW_TOP = [0.53075, 0.58453, 0.63658, 0.68805, 0.73836];
 
-  function render(runs, note) {
+  function render(runs, note, emptyText = 'NO RUNS YET. BE THE FIRST.') {
     const ol = $('board');
     ol.innerHTML = '';
     const me = lbName().toLowerCase();
@@ -441,7 +441,7 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
 
     const empty = $('lbEmpty');
     empty.hidden = !!runs.length;
-    if (!runs.length) empty.textContent = 'NO RUNS YET. BE THE FIRST.';
+    if (!runs.length) empty.textContent = emptyText;
 
     $('boardNote').textContent = note;
     // ⚠️ GONE ONCE YOU ARE IN, NOT RELABELLED. Client: "you can sign up for
@@ -517,11 +517,16 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
       if (runs && runs.length) {
         render(withWillHill(runs), isRegistered() ? 'You are entered in the contest.'
           : 'Enter the contest to get your score on this board.');
-      } else {
-        // The Worker is not deployed, or the phone is offline. Either way
-        // there is no ranking to show, so the slots stay empty and the note
-        // says why.
+      } else if (runs) {
+        // The board answered and it really is empty.
         render(withWillHill([]), waiting);
+      } else {
+        // ⚠️ IT DID NOT ANSWER — which is not the same thing as empty. Show
+        // the last board this phone loaded, said plainly, or say it could
+        // not load. Never "NO RUNS YET" to someone sitting at #2.
+        const last = lastTop();
+        if (last) render(withWillHill(last.runs), "Couldn't refresh — showing the last board loaded.");
+        else render(withWillHill([]), waiting, "COULDN'T LOAD THE BOARD. CHECK YOUR CONNECTION.");
       }
     });
   }
