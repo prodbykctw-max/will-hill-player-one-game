@@ -2,7 +2,7 @@
 
 **Play it free: https://prodbykctw-max.github.io/will-hill-player-one-game/**
 
-A side-scrolling runner game starring Atlanta rapper [Will Hill](https://realwillhill.com/), making his way through five Atlanta stops — East Atlanta Village, Edgewood, The Underground (5 Points), Little 5 Points and Buckhead Theatre — to his show, to his own music. Collect money bags, stomp enemies from above, and grab champagne for 9 seconds of invincibility and double bags. Top scores go on the contest leaderboard. Developed by Rare Agency.
+A side-scrolling runner game starring Atlanta rapper [Will Hill](https://realwillhill.com/), making his way through five Atlanta stops — East Atlanta Village, Edgewood, The Underground (5 Points), Little 5 Points and Buckhead Theatre — to his show, to his own music. Collect money bags, stomp or dash past street enemies, and grab champagne for 9 seconds of invincibility and double bags. Top scores go on the contest leaderboard. Developed by Rare Agency.
 
 Full design details live in [`docs/GDD.md`](docs/GDD.md) — the source of truth for mechanics, stages, art direction, and the leaderboard/contest design. Current state of the project: [`docs/STATUS.md`](docs/STATUS.md).
 
@@ -11,13 +11,13 @@ Full design details live in [`docs/GDD.md`](docs/GDD.md) — the source of truth
 | action | keyboard | touch |
 |---|---|---|
 | move | ← → or A / D | on-screen pads |
-| jump | Space, ↑ or W | on-screen pad |
+| jump (press again in the air to double jump) | Space, ↑ or W | on-screen pad |
 | dash | Shift or X | on-screen pad |
 
 Touch pads appear only on touch devices (`src/core/input.js`).
 
 - **Money bags** are the score. Money in hand is **banked** each time you cross a stage's finish line.
-- **Enemies:** jumping on top of one defeats it; touching one from the side knocks your unbanked money loose (recoverable) and costs a heart. Potholes trip you and cost a heart but keep your money. Three hearts.
+- **Enemies:** jumping on top of one defeats it; a dash passes through one unharmed; touching one from the side knocks your unbanked money loose (recoverable) and costs a heart. Potholes trip you and cost a heart but keep your money. Three hearts.
 - **Champagne:** 9 seconds of invulnerability and 2x bags (`CHAMPAGNE_SECONDS`, `src/entities/player.js`).
 - Will Hill's intro bubbles teach the controls at the start of stage one.
 - **Time of day** follows Atlanta's clock (America/New_York) by default; the settings panel also offers always day, always night and the device's local time (`src/world/stages.js`).
