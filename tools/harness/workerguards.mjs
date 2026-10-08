@@ -133,11 +133,14 @@ check('a sub-second run is still refused', tiny.status === 400);
 const fast = await submit({ durationMs: 10000, events: bags(50, 10000) });
 check('500 points a second is still refused — the rate bound does the work',
   fast.status === 400, String(fast.status));
-const huge = await submit({ durationMs: 600000, events: bags(701, 600000) });
-check('a score above the measured ceiling is still refused', huge.status === 400);
-check('and all three are in the abuse log by reason',
+// ⚠️ THERE IS NO SCORE CEILING. A 70,000 cap threw away two real contest runs
+// (78,750 and 72,400) on day two. A big score at an honest rate is a big score:
+// 787 bags over 19m17s is Lani's run, 78,700 points at 68/s.
+const huge = await submit({ durationMs: 1157000, events: bags(787, 1157000) });
+check('a big score at an honest rate is ACCEPTED — no ceiling', huge.status === 200, String(huge.status));
+check('and the two refusals are in the abuse log as rate, nothing as a ceiling',
   rejectReasons().filter((r) => r === 'implausible-rate').length === 2
-  && rejectReasons().includes('over-ceiling'), rejectReasons().join(','));
+  && !rejectReasons().includes('over-ceiling'), rejectReasons().join(','));
 
 // ── replay: the primary key is the lock ──────────────────────────────────
 const id = runId();
