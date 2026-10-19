@@ -39,7 +39,15 @@ import { loadImages } from './render/images.js';
 // key is harmless and other callers may want the latch — but main.js reads
 // registration and nothing else. See beginFromTitle().
 import { createRunLog, lbSubmit, bankLocalRun, isRegistered, hasPendingRun,
-  recordRunStats, pendingRunCount, flushPendingRun } from './net/leaderboard.js';
+  recordRunStats, pendingRunCount, flushPendingRun, contestIsOpen } from './net/leaderboard.js';
+
+// NOTHING TO OFFER — already entered, or the contest is over. Client: "make it
+// to where the contest doesn't pop up in the app anymore cause it's closed if
+// it's closed." Every door that used to choose between the sign-up form and
+// the board asks this instead of isRegistered(), so a closed contest routes
+// exactly like a player already in: straight into the run, straight to the
+// board. The switch is the dashboard's (net/leaderboard.js contestIsOpen).
+const nothingToOffer = () => isRegistered() || !contestIsOpen();
 import { createPanel, soundEnabled, setSoundEnabled,
   sfxEnabled, setSfxEnabled, howToSeen, markHowToSeen } from './ui/panel.js';
 import { ARROW_L, ARROW_R, BAG_ICON, TUTORIAL_LESSONS, TUTORIAL_ORDER, TUTORIAL_PICTURES, TUTORIAL_VOICE, TUTORIAL_VOICE_HOLD, nextTutorialTrigger }
@@ -654,7 +662,7 @@ function beginFromTitle() {
   // the run. Somebody already entered has nothing left to answer here: the
   // run just starts, and OPTIONS → HOW TO PLAY still opens the panel as a
   // recap on request (ui/panel.js).
-  if (isRegistered()) {
+  if (nothingToOffer()) {
     state.pendingRun = false;
     startRun();
     return;
@@ -1005,7 +1013,7 @@ function handleCanvasPress(clientX, clientY, preventDefault = () => {}) {
     if (title.deadZone(state.titleBox, x, y)) return;
     if (title.hitBanner(state.titleBox, x, y)) {
       press();
-      panel.open(isRegistered() ? 'board' : 'form', { flow: 'title' });
+      panel.open(nothingToOffer() ? 'board' : 'form', { flow: 'title' });
       return;
     }
     // ⚠️ THE RUN STARTS FROM PRESS START, AND ONLY FROM PRESS START. This
@@ -1227,7 +1235,7 @@ function getBackUp() {
 // sideways into OPTIONS — showTitle() has already run, so the title card is
 // what the closing panel reveals.
 function showResults() {
-  panel.open(isRegistered() ? 'board' : 'form', { flow: 'post' });
+  panel.open(nothingToOffer() ? 'board' : 'form', { flow: 'post' });
 }
 
 // ── THE CREDITS ROLL ──────────────────────────────────────────────────────
@@ -1307,8 +1315,9 @@ function buttonsFor(screen) {
       // the board for a player already on it. No press() in either: the tap
       // handler plays it for every screenButton before calling the action.
       : [{ label: 'MAIN MENU', action: () => { goBack(); showTitle(); } },
-        { label: 'ENTER THE CONTEST',
-          action: () => panel.open(isRegistered() ? 'board' : 'form', { flow: 'title' }) }];
+        // Contest over: the same door, named for where it now goes.
+        { label: contestIsOpen() ? 'ENTER THE CONTEST' : 'LEADERBOARD',
+          action: () => panel.open(nothingToOffer() ? 'board' : 'form', { flow: 'title' }) }];
   }
   // 'complete' is not here: its button is PAINTED, on his ending plate, and is
   // registered where that plate is drawn. Nothing of mine goes on that artwork.
@@ -2621,8 +2630,9 @@ function draw() {
       // press that has never happened is effectively infinitely old.
       state.musicPressTick == null ? 1e9 : state.tick - state.musicPressTick,
       mousePos,
-      // The banner says ENTER THE CONTEST or SEE THE BOARD depending on this.
-      isRegistered());
+      // The banner says ENTER THE CONTEST or SEE THE BOARD depending on this
+      // — or, once the dashboard has closed the contest, 'closed'.
+      contestIsOpen() ? isRegistered() : 'closed');
     return;
   }
 

@@ -173,6 +173,17 @@ built here — this was a status question, not a request.
 
 ## DONE — shipped and live
 
+### 2026-10-19 — closing the contest on the dashboard now hides it in the game
+
+- **Before:** the dashboard switch only gated the Worker's `/submit`. With it off, the game still showed ENTER THE CONTEST and the sign-up form, took phone and email, and every run was then refused with no message to the player.
+- **Now:** the Worker answers `GET /status` → `{ ok, open }`, from the same `contestOpen()` `/submit` uses (edge-cached 5s). The game asks on load, on return to the tab and when the network comes back (`refreshContestStatus` in `src/net/leaderboard.js`), and remembers the answer (`wh_contest_open`).
+- **While closed:** PRESS START goes straight into a run. The title banner reads CONTEST CLOSED · FINAL BOARD (LEADERBOARD on the short layout) and opens the board. The end of a run goes to the board. The knocked-down card's second button reads LEADERBOARD. The board has no ENTER THE CONTEST button and says "The contest is over. These are the final standings." Gameplay is untouched.
+- **Fails open.** No answer (a Worker that predates `/status`, a dropped connection) leaves the last answer standing, and a device that never got one treats the contest as open. Same direction as the Worker's own `contestOpen()`.
+- Turning the switch back on brings every offer back on the next load or tab return.
+- Tests: `contestclosed` (16, new), `workerguards` now 36 (`/status` reads the switch both ways and carries only ok/open).
+- ⚠️ **Needs both deploys.** The game alone changes nothing until the Worker serves `/status` (it fails open). Worker: `npx wrangler deploy -c cloudflare/wrangler.toml` from the client's machine after `git pull`. Game: `tools/deploy.sh`.
+- At the time of writing the switch is still ON (D1 `contest_state.open = 1`, 126 players).
+
 ### 2026-10-08 — the score ceiling is gone; two lost contest runs restored
 
 - The Worker refused any score over `MAX_LEGIT_SCORE = 70000`. Real players beat it:

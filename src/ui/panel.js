@@ -20,6 +20,7 @@
 import {
   lbName, setLbName, contestRegistration, setContestRegistration,
   isRegistered, phoneDigits, lbTop, lastTop, localRuns, withWillHill, flushPendingRun,
+  contestIsOpen,
 } from '../net/leaderboard.js';
 // Through the bundler, so the URL is the content-hashed one. A literal path in
 // the stylesheet resolves in dev and 404s in dist.
@@ -457,7 +458,9 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
     // contest." Together those make ENTER and SHARE mutually exclusive, which
     // is also what lets both live ON the card: there is only ever one of them
     // to place, so it gets the full width of the band.
-    $('btnRegister').hidden = isRegistered();
+    // Contest closed from the dashboard: no way left to sign up, from here
+    // or anywhere (main.js nothingToOffer).
+    $('btnRegister').hidden = isRegistered() || !contestIsOpen();
     $('btnRegister').textContent = 'ENTER THE CONTEST';
     $('btnShare').hidden = !isRegistered();
   }
@@ -515,7 +518,8 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
     lbTop(20, (runs) => {
       if (!open) return;
       if (runs && runs.length) {
-        render(withWillHill(runs), isRegistered() ? 'You are entered in the contest.'
+        render(withWillHill(runs), !contestIsOpen() ? 'The contest is over. These are the final standings.'
+          : isRegistered() ? 'You are entered in the contest.'
           : 'Enter the contest to get your score on this board.');
       } else if (runs) {
         // The board answered and it really is empty.
