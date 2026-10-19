@@ -212,7 +212,20 @@ check('the phone is in `entrants`, which no public route selects from',
 // turn the contest on or off." contest_state is the one row both Workers
 // read; this drives the same table POST /toggle writes, not a re-
 // implementation of it.
+const statusOpen = await call('/status');
+check('GET /status reads the switch: open',
+  statusOpen.status === 200 && statusOpen.body.ok === true && statusOpen.body.open === true,
+  JSON.stringify(statusOpen.body));
 db.exec('UPDATE contest_state SET open = 0;');
+// The game reads this to stop offering the contest — it has to agree with
+// the gate /submit actually applies, or the game hides a contest that is
+// still taking runs (or offers one that is not).
+const statusClosed = await call('/status');
+check('GET /status reads the switch: closed, the same gate /submit uses',
+  statusClosed.status === 200 && statusClosed.body.open === false, JSON.stringify(statusClosed.body));
+check('/status carries nothing but ok and open',
+  Object.keys(statusClosed.body || {}).sort().join(',') === 'ok,open',
+  Object.keys(statusClosed.body || {}).join(','));
 const closedRun = await submit({ durationMs: 30000, events: bags(20, 30000) });
 check('closing the switch refuses a real, otherwise-valid run',
   closedRun.status === 403 && closedRun.body.ok === false, JSON.stringify(closedRun.body));

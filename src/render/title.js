@@ -1112,9 +1112,13 @@ export function createTitle(ctx, canvas, still) {
   // caught was in the COPY, not the geometry, and every check in
   // titlehome.mjs measured rectangles — 69 of them, all green, over a button
   // that said the wrong word. Words get checked now too.
+  // `registered` is 'closed' once the dashboard has ended the contest: the
+  // sign stays where it is — moving it would re-flow the whole home layout
+  // he approved — and becomes the way to the final board.
   function bannerLabel(box, registered) {
     const l = homeLayout(box);
     const tight = !!(l && l.rows === 1);
+    if (registered === 'closed') return tight ? 'LEADERBOARD' : 'CONTEST CLOSED  ·  FINAL BOARD';
     return registered
       ? (tight ? 'LEADERBOARD' : "YOU'RE IN  ·  SEE THE BOARD")
       : (tight ? 'CONTEST' : 'ENTER THE CONTEST');

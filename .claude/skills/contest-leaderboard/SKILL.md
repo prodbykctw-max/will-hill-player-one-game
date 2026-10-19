@@ -276,6 +276,24 @@ the thing an attacker already has a URL for.
 
 ---
 
+### ⚠️ The off switch has to reach the client too
+
+A switch that only gates the submit endpoint closes the contest for the
+server and nobody else. Here the dashboard toggle refused every run while the
+game kept offering ENTER THE CONTEST and taking phone numbers — a player
+signing up for a contest that was already over, with no message when the run
+silently went nowhere.
+
+- Serve the switch as a tiny public read (`GET /status` → `{ ok, open }`),
+  computed by the SAME function the submit gate uses, so they cannot disagree.
+- The client asks on load, on tab return and on reconnect, and while closed
+  routes every "enter" door to the board, the way it routes a player already
+  entered. Keep the layout; change the words and the destination.
+- **Fail open, and remember.** No answer must never hide a running contest;
+  a device that saw it closed keeps it closed offline.
+- Ship the server route first, or accept that the client is a no-op until it
+  lands — failing open makes either order safe.
+
 ## ⚠️ What code cannot fix
 
 The client is public. A determined, skilled person can synthesise an event log

@@ -87,7 +87,7 @@ the four wordings above):
 
 `barescars` · `betweenscreens` · `booterror` · `btnglow` · `ceiling` · `cloudseal` · `combo` · `dashfit` · `dashglow` · `dashload` · `dashpass` · `daylamps` · `deferboot` · `endcue` · `entryfit` · `entrypaths` · `finishrun` · `graphwire` · `hapticbtn` · `howpage` · `idleflex` · `introorder` ·
 `loopbench` · `loopseam` · `musicbox` · `optionsmenu` · `outbox` · `padlift` · `panelnav` · `pausemenu` · `pitsky` · `relay` · `relayboard` · `relaytod` ·
-`share` · `skyleak` · `stageflag` · `startflow` · `statsync` · `titlefit` · `titlehome` · `titleintro` · `titleshells` · `todlive` · `workerguards` · `dashguards`
+`share` · `skyleak` · `stageflag` · `startflow` · `statsync` · `titlefit` · `titlehome` · `titleintro` · `titleshells` · `todlive` · `workerguards` · `dashguards` · `contestclosed`
 
 **Report-only** — they print a table or a contact sheet for a human to read,
 and have no pass/fail line at all:
@@ -511,6 +511,7 @@ drifts into grading last month's product and nobody notices.
 | `outbox` | a score survives everything: held before registration, kept across a reload, retried after a failed submit, never re-sent once accepted |
 | `loopbench` | the trimming bench's READOUT and its AUDIO agree — the crossfade it previews is `crossfade_wrap()`'s own, sample for sample, and the copied `hook` is the original-file coordinate |
 | `entrypaths` | a run reaches the board whether they enter before OR after it |
+| `contestclosed` | the dashboard switch reaches the game: with `/status` closed, PRESS START goes straight into a run, the title banner, the end of a run and the knocked-down card go to the board, and the board has no ENTER THE CONTEST; with it open nothing changes; no answer fails open, a device that saw it closed stays closed, and re-opening brings the offer back. Network stubbed at `fetch` via `?lb=` |
 | `padlift` | the movement pads' height, solidity, seam, and that a press still lights them |
 | `stageflag` | `?relay=1` / `?stage=N` work AND a plain URL is still the player's game |
 | `dashpass` | dash is safe passage: through an enemy with no heart lost and the enemy alive; the same overlap NOT dashing still costs the heart; the stomp still kills, bounces, and refunds the air jump |
