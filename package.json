@@ -2,7 +2,7 @@
   "name": "will-hill-player-one-game",
   "private": true,
   "version": "0.1.0",
-  "description": "Will Hill: Player One — side-scroll platformer through four Atlanta neighborhoods.",
+  "description": "Will Hill: Player One — side-scroll platformer through five Atlanta neighborhoods.",
   "type": "module",
   "scripts": {
     "dev": "vite",
