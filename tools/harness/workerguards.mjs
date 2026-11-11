@@ -134,11 +134,49 @@ const fast = await submit({ durationMs: 10000, events: bags(50, 10000) });
 check('500 points a second is still refused — the rate bound does the work',
   fast.status === 400, String(fast.status));
 // ⚠️ THERE IS NO SCORE CEILING. A 70,000 cap threw away two real contest runs
-// (78,750 and 72,400) on day two. A big score at an honest rate is a big score:
-// 787 bags over 19m17s is Lani's run, 78,700 points at 68/s.
-const huge = await submit({ durationMs: 1157000, events: bags(787, 1157000) });
-check('a big score at an honest rate is ACCEPTED — no ceiling', huge.status === 200, String(huge.status));
-check('and the two refusals are in the abuse log as rate, nothing as a ceiling',
+// (78,750 and 72,400) on day two. A big score at an honest rate is a big score.
+//
+// The fixture below is that run, rebuilt from the figures docs/STATUS.md
+// records for it: 19m17s, knocked out in Little 5 Points with a continue spent,
+// 354 plain bags + 175 doubled = 529 bag events (394 + 110 + 25: the L5P
+// stage played twice), 167 stomps, 12 champagne, 4 potholes. It is built the
+// way the game builds a log — an attempt at each stage between the clears and
+// the continue, bottles a third of the way in, doubled bags only inside the 9 s
+// after a bottle — so it exercises the validator on a log a real player made.
+//   [stage index, bags, doubled, stomps, ends], one row per attempt
+const LANI = [
+  [0, 90, 35, 21, 'clear'], [1, 97, 35, 24, 'clear'], [2, 103, 35, 27, 'clear'],
+  [3, 104, 30, 27, 'death'], [3, 110, 30, 33, 'clear'], [4, 25, 10, 35, 'clear'],
+];
+const ATTEMPT_MS = [190000, 190000, 190000, 250000, 190000, 130000];
+const realisticRun = (plan = LANI, attemptMs = ATTEMPT_MS) => {
+  const ev = [];
+  let t0 = 0;
+  plan.forEach(([stage, nBags, nDoubled, nStomps, end], i) => {
+    const len = attemptMs[i];
+    const at = (f) => Math.floor(t0 + len * f);
+    // two bottles a third and two thirds of the way in
+    ev.push({ t: at(0.34), type: 'champagne' }, { t: at(0.68), type: 'champagne' });
+    const plain = nBags - nDoubled;
+    for (let k = 0; k < plain; k++) ev.push({ t: at(0.02 + 0.9 * (k / plain)), type: 'bag' });
+    // doubled bags inside the 8 s after a bottle, split across the two
+    for (let k = 0; k < nDoubled; k++) {
+      const bottle = k % 2 === 0 ? 0.34 : 0.68;
+      ev.push({ t: Math.floor(at(bottle) + 200 + (7500 * k) / nDoubled), type: 'bagx2' });
+    }
+    for (let k = 0; k < nStomps; k++) ev.push({ t: at(0.05 + 0.85 * (k / nStomps)), type: 'stomp' });
+    ev.push({ t: at(0.5), type: 'pothole' });
+    t0 += len;
+    ev.push({ t: t0 - 5, type: end === 'clear' ? `stage_clear_${stage + 1}` : 'death_enemy' });
+    if (end === 'death') ev.push({ t: t0, type: 'continue' });
+  });
+  return { events: ev.sort((x, y) => x.t - y.t), durationMs: t0 + 2000 };
+};
+const lani = realisticRun();
+const laniOut = await submit(lani);
+check('a real 19-minute, 78,750-point run (continue spent, L5P played twice) is ACCEPTED',
+  laniOut.status === 200 && laniOut.body.score === 78750, `${laniOut.status} ${JSON.stringify(laniOut.body)}`);
+check('and the refusals so far are rate, nothing as a ceiling',
   rejectReasons().filter((r) => r === 'implausible-rate').length === 2
   && !rejectReasons().includes('over-ceiling'), rejectReasons().join(','));
 
@@ -251,6 +289,70 @@ check('a later run under the same phone cannot replace the email', hijack.status
   && emailOf('4045550177') === 'owner@example.com', emailOf('4045550177'));
 const blank = await submit({ durationMs: 30000, events: bags(20, 30000), phone: '4045550177', email: '' });
 check('nor can an empty one erase it', blank.status === 200 && emailOf('4045550177') === 'owner@example.com', emailOf('4045550177'));
+
+const heldOut = (await submit({ ...realisticRun([[0, 90, 35, 21, 'death']], [60000]), phone: '4045550314' })).status;
+check('and so is an early death on stage one', heldOut === 200, String(heldOut));
+
+// ── ⚠️ W1: a log somebody BUILT is refused ───────────────────────────────
+// The audit's forgery, verbatim: 5,000 doubled bags spread over 2,600 s, from
+// an Origin the script simply sets. 400 points a second is the rate bound's
+// whole job and 1,000,000 / 2,600 s is 385/s, so only the levels can refuse it.
+const forged = await submit({ durationMs: 2600000, phone: '4045550301',
+  events: Array.from({ length: 5000 }, (_, i) => ({ t: Math.floor((i * 2599000) / 5000), type: 'bagx2' })) });
+check('the audit forgery (5,000 doubled bags, no bottle, 2,600 s) is REFUSED',
+  forged.status === 400, `${forged.status} ${JSON.stringify(forged.body)}`);
+check('and nothing from it reached the board',
+  !(await board()).some((r) => r.score >= 1000000));
+const why = () => db.prepare("SELECT detail FROM rejects WHERE reason = 'impossible-log' ORDER BY rowid DESC LIMIT 1").get()?.detail || '';
+const forge = async (events, durationMs, phone) => {
+  const r = await submit({ durationMs, events, phone });
+  return { status: r.status, why: why() };
+};
+const spread = (n, type, ms, from = 0) => Array.from({ length: n }, (_, i) => ({ t: Math.floor(from + ((i + 1) * ms) / (n + 1)), type }));
+let f;
+f = await forge(spread(787, 'bag', 1157000), 1157000, '4045550302');
+check('787 plain bags with no stage cleared and no continue (more than a stage holds) is REFUSED',
+  f.status === 400 && f.why.startsWith('bags>'), f.why);
+f = await forge(spread(200, 'bagx2', 600000), 600000, '4045550303');
+check('doubled bags with no bottle picked up are REFUSED',
+  f.status === 400 && f.why.startsWith('bagx2-no-champagne'), f.why);
+f = await forge([{ t: 1000, type: 'champagne' }, ...spread(60, 'bagx2', 8000, 1000)], 12000, '4045550304');
+check('more doubled bags than fit in one champagne window are REFUSED',
+  f.status === 400 && f.why.startsWith('bagx2>'), f.why);
+f = await forge([{ t: 1000, type: 'champagne' }, { t: 20000, type: 'bagx2' }], 30000, '4045550305');
+check('a doubled bag 19 s after the bottle (window is 9 s) is REFUSED',
+  f.status === 400 && f.why.startsWith('bagx2-no-champagne'), f.why);
+f = await forge(spread(22, 'stomp', 300000), 300000, '4045550306');
+check('more stomps than the stage has enemies (22 on a 21-enemy stage) are REFUSED',
+  f.status === 400 && f.why.startsWith('stomps>'), f.why);
+f = await forge([...spread(5, 'champagne', 100000), ...spread(5, 'bag', 100000)], 100000, '4045550307');
+check('more than two bottles on one stage are REFUSED',
+  f.status === 400 && f.why.startsWith('bottles>'), f.why);
+f = await forge([...spread(3, 'bag', 50000), { t: 60000, type: 'continue' }, { t: 70000, type: 'continue' }, ...spread(5, 'bag', 100000, 70000)], 100000, '4045550308');
+check('a second continue (the game gives one) is REFUSED',
+  f.status === 400 && f.why.startsWith('continues'), f.why);
+f = await forge([...spread(60, 'bag', 20000), ...[1, 2, 3, 4, 5].map((n, i) => ({ t: 20000 + i * 1000, type: `stage_clear_${n}` }))], 30000, '4045550309');
+check('five stages cleared in five seconds is REFUSED — a stage cannot be crossed that fast',
+  f.status === 400 && f.why.startsWith('too-fast'), f.why);
+f = await forge([...spread(10, 'bag', 100000), { t: 100000, type: 'stage_clear_3' }], 110000, '4045550310');
+check('clearing stage three without one and two is REFUSED',
+  f.status === 400 && f.why.startsWith('stage-order'), f.why);
+// The loop the pocket rule closes: spill bags, pick them up doubled, repeat.
+f = await forge([...spread(90, 'bag', 100000), ...spread(90, 'bagLost', 100000, 100000), ...spread(200, 'bag', 100000, 200000)], 300000, '4045550311');
+check('losing bags that were never held, then "recollecting" them, is REFUSED',
+  f.status === 400 && /^(lost-more-than-held|bags>)/.test(f.why), f.why);
+f = await forge([...spread(5, 'bag', 20000), ...spread(6, 'bagLost', 20000, 20000), ...spread(30, 'bag', 20000, 30000)], 60000, '4045550312');
+check('knocking loose more money than the pocket holds is REFUSED',
+  f.status === 400 && f.why.startsWith('lost-more-than-held'), f.why);
+// ...and the honest versions of the same moves are fine.
+const spill = await submit({ durationMs: 60000, phone: '4045550313', events: [
+  ...spread(10, 'bag', 20000), ...spread(10, 'bagLost', 5000, 20000),
+  ...spread(10, 'bag', 20000, 26000), { t: 50000, type: 'stage_clear_1' }] });
+check('a knockdown that spills the pocket, then picking it back up, is ACCEPTED', spill.status === 200, String(spill.status));
+check('the refusals are logged as impossible-log, apart from the rate refusals',
+  rejectReasons().filter((r) => r === 'implausible-rate').length === 2
+  && rejectReasons().filter((r) => r === 'impossible-log').length === 12
+  && !rejectReasons().includes('over-ceiling'), rejectReasons().join(','));
 
 const bad = checks.filter(([, ok]) => !ok);
 console.log(bad.length ? `\nFAILED: ${bad.length} of ${checks.length}` : `\nALL ${checks.length} PASS`);

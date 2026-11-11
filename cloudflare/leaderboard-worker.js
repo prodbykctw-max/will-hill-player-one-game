@@ -194,6 +194,141 @@ async function contestOpen(env) {
   } catch (_e) { return true; }
 }
 
+// ── WHAT A REAL RUN CAN PRODUCE ──────────────────────────────────────────
+//
+// ⚠️ THE SCORER ABOVE ONLY ADDS UP WHAT IT IS TOLD. The audit (2026-11-11)
+// posted 5,000 `bagx2` events spread over 2,600 s with a browser Origin header
+// and got `200 score 1000000`: the rate bound passes anything slow enough, the
+// origin lock is a header any script can send, and nothing tied the log to the
+// levels it claims to come from. runLooksReal() is that tie. It refuses a log
+// the game cannot emit, using only numbers the game itself defines.
+//
+// It is NOT a score ceiling and must not become one (see the warning above
+// SCORE_RULES: a measured ceiling refused two real runs). Nothing here says how
+// many points is too many. Every bound is a count the levels physically
+// contain, per ATTEMPT at a stage, and a continued run is allowed the second
+// attempt the game really gives it — the shape that beat the old 70,000 cap.
+//
+// STAGE_LIMITS is generated from the shipping levels, not typed: the generator
+// is seeded per column, so the counts are identical on every run. It is
+// re-derived and compared by tools/harness/stagelimits.mjs, which fails if the
+// levels change and this table does not.
+//   end        finish-line column (stage.stageEnd); a column is TILE_PX wide
+//   bags       exactly the stage's quota, placed by the generator
+//   enemies    masked enemies on the stage (the only thing worth a stomp)
+//   bottles    champagne bottles on the stage
+//   windowBags the most bags inside ONE champagne window: 9 s at the fastest
+//              the player can possibly travel (below), i.e. 4,945 px of road
+export const STAGE_LIMITS = [
+  { id: 'eav',         end: 360, bags: 90,  enemies: 21, bottles: 2, windowBags: 48 },
+  { id: 'edgewood',    end: 390, bags: 97,  enemies: 24, bottles: 2, windowBags: 47 },
+  { id: 'underground', end: 420, bags: 103, enemies: 27, bottles: 2, windowBags: 47 },
+  { id: 'l5p',         end: 450, bags: 110, enemies: 33, bottles: 2, windowBags: 50 },
+  { id: 'buckhead',    end: 480, bags: 25,  enemies: 35, bottles: 2, windowBags: 13 },
+];
+// GETTING BACK UP: src/main.js CONTINUES_PER_RUN. A continue restarts the
+// current stage from its beginning with every bag and enemy refilled and the
+// score carried — which is how a real run legitimately contains a stage twice.
+export const MAX_CONTINUES = 1;
+// Physics, from src/core/physics.js and src/core/loop.js.
+//   TILE_PX 32; the player spawns at column 3 (createPlayer(3 * T)).
+//   Fastest sustained travel is a dash chain: DASH_VX 13.5 for DASH_TICKS 13,
+//   then RUN_SPEED 6.4 until DASH_COOLDOWN 34 ticks have passed since the
+//   dash began = (13*13.5 + 21*6.4) / 34 = 9.1146 px/tick. 9.12 rounds up.
+//   One tick is 16.6 ms and the loop never runs faster than real time (at most
+//   3 catch-up steps per frame, backlog dropped), so ticks <= elapsed / 16.6.
+const TILE_PX = 32;
+const SPAWN_COL = 3;
+const MAX_PX_PER_TICK = 9.12;
+const TICK_MS = 16.6;
+const CHAMPAGNE_MS = 9000;  // CHAMPAGNE_SECONDS in src/entities/player.js
+// Event timestamps are rounded from performance.now() and the pickup is
+// stamped on the tick after the power-up's clock started; this is the same
+// slack the scorer already allows past the end of a run.
+const TIME_SLACK_MS = 1000;
+const BAG_PTS = SCORE_RULES.bag; // what a knockdown costs per bagLost (main.js BAG_VALUE)
+
+const minStageMs = (L) =>
+  Math.ceil(((L.end - SPAWN_COL) * TILE_PX / MAX_PX_PER_TICK) * TICK_MS);
+
+// The events the scorer would count, in order — one definition of "counts" so
+// the plausibility check can never be looking at a different log than the
+// score was added from.
+function countedEvents(events, durationMs) {
+  const out = [];
+  if (!Array.isArray(events)) return out;
+  let lastT = -1;
+  for (const ev of events.slice(0, MAX_EVENTS)) {
+    if (!ev || typeof ev.t !== 'number' || typeof ev.type !== 'string') continue;
+    if (ev.t < lastT || ev.t > (durationMs || 0) + 1000) continue;
+    lastT = ev.t;
+    out.push(ev);
+  }
+  return out;
+}
+
+// Returns null for a log a real run could have produced, else a short reason.
+// Written to refuse only the impossible: a false refusal costs an honest
+// player their run (the client drops a 400 for good), so every bound is the
+// physical maximum, never a typical value.
+export function runLooksReal(events, durationMs) {
+  const evs = countedEvents(events, durationMs);
+  let stage = 0;          // index into STAGE_LIMITS of the stage being played
+  let continues = 0;
+  let attemptStart = 0;   // t the current attempt at this stage began
+  let units = 0, stomps = 0, bottles = 0, lost = 0, doubled = 0;
+  let lastBottle = -Infinity;
+  let score = 0, banked = 0;
+  const newAttempt = (t) => {
+    attemptStart = t;
+    units = 0; stomps = 0; bottles = 0; lost = 0; doubled = 0;
+    lastBottle = -Infinity;   // the player (and his aura) is rebuilt per stage
+  };
+  for (const ev of evs) {
+    const type = ev.type;
+    const L = STAGE_LIMITS[stage];
+    const scoring = type === 'bag' || type === 'bagx2' || type === 'stomp' || type === 'bagLost';
+    if (!L) {
+      if (scoring) return 'after-finish';
+      continue;
+    }
+    if (type === 'bag' || type === 'bagx2') {
+      units++;
+      // Every bag on the stage, plus each one a knockdown spilled back out.
+      if (units > L.bags + lost) return `bags>${L.id}`;
+      if (type === 'bagx2') {
+        doubled++;
+        // The doubler exists only while a bottle picked up THIS attempt is lit.
+        if (ev.t - lastBottle > CHAMPAGNE_MS + TIME_SLACK_MS) return 'bagx2-no-champagne';
+        if (doubled > bottles * L.windowBags + lost) return `bagx2>${L.id}`;
+        score += SCORE_RULES.bagx2;
+      } else score += SCORE_RULES.bag;
+    } else if (type === 'stomp') {
+      if (++stomps > L.enemies) return `stomps>${L.id}`;
+      score += SCORE_RULES.stomp;
+    } else if (type === 'champagne') {
+      if (++bottles > L.bottles) return `bottles>${L.id}`;
+      lastBottle = ev.t;
+    } else if (type === 'bagLost') {
+      // An enemy can only knock loose the pocket: points earned since the
+      // last finish line (score - banked, in main.js). No pocket, no loss.
+      if (score - banked < BAG_PTS) return 'lost-more-than-held';
+      score -= BAG_PTS;
+      lost++;
+    } else if (type === 'continue') {
+      if (++continues > MAX_CONTINUES) return 'continues';
+      newAttempt(ev.t);
+    } else if (type.startsWith('stage_clear_')) {
+      if (Number(type.slice('stage_clear_'.length)) !== stage + 1) return 'stage-order';
+      if (ev.t - attemptStart + TIME_SLACK_MS < minStageMs(L)) return `too-fast>${L.id}`;
+      banked = score;
+      stage++;
+      newAttempt(ev.t);
+    }
+  }
+  return null;
+}
+
 function scoreFromEvents(events, durationMs) {
   if (!Array.isArray(events)) return 0;
   let score = 0;
@@ -425,6 +560,15 @@ export default {
 
         const score = scoreFromEvents(b.events, durationMs);
         if (score <= 0) return json({ ok: false, err: 'empty run' }, 400);
+
+        // A log the levels cannot produce. Same reply as the rate check, so
+        // a prober learns nothing about which rule it tripped; the reason
+        // goes to the abuse log only.
+        const why = runLooksReal(b.events, durationMs);
+        if (why) {
+          await reject(env, req, 'impossible-log', `${why} ${score}/${durationMs}ms`);
+          return json({ ok: false, err: 'invalid run' }, 400);
+        }
 
         // Plausibility. The recompute already defeats naive tampering; these
         // are what catch a log somebody BUILT rather than played.
