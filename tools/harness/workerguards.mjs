@@ -354,6 +354,45 @@ check('the refusals are logged as impossible-log, apart from the rate refusals',
   && rejectReasons().filter((r) => r === 'impossible-log').length === 12
   && !rejectReasons().includes('over-ceiling'), rejectReasons().join(','));
 
+// ── ⚠️ W3: /submit is rate limited ───────────────────────────────────────
+// The real limiter is a Cloudflare binding, so this stands in a counter with
+// the same `limit({ key }) -> { success }` shape and drives the real Worker
+// with it as env.
+const limiter = (max) => {
+  const seen = new Map();
+  return { keys: seen, limit: async ({ key }) => {
+    const n = (seen.get(key) || 0) + 1; seen.set(key, n); return { success: n <= max };
+  } };
+};
+const withEnv = async (extra, phone, ip) => {
+  const req = new Request('https://lb.test/submit', { method: 'POST',
+    headers: { Origin: ORIGIN, 'CF-Connecting-IP': ip, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ runId: runId(), name: 'HARNESS', phone, durationMs: 30000, events: bags(20, 30000) }) });
+  const res = await worker.fetch(req, { DB, ...extra }, ctx);
+  return { status: res.status, retry: res.headers.get('Retry-After') };
+};
+const byIp = { SUBMIT_LIMIT_IP: limiter(3) };
+const ipRes = [];
+for (let i = 0; i < 5; i++) ipRes.push((await withEnv(byIp, `40455504${String(i).padStart(2, '0')}`, '198.51.100.9')).status);
+check('the 4th and 5th submit from one IP in the window are 429', ipRes.join(',') === '200,200,200,429,429', ipRes.join(','));
+const limited = await withEnv(byIp, '4045550450', '198.51.100.9');
+check('a 429 carries Retry-After', limited.status === 429 && limited.retry === '60', JSON.stringify(limited));
+const other = await withEnv(byIp, '4045550451', '198.51.100.10');
+check('another IP is not affected', other.status === 200, String(other.status));
+const byPhone = { SUBMIT_LIMIT_PHONE: limiter(2) };
+const phRes = [];
+for (let i = 0; i < 4; i++) phRes.push((await withEnv(byPhone, '4045550460', `198.51.100.${20 + i}`)).status);
+check('one phone number is limited across different IPs', phRes.join(',') === '200,200,429,429', phRes.join(','));
+check('the limiter key for a phone is its opaque id, never the number',
+  [...byPhone.SUBMIT_LIMIT_PHONE.keys.keys()].every((k) => !k.includes('4045550460')));
+const before429 = db.prepare('SELECT COUNT(*) n FROM rejects').get().n;
+await withEnv(byIp, '4045550470', '198.51.100.9');
+check('a rate-limited submit writes nothing to D1 (a flood must not be a write flood)',
+  db.prepare('SELECT COUNT(*) n FROM rejects').get().n === before429);
+const broken = { SUBMIT_LIMIT_IP: { limit: async () => { throw new Error('down'); } } };
+check('a failing limiter fails OPEN — real players are not refused for a Cloudflare hiccup',
+  (await withEnv(broken, '4045550480', '198.51.100.30')).status === 200);
+
 const bad = checks.filter(([, ok]) => !ok);
 console.log(bad.length ? `\nFAILED: ${bad.length} of ${checks.length}` : `\nALL ${checks.length} PASS`);
 process.exit(bad.length ? 1 : 0);

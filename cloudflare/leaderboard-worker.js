@@ -168,6 +168,22 @@ async function idFor(digits) {
   return [...new Uint8Array(buf).slice(0, 10)].map((x) => x.toString(16).padStart(2, '0')).join('');
 }
 
+// ── RATE LIMITING ────────────────────────────────────────────────────────
+// Workers Rate Limiting bindings, declared in wrangler.toml
+// (SUBMIT_LIMIT_IP, SUBMIT_LIMIT_PHONE). The WAF cannot do this here: its
+// rate-limiting rules are zone-level and *.workers.dev has no zone.
+// A missing binding (local dev, the harness, a deploy that predates the
+// wrangler.toml change) or a limiter error means NO limit rather than a
+// refusal, the same fail-open reasoning as contestOpen(): a Cloudflare hiccup
+// must not turn away real players mid-contest.
+async function overLimit(binding, key) {
+  if (!binding || typeof binding.limit !== 'function') return false;
+  try {
+    const { success } = await binding.limit({ key });
+    return !success;
+  } catch (_e) { return false; }
+}
+
 function inContestWindow(now) {
   if (!CONTEST_START || !CONTEST_END) return true; // not configured — dev/testing
   return now >= CONTEST_START && now <= CONTEST_END;
@@ -498,6 +514,15 @@ export default {
           const r = await reject(env, req, 'origin', req.headers.get('Origin'), 403);
           return json({ ok: false, err: 'forbidden' }, r.status);
         }
+        // ⚠️ RATE LIMIT, FIRST THING AFTER THE ORIGIN LOCK. Per client IP,
+        // before the body is read or D1 is touched. Over the limit is a 429,
+        // which the client treats as transient and keeps the run for (see
+        // settle() in src/net/leaderboard.js) — so a venue full of phones
+        // behind one address is slowed down, not turned away. Deliberately NOT
+        // written to `rejects`: a flood must not become a D1 write flood.
+        if (await overLimit(env.SUBMIT_LIMIT_IP, req.headers.get('CF-Connecting-IP') || 'none')) {
+          return json({ ok: false, err: 'slow down' }, 429, { 'Retry-After': '60' });
+        }
         if (!inContestWindow(now)) {
           return json({ ok: false, err: 'contest window closed' }, 403);
         }
@@ -540,6 +565,13 @@ export default {
           return json({ ok: false, err: 'phone required' }, 400);
         }
 
+        // Per entrant, so one number cannot be hammered from many addresses
+        // (and vice versa). Keyed on the opaque id, never the number itself.
+        const id = await idFor(digits);
+        if (await overLimit(env.SUBMIT_LIMIT_PHONE, id)) {
+          return json({ ok: false, err: 'slow down' }, 429, { 'Retry-After': '60' });
+        }
+
         const email = cleanContact(b.email, 128);
         if (!emailOk(email)) {
           await reject(env, req, 'email', email.slice(0, 60));
@@ -577,7 +609,6 @@ export default {
           return json({ ok: false, err: 'invalid run' }, 400);
         }
 
-        const id = await idFor(digits);
         const name = cleanName(b.name);
 
         // ⚠️ REPLAY: THE PRIMARY KEY IS THE LOCK. A duplicate run id fails to

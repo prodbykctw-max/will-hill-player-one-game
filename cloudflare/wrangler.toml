@@ -9,12 +9,12 @@
 # warning over the /top query. Read a "cannot leak" claim as a claim about one
 # column, and check what else the response carries.
 #
-# ⚠️ NO RATE LIMITING IS CONFIGURED, AND ON *.workers.dev THE WAF CANNOT DO IT.
-# Cloudflare's rate-limiting rules are zone-level and this worker has no zone.
-# The fix that works from here is the Workers Rate Limiting binding, declared
-# in this file — a [[ratelimits]] block keyed on the client IP, checked at the
-# top of /submit. Until then the only cost of hammering /submit is the D1 write
-# quota and the bill, so keep the billing alert on.
+# RATE LIMITING on /submit is the Workers Rate Limiting binding, declared at the
+# bottom of this file and checked at the top of /submit (SUBMIT_LIMIT_IP, then
+# SUBMIT_LIMIT_PHONE). The WAF cannot do this here: Cloudflare's rate-limiting
+# rules are zone-level and *.workers.dev has no zone. An over-limit submit is a
+# 429, which the game keeps the run for and retries. The billing alert stays on
+# regardless.
 name = "will-hill-leaderboard"
 main = "leaderboard-worker.js"
 compatibility_date = "2026-08-10"
@@ -33,3 +33,28 @@ compatibility_date = "2026-08-10"
 binding = "DB"
 database_name = "will-hill-contest"
 database_id = "980cd717-a9e1-4b63-9643-dc5ffa58be4f"
+
+# ── RATE LIMITS ON /submit ───────────────────────────────────────────────
+# Nothing to create in the dashboard: namespace_id is just a number you choose,
+# unique among YOUR rate limiters on this account (change it if 1001/1002 are
+# taken). `period` can only be 10 or 60 seconds. They take effect on the next
+# `wrangler deploy`; until then the Worker runs without them.
+#
+# Per IP, generous on purpose: a party or venue puts many phones behind one
+# address, and each dies/finishes a run every few seconds at worst.
+[[ratelimits]]
+name = "SUBMIT_LIMIT_IP"
+namespace_id = "1001"
+  [ratelimits.simple]
+  limit = 60
+  period = 60
+
+# Per entrant (the phone-derived id): honest play is a run every 10 s or more,
+# plus the partial submitted at a knockdown. This stops one number being
+# hammered from many addresses.
+[[ratelimits]]
+name = "SUBMIT_LIMIT_PHONE"
+namespace_id = "1002"
+  [ratelimits.simple]
+  limit = 12
+  period = 60

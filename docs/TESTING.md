@@ -660,9 +660,9 @@ Everything here needs a real phone. The container cannot do any of it.
   weeks. `workerguards.mjs` now drives the real Worker against the real schema
   with no browser. Run it before deploying either worker; it is three seconds.
 
-- **No rate limiting on `/submit`, and the WAF cannot provide it** —
-  Cloudflare's rate-limiting rules are zone-level and this worker is on
-  `*.workers.dev`, which has no zone. The fix that works from there is the
-  `[[ratelimits]]` binding in `cloudflare/wrangler.toml`, checked at the top
-  of `/submit`. Not built. Until it is, the billing alert is the only thing
-  between a hammering and a bill.
+- **`/submit` rate limiting is the Workers Rate Limiting binding**, not the
+  WAF (zone-level rules; `*.workers.dev` has no zone). `[[ratelimits]]` in
+  `cloudflare/wrangler.toml` declares `SUBMIT_LIMIT_IP` and
+  `SUBMIT_LIMIT_PHONE`, checked at the top of `/submit`; over the limit is a
+  429, which the game holds the run for. It only takes effect after the next
+  `wrangler deploy`, and `workerguards.mjs` grades it with a stand-in binding.
