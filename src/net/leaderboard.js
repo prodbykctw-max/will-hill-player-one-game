@@ -124,6 +124,51 @@ export function setContestRegistration({ phone, email }) {
   return reg;
 }
 
+// ── IS THE CONTEST STILL OPEN? ───────────────────────────────────────────
+//
+// Client, as the contest wound down: "make it to where the contest doesn't
+// pop up in the app anymore cause it's closed if it's closed." The dashboard
+// switch only ever gated the Worker's /submit, so turning it off left this
+// game still offering ENTER THE CONTEST and a sign-up form, and then the
+// Worker refused every run from it without a word.
+//
+// So the game asks GET /status on load (and on return to the tab, and when
+// the network comes back), and while it reads closed every contest offer is
+// gone: the start goes straight into a run, the end of a run and the title
+// banner go to the board, and the board says it is the final one.
+//
+// ⚠️ FAILS OPEN, AND REMEMBERS. No answer — a Worker that predates /status,
+// a dropped connection — leaves the last answer this device got standing,
+// and a device that never got one treats the contest as open. Same direction
+// as the Worker's own contestOpen(): a hiccup must never hide the contest
+// while it is running. A device that saw it closed keeps it closed offline.
+const CONTEST_OPEN_KEY = 'wh_contest_open';
+let contestOpenNow = (() => {
+  try {
+    return localStorage.getItem(CONTEST_OPEN_KEY) !== '0';
+  } catch (_e) {
+    return true;
+  }
+})();
+
+export function contestIsOpen() {
+  return contestOpenNow;
+}
+
+export function refreshContestStatus() {
+  if (!lbOn()) return;
+  try {
+    fetch(LB_URL + '/status')
+      .then((r) => r.json())
+      .then((j) => {
+        if (!j || !j.ok || typeof j.open !== 'boolean') return;
+        contestOpenNow = j.open;
+        try { localStorage.setItem(CONTEST_OPEN_KEY, j.open ? '1' : '0'); } catch (_e) {}
+      })
+      .catch(() => {});
+  } catch (_e) { /* no fetch: keep what we had */ }
+}
+
 // ── run-event log (what actually gets submitted for score validation) ──
 // Each event: { t: msSinceRunStart, type: 'bag' | 'champagne' | 'stomp' | ... }
 // The Worker recomputes score from this log server-side — see
@@ -620,8 +665,15 @@ export function pendingRunCount() { return pendingRuns.length; }
 // matter for a game played on a phone at a party — the run that failed to
 // send on bad signal should not need the player to do anything about it.
 if (typeof window !== 'undefined') {
-  window.addEventListener('online', () => { flushPendingRun(); });
-  setTimeout(() => { flushPendingRun(); }, 0);
+  window.addEventListener('online', () => { flushPendingRun(); refreshContestStatus(); });
+  setTimeout(() => { flushPendingRun(); refreshContestStatus(); }, 0);
+  // A phone left on the title overnight comes back to the tab, not to a
+  // fresh load — ask again then, or it offers a contest that ended hours ago.
+  if (typeof document !== 'undefined') {
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') refreshContestStatus();
+    });
+  }
 }
 
 // ⚠️ "COULD NOT LOAD" IS NOT "NOBODY HAS PLAYED". A player in the contest's

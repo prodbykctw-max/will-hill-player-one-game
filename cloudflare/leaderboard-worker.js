@@ -11,6 +11,9 @@
  *     assert a number. phone/email are stored but never returned by anything.
  *   GET  /top?n=20
  *     -> { ok, runs:[{id, name, score}] }   PUBLIC. No phone, no email, ever.
+ *   GET  /status
+ *     -> { ok, open }   whether the dashboard switch has the contest open.
+ *     The game hides every contest offer while this reads false.
  *
  * ── WHY D1 AND NOT KV ────────────────────────────────────────────────────
  *
@@ -43,6 +46,7 @@
 
 const CAP = 500;          // rows the public board will ever return
 const TOP_TTL = 2;        // seconds /top may be served from cache
+const STATUS_TTL = 5;     // seconds /status may be served from cache
 const MAX_BODY = 256 * 1024;
 const MAX_EVENTS = 5000;
 // The most a `combo` event is allowed to claim. A chain cannot outrun the
@@ -348,6 +352,41 @@ export default {
             ...cors,
             'Content-Type': 'application/json',
             'Cache-Control': `public, max-age=${TOP_TTL}`,
+            'X-Cache': 'MISS',
+          },
+        });
+        ctx.waitUntil(cache.put(ckey, res.clone()));
+        return res;
+      }
+
+      // ── IS THE CONTEST OPEN? ─────────────────────────────────────────
+      //
+      // Client, once the contest was winding down: "make it to where the
+      // contest doesn't pop up in the app anymore... if it's closed." The
+      // dashboard switch only ever gated /submit, so turning it off left the
+      // game still offering ENTER THE CONTEST and a sign-up form whose runs
+      // were then refused without a word. The game asks this on load and
+      // drops every contest offer when it reads false.
+      //
+      // The same contestOpen() /submit uses, so the two cannot disagree —
+      // and it fails open the same way. Edge-cached a few seconds like /top:
+      // every page load asks, and the answer changes about twice a contest.
+      if (url.pathname === '/status' && req.method === 'GET') {
+        const cache = caches.default;
+        const ckey = new Request(`${url.origin}/status`, { method: 'GET' });
+        const hit = await cache.match(ckey);
+        if (hit) {
+          const body = await hit.text();
+          return new Response(body, {
+            headers: { ...cors, 'Content-Type': 'application/json', 'X-Cache': 'HIT' },
+          });
+        }
+        const open = inContestWindow(Date.now()) && (await contestOpen(env));
+        const res = new Response(JSON.stringify({ ok: true, open }), {
+          headers: {
+            ...cors,
+            'Content-Type': 'application/json',
+            'Cache-Control': `public, max-age=${STATUS_TTL}`,
             'X-Cache': 'MISS',
           },
         });
