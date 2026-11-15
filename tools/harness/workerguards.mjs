@@ -265,6 +265,35 @@ check('a later run under the same phone cannot replace the email', hijack.status
 const blank = await submit({ durationMs: 30000, events: bags(20, 30000), phone: '4045550177', email: '' });
 check('nor can an empty one erase it', blank.status === 200 && emailOf('4045550177') === 'owner@example.com', emailOf('4045550177'));
 
+// ── security audit 2026-11-15: the 20-attack list ───────────────────────
+// Prototype pollution: an event named after a built-in property must score 0,
+// never turn the score into a string that sorts above every real one.
+for (const evil of ['__proto__', 'constructor', 'toString', 'hasOwnProperty']) {
+  const r = await submit({ durationMs: 30000, phone: '4045550188',
+    events: [{ t: 0, type: evil }, ...bags(20, 30000)] });
+  check(`an event typed "${evil}" scores nothing extra`, r.status === 200 && r.body.score === 2000,
+    JSON.stringify(r.body));
+}
+const textScores = db.prepare("SELECT COUNT(*) AS n FROM runs WHERE typeof(score) != 'integer'").get().n;
+check('and no score in the table is anything but an integer', textScores === 0, String(textScores));
+const onlyEvil = await submit({ durationMs: 30000, phone: '4045550189', events: [{ t: 0, type: '__proto__' }] });
+check('a log of nothing but "__proto__" is an empty run, not a top score', onlyEvil.status === 400, JSON.stringify(onlyEvil.body));
+// Unbounded identity: a phone is at most 15 digits.
+const longPhone = await submit({ durationMs: 30000, events: bags(20, 30000), phone: '4'.repeat(5000) });
+check('a 5000-digit "phone" is refused', longPhone.status === 400, String(longPhone.status));
+// Unicode lookalikes: fullwidth / math letters fold to plain, other scripts drop.
+const nameOf = async (name, phone) => {
+  await submit({ durationMs: 30000, events: bags(20, 30000), phone, name });
+  return (await board()).find((r) => r.score === 2000 && db.prepare('SELECT name FROM runs WHERE name = ?').get(r.name))
+    && db.prepare('SELECT r.name FROM runs r JOIN entrants e ON e.id = r.id WHERE e.phone = ?').get(phone)?.name;
+};
+check('fullwidth letters become plain ones', (await nameOf('ＷＩＬＬ ＨＩＬＬ', '4045550191')) === 'WILL HILL');
+check('math-bold letters become plain ones', (await nameOf('𝐖𝐈𝐋𝐋', '4045550192')) === 'WILL');
+check('a Cyrillic lookalike cannot pass for Latin', (await nameOf('WІLL', '4045550193')) === 'WLL');
+check('zero-width and right-to-left tricks are stripped', (await nameOf('WI​LL‮', '4045550194')) === 'WILL');
+check('accented Latin names still work', (await nameOf('José Peña', '4045550195')) === 'José Peña');
+check('an astral letter is never cut in half', !/[\uD800-\uDFFF]/.test(await nameOf('A'.repeat(15) + '𝐁𝐁', '4045550196')));
+
 const bad = checks.filter(([, ok]) => !ok);
 console.log(bad.length ? `\nFAILED: ${bad.length} of ${checks.length}` : `\nALL ${checks.length} PASS`);
 process.exit(bad.length ? 1 : 0);
