@@ -171,9 +171,9 @@ built here — this was a status question, not a request.
 
 ---
 
-## BUILT, NOT YET MERGED OR DEPLOYED
+## DONE — shipped and live
 
-### 2026-11-15 — the panel's screens grow out of the control that opened them (`feat/glide-transitions`)
+### 2026-11-15 — the panel's screens grow out of the control that opened them (merged as PR #46, `e5197f7`; deployed)
 
 - **What changed:** motion only. OPTIONS and the title's contest banner (and the knocked-down card's ENTER THE CONTEST / LEADERBOARD button) open the panel growing out of that button, and closing it (BACK TO GAME, Escape, the backdrop, NOT NOW on a title-opened form) shrinks it back into the same button. Inside the panel, LEADERBOARD, HOW TO PLAY and SETTINGS grow out of their menu buttons and BACK shrinks into the button that was tapped; ENTER THE CONTEST / SHARE grow the sign-up card and NOT NOW shrinks it back; the privacy policy card grows out of the link that opened it.
 - **Where:** `src/ui/glide.js` (new), `src/ui/panel.js` (`enter`, `leave`, `enterForm`, `openPrivacy`/`closePrivacy`, `api.open`/`api.close`), `src/main.js` (`clientRect`, and the `from` rects for the three canvas-drawn openers), `index.html` (`.glide-out` and the `::view-transition-group(glide)` timing).
@@ -182,8 +182,8 @@ built here — this was a status question, not a request.
 - **Not changed:** layout, art, copy, sizes and every end state.
 
 ---
+- **Shipped:** merged to `main` as PR #46 (`e5197f7`) and published with `bash tools/deploy.sh` on 2026-11-15 (`gh-pages` `176199c`). Live check: the page serves the `glide-out` rule.
 
-## DONE — shipped and live
 
 ### 2026-11-15 — leaderboard Worker hardened (PR #45, deployed)
 
