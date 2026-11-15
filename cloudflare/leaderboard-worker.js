@@ -134,11 +134,20 @@ const SCORE_RULES = {
 const MIN_RUN_MS = 3 * 1000;
 const MAX_SCORE_PER_SECOND = 400;
 
+// ⚠️ LOOKALIKE NAMES. NFKC first, so fullwidth and math-styled letters
+// ("ＷＩＬＬ", "𝐖𝐈𝐋𝐋") become the plain letters they imitate, then Latin
+// script only, so a Cyrillic "А" or Greek "Ο" can't pass for an English
+// one on the board. Accented Latin letters (é, ñ) still pass. Zero-width,
+// right-to-left override and control characters were already stripped.
+// Cut by code point, not UTF-16 unit, so a letter is never split in half.
 const cleanName = (n) => {
-  const s = String(n == null ? '' : n)
-    .replace(/[^\p{L}\p{N} .!'-]/gu, '')
-    .trim()
-    .slice(0, 16);
+  const s = Array.from(
+    String(n == null ? '' : n)
+      .normalize('NFKC')
+      .replace(/[^\p{Script=Latin}\p{Nd} .!'-]/gu, '')
+      .replace(/\s+/g, ' ')
+      .trim(),
+  ).slice(0, 16).join('').trim();
   return s || 'PLAYER ONE';
 };
 
@@ -206,7 +215,12 @@ function scoreFromEvents(events, durationMs) {
     if (!ev || typeof ev.t !== 'number' || typeof ev.type !== 'string') continue;
     if (ev.t < lastT || ev.t > (durationMs || 0) + 1000) continue; // out of order / past the end
     lastT = ev.t;
-    score += SCORE_RULES[ev.type] || 0;
+    // ⚠️ OWN KEYS ONLY. `SCORE_RULES["__proto__"]` is Object.prototype — truthy —
+    // so a plain lookup let a forged event turn `score` into the STRING
+    // "0[object Object]", which slips past every numeric check below (NaN
+    // compares false) and sorts above every real score in SQLite. (Security
+    // audit 2026-11-15, prototype pollution.)
+    score += Object.hasOwn(SCORE_RULES, ev.type) ? SCORE_RULES[ev.type] : 0;
   }
   return score;
 }
@@ -439,7 +453,9 @@ export default {
         }
 
         const digits = phoneKey(b.phone);
-        if (digits.length < 10) {
+        // A phone number is at most 15 digits (E.164). Without the upper bound
+        // a 256 KB body became a 256 KB "phone" stored on the entrant row.
+        if (digits.length < 10 || digits.length > 15) {
           await reject(env, req, 'phone', String(digits.length));
           return json({ ok: false, err: 'phone required' }, 400);
         }
@@ -463,6 +479,12 @@ export default {
         }
 
         const score = scoreFromEvents(b.events, durationMs);
+        // Belt and braces for the lookup fix above: nothing but a whole number
+        // ever reaches the database.
+        if (!Number.isSafeInteger(score)) {
+          await reject(env, req, 'score-type', String(score).slice(0, 40));
+          return json({ ok: false, err: 'invalid run' }, 400);
+        }
         if (score <= 0) return json({ ok: false, err: 'empty run' }, 400);
 
         // Plausibility. The recompute already defeats naive tampering; these
