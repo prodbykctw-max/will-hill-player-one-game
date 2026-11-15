@@ -55,6 +55,7 @@ import { ARROW_L, ARROW_R, BAG_ICON, TUTORIAL_LESSONS, TUTORIAL_ORDER, TUTORIAL_
 import { createHaptics } from './core/haptics.js';
 import { STAGE_SLOTS, MAP_SLOTS, MANIFEST } from './audio/music.js';
 import { isRelay, setRelay } from './core/relay.js';
+import { glide } from './ui/glide.js';
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
@@ -101,7 +102,10 @@ const panel = createPanel({
   onHapticsChange: (on) => haptics.setEnabled(on),
   // On demand from SETTINGS — see showCredits(). Closes the panel first so
   // the roll isn't racing a cabinet screen still drawn underneath it.
-  onShowCredits: () => { panel.close({ instant: true }); showCredits(); },
+  // The roll grows out of the CREDITS button (ui/glide.js): the canvas is the
+  // view it opens. Same two calls as before, a frame late like every glide.
+  onShowCredits: () => glide(() => { panel.close({ instant: true }); showCredits(); },
+    { from: document.getElementById('btnCredits'), to: () => canvas, dir: 'in' }),
   // ── TIME OF DAY APPLIES NOW, LIVE, WITHOUT RESTARTING ANYTHING ───────
   //
   // ⚠️ THIS USED TO CALL location.reload() AND THAT WAS WRONG. The comment

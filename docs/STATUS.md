@@ -173,6 +173,13 @@ built here — this was a status question, not a request.
 
 ## DONE — shipped and live
 
+### 2026-11-15 — CREDITS grows out of its button
+
+- **What changed:** motion only. SETTINGS → CREDITS used to close the panel instantly and cut to the credits roll. The roll now grows out of the CREDITS button (the canvas is the view it opens), through the same `glide()` the panel views use.
+- **Where:** `src/main.js` (`onShowCredits`), `src/ui/glide.js` (`glide()` now steps aside for an update that closes the panel itself: `panel.close()` calls `cancelGlide()`, which would otherwise skip the very transition it is running inside).
+- **Not changed:** the roll, where it ends (the title), and every end state. Reduced motion or no View Transitions: the old instant cut.
+- **Verified:** headless Chromium, animations slowed 10x: the morph starts on the CREDITS button's box (89,443 220x29), `screen` is `creditsRoll` after, no `view-transition-name` or `data-glide` left behind; reduced motion runs no transition.
+
 ### 2026-11-15 — the panel's screens grow out of the control that opened them (merged as PR #46, `e5197f7`; deployed)
 
 - **What changed:** motion only. OPTIONS and the title's contest banner (and the knocked-down card's ENTER THE CONTEST / LEADERBOARD button) open the panel growing out of that button, and closing it (BACK TO GAME, Escape, the backdrop, NOT NOW on a title-opened form) shrinks it back into the same button. Inside the panel, LEADERBOARD, HOW TO PLAY and SETTINGS grow out of their menu buttons and BACK shrinks into the button that was tapped; ENTER THE CONTEST / SHARE grow the sign-up card and NOT NOW shrinks it back; the privacy policy card grows out of the link that opened it.
