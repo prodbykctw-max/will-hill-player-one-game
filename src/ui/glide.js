@@ -146,7 +146,12 @@ export function glide(update, { from, to, dir = 'in' } = {}) {
     t = document.startViewTransition(() => {
       clearName(from);
       if (mine !== epoch) return;     // superseded before it ran: leave it be
+      // The update itself may close the panel (CREDITS does), and close()
+      // cancels "the running glide" — which, at this point, is this one,
+      // mid-update and not stale. Step aside for it, then take it back.
+      if (running === t) running = null;
       update();
+      if (!running) running = t;
       dest = to && to();
       setName(dest);
     });
