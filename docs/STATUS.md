@@ -185,6 +185,15 @@ built here — this was a status question, not a request.
 
 ## DONE — shipped and live
 
+### 2026-11-15 — leaderboard Worker hardened (PR #45, deployed)
+
+- **Forged score by event type.** The score loop looked event types up with `SCORE_RULES[ev.type]`. A type of `"__proto__"` or `"constructor"` returns a built-in object, so `score` became the string `"0[object Object]..."`. It passed every numeric check (NaN compares false) and sorted above every real score in SQLite. Types are now looked up with `Object.hasOwn`, and only a safe integer reaches D1 (anything else is refused and logged as `score-type`). The live table was checked first: 0 forged rows.
+- **Phone length.** Digits are capped at 15 (E.164); a 256 KB "phone" used to be stored on the entrant row.
+- **Names.** NFKC first (fullwidth and math-styled letters fold to plain ones), then Latin script only (no Cyrillic or Greek lookalikes), cut by code point so a letter is never split. Accented Latin names still pass.
+- **Tests:** 13 new checks in `tools/harness/workerguards.mjs`, all of which fail on the previous Worker; the file is now 49/49.
+- **Deployed:** `will-hill-leaderboard` version `9449832f`, 2026-11-15. That deploy also brought the `/status` route live on the public Worker.
+- **Game side:** nothing changed; the fix is entirely in `cloudflare/leaderboard-worker.js`.
+
 ### 2026-10-19 — closing the contest on the dashboard now hides it in the game
 
 - **Before:** the dashboard switch only gated the Worker's `/submit`. With it off, the game still showed ENTER THE CONTEST and the sign-up form, took phone and email, and every run was then refused with no message to the player.

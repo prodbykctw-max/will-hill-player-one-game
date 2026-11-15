@@ -924,3 +924,23 @@ settling; the harnesses seed `wh_intro_v7` so they never meet the intro.
 
 ⚠️ **When one stage alone reads zero, suspect what is different about that
 stage before suspecting the art.**
+
+---
+
+## 30. A lookup keyed by client input finds things the table never had
+
+The Worker scored a run with `score += SCORE_RULES[ev.type] || 0`, where
+`ev.type` is whatever string the client sent. `SCORE_RULES` is a plain object,
+so `"__proto__"` and `"constructor"` find `Object.prototype` and `Object`, both
+truthy. `0 + {}` is the string `"0[object Object]"`, which passes every
+numeric guard after it (`NaN` compares false in both directions) and sorts
+above any real number in SQLite. One forged event ranked #1.
+
+Nothing here was a typo. The `|| 0` fallback was written for "type not in the
+table" and the table was assumed to contain only its own keys.
+
+⚠️ **Any object indexed by a string the client chose is a lookup that can hit
+the prototype.** Use `Object.hasOwn(table, key)` (or a `Map`, or
+`Object.create(null)`), and after the arithmetic check the TYPE of the result
+(`Number.isSafeInteger`), not just its magnitude. Found by the 2026-11-15
+audit, not by a player; the live table had no forged rows.
