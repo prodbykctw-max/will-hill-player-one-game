@@ -395,6 +395,26 @@
     }
     #panel::-webkit-scrollbar { width: 0; height: 0; display: none; }
     #panel[hidden] { display: none; }
+    /* ── NOTHING JUST APPEARS (src/ui/glide.js) ──────────────────────
+       `hidden` is still what closes these, and it is set the moment they
+       close. `.glide-out` is the only thing that keeps an ALREADY-CLOSED
+       layer painted while its card shrinks back into the control it came
+       from, and it lets taps fall straight through. Removed when the shrink
+       ends, so no lasting state. */
+    #panel.glide-out[hidden], #entryLayer.glide-out[hidden],
+    #privacyLayer.glide-out[hidden] { display: flex; pointer-events: none; }
+    /* The morph between a control and the view it opens. 320ms in, the same
+       length back with the gentler curve; the rest of the page only
+       cross-fades underneath. Both lengths are the brief's 260-380ms. */
+    html[data-glide]::view-transition-group(glide) {
+      animation-duration: 320ms;
+      animation-timing-function: cubic-bezier(.2,.8,.2,1);
+    }
+    html[data-glide="out"]::view-transition-group(glide) {
+      animation-timing-function: cubic-bezier(.4,0,.2,1);
+    }
+    html[data-glide]::view-transition-old(root),
+    html[data-glide]::view-transition-new(root) { animation-duration: 200ms; }
     #panelCard {
       /* Centres in both axes when the card fits, and degrades to top-aligned
          — scrollable all the way up — when it does not. Doing the centring
