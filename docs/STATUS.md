@@ -171,7 +171,28 @@ built here — this was a status question, not a request.
 
 ---
 
+## BUILT, NOT YET MERGED OR DEPLOYED
+
+### 2026-11-15 — the panel's screens grow out of the control that opened them (`feat/glide-transitions`)
+
+- **What changed:** motion only. OPTIONS and the title's contest banner (and the knocked-down card's ENTER THE CONTEST / LEADERBOARD button) open the panel growing out of that button, and closing it (BACK TO GAME, Escape, the backdrop, NOT NOW on a title-opened form) shrinks it back into the same button. Inside the panel, LEADERBOARD, HOW TO PLAY and SETTINGS grow out of their menu buttons and BACK shrinks into the button that was tapped; ENTER THE CONTEST / SHARE grow the sign-up card and NOT NOW shrinks it back; the privacy policy card grows out of the link that opened it.
+- **Where:** `src/ui/glide.js` (new), `src/ui/panel.js` (`enter`, `leave`, `enterForm`, `openPrivacy`/`closePrivacy`, `api.open`/`api.close`), `src/main.js` (`clientRect`, and the `from` rects for the three canvas-drawn openers), `index.html` (`.glide-out` and the `::view-transition-group(glide)` timing).
+- **How:** the panel opening and closing animate the real element with Web Animations, so every flag, the pause and `onClose` change in the same tick as before. Swaps between views use View Transitions, so the view's own update lands one frame later; a newer open/close cancels a pending one so a stale view is never re-shown. A closed panel stays painted for the length of the shrink through `.glide-out` (`hidden` is still set immediately and taps pass through).
+- **Falls back to the old instant behaviour** when `prefers-reduced-motion: reduce` is on, when the browser has no `startViewTransition`, or when an opener has no button to come from (the start journey's sign-up, the post-run board). There is no reduce-motion switch in the game's own settings, so the OS setting is the only signal.
+- **Not changed:** layout, art, copy, sizes and every end state.
+
+---
+
 ## DONE — shipped and live
+
+### 2026-11-15 — leaderboard Worker hardened (PR #45, deployed)
+
+- **Forged score by event type.** The score loop looked event types up with `SCORE_RULES[ev.type]`. A type of `"__proto__"` or `"constructor"` returns a built-in object, so `score` became the string `"0[object Object]..."`. It passed every numeric check (NaN compares false) and sorted above every real score in SQLite. Types are now looked up with `Object.hasOwn`, and only a safe integer reaches D1 (anything else is refused and logged as `score-type`). The live table was checked first: 0 forged rows.
+- **Phone length.** Digits are capped at 15 (E.164); a 256 KB "phone" used to be stored on the entrant row.
+- **Names.** NFKC first (fullwidth and math-styled letters fold to plain ones), then Latin script only (no Cyrillic or Greek lookalikes), cut by code point so a letter is never split. Accented Latin names still pass.
+- **Tests:** 13 new checks in `tools/harness/workerguards.mjs`, all of which fail on the previous Worker; the file is now 49/49.
+- **Deployed:** `will-hill-leaderboard` version `9449832f`, 2026-11-15. That deploy also brought the `/status` route live on the public Worker.
+- **Game side:** nothing changed; the fix is entirely in `cloudflare/leaderboard-worker.js`.
 
 ### 2026-10-19 — closing the contest on the dashboard now hides it in the game
 

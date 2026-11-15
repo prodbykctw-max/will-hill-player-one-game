@@ -101,7 +101,7 @@ const panel = createPanel({
   onHapticsChange: (on) => haptics.setEnabled(on),
   // On demand from SETTINGS — see showCredits(). Closes the panel first so
   // the roll isn't racing a cabinet screen still drawn underneath it.
-  onShowCredits: () => { panel.close(); showCredits(); },
+  onShowCredits: () => { panel.close({ instant: true }); showCredits(); },
   // ── TIME OF DAY APPLIES NOW, LIVE, WITHOUT RESTARTING ANYTHING ───────
   //
   // ⚠️ THIS USED TO CALL location.reload() AND THAT WAS WRONG. The comment
@@ -915,6 +915,17 @@ function pressPoint(e) {
     || e;
 }
 
+// A rect painted on the canvas (canvas pixels) as the page sees it (client
+// pixels) — what the panel needs to grow out of, and shrink back into, a
+// button that is not a DOM element. Null when the thing is not on screen.
+function clientRect(r) {
+  if (!r) return null;
+  const c = canvas.getBoundingClientRect();
+  const kx = c.width / canvas.width;
+  const ky = c.height / canvas.height;
+  return { left: c.left + r.x * kx, top: c.top + r.y * ky, width: r.w * kx, height: r.h * ky };
+}
+
 function handleCanvasPress(clientX, clientY, preventDefault = () => {}) {
   const r = canvas.getBoundingClientRect();
   const x = (clientX - r.left) * (canvas.width / r.width);
@@ -993,7 +1004,11 @@ function handleCanvasPress(clientX, clientY, preventDefault = () => {}) {
     // leaderboard is there, instructions could also be found under the
     // options, the settings button should be found under the options, and
     // then back to the game should be filed under the options."
-    if (title.hitOptions(state.titleBox, x, y)) { press(); panel.open('menu'); return; }
+    if (title.hitOptions(state.titleBox, x, y)) {
+      press();
+      panel.open('menu', { from: () => clientRect(title.optionsRect(state.titleBox)) });
+      return;
+    }
     // ── STRAIGHT INTO THE CONTEST, FROM THE HOME PAGE ──────────────────────
     //
     // Client: "from that page, I want someone to be able to immediately enter
@@ -1013,7 +1028,8 @@ function handleCanvasPress(clientX, clientY, preventDefault = () => {}) {
     if (title.deadZone(state.titleBox, x, y)) return;
     if (title.hitBanner(state.titleBox, x, y)) {
       press();
-      panel.open(nothingToOffer() ? 'board' : 'form', { flow: 'title' });
+      panel.open(nothingToOffer() ? 'board' : 'form',
+        { flow: 'title', from: () => clientRect(title.bannerRect(state.titleBox)) });
       return;
     }
     // ⚠️ THE RUN STARTS FROM PRESS START, AND ONLY FROM PRESS START. This
@@ -1317,7 +1333,12 @@ function buttonsFor(screen) {
       : [{ label: 'MAIN MENU', action: () => { goBack(); showTitle(); } },
         // Contest over: the same door, named for where it now goes.
         { label: contestIsOpen() ? 'ENTER THE CONTEST' : 'LEADERBOARD',
-          action: () => panel.open(nothingToOffer() ? 'board' : 'form', { flow: 'title' }) }];
+          action: () => panel.open(nothingToOffer() ? 'board' : 'form', {
+            flow: 'title',
+            // Grows out of the button that was tapped, back into it on close.
+            from: () => clientRect(screenButtons.find((b) => b.label === 'ENTER THE CONTEST'
+              || b.label === 'LEADERBOARD')),
+          }) }];
   }
   // 'complete' is not here: its button is PAINTED, on his ending plate, and is
   // registered where that plate is drawn. Nothing of mine goes on that artwork.

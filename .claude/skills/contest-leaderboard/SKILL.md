@@ -111,6 +111,31 @@ Then add the checks that catch a log somebody **built** rather than played:
 - **A floor on run length**, and a **score-per-second** bound.
 - **Monotonic timestamps** inside the claimed duration.
 
+### ⚠️ A score table indexed by the client's event type is a prototype lookup
+
+The recompute adds up `RULES[ev.type]` for every event in the log. `ev.type` is
+attacker-controlled, and `RULES` is a plain object, so `"__proto__"`,
+`"constructor"` and `"toString"` all resolve to something truthy. `0 + {}` is
+the string `"0[object Object]"`: it slips past every numeric check (`NaN`
+compares false both ways) and sorts above every real score in SQLite. One
+forged event took #1 on a contest board.
+
+- **Own keys only:** `Object.hasOwn(RULES, ev.type) ? RULES[ev.type] : 0`. A
+  `Map` or `Object.create(null)` works too. `RULES[type] || 0` does not.
+- **Check the type of the result, not just its size:** refuse and log
+  anything that is not `Number.isSafeInteger(score)` before it reaches the
+  database. Belt and braces: the lookup fix and the type check each stop it
+  alone.
+- **Put a forged-type event in the regression suite** (`__proto__`,
+  `constructor`, `toString`) and confirm it fails on the unfixed worker.
+- The same sweep found two bounds that were missing at the edges of the
+  entry form: a phone number needs an UPPER limit as well as a lower one
+  (E.164 is 15 digits; without it a large body was stored as a "phone"), and a
+  display name should be NFKC-normalised and limited to the script the board is
+  written in before it is cut (by code point, never by UTF-16 unit), or
+  fullwidth, math-styled and Cyrillic/Greek lookalikes pass for the real
+  letters.
+
 ### ⚠️ NO SCORE CEILING — it threw away the two best real runs of the contest
 
 This game shipped a "measured" ceiling: walk the levels, count every bag, enemy

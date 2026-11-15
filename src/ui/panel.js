@@ -150,6 +150,8 @@ function agreeProblem(checked) {
   return checked ? null : 'Check the box to agree to the Privacy Policy first.';
 }
 
+import { glide, cancelGlide, growIn, shrinkOut, fade, release } from './glide.js';
+
 export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
   onSfxChange, onHapticsChange, onShowCredits, haptics, audio }) {
   const el = $('panel');
@@ -687,19 +689,46 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
   // offers two ways out of itself.
   // OPTIONS is the shelf; every other view steps back to it, and it is the
   // one place BACK TO GAME lives.
-  on('btnMenuBoard', 'press', () => show('board'));
-  on('btnMenuHow', 'press', () => show('how'));
-  on('btnMenuSettings', 'press', () => show('settings'));
+  //
+  // ── NOTHING JUST APPEARS (see ui/glide.js) ───────────────────────────
+  // Each view GROWS OUT OF the button that opened it, and its way back
+  // SHRINKS INTO that same button. `openedBy` remembers which one, so the way
+  // back lands on the control that was actually tapped. Motion only: show()
+  // still decides what is on screen, and a reduce-motion player (or a browser
+  // without View Transitions) gets show() on its own, instantly, as before.
+  const openedBy = {};
+  const enter = (view, id) => {
+    openedBy[view] = id;
+    glide(() => show(view), { from: $(id), to: () => panelCard, dir: 'in' });
+  };
+  const leave = (view, dest = 'menu') => {
+    const id = openedBy[view];
+    const b = id && $(id);
+    if (!b || !panelCard) { cancelGlide(); show(dest); return; }
+    glide(() => show(dest), { from: panelCard, to: () => $(id), dir: 'out' });
+  };
+  on('btnMenuBoard', 'press', () => enter('board', 'btnMenuBoard'));
+  on('btnMenuHow', 'press', () => enter('how', 'btnMenuHow'));
+  on('btnMenuSettings', 'press', () => enter('settings', 'btnMenuSettings'));
   on('btnMenuClose', 'back', () => api.close());
   // HOW TO PLAY is reachable only from OPTIONS now (see the note in show()),
   // so its footer button is always just BACK to the menu.
-  on('btnHowBack', 'back', () => show('menu'));
+  on('btnHowBack', 'back', () => leave('how'));
   // BACK off the leaderboard closes outright when the board IS the end of the
   // journey — after a run, per his order: ending scene, then the board, then
   // out. Reached from OPTIONS it still steps one level up to the menu.
   on('btnBoardBack', 'back', () =>
-    (flow === 'post' || flow === 'title' ? api.close() : show('menu')));
-  on('btnRegister', 'press', () => show('form'));
+    (flow === 'post' || flow === 'title' ? api.close() : leave('board')));
+  // The sign-up card grows out of the button that asked for it, and NOT NOW
+  // shrinks back into that same button. `formFrom` is null when the card was
+  // opened by the game rather than by a tap (the start journey), and then
+  // there is no button to go back into.
+  let formFrom = null;
+  const enterForm = (id) => {
+    formFrom = id;
+    glide(() => show('form'), { from: $(id), to: () => $('entryPlate'), dir: 'in' });
+  };
+  on('btnRegister', 'press', () => enterForm('btnRegister'));
   // SHARE decides its own note copy, because the same tap means different
   // things on different machines: a phone opens the OS sheet (nothing to
   // say), a desktop silently saves the card and copies the caption — which
@@ -709,7 +738,7 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
   // dead end though — it goes where it was always going to have to go.
   on('btnShare', 'press', async () => {
     if (!isRegistered()) {
-      show('form');
+      enterForm('btnShare');
       return;
     }
     // ⚠️ THE BUTTON SAYS WHAT IT IS DOING, because for a measured ~4 seconds
@@ -737,7 +766,7 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
       $('boardNote').textContent = 'This browser refused every share route.';
     }
   });
-  on('btnBack', 'back', () => show('menu'));
+  on('btnBack', 'back', () => leave('settings'));
   // On demand — the other way in besides beating the game. Client:
   // "talked to the options menu as well as a new screen." SETTINGS, not
   // OPTIONS: OPTIONS is his painted plate with four fixed sockets and no
@@ -763,7 +792,12 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
   const onwardFromStart = () => { api.close(); };
   const notNow = () => {
     if (flow === 'title') { api.close(); return; }
-    return flow === 'start' ? onwardFromStart() : show('board');
+    if (flow === 'start') return onwardFromStart();
+    const id = formFrom;
+    formFrom = null;
+    if (!id || !$(id)) { cancelGlide(); return show('board'); }
+    return glide(() => show('board'),
+      { from: $('entryPlate'), to: () => $(id), dir: 'out' });
   };
   on('btnSkip', 'back', notNow);
   // He painted THREE ways out of the sign-up card — the CANCEL plate, the red
@@ -787,8 +821,29 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
   // it opens its own card a layer above the form, and BACK just closes the
   // layer — the form is still there underneath, untouched, mid-typing and
   // all.
-  const openPrivacy = () => { const pl = $('privacyLayer'); if (pl) pl.hidden = false; };
-  on('btnFormInfo', 'press', openPrivacy);
+  // The policy card grows out of whichever control opened it and shrinks back
+  // into it. It sits ABOVE the form, so nothing underneath changes.
+  let privacyFrom = null;
+  const openPrivacy = (id = 'btnFormInfo') => {
+    const pl = $('privacyLayer');
+    if (!pl) return;
+    privacyFrom = id;
+    pl.classList.remove('glide-out');
+    pl.hidden = false;
+    const b = $(id);
+    growIn($('privacyCard'), b && b.getBoundingClientRect(), { duration: 240 });
+  };
+  const closePrivacy = () => {
+    const pl = $('privacyLayer');
+    if (!pl) return;
+    const b = privacyFrom && $(privacyFrom);
+    pl.classList.add('glide-out');
+    pl.hidden = true;
+    const a = shrinkOut($('privacyCard'), b && b.getBoundingClientRect());
+    const end = () => { pl.classList.remove('glide-out'); release($('privacyCard')); };
+    if (a) a.finished.then(end, end); else end();
+  };
+  on('btnFormInfo', 'press', () => openPrivacy('btnFormInfo'));
   // ⚠️ THE INLINE LINK OPENS THE SAME CARD, IT DOES NOT TOGGLE THE CHECKBOX.
   // It lives inside <label for="fAgree">, and a nested interactive element
   // (button/link/input) is exactly what a label's default click-forwarding
@@ -800,9 +855,9 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
   $('btnPrivacyInline')?.addEventListener('click', (e) => {
     e.preventDefault(); e.stopPropagation();
     feedback.press();
-    openPrivacy();
+    openPrivacy('btnPrivacyInline');
   });
-  on('btnPrivacyBack', 'back', () => { const pl = $('privacyLayer'); if (pl) pl.hidden = true; });
+  on('btnPrivacyBack', 'back', closePrivacy);
   haptics?.attachAll?.($('privacyLayer'));
   // ⚠️ DO NOT LET A TAP MOVE THE CARD OUT FROM UNDER THE THUMB.
   // The card slides up while a field has focus. Tapping the tick blurs the
@@ -958,23 +1013,71 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
     api.close();
   });
 
+  // ── THE PANEL ITSELF GROWS OUT OF THE CONTROL THAT OPENED IT ──────────
+  //
+  // `opts.from` is a function returning that control's rect in client space
+  // (the title's OPTIONS and contest banner are painted on the canvas, so only
+  // main.js can say where they are). No `from`, no motion: the panel is then
+  // opened by the game itself, not a tap, and there is no control to come out
+  // of.
+  //
+  // ⚠️ VISUAL ONLY, AND NEVER LATE. open() and close() change every flag and
+  // call onClose in the same tick they always did, so pausing and resuming
+  // are as instant as ever. close() hides the panel at once too; what lingers
+  // is a CSS override (.glide-out) that keeps the already-closed element
+  // painted for the length of the shrink, and lets taps through it.
+  let fromFn = null;
+  const lingering = new Set();
+  const settle = (node) => {
+    node.classList.remove('glide-out');
+    release(node); release(node === el ? panelCard : $('entryPlate'));
+    lingering.delete(node);
+  };
   const api = {
     get isOpen() { return open; },
     open(view = 'board', opts = {}) {
+      cancelGlide();
+      for (const n of [...lingering]) settle(n);
       open = true;
       el.hidden = false;
       flow = opts.flow || 'menu';
+      fromFn = typeof opts.from === 'function' ? opts.from : null;
+      formFrom = null;
       show(view);
+      const f = fromFn && fromFn();
+      if (f) {
+        if (view === 'form') {
+          growIn($('entryPlate'), f);
+          fade(layer, true);
+        } else {
+          growIn(panelCard, f);
+          fade(el, true);
+        }
+      }
     },
-    close() {
+    close(opts = {}) {
       if (!open) return;
+      cancelGlide();
       open = false;
+      // Measured BEFORE anything is hidden: a hidden element has no rect.
+      const f = !opts.instant && fromFn ? fromFn() : null;
+      fromFn = null;
+      const wasForm = !!layer && !layer.hidden;
+      const node = wasForm ? layer : el;
+      const card = wasForm ? $('entryPlate') : panelCard;
+      if (f) { node.classList.add('glide-out'); lingering.add(node); }
       el.hidden = true;
       // ⚠️ THE LAYER IS NOT INSIDE #panel ANY MORE, so hiding the panel no
       // longer hides it. Closing while the form is up used to remove both at
       // once by containment; now it has to be said. Missing this leaves the
       // sign-up card stranded over the game with nothing behind it.
       if (layer) layer.hidden = true;
+      if (f) {
+        const a = shrinkOut(card, f);
+        fade(node, false);
+        const end = () => settle(node);
+        if (a) a.finished.then(end, end); else end();
+      }
       onClose?.();
     },
   };
