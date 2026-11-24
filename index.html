@@ -848,7 +848,8 @@
       border: 2px solid rgba(255,214,110,0.28);
       background: #0b0912; line-height: 0;
     }
-    #howList .howShot { display: block; width: 100%; height: auto; }
+    #howList .howShot { display: block; width: 100%; height: auto; aspect-ratio: 520 / 354; }
+    #entryHead:focus, #privacyHead:focus { outline: none; }
     #howList .mark {
       position: absolute; left: 4px; bottom: 3px;
       font: 800 15px/1 system-ui, sans-serif;
@@ -1031,7 +1032,7 @@
       #tDash { width: 62px; height: 62px; bottom: calc(96px + env(safe-area-inset-bottom, 0px)); }
     }
   </style>
-  <script type="module" crossorigin src="./assets/index-Dmj2KhUq.js"></script>
+  <script type="module" crossorigin src="./assets/index-C9EUBvzM.js"></script>
 </head>
 <body>
   <canvas id="game" aria-label="Will Hill: Player One — the game">
@@ -1097,29 +1098,29 @@
           </li>
           <li>
             <span class="howPair">
-              <figure><img class="howShot" data-shot="pothole-bad" alt="Stepping into a pothole" /><span class="mark bad">✕</span></figure>
-              <figure><img class="howShot" data-shot="pothole-good" alt="Jumping the pothole" /><span class="mark good">✓</span></figure>
+              <figure><img class="howShot" data-shot="pothole-bad" alt="Stepping into a pothole" /><span aria-hidden="true" class="mark bad">✕</span></figure>
+              <figure><img class="howShot" data-shot="pothole-good" alt="Jumping the pothole" /><span aria-hidden="true" class="mark good">✓</span></figure>
             </span>
             <span class="howTxt"><b>POTHOLE</b>Jump it.</span>
           </li>
           <li>
             <span class="howPair">
-              <figure><img class="howShot" data-shot="manhole-bad" alt="Falling into an open manhole" /><span class="mark bad">✕</span></figure>
-              <figure><img class="howShot" data-shot="manhole-good" alt="Jumping the manhole" /><span class="mark good">✓</span></figure>
+              <figure><img class="howShot" data-shot="manhole-bad" alt="Falling into an open manhole" /><span aria-hidden="true" class="mark bad">✕</span></figure>
+              <figure><img class="howShot" data-shot="manhole-good" alt="Jumping the manhole" /><span aria-hidden="true" class="mark good">✓</span></figure>
             </span>
             <span class="howTxt"><b>MANHOLE</b>Jump it.</span>
           </li>
           <li>
             <span class="howPair">
-              <figure><img class="howShot" data-shot="ninja-bad" alt="Walking into a street ninja" /><span class="mark bad">✕</span></figure>
-              <figure><img class="howShot" data-shot="ninja-good" alt="Landing on the ninja's head" /><span class="mark good">✓</span></figure>
+              <figure><img class="howShot" data-shot="ninja-bad" alt="Walking into a street ninja" /><span aria-hidden="true" class="mark bad">✕</span></figure>
+              <figure><img class="howShot" data-shot="ninja-good" alt="Landing on the ninja's head" /><span aria-hidden="true" class="mark good">✓</span></figure>
             </span>
             <span class="howTxt"><b>NINJA</b>Jump on him. +$50</span>
           </li>
           <li>
             <span class="howPair">
-              <figure><img class="howShot" data-shot="champagne-bad" alt="Running past the champagne" /><span class="mark bad">✕</span></figure>
-              <figure><img class="howShot" data-shot="champagne-good" alt="Grabbing the champagne" /><span class="mark good">✓</span></figure>
+              <figure><img class="howShot" data-shot="champagne-bad" alt="Running past the champagne" /><span aria-hidden="true" class="mark bad">✕</span></figure>
+              <figure><img class="howShot" data-shot="champagne-good" alt="Grabbing the champagne" /><span aria-hidden="true" class="mark good">✓</span></figure>
             </span>
             <span class="howTxt"><b>CHAMPAGNE</b>Double money, 9 seconds.</span>
           </li>
@@ -1131,9 +1132,9 @@
         <div id="lbCard">
           <ol id="board"></ol>
           <div id="lbYou" hidden><span class="r"></span><span class="n"></span><span class="s"></span></div>
-          <p id="lbEmpty" hidden></p>
+          <p id="lbEmpty" hidden aria-live="polite"></p>
           
-          <p id="boardNote" class="note"></p>
+          <p id="boardNote" class="note" aria-live="polite"></p>
           
           <div id="lbActions">
             <button class="btn card" id="btnRegister" type="button">ENTER THE CONTEST</button>
@@ -1175,14 +1176,14 @@
 
   
     
-    <div id="entryLayer" hidden>
+    <div id="entryLayer" hidden role="dialog" aria-modal="true" aria-labelledby="entryHead">
       <div id="entryPlate">
         
         <div id="entryLogo" aria-hidden="true"></div>
         <div id="pvForm" class="pv" hidden>
           
           <div class="kick" aria-hidden="true">WILL HILL · PLAYER ONE</div>
-          <h2 id="entryHead">ENTER THE CONTEST</h2>
+          <h2 id="entryHead" tabindex="-1">ENTER THE CONTEST</h2>
           
 
           
@@ -1213,7 +1214,7 @@
               <button type="button" id="btnPrivacyInline">Privacy Policy</button>
             </label>
           </div>
-          <p id="formErr" class="err" hidden></p>
+          <p id="formErr" class="err" hidden role="alert"></p>
           <button class="btn" id="btnSave" type="button">SAVE &amp; ENTER</button>
           
           <button class="btn ghost" id="btnSkip" type="button">play without entering</button>
@@ -1225,10 +1226,10 @@
       </div>
     </div>
     
-    <div id="privacyLayer" hidden>
+    <div id="privacyLayer" hidden role="dialog" aria-modal="true" aria-labelledby="privacyHead">
       <div id="privacyCard">
         <div class="kick" aria-hidden="true">WILL HILL · PLAYER ONE</div>
-        <h2 id="privacyHead">PRIVACY POLICY</h2>
+        <h2 id="privacyHead" tabindex="-1">PRIVACY POLICY</h2>
         <div id="privacyBody">
           <p><b>What we collect.</b> Your display name, which is shown
           publicly on the leaderboard — that is its whole job. Your phone
