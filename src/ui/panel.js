@@ -286,7 +286,9 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
     // screens merely load one on top of the other.
     const overlay = view === 'form';
     if (layer) {
+      const wasHidden = layer.hidden;
       layer.hidden = !overlay;
+      if (overlay && wasHidden) requestAnimationFrame(() => { if (!layer.hidden) $('entryHead')?.focus({ preventScroll: true }); });
       // The stylesheet hides the card's own title-lockup crop on the
       // journeys where the REAL title screen is behind the scrim showing its
       // full-width lockup already ('start'/'title') — a small copy floating
@@ -414,7 +416,7 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
     top.forEach((r, i) => {
       const li = document.createElement('li');
       li.style.top = `${ROW_TOP[i] * 100}%`;
-      if (r.me || String(r.name || '').toLowerCase() === me) li.className = 'me';
+      if (r.me || String(r.name || '').toLowerCase() === me) { li.className = 'me'; li.setAttribute('aria-current', 'true'); }
       const rank = document.createElement('span');
       rank.className = 'r';
       rank.textContent = String(i + 1);
@@ -546,7 +548,7 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
     // NOW, then re-opening left a field still flagged with no message beside
     // it saying why. In the plain panel that was a one-pixel tint; in the
     // cabinet it is a red field sitting on his artwork.
-    for (const id of ['fName', 'fPhone', 'fEmail', 'fAgree']) $(id).classList.remove('bad');
+    for (const id of ['fName', 'fPhone', 'fEmail', 'fAgree']) { $(id).classList.remove('bad'); $(id).removeAttribute('aria-invalid'); $(id).removeAttribute('aria-describedby'); }
     n.value = lbName() === 'PLAYER ONE' ? '' : lbName();
     $('fPhone').value = reg.phone || '';
     $('fEmail').value = reg.email || '';
@@ -569,13 +571,15 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
       // (if any) before the consent gate.
       ['fAgree', agreeProblem($('fAgree')?.checked)],
     ];
-    for (const [id] of checks) $(id).classList.remove('bad');
+    for (const [id] of checks) { $(id).classList.remove('bad'); $(id).removeAttribute('aria-invalid'); $(id).removeAttribute('aria-describedby'); }
     const bad = checks.find(([, problem]) => problem);
     if (bad) {
       const [id, problem] = bad;
       err.textContent = problem;
       err.hidden = false;
       $(id).classList.add('bad');
+      $(id).setAttribute('aria-invalid', 'true');
+      $(id).setAttribute('aria-describedby', 'formErr');
       $(id).focus();
       // The descending pair, not the triad. On a phone the keyboard is over
       // the error line at exactly this moment, so the sound is often the only
@@ -832,6 +836,7 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
     pl.hidden = false;
     const b = $(id);
     growIn($('privacyCard'), b && b.getBoundingClientRect(), { duration: 240 });
+    $('privacyHead')?.focus({ preventScroll: true });
   };
   const closePrivacy = () => {
     const pl = $('privacyLayer');
@@ -839,6 +844,7 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
     const b = privacyFrom && $(privacyFrom);
     pl.classList.add('glide-out');
     pl.hidden = true;
+    if (b && b.offsetParent !== null) b.focus({ preventScroll: true });
     const a = shrinkOut($('privacyCard'), b && b.getBoundingClientRect());
     const end = () => { pl.classList.remove('glide-out'); release($('privacyCard')); };
     if (a) a.finished.then(end, end); else end();
@@ -858,6 +864,13 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
     openPrivacy('btnPrivacyInline');
   });
   on('btnPrivacyBack', 'back', closePrivacy);
+  // Escape backs out of the policy card (capture, so it does not also close the panel underneath).
+  window.addEventListener('keydown', (e) => {
+    const pl = $('privacyLayer');
+    if (e.key !== 'Escape' || !pl || pl.hidden) return;
+    e.preventDefault(); e.stopImmediatePropagation();
+    $('btnPrivacyBack')?.click();
+  }, true);
   haptics?.attachAll?.($('privacyLayer'));
   // ⚠️ DO NOT LET A TAP MOVE THE CARD OUT FROM UNDER THE THUMB.
   // The card slides up while a field has focus. Tapping the tick blurs the
@@ -927,6 +940,8 @@ export function createPanel({ onClose, onTimeOfDayChange, onSoundChange,
   for (const id of ['fName', 'fPhone', 'fEmail']) {
     $(id).addEventListener('input', () => {
       $(id).classList.remove('bad');
+      $(id).removeAttribute('aria-invalid');
+      $(id).removeAttribute('aria-describedby');
       $('formErr').hidden = true;
     });
     // ── LIFT THE CABINET WHILE THE KEYBOARD IS UP ────────────────────────
