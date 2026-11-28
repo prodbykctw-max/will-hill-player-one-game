@@ -547,7 +547,7 @@ h1.pt{font-size:22px;font-weight:700;margin:0 0 16px;color:var(--sf-text)}
 .slds-toggle.on{background:var(--sf-green)}
 .slds-toggle.on::after{left:18px}
 .badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;
-  padding:3px 8px;border-radius:999px;text-transform:uppercase;letter-spacing:.03em}
+  padding:3px 8px;padding-left:max(3px,calc(.5lh));padding-right:calc(8px + (3px + .5lh)*(1 - pi/4));border-radius:999px;text-transform:uppercase;letter-spacing:.03em}
 .badge.open{background:var(--sf-green-bg);color:var(--sf-green)}
 .badge.closed{background:#f3f2f2;color:var(--sf-text-3)}
 .badge .dot{width:6px;height:6px;border-radius:50%;background:currentColor}
